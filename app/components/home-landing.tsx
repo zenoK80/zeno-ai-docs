@@ -213,7 +213,7 @@ export function HomeLanding() {
             <p>읽고, 실행하고, 내 것으로 만드는 개인 학습 문서.</p>
           </div>
           <nav aria-label="외부 링크" className={styles.footerNav}>
-              <Link href="/blog" onClick={(event) => { event.preventDefault(); showComingSoon('Blog') }}>Blog</Link>
+              <a href="https://blog.zeno.it.kr" target="_blank" rel="noreferrer">Blog</a>
               <Link href="/portfolio" onClick={(event) => { event.preventDefault(); showComingSoon('Portfolio') }}>Portfolio</Link>
               <a href="https://github.com/zenoK80" target="_blank" rel="noreferrer">GitHub</a>
             </nav>

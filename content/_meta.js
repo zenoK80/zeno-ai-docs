@@ -19,8 +19,34 @@ const meta = {
       copyPage: false,
     },
   },
-  html: comingSoonMenu('HTML'),
-  css: comingSoonMenu('CSS'),
+  html: {
+    title: 'HTML',
+    type: 'menu',
+    items: {
+      html_fundamentals: {
+        title: 'HTML 기본기',
+        href: '/html/html_fundamentals/01_what-is-html-and-its-role',
+      },
+      modern_html: {
+        title: '모던 HTML',
+        href: '/html/modern_html/01_why-modern-html',
+      },
+    },
+  },
+  css: {
+    title: 'CSS',
+    type: 'menu',
+    items: {
+      css_fundamentals: {
+        title: 'CSS 기본기',
+        href: '/css/css_fundamentals/01_what-is-css',
+      },
+      modern_css: {
+        title: '모던 CSS',
+        href: '/css/modern_css/01_modern-css-boundary',
+      },
+    },
+  },
   javascript: {
     title: 'JavaScript',
     type: 'menu',

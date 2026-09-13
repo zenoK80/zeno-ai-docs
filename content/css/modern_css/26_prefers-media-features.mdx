@@ -1,0 +1,241 @@
+---
+title: '26. prefers-*로 사용자 선호에 맞추기'
+description: '모션·색상·대비·데이터 절약에 대한 사용자의 시스템 설정을 CSS 미디어 쿼리로 읽어 접근성을 기본값으로 설계하는 법을 다룬다'
+---
+
+<Callout type="info">
+  **이번 문서의 목표:** 이 문서를 다 읽으면 `prefers-reduced-motion`·`prefers-color-scheme`·`prefers-contrast`·`prefers-reduced-data` 네 가지 사용자 선호 미디어 기능을 구분해 설명하고, 이를 활용해 "물어보지 않아도 사용자의 환경 설정을 존중하는" CSS를 작성할 수 있게 됩니다.
+</Callout>
+
+## 왜 필요한가
+
+지금까지 다룬 미디어 쿼리(media query, CSS Fundamentals 범위)는 대부분 화면 폭 같은 **기기의 물리적 특성**을 물었습니다. 그런데 사용자의 운영체제나 브라우저에는 화면 크기와 무관한 또 다른 설정이 있습니다. "애니메이션을 줄여줘", "어두운 화면을 써줘", "글자와 배경 대비를 더 세게 해줘", "데이터를 아껴줘" 같은 **개인 선호 설정**입니다.
+
+이런 설정은 대개 접근성 설정(설정 앱의 손쉬운 사용·접근성 메뉴)에서 켭니다. 전정 기능(vestibular system, 몸의 균형을 담당하는 내이 감각 기관) 장애가 있는 사용자는 화면이 크게 움직이는 애니메이션에 어지러움이나 메스꺼움을 느낄 수 있습니다. 저시력 사용자는 기본 대비로는 글자를 읽기 어려울 수 있습니다. 이런 설정을 웹사이트가 무시하고 화려한 애니메이션과 낮은 대비의 디자인을 강행하면, 그 사용자에게는 사이트가 아예 쓸 수 없는 상태가 됩니다.
+
+> **쉽게 말하면:** `prefers-*`(선호-무엇)로 시작하는 미디어 기능들은 "운영체제 설정에서 사용자가 무엇을 원한다고 미리 답했는지"를 CSS가 물어보는 창구입니다. 사용자에게 다시 묻지 않고도 그 답을 존중할 수 있습니다.
+
+## 1. prefers-reduced-motion — 움직임을 줄여 달라는 요청
+
+### 정의
+
+`prefers-reduced-motion`(모션 줄임 선호)은 사용자가 운영체제에서 "동작 줄이기"류 설정을 켰는지 알려줍니다.
+
+| 값 | 의미 |
+|---|---|
+| `no-preference` | 특별히 설정하지 않음(기본값) |
+| `reduce` | 움직임을 최소화해 달라는 설정을 켬 |
+
+```css
+.hero-banner {
+  animation: slide-in 0.6s ease-out;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .hero-banner {
+    animation: none;
+  }
+}
+```
+
+애니메이션을 완전히 없애기보다, **의미 전달에 필요한 최소한의 상태 변화**(예: 페이드인 정도)만 남기고 회전·확대·자동 재생 캐러셀 같은 큰 움직임만 제거하는 것이 더 나은 경우가 많습니다.
+
+<Callout type="warning">
+  **자주 틀리는 점:** `prefers-reduced-motion: reduce`를 "애니메이션을 아예 쓰면 안 된다"로 오해하기 쉽습니다. 실제로는 "불필요하게 큰 움직임을 줄여 달라"는 요청입니다. 로딩 스피너처럼 정보 전달에 꼭 필요한 최소한의 움직임까지 없앨 필요는 없습니다.
+</Callout>
+
+## 2. prefers-color-scheme — 밝은 화면과 어두운 화면
+
+### 정의
+
+`prefers-color-scheme`(색 배색 선호)은 사용자가 운영체제 수준에서 라이트 모드와 다크 모드 중 무엇을 쓰는지 알려줍니다.
+
+| 값 | 의미 |
+|---|---|
+| `light` | 밝은 배색을 선호 |
+| `dark` | 어두운 배색을 선호 |
+
+```css
+body {
+  background: white;
+  color: black;
+}
+
+@media (prefers-color-scheme: dark) {
+  body {
+    background: black;
+    color: white;
+  }
+}
+```
+
+이 미디어 기능은 17편에서 다룬 `color-scheme` 속성·`light-dark()` 함수와 짝을 이룹니다. `color-scheme: light dark`를 선언해 두면 브라우저 기본 UI(스크롤바, 폼 컨트롤 테두리 등)도 함께 전환되고, `light-dark()`로 값 두 개를 한 번에 지정할 수 있습니다. `prefers-color-scheme`는 "지금 사용자 환경이 어느 쪽인가"를 **판별**하는 미디어 쿼리이고, `light-dark()`는 그 판별 결과에 따라 **값을 고르는** 함수라는 역할 차이가 있습니다. 자세한 설계 패턴은 17편을 참조하세요.
+
+## 3. prefers-contrast — 대비를 더 세게 또는 약하게
+
+### 정의
+
+`prefers-contrast`(대비 선호)는 사용자가 시스템에서 고대비 모드 같은 설정을 켰는지 알려줍니다.
+
+| 값 | 의미 |
+|---|---|
+| `no-preference` | 기본값 |
+| `more` | 더 강한 대비를 원함 |
+| `less` | 더 약한(부드러운) 대비를 원함 |
+| `custom` | 시스템이 커스텀 색상표를 강제하는 등 표준 대비 단계로 분류되지 않는 상태 |
+
+```css
+.button {
+  border: 1px solid #999;
+}
+
+@media (prefers-contrast: more) {
+  .button {
+    border: 2px solid black;
+  }
+}
+```
+
+저시력 사용자나 눈부심에 민감한 사용자를 위한 설정입니다. `more`일 때 테두리를 굵게 하거나 글자와 배경의 명도 차이를 키우고, `less`일 때는 과도하게 쨍한 배색을 눈에 편하게 낮춰주는 식으로 응답합니다.
+
+## 4. prefers-reduced-data — 데이터를 아껴 달라는 요청
+
+### 정의
+
+`prefers-reduced-data`(데이터 절약 선호)는 사용자가 브라우저나 네트워크 설정에서 데이터 절약 모드를 켰는지 알려줍니다.
+
+| 값 | 의미 |
+|---|---|
+| `no-preference` | 기본값 |
+| `reduce` | 데이터 사용을 줄여 달라는 설정을 켬 |
+
+```css
+.hero-video {
+  background-image: url('hero-poster.jpg');
+}
+
+@media (prefers-reduced-data: reduce) {
+  .hero-video {
+    background-image: none; /* 배경 동영상 대신 단색이나 저용량 이미지로 대체 */
+  }
+}
+```
+
+모바일 데이터 요금이 부담스러운 사용자나 네트워크가 느린 환경의 사용자를 위한 설정입니다. 배경 동영상, 고해상도 배경 이미지, 자동 재생 미디어처럼 용량이 큰 리소스를 CSS 단계에서부터 아예 불러오지 않게 만들 수 있습니다.
+
+## 네 가지 비교
+
+| 미디어 기능 | 무엇을 묻는가 | 대표 대응 |
+|---|---|---|
+| `prefers-reduced-motion` | 움직임을 줄여야 하는가 | 애니메이션 제거·축소 |
+| `prefers-color-scheme` | 밝은가 어두운가 | 배색 전환(17편의 `light-dark()`와 연동) |
+| `prefers-contrast` | 대비를 세게 또는 약하게 | 테두리·명도 차이 조정 |
+| `prefers-reduced-data` | 데이터를 아껴야 하는가 | 무거운 배경 리소스 생략 |
+
+네 기능 모두 2026년 9월 기준 **널리 사용 가능**(Baseline: Widely available)한 접근성 기본기입니다. 오래전에 안정화되어 폴백 걱정 없이 바로 써도 됩니다.
+
+## 실습 — 모션 선호에 반응하는 카드
+
+<CodePlayground
+  template="static"
+  activeFile="/styles.css"
+  label="브라우저·운영체제의 동작 줄이기 설정을 켜고 다시 확인해 보세요"
+  files={{
+    '/index.html': `<div class="card">
+  <p>이 카드에 마우스를 올려 보세요.</p>
+</div>`,
+    '/styles.css': `body { font-family: sans-serif; padding: 40px; }
+.card {
+  padding: 24px;
+  border-radius: 12px;
+  background: #eef2ff;
+  transition: transform 0.4s ease;
+}
+.card:hover {
+  transform: scale(1.1) rotate(3deg);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .card {
+    transition: none;
+  }
+  .card:hover {
+    transform: none;
+  }
+}`,
+  }}
+/>
+
+운영체제의 "동작 줄이기"(Windows: 설정 > 접근성 > 시각 효과, macOS: 시스템 설정 > 손쉬운 사용 > 동작 줄이기)를 켜고 이 페이지를 새로고침하면 회전·확대가 사라지는 것을 확인할 수 있습니다.
+
+<Callout type="warning">
+  **자주 틀리는 점:** `prefers-*` 미디어 쿼리는 자바스크립트로 감지하려면 `window.matchMedia('(prefers-reduced-motion: reduce)')`처럼 별도 API가 필요합니다. CSS의 `@media` 블록과 자바스크립트의 `matchMedia`는 같은 조건을 읽지만 서로 다른 코드로, 애니메이션을 CSS `transition`/`animation`이 아니라 자바스크립트로 직접 구현했다면 CSS `@media` 블록만으로는 그 자바스크립트 애니메이션을 막을 수 없습니다.
+</Callout>
+
+## 핵심 정리
+
+- `prefers-*` 미디어 기능은 사용자가 운영체제·브라우저에 미리 설정해 둔 접근성 선호를 CSS가 읽는 창구다.
+- `prefers-reduced-motion: reduce`는 움직임을 완전히 없애라는 뜻이 아니라 불필요하게 큰 움직임을 줄이라는 요청이다.
+- `prefers-color-scheme`은 라이트/다크를 판별하고, 17편의 `light-dark()`·`color-scheme`과 짝을 이뤄 다크모드를 구현한다.
+- `prefers-contrast`는 저시력·눈부심 민감 사용자를 위한 대비 조정, `prefers-reduced-data`는 데이터 절약을 위한 리소스 생략에 쓰인다.
+- 네 기능 모두 널리 사용 가능한 기본기이므로 폴백 없이 바로 도입할 수 있다.
+
+## 마무리 복습
+
+<Quiz
+  questionNumber={1}
+  question="prefers-reduced-motion: reduce에 대한 올바른 이해는?"
+  options={['모든 애니메이션과 전환 효과를 무조건 없애야 한다는 뜻이다', '불필요하게 큰 움직임을 줄여 달라는 요청이며 최소한의 의미 전달용 움직임은 남길 수 있다', '사용자가 애니메이션 속도를 두 배로 빠르게 해 달라는 뜻이다', '색맹 사용자를 위한 설정이다']}
+  correctAnswer={2}
+  explanation="reduce는 전정 기능 장애가 있는 사용자 등을 위해 큰 움직임을 줄여 달라는 요청이며, 정보 전달에 필요한 최소한의 움직임까지 반드시 없애야 하는 것은 아니다."
+  optionExplanations={['모든 움직임을 없애야 한다는 뜻은 아니다', '정답 — 움직임 최소화 요청이지 완전 금지가 아니다', '속도 조정과는 무관한 설정이다', '색맹은 prefers-contrast나 다른 접근성 요소와 관련된 주제다']}
+/>
+
+<Quiz
+  questionNumber={2}
+  question="prefers-color-scheme과 light-dark() 함수의 관계로 옳은 것은?"
+  options={['둘은 동일한 기능이며 서로 대체 가능하다', 'prefers-color-scheme은 라이트/다크 여부를 판별하는 미디어 쿼리이고 light-dark()는 그 결과에 따라 값을 고르는 함수다', 'light-dark()가 prefers-color-scheme을 완전히 대체해 미디어 쿼리가 필요 없어졌다', 'prefers-color-scheme은 자바스크립트 전용 기능이다']}
+  correctAnswer={2}
+  explanation="prefers-color-scheme은 CSS에서 사용자 환경이 밝은지 어두운지 판별하는 미디어 쿼리이고, light-dark()는 그 판별 결과에 맞춰 색 값 두 가지 중 하나를 고르는 함수로 서로 역할이 다르다."
+  optionExplanations={['역할이 다른 별개 기능이다', '정답 — 판별과 값 선택이라는 서로 다른 역할을 한다', 'light-dark()도 color-scheme 설정과 함께 동작하며 미디어 쿼리를 완전히 대체하지 않는다', 'CSS 미디어 쿼리이지 자바스크립트 전용이 아니다']}
+/>
+
+<Quiz
+  questionNumber={3}
+  question="prefers-contrast: more에 대한 적절한 대응으로 가장 알맞은 것은?"
+  options={['글자 크기를 무조건 두 배로 키운다', '테두리를 굵게 하거나 글자와 배경의 명도 차이를 키운다', '모든 애니메이션을 제거한다', '데이터가 적게 드는 이미지로 교체한다']}
+  correctAnswer={2}
+  explanation="prefers-contrast: more는 저시력 사용자 등을 위해 더 강한 대비를 요청하는 설정이므로, 테두리를 굵게 하거나 명도 차이를 키우는 방식으로 응답하는 것이 적절하다."
+  optionExplanations={['글자 크기 조정은 이 미디어 기능이 직접 다루는 영역이 아니다', '정답 — 대비를 강화하는 대응이다', '애니메이션 제거는 prefers-reduced-motion의 영역이다', '이미지 교체는 prefers-reduced-data의 영역이다']}
+/>
+
+<Quiz
+  questionNumber={4}
+  question="prefers-reduced-data: reduce를 활용하기에 가장 적절한 예는?"
+  options={['버튼 hover 애니메이션을 제거한다', '다크 모드 배색으로 전환한다', '고화질 배경 동영상 대신 단색 배경이나 저용량 이미지를 사용한다', '포커스 표시 색상을 바꾼다']}
+  correctAnswer={3}
+  explanation="prefers-reduced-data는 데이터 절약을 원하는 사용자를 위한 설정이므로, 용량이 큰 배경 동영상이나 고해상도 이미지를 가벼운 대체물로 바꾸는 것이 적절한 대응이다."
+  optionExplanations={['애니메이션 제거는 prefers-reduced-motion의 영역이다', '배색 전환은 prefers-color-scheme의 영역이다', '정답 — 데이터 용량을 줄이는 대응이다', '포커스 색상은 accent-color·focus-visible과 관련된 주제다']}
+/>
+
+<Quiz
+  questionNumber={5}
+  question="2026년 9월 기준 네 가지 prefers-* 미디어 기능의 지원 상태는?"
+  options={['넷 다 아직 실험적 단계라 실무에 쓸 수 없다', '넷 다 널리 사용 가능한(Widely available) 접근성 기본기다', '일부만 지원되며 나머지는 곧 폐지될 예정이다', '데스크톱 브라우저에서만 지원되고 모바일에서는 지원되지 않는다']}
+  correctAnswer={2}
+  explanation="prefers-reduced-motion, prefers-color-scheme, prefers-contrast, prefers-reduced-data는 모두 Baseline 기준 널리 사용 가능한 기능으로 분류되어 폴백 걱정 없이 도입할 수 있다."
+  optionExplanations={['오래전에 안정화된 접근성 기본기다', '정답 — 폴백 없이 바로 쓸 수 있는 수준이다', '폐지 예정이라는 근거는 없다', '모바일 브라우저에서도 동일하게 지원된다']}
+/>
+
+<Quiz
+  questionNumber={6}
+  question="자바스크립트로 직접 구현한 애니메이션에 대해 CSS의 @media (prefers-reduced-motion: reduce) 블록만으로 충분한 이유가 없는 것은?"
+  options={['CSS @media 블록은 CSS 속성에만 적용되고 자바스크립트 로직을 직접 멈추지 않기 때문이다', 'CSS와 자바스크립트는 완전히 동일한 문법을 공유하기 때문에 항상 자동 연동된다', 'prefers-reduced-motion은 CSS에서만 존재하고 자바스크립트에서는 감지할 방법이 없기 때문이다', '자바스크립트 애니메이션은 항상 자동으로 감지되어 멈추기 때문이다']}
+  correctAnswer={1}
+  explanation="CSS의 @media 블록은 CSS 규칙 안에서만 동작하므로, 애니메이션이 자바스크립트 코드로 직접 구현되어 있다면 별도로 window.matchMedia로 값을 읽어 로직을 분기해야 한다."
+  optionExplanations={['정답 — CSS 블록은 CSS 속성만 제어할 뿐 별도 자바스크립트 로직을 멈추지 못한다', 'CSS와 자바스크립트는 별개의 실행 맥락이라 자동 연동되지 않는다', 'window.matchMedia로 자바스크립트에서도 동일한 선호를 읽을 수 있다', '자동으로 멈추지 않으며 개발자가 직접 분기 처리해야 한다']}
+/>
+
+## 참고 자료
+
+- [MDN - prefers-reduced-motion](https://developer.mozilla.org/en-US/docs/Web/CSS/@media/prefers-reduced-motion)

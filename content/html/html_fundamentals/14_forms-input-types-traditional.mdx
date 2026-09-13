@@ -1,0 +1,206 @@
+---
+title: '14. 폼 입력의 전통적 타입'
+description: 'text·password·checkbox·radio·hidden·file 여섯 가지 전통적 input 타입과 name/value 짝짓기, checked·disabled·readonly 불리언 속성 규약을 다룬다'
+---
+
+<Callout type="info">
+  **이번 문서의 목표:** 이 문서를 다 읽으면 `<input>`의 `type` 값에 따라 화면과 제출 데이터가 어떻게 달라지는지 여섯 가지 전통적 타입으로 설명하고, `name`/`value`가 짝지어지는 원리와 `checked`·`disabled`·`readonly`의 차이를 정확히 구분할 수 있습니다.
+</Callout>
+
+## 왜 `<input>` 하나가 이렇게 많은 일을 하는가
+
+텍스트 상자, 체크박스, 라디오 버튼, 파일 선택 창은 화면에서 전혀 다르게 생겼습니다. 그런데 이 넷은 전부 `<input>`이라는 **같은 요소**입니다. 차이는 오직 `type` 속성 값입니다.
+
+이건 설계가 우아해서가 아니라 역사적 이유입니다. HTML 초창기부터 새로운 입력 방식이 필요할 때마다 새 요소를 만드는 대신 `<input>`의 `type` 값을 하나씩 추가해 왔습니다. 그 결과 `<input>`은 지금도 계속 늘어나는 "타입 카탈로그"가 되었습니다. 이 편은 그중 웹 초기부터 있었던 **전통적인** 여섯 타입만 다룹니다. `color`, `date`, `range`처럼 비교적 최근에 Baseline(브라우저 대부분이 지원하기 시작한 기준선)에 들어온 타입과, 입력값을 실시간으로 검사하는 Constraint Validation(제약 검증) API는 `html/modern_html` 과목의 몫입니다.
+
+> **쉽게 말하면:** `<input>`은 화면 모양이 여러 개인 만능 상자입니다. `type` 값이 "오늘은 어떤 모습으로 나타날지"를 결정합니다.
+
+## 1. 여섯 가지 전통적 타입
+
+`<input>`은 `<br>`이나 `<img>`처럼 닫는 태그가 없는 **빈 요소**(void element)입니다(02편 참조). 아래 표는 각 타입의 정체와 제출 데이터의 특징입니다.
+
+| `type` 값 | 화면 모습 | 제출 데이터의 특징 |
+|-----------|-----------|---------------------|
+| `text` | 한 줄 텍스트 상자 | 입력한 문자열이 그대로 `name`의 값으로 전송 |
+| `password` | 입력 글자가 점(•)으로 가려짐 | 화면 표시만 가려질 뿐, 전송되는 값은 평문 그대로. 통신 자체를 암호화하는 것은 HTTPS의 몫이지 이 타입의 몫이 아니다 |
+| `checkbox` | 체크 또는 미체크 두 상태 | 체크된 것만 전송된다. 미체크 상태는 `name` 자체가 통째로 빠진다(값이 `false`나 빈 문자열로 오지 않는다) |
+| `radio` | 여러 개 중 하나만 선택 | 같은 `name`을 공유한 그룹에서 선택된 하나만 전송. `name`이 다르면 그룹이 성립하지 않는다 |
+| `hidden` | 화면에 전혀 보이지 않음 | 사용자가 건드릴 수 없지만 값은 다른 입력과 똑같이 전송된다 |
+| `file` | 파일 선택 창을 여는 버튼 | 실제 파일 내용까지 전송하려면 `<form>`의 `enctype`을 바꿔야 한다(16편에서 다룬다) |
+
+<Callout type="warning">
+  **자주 틀리는 점:** `type="password"`는 **보이지 않게 가리는 것**일 뿐 그 자체로 보안 장치가 아닙니다. 평문 HTTP로 전송하면 통신 경로 어디서든 값이 그대로 노출됩니다. 실제 보안은 HTTPS 사용, 서버 측 해시 저장 같은 별개의 조치로 확보합니다.
+</Callout>
+
+## 2. `name`/`value` — 봉투 안 쪽지에 적히는 짝
+
+폼 전체가 하나의 봉투라면, 각 입력은 그 봉투 안에 들어가는 쪽지 한 장입니다. 쪽지에는 항상 **이름표와 값**이 짝을 이뤄 적힙니다. `name` 속성이 이름표, `value` 속성(또는 사용자가 입력한 내용)이 값입니다.
+
+```html
+<input type="text" name="username" value="" />
+<!-- 사용자가 "민준"을 입력하면 → username=민준 이라는 쪽지 -->
+
+<input type="checkbox" name="agree" value="yes" />
+<!-- 체크하면 → agree=yes 라는 쪽지. 체크 안 하면 쪽지 자체가 없다 -->
+```
+
+브라우저는 폼을 제출할 때 이런 쪽지들을 전부 모아 하나의 문자열로 인코딩합니다. 정확한 인코딩 규칙(`&`로 잇고 특수문자를 어떻게 바꾸는지)은 16편에서 실제로 관찰합니다. 이 편에서 반드시 짚어야 할 것은 **체크박스가 미체크 상태일 때는 이름표 자체가 봉투에서 빠진다**는 점입니다. 서버 입장에서는 `agree`라는 이름표가 오면 "체크됨", 오지 않으면 "체크 안 됨"으로 판단해야 하며, `agree=false`라는 쪽지가 오는 일은 없습니다.
+
+라디오 버튼은 여러 개가 **같은 `name`**을 가짐으로써 하나의 그룹으로 묶입니다.
+
+```html
+<label><input type="radio" name="size" value="s" /> S</label>
+<label><input type="radio" name="size" value="m" /> M</label>
+<label><input type="radio" name="size" value="l" /> L</label>
+<!-- name이 전부 "size"로 같으므로 이 셋 중 하나만 제출된다 -->
+```
+
+`name`을 실수로 다르게 주면(`size1`, `size2`, `size3`) 브라우저는 이 셋을 서로 무관한 입력으로 취급해 **여러 개를 동시에 선택할 수 있게** 됩니다. 이는 문법 오류가 아니라서 검증기도 잡아주지 않는, 순전히 논리적인 실수입니다.
+
+## 3. 불리언 속성 규약 — `checked`·`disabled`·`readonly`
+
+### "있으면 참, 없으면 거짓"
+
+HTML에는 **불리언 속성**(boolean attribute)이라는 특수한 규약이 있습니다. 이런 속성은 값의 내용이 아니라 **존재 여부**만으로 참/거짓을 나타냅니다. `checked`, `disabled`, `readonly`가 이 규약을 따릅니다.
+
+```html
+❌ <input type="checkbox" checked="false" />  <!-- 여전히 체크된 상태! -->
+✅ <input type="checkbox" checked />          <!-- 체크된 상태 -->
+✅ <input type="checkbox" />                  <!-- 체크 안 된 상태 -->
+```
+
+`checked="false"`처럼 값을 넣어도 **속성 자체가 존재하기 때문에** 여전히 참으로 해석됩니다. 이 규약은 12편에서 배운 `hidden` 전역 속성과 동일한 원리입니다. HTML을 처음 배울 때 프로그래밍 언어의 `false` 값 개념과 헷갈려서 가장 자주 틀리는 지점 중 하나입니다.
+
+### 세 속성의 차이
+
+| 속성 | 화면 | 사용자 조작 | 제출 데이터 |
+|------|------|-------------|-------------|
+| `checked` | 체크박스·라디오가 선택된 모양으로 보임 | 사용자가 클릭해서 바꿀 수 있음 | 체크 상태 그대로 반영되어 전송 |
+| `disabled` | 흐리게 표시, 초점을 받지 못함 | 사용자가 값을 바꿀 수 없고 클릭도 무시됨 | **아예 전송되지 않는다** — 봉투에서 통째로 빠짐 |
+| `readonly` | 정상 색으로 표시, 텍스트 선택은 가능 | 값을 편집할 수 없지만 초점은 받을 수 있음 | 기존 값 그대로 **전송된다** |
+
+`disabled`와 `readonly`를 헷갈리는 경우가 많습니다. 핵심 차이는 **제출 데이터**에 있습니다. `disabled` 입력은 서버가 그 이름표를 아예 받지 못하고, `readonly` 입력은 사용자가 못 고쳤을 뿐 값은 정상적으로 전송됩니다. 예를 들어 회원가입 폼에서 "가입 후 변경 불가"인 이메일을 보여만 주고 서버로는 계속 보내야 한다면 `readonly`를, 특정 조건에서 아예 그 입력을 제출 대상에서 빼야 한다면 `disabled`를 씁니다.
+
+### 상태 변화를 직접 관찰하기
+
+<CodePlayground
+  template="vanilla"
+  activeFile="/index.js"
+  showConsole
+  label="체크박스 상태와 disabled/readonly 차이를 콘솔로 확인하기"
+  files={{
+    '/index.html': `<form id="샘플폼">
+  <p>
+    <label><input type="checkbox" name="agree" value="yes" id="동의체크" /> 약관 동의</label>
+  </p>
+  <p>
+    <label>readonly 값: <input type="text" name="ro" value="고정값" readonly /></label>
+  </p>
+  <p>
+    <label>disabled 값: <input type="text" name="dis" value="비활성값" disabled /></label>
+  </p>
+  <button type="button" id="확인버튼">지금 체크 상태 확인</button>
+</form>`,
+    '/index.js': `const 체크박스 = document.getElementById("동의체크");
+const 확인버튼 = document.getElementById("확인버튼");
+
+확인버튼.addEventListener("click", () => {
+  console.log("체크박스.checked 값:", 체크박스.checked);
+  const 폼데이터 = new FormData(document.getElementById("샘플폼"));
+  console.log("현재 봉투(FormData)에 담긴 쪽지들:");
+  for (const [이름, 값] of 폼데이터.entries()) {
+    console.log("  " + 이름 + " = " + 값);
+  }
+});`,
+  }}
+/>
+
+체크박스를 체크하지 않은 채 버튼을 누르면 콘솔에 `agree` 쪽지가 아예 나타나지 않습니다. `ro`(readonly)는 값이 그대로 나타나지만, `dis`(disabled)는 봉투에서 완전히 빠져 있는 것도 함께 확인해 보세요. `FormData`(폼데이터)는 자바스크립트로 폼의 제출 데이터를 미리 들여다보는 도구이며, 이 값을 실제로 서버에 보내는 과정은 `javascript/web_apis` 과목의 몫입니다.
+
+## 4. 접근성 — 라디오와 체크박스의 키보드 조작
+
+체크박스는 `Space` 키로 토글합니다. 라디오 버튼 그룹은 조금 다릅니다. `Tab` 키는 그룹 전체에 한 번만 초점을 옮기고, 그룹 안에서는 방향키(`↑`/`↓` 또는 `←`/`→`)로 이동하며 이동과 동시에 선택이 바뀝니다. 이 동작은 `name`이 같은 라디오 버튼끼리 브라우저가 자동으로 하나의 그룹으로 묶어 주기 때문에 성립합니다 — `name`을 다르게 주는 실수를 하면 키보드 그룹 이동도 함께 깨집니다. `file` 타입은 `Enter`나 `Space`로 파일 선택 창을 열 수 있어 마우스 없이도 조작 가능합니다.
+
+## 자주 틀리는 점
+
+- 라디오 버튼에 같은 `name`을 주지 않아 그룹이 성립하지 않고 여러 개가 동시에 선택된다.
+- 체크박스가 미체크일 때 서버가 `false`나 빈 문자열을 받을 것이라 가정한다 — 실제로는 이름표 자체가 오지 않는다.
+- `checked="false"`, `disabled="false"`처럼 값을 넣으면 꺼진다고 착각한다 — 불리언 속성은 존재 자체가 참이다.
+- `disabled`와 `readonly`를 같은 것으로 혼동한다 — `disabled`는 제출 데이터에서 통째로 빠진다.
+- `type="password"`만 쓰면 안전하다고 오해한다 — 화면 표시만 가릴 뿐 전송 보안과는 무관하다.
+
+## 핵심 정리
+
+- `<input>`은 `type` 값으로 화면과 동작이 달라지는 하나의 요소다. 이 편은 `text`·`password`·`checkbox`·`radio`·`hidden`·`file` 여섯 가지 전통적 타입을 다룬다.
+- 제출 데이터는 `name`=`value` 짝으로 구성된다. 체크박스가 미체크면 그 이름표 자체가 빠지고, 라디오 버튼은 같은 `name`을 공유해야 그룹이 성립한다.
+- `checked`·`disabled`·`readonly`는 불리언 속성이다. 값이 아니라 존재 여부만으로 참/거짓이 결정된다.
+- `disabled`는 제출 데이터에서 완전히 제외되지만 `readonly`는 값이 그대로 전송된다는 것이 실무에서 가장 중요한 차이다.
+
+## 마무리 복습
+
+<Quiz
+  questionNumber={1}
+  question="체크박스가 체크되지 않은 상태로 폼이 제출될 때 일어나는 일은?"
+  options={['name과 value가 false로 전송된다', '값이 빈 문자열로 전송된다', 'name 자체가 제출 데이터에서 빠진다', '브라우저가 제출을 막는다']}
+  correctAnswer={3}
+  explanation="미체크 상태의 checkbox는 name 자체가 제출 데이터에서 완전히 빠진다. false나 빈 문자열로 오는 것이 아니라 애초에 그 이름표가 존재하지 않는 것이다."
+  optionExplanations={['false라는 값으로 오는 것이 아니라 이름표 자체가 없다', '빈 문자열로도 오지 않는다 — 아예 존재하지 않는다', '정답 — 미체크 상태는 이름표 자체가 제출 데이터에서 빠진다', '제출은 정상적으로 이루어지며 막히지 않는다']}
+/>
+
+<Quiz
+  questionNumber={2}
+  question="여러 라디오 버튼을 하나의 선택 그룹으로 묶으려면 무엇을 같게 해야 하는가?"
+  options={['id 속성', 'value 속성', 'name 속성', 'type 속성만 radio로']}
+  correctAnswer={3}
+  explanation="라디오 버튼은 같은 name 값을 가져야 하나의 그룹으로 묶여 하나만 선택되게 동작한다. id는 오히려 서로 달라야 하고, value는 각 선택지를 구분하는 값이며, type만 radio로 같아서는 그룹이 성립하지 않는다."
+  optionExplanations={['id는 문서 전체에서 유일해야 하므로 서로 달라야 한다', 'value는 각 선택지의 값이며 그룹 여부와 무관하다', '정답 — name이 같아야 하나의 선택 그룹으로 묶인다', 'type만 radio로 같고 name이 다르면 그룹이 성립하지 않는다']}
+/>
+
+<Quiz
+  questionNumber={3}
+  question="checked 속성 값을 false 문자열로 지정한 checkbox의 실제 상태는?"
+  options={['체크되지 않은 상태', '체크된 상태', '브라우저마다 다르게 해석된다', '문법 오류로 빌드가 깨진다']}
+  correctAnswer={2}
+  explanation="checked는 불리언 속성이라 값의 내용이 아니라 속성의 존재 여부만 본다. checked=false라고 써도 속성 자체가 존재하므로 여전히 체크된 상태로 해석된다."
+  optionExplanations={['값과 무관하게 속성이 있으므로 체크된 상태다', '정답 — 불리언 속성은 존재 자체가 참이므로 체크된 상태다', '불리언 속성 규약은 모든 표준 브라우저에서 동일하게 해석된다', '이 표기는 유효한 HTML이며 빌드 개념과는 무관하다']}
+/>
+
+<Quiz
+  questionNumber={4}
+  question="disabled와 readonly의 가장 중요한 차이는?"
+  options={['disabled만 화면에 흐리게 표시된다', 'disabled 입력의 값은 제출되지 않지만 readonly 입력의 값은 제출된다', 'readonly 입력은 초점을 받을 수 없다', '둘 다 제출 데이터에서 항상 제외된다']}
+  correctAnswer={2}
+  explanation="disabled 입력은 제출 데이터에서 완전히 제외되지만, readonly 입력은 사용자가 값을 바꿀 수 없을 뿐 값 자체는 정상적으로 제출된다."
+  optionExplanations={['화면 표시 차이는 있지만 핵심 차이는 제출 데이터 포함 여부다', '정답 — 제출 데이터 포함 여부가 두 속성의 핵심 차이다', 'readonly 입력도 초점을 받을 수 있으며 텍스트 선택도 가능하다', 'readonly 입력의 값은 제외되지 않고 그대로 제출된다']}
+/>
+
+<Quiz
+  questionNumber={5}
+  question="type을 password로 지정한 input에 대한 설명으로 옳은 것은?"
+  options={['입력값이 서버로 전송될 때 자동으로 암호화된다', '화면에 점으로 가려질 뿐 값 자체는 평문으로 전송된다', 'HTTPS 없이도 통신 구간에서 값이 안전하게 보호된다', '값을 disabled로 만들지 않으면 전송되지 않는다']}
+  correctAnswer={2}
+  explanation="password 타입은 화면 표시만 가릴 뿐 전송 방식과는 무관하다. 통신 구간의 보안은 HTTPS 같은 별도 조치로 확보해야 한다."
+  optionExplanations={['입력 타입 자체는 전송 시 값을 암호화하지 않는다', '정답 — 화면 표시만 가릴 뿐 전송값은 평문이다', 'HTTPS 없이는 통신 경로에서 값이 그대로 노출될 수 있다', 'disabled 여부와 이 타입의 보안 특성은 무관하다']}
+/>
+
+<Quiz
+  questionNumber={6}
+  question="type을 hidden으로 지정한 입력에 대한 설명으로 옳은 것은?"
+  options={['화면에 보이지 않으므로 제출 데이터에도 포함되지 않는다', '화면에 보이지 않지만 다른 입력과 동일하게 제출된다', '사용자가 개발자 도구로도 값을 확인할 수 없다', '파일 업로드 전용으로만 쓰인다']}
+  correctAnswer={2}
+  explanation="hidden 입력은 화면에 표시되지 않을 뿐 제출 시에는 다른 입력과 동일하게 name/value 쌍으로 전송된다. 개발자 도구로 값을 확인하는 것도 가능하므로 민감한 값을 숨기는 용도로 오해하면 안 된다."
+  optionExplanations={['화면에 안 보이는 것과 제출 여부는 별개다 — 정상적으로 제출된다', '정답 — 보이지 않아도 제출 데이터에는 포함된다', '개발자 도구로 HTML을 열면 값이 그대로 노출된다', '파일 업로드는 type이 file인 입력의 몫이다']}
+/>
+
+<Quiz
+  questionNumber={7}
+  question="input의 콘텐츠 모델에 대한 설명으로 옳은 것은?"
+  options={['input은 여는 태그와 닫는 태그가 모두 필요한 요소다', 'input은 빈 요소(void element)로 닫는 태그가 없다', 'input 안에는 텍스트 콘텐츠를 넣을 수 있다', 'input은 반드시 label 태그 안에만 존재할 수 있다']}
+  correctAnswer={2}
+  explanation="input은 br, img와 같은 빈 요소로 분류되어 닫는 태그 없이 단독으로 쓰인다. 텍스트 콘텐츠를 담는 자식 요소를 가질 수 없고, label 밖에서도 자유롭게 쓰일 수 있다."
+  optionExplanations={['닫는 태그가 없는 것이 input의 특징이다', '정답 — input은 빈 요소로 닫는 태그가 존재하지 않는다', '빈 요소는 자식 콘텐츠를 가질 수 없다', 'form 안이라면 label 밖에서도 input을 쓸 수 있다']}
+/>
+
+## 참고 자료
+
+- [MDN - Your first form](https://developer.mozilla.org/en-US/docs/Learn_web_development/Extensions/Forms/Your_first_form)

@@ -1,0 +1,485 @@
+---
+title: '27. 종합 실습 1: 모달·팝오버·아코디언 UI 키트 만들기'
+description: '`<dialog>` 모달, popover 메뉴·툴팁, `<details name>` 아코디언, `inert`를 한 페이지에서 충돌 없이 조합해 오버레이 UI 키트를 완성한다'
+---
+
+<Callout type="info">
+  **이번 문서의 목표:** 이 문서를 다 읽고 실습기를 직접 조작하면, `<dialog>`·popover·`<details name>`·`inert` 네 가지를 한 페이지 안에서 서로 겹치지 않게 배치하고, 각각이 포커스와 화면 계층(top layer)을 어떻게 나눠 쓰는지 스스로 설명할 수 있습니다.
+</Callout>
+
+## 이번 편에서 만드는 것
+
+지금까지 04·06·07·08편에서 `<dialog>`, popover, `<details name>`, `inert`를 각각 따로 배웠습니다. 실무 화면에는 이 네 가지가 한 페이지에 동시에 존재합니다. 헤더에는 메뉴 popover가, 어딘가에는 확인 모달이, 목록 옆에는 아코디언이 함께 있는 식입니다. 이번 편은 그 네 가지를 실제로 한 페이지에 모아 보면서, "서로 다른 오버레이(overlay, 화면 위에 겹쳐 뜨는 층)가 동시에 열리면 무슨 일이 벌어지는가"를 직접 확인합니다.
+
+> **쉽게 말하면:** 지금까지 따로 만든 부품 네 개를 실제 제품 하나에 조립하는 실습입니다.
+
+완성할 페이지의 요구사항은 다음과 같습니다.
+
+1. 상단에 "설정" 버튼을 누르면 `<dialog>` 모달이 뜨고, 포커스가 모달 안에 갇힌다.
+2. 상단에 "메뉴" 버튼을 누르면 popover 메뉴가 뜨고, 메뉴 바깥을 클릭하거나 `Esc` 키를 누르면 라이트 디스미스(light dismiss, 가볍게 닫힘)된다.
+3. 작업 목록에 "일괄 삭제" 버튼을 누르면 처리 중인 동안 목록 전체가 `inert` 처리되어 클릭·포커스·텍스트 검색이 모두 막힌다.
+4. 자주 묻는 질문 영역은 `<details name>`으로 묶여, 하나를 펼치면 나머지가 자동으로 접히는 아코디언(accordion, 손풍금처럼 접었다 펴는 목록)이 된다.
+
+| 오버레이 | 포커스를 다루는 방식 | 배경 처리 |
+|---|---|---|
+| `<dialog>`(모달) | 열리면 자동으로 내부 첫 포커스 가능 요소로 이동, 안에 갇힘(trap) | 나머지 문서가 자동으로 비활성화되고 클릭이 통과하지 않음 |
+| popover(auto 모드) | 열려도 포커스를 강제로 옮기지 않을 수 있음(구현체에 따라 초기 포커스 이동 방식이 다름) | 배경은 그대로 조작 가능, 바깥 클릭·`Esc`로만 자동 닫힘 |
+| `<details name>` | 포커스 이동 없음, `summary`만 토글 | 다른 `<details>`는 자동으로 닫히지만 비활성화되지는 않음 |
+| `inert` | 포커스를 아예 받을 수 없게 트리 전체를 제외 | 개발자가 직접 켜고 꺼야 하는 수동 처리 |
+
+이 표가 이번 편의 핵심입니다. 넷 다 "무언가를 못 건드리게 막는다"는 점은 같지만, **누가 자동으로 처리해주고 누가 수동으로 처리해야 하는지**가 다릅니다.
+
+## Steps로 조립하기
+
+<Steps>
+
+### 1단계 — 뼈대 HTML 작성하기
+
+먼저 네 가지 오버레이가 들어갈 자리를 잡습니다. 이 시점에는 동작 없이 구조만 잡습니다.
+
+```html
+<header>
+  <h1>업무 대시보드</h1>
+  <button id="openSettingsBtn">설정</button>
+  <button popovertarget="navMenu">메뉴</button>
+  <div id="navMenu" popover>
+    <ul>
+      <li><button type="button">프로필 보기</button></li>
+      <li><button type="button">알림 설정</button></li>
+      <li><button type="button">로그아웃</button></li>
+    </ul>
+  </div>
+</header>
+
+<dialog id="settingsDialog">
+  <form method="dialog">
+    <h2>설정</h2>
+    <p>
+      <label>표시 이름
+        <input type="text" name="displayName" required minlength="2">
+      </label>
+    </p>
+    <menu>
+      <button value="cancel">취소</button>
+      <button value="confirm">저장</button>
+    </menu>
+  </form>
+</dialog>
+
+<section id="taskSection">
+  <h2>작업 목록</h2>
+  <ul id="taskList">
+    <li>분기 보고서 초안 작성</li>
+    <li>디자인 리뷰 피드백 반영</li>
+    <li>배포 체크리스트 점검</li>
+  </ul>
+  <button id="bulkDeleteBtn" type="button">선택 항목 일괄 삭제</button>
+  <p id="bulkStatus" role="status"></p>
+</section>
+
+<section>
+  <h2>자주 묻는 질문</h2>
+  <details name="faq">
+    <summary>배송은 얼마나 걸리나요?</summary>
+    <p>영업일 기준 2~3일이 소요됩니다.</p>
+  </details>
+  <details name="faq">
+    <summary>환불은 어떻게 하나요?</summary>
+    <p>주문 내역에서 환불 요청 버튼을 누르면 됩니다.</p>
+  </details>
+  <details name="faq">
+    <summary>결제 수단을 바꿀 수 있나요?</summary>
+    <p>설정 메뉴에서 언제든 변경할 수 있습니다.</p>
+  </details>
+</section>
+```
+
+`popover` 속성만 붙은 `#navMenu`는 기본값인 auto 모드로 동작합니다. `popovertarget`으로 버튼과 연결하면 별도의 자바스크립트 없이도 토글·라이트 디스미스가 전부 작동합니다. 반면 `<dialog>`는 `popover`처럼 속성 하나로 열리지 않습니다. 자바스크립트로 `showModal()`을 불러야 모달로 뜹니다.
+
+### 2단계 — 설정 모달의 열기·닫기·포커스 확인하기
+
+```js
+const dialog = document.getElementById('settingsDialog');
+const openBtn = document.getElementById('openSettingsBtn');
+
+openBtn.addEventListener('click', () => {
+  dialog.showModal();
+});
+
+dialog.addEventListener('close', () => {
+  if (dialog.returnValue === 'confirm') {
+    console.log('설정이 저장되었습니다.');
+  }
+});
+```
+
+`showModal()`로 연 `<dialog>`는 문서의 최상위 렌더링 층인 **top layer**(탑 레이어)에 올라갑니다. 같은 층에서는 브라우저가 알아서 배경을 비활성화하므로, 모달이 떠 있는 동안 `#taskSection`이나 popover 버튼을 클릭해도 반응하지 않습니다. `Tab` 키로 포커스를 옮겨 봐도 모달 밖으로 나가지지 않는지 실습기에서 직접 확인하세요.
+
+### 3단계 — popover 메뉴에 라이트 디스미스 스타일 입히기
+
+```css
+[popover] {
+  border: 1px solid #d0d5dd;
+  border-radius: 8px;
+  padding: 0.5rem;
+  inset: unset;
+  top: 3.5rem;
+  right: 1rem;
+}
+
+[popover]:popover-open {
+  animation: fadeIn 0.12s ease-out;
+}
+
+@keyframes fadeIn {
+  from { opacity: 0; transform: translateY(-4px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+```
+
+`inset: unset`으로 popover의 기본 중앙 정렬을 풀고 헤더 아래 오른쪽에 붙였습니다. `:popover-open` 의사 클래스(pseudo-class, 조건부로 붙는 가짜 클래스)는 popover가 열려 있는 동안에만 적용되므로, 열리는 애니메이션을 이 선택자에 걸면 됩니다.
+
+### 4단계 — 일괄 삭제 중 목록을 `inert` 처리하기
+
+popover와 `<dialog>`는 배경 처리를 브라우저가 대신 해 주지만, "처리 중인 동안 이 목록만 잠깐 막아 두기" 같은 상황은 브라우저가 자동으로 알아서 해 주지 않습니다. 이럴 때 `inert` 전역 속성을 직접 켜고 끕니다.
+
+```js
+const bulkDeleteBtn = document.getElementById('bulkDeleteBtn');
+const taskList = document.getElementById('taskList');
+const bulkStatus = document.getElementById('bulkStatus');
+
+bulkDeleteBtn.addEventListener('click', () => {
+  taskList.inert = true;
+  bulkDeleteBtn.disabled = true;
+  bulkStatus.textContent = '삭제 처리 중입니다. 잠시만 기다려 주세요.';
+
+  setTimeout(() => {
+    taskList.innerHTML = '<li>남은 작업이 없습니다.</li>';
+    taskList.inert = false;
+    bulkDeleteBtn.disabled = false;
+    bulkStatus.textContent = '삭제가 완료되었습니다.';
+  }, 1500);
+});
+```
+
+`taskList.inert = true`가 걸리는 동안에는 목록 안의 어떤 항목도 클릭·포커스·브라우저 페이지 내 검색(Ctrl+F)의 대상이 되지 않습니다. `disabled` 속성이 버튼 하나만 막는 것과 달리, `inert`는 그 아래 트리 전체를 한 번에 막습니다. 처리가 끝나면 반드시 `inert`를 다시 `false`로 되돌려야 합니다. 켠 채로 남겨두면 사용자는 화면에 보이는 요소를 영영 조작하지 못합니다.
+
+<Callout type="warning">
+  **자주 틀리는 점:** `<dialog>`의 `showModal()`과 popover는 배경 비활성화를 브라우저가 알아서 처리하므로 개발자가 별도로 `inert`를 걸 필요가 없습니다. 반대로 이번 4단계처럼 오버레이 요소를 전혀 쓰지 않고 "특정 영역만 잠그기"가 목적이라면 `inert`를 직접 다뤄야 합니다. 이 둘을 혼동해 모달 안에서까지 수동으로 `inert`를 걸면 이중 처리가 되어 포커스 흐름이 꼬입니다.
+</Callout>
+
+### 5단계 — `<details name>` 아코디언 동작 확인하기
+
+3단계까지 만든 HTML의 `<details>` 세 개는 이미 `name="faq"`로 묶여 있으므로 추가 자바스크립트가 필요 없습니다. 하나를 펼치면 브라우저가 같은 `name` 값을 가진 나머지를 자동으로 닫습니다. DOM(Document Object Model, 문서 객체 모델) 상에서 서로 떨어져 있어도, `name` 값만 같으면 그룹으로 묶입니다.
+
+```css
+details {
+  border: 1px solid #e4e7ec;
+  border-radius: 8px;
+  padding: 0.5rem 0.75rem;
+  margin-bottom: 0.5rem;
+}
+
+summary {
+  cursor: pointer;
+  font-weight: 600;
+}
+```
+
+구형 브라우저는 `name` 속성을 그냥 무시합니다. 이 경우 각 `<details>`가 독립적으로 열리고 닫힐 뿐, 오류가 나거나 레이아웃이 깨지지 않습니다. 즉 점진적 향상(progressive enhancement, 기본 기능은 항상 동작하고 지원 브라우저에서만 추가 효과가 붙는 설계)의 좋은 예입니다.
+
+</Steps>
+
+## 완성 코드
+
+아래 실습기는 지금까지의 5단계를 한 페이지로 합친 버전입니다. "설정" 버튼과 "메뉴" 버튼을 눌러 두 오버레이가 동시에 겹치지 않는지, 모달이 열린 동안 메뉴 버튼이 반응하지 않는지, "일괄 삭제"를 누르는 동안 목록을 클릭해도 아무 일이 일어나지 않는지, 아코디언 항목을 번갈아 열어 보면서 확인하세요.
+
+<CodePlayground
+  template="static"
+  activeFile="/index.js"
+  showConsole
+  label="모달·popover·아코디언·inert UI 키트"
+  files={{
+    '/index.html': `<!DOCTYPE html>
+<html lang="ko">
+<head>
+  <meta charset="UTF-8">
+  <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+  <header>
+    <h1>업무 대시보드</h1>
+    <button id="openSettingsBtn" type="button">설정</button>
+    <button popovertarget="navMenu" type="button">메뉴</button>
+    <div id="navMenu" popover>
+      <ul>
+        <li><button type="button">프로필 보기</button></li>
+        <li><button type="button">알림 설정</button></li>
+        <li><button type="button">로그아웃</button></li>
+      </ul>
+    </div>
+  </header>
+
+  <dialog id="settingsDialog">
+    <form method="dialog">
+      <h2>설정</h2>
+      <p>
+        <label>표시 이름
+          <input type="text" name="displayName" required minlength="2">
+        </label>
+      </p>
+      <menu>
+        <button value="cancel" type="submit">취소</button>
+        <button value="confirm" type="submit">저장</button>
+      </menu>
+    </form>
+  </dialog>
+
+  <section id="taskSection">
+    <h2>작업 목록</h2>
+    <ul id="taskList">
+      <li>분기 보고서 초안 작성</li>
+      <li>디자인 리뷰 피드백 반영</li>
+      <li>배포 체크리스트 점검</li>
+    </ul>
+    <button id="bulkDeleteBtn" type="button">선택 항목 일괄 삭제</button>
+    <p id="bulkStatus" role="status"></p>
+  </section>
+
+  <section>
+    <h2>자주 묻는 질문</h2>
+    <details name="faq">
+      <summary>배송은 얼마나 걸리나요?</summary>
+      <p>영업일 기준 2~3일이 소요됩니다.</p>
+    </details>
+    <details name="faq">
+      <summary>환불은 어떻게 하나요?</summary>
+      <p>주문 내역에서 환불 요청 버튼을 누르면 됩니다.</p>
+    </details>
+    <details name="faq">
+      <summary>결제 수단을 바꿀 수 있나요?</summary>
+      <p>설정 메뉴에서 언제든 변경할 수 있습니다.</p>
+    </details>
+  </section>
+
+  <script src="index.js"></script>
+</body>
+</html>`,
+    '/styles.css': `body {
+  font-family: system-ui, sans-serif;
+  max-width: 640px;
+  margin: 2rem auto;
+  padding: 0 1rem;
+  color: #1d2939;
+}
+
+header {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  position: relative;
+}
+
+header h1 {
+  font-size: 1.1rem;
+  margin-right: auto;
+}
+
+dialog::backdrop {
+  background: rgba(16, 24, 40, 0.45);
+}
+
+dialog {
+  border: none;
+  border-radius: 10px;
+  padding: 1.25rem 1.5rem;
+  box-shadow: 0 12px 32px rgba(16, 24, 40, 0.25);
+}
+
+[popover] {
+  border: 1px solid #d0d5dd;
+  border-radius: 8px;
+  padding: 0.5rem;
+  inset: unset;
+  top: 3.5rem;
+  right: 1rem;
+  margin: 0;
+}
+
+[popover] ul {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: grid;
+  gap: 0.25rem;
+  min-width: 140px;
+}
+
+[popover]:popover-open {
+  animation: fadeIn 0.12s ease-out;
+}
+
+@keyframes fadeIn {
+  from { opacity: 0; transform: translateY(-4px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+#taskSection[inert] {
+  opacity: 0.5;
+}
+
+details {
+  border: 1px solid #e4e7ec;
+  border-radius: 8px;
+  padding: 0.5rem 0.75rem;
+  margin-bottom: 0.5rem;
+}
+
+summary {
+  cursor: pointer;
+  font-weight: 600;
+}`,
+    '/index.js': `const dialog = document.getElementById('settingsDialog');
+const openBtn = document.getElementById('openSettingsBtn');
+
+openBtn.addEventListener('click', () => {
+  dialog.showModal();
+});
+
+dialog.addEventListener('close', () => {
+  if (dialog.returnValue === 'confirm') {
+    console.log('설정이 저장되었습니다.');
+  } else {
+    console.log('설정 창을 취소했습니다.');
+  }
+});
+
+const bulkDeleteBtn = document.getElementById('bulkDeleteBtn');
+const taskList = document.getElementById('taskList');
+const taskSection = document.getElementById('taskSection');
+const bulkStatus = document.getElementById('bulkStatus');
+
+bulkDeleteBtn.addEventListener('click', () => {
+  taskSection.inert = true;
+  bulkDeleteBtn.disabled = true;
+  bulkStatus.textContent = '삭제 처리 중입니다. 잠시만 기다려 주세요.';
+  console.log('taskSection.inert =', taskSection.inert);
+
+  setTimeout(() => {
+    taskList.innerHTML = '<li>남은 작업이 없습니다.</li>';
+    taskSection.inert = false;
+    bulkDeleteBtn.disabled = false;
+    bulkStatus.textContent = '삭제가 완료되었습니다.';
+    console.log('taskSection.inert =', taskSection.inert);
+  }, 1500);
+});`,
+  }}
+/>
+
+## 핵심 정리
+
+- `<dialog>`의 `showModal()`은 top layer로 올라가면서 배경 비활성화·포커스 트랩을 브라우저가 자동으로 처리한다.
+- popover(auto 모드)는 라이트 디스미스만 자동으로 처리하고, 배경 자체를 막지는 않는다.
+- `<details name>`은 DOM 위치와 무관하게 같은 `name` 값끼리 자동으로 exclusive accordion을 이룬다.
+- `inert`는 브라우저가 자동으로 걸어주지 않는 임의의 영역을, 개발자가 직접 켜고 꺼서 비활성화할 때 쓴다.
+- 네 오버레이를 한 페이지에 둘 때는 "누가 자동으로 처리하고 누가 수동으로 처리해야 하는가"를 표로 정리해 두면 설계 실수를 줄일 수 있다.
+
+## 마무리 복습
+
+<Quiz
+  questionNumber={1}
+  question="dialog 요소를 showModal()로 열었을 때 브라우저가 자동으로 처리해 주는 것은?"
+  options={['배경 요소의 클릭·포커스 차단', '입력값의 서버 전송', 'CSS 애니메이션 자동 생성', '텍스트 자동 번역']}
+  correctAnswer={1}
+  explanation="showModal()로 연 dialog는 top layer에 올라가면서 배경을 자동으로 비활성화하고 포커스를 내부에 가둔다."
+  optionExplanations={['정답. 모달로 열린 dialog는 배경 상호작용을 자동으로 막는다', 'dialog는 폼 제출 방식과 무관하게 값을 대신 전송하지 않는다', 'dialog 자체는 애니메이션을 자동으로 만들어 주지 않는다', '텍스트 번역은 dialog의 기능이 아니다']}
+/>
+
+<Quiz
+  questionNumber={2}
+  question="popover 속성만 붙인 auto 모드 오버레이가 dialog 모달과 가장 크게 다른 점은?"
+  options={['배경 요소를 자동으로 비활성화하지 않는다', '자바스크립트 없이는 절대 열 수 없다', '항상 화면 정중앙에만 위치한다', 'CSS로 스타일을 줄 수 없다']}
+  correctAnswer={1}
+  explanation="popover auto 모드는 라이트 디스미스는 자동으로 처리하지만 배경을 비활성화하지는 않아, 뒤쪽 요소를 여전히 클릭할 수 있다."
+  optionExplanations={['정답. popover는 배경을 막지 않는 가벼운 오버레이다', 'popovertarget 속성만으로도 자바스크립트 없이 열고 닫을 수 있다', 'inset을 unset하면 원하는 위치에 둘 수 있다', ':popover-open 등으로 얼마든지 스타일링할 수 있다']}
+/>
+
+<Quiz
+  questionNumber={3}
+  question="실습 4단계에서 일괄 삭제 처리 중 taskSection에 inert를 건 이유로 가장 알맞은 것은?"
+  options={['처리 중인 영역을 사용자가 다시 조작하지 못하게 막기 위해', 'CSS 애니메이션 속도를 높이기 위해', '서버로 보낼 데이터 형식을 바꾸기 위해', '검색 엔진 색인을 막기 위해']}
+  correctAnswer={1}
+  explanation="inert는 처리 중 사용자가 같은 영역을 다시 클릭하거나 포커스하지 못하게 막아 중복 요청이나 상태 꼬임을 예방한다."
+  optionExplanations={['정답. 처리 중 재조작을 막는 것이 inert의 목적이다', 'inert는 애니메이션 속도와 관련이 없다', 'inert는 화면 표시·상호작용 속성이지 데이터 전송 형식과 무관하다', 'inert는 검색 엔진 색인과 관련된 속성이 아니다']}
+/>
+
+<Quiz
+  questionNumber={4}
+  question="details name으로 묶인 아코디언에서 하나를 펼쳤을 때 벌어지는 일은?"
+  options={['같은 name 값을 가진 다른 details가 자동으로 닫힌다', '모든 details가 동시에 펼쳐진다', 'name이 다른 details까지 함께 닫힌다', '페이지 전체가 다시 로드된다']}
+  correctAnswer={1}
+  explanation="같은 name 값을 공유하는 details 요소들은 하나가 열리면 나머지가 자동으로 닫히는 exclusive accordion으로 동작한다."
+  optionExplanations={['정답. name이 같은 그룹끼리만 exclusive하게 동작한다', '오히려 반대로 하나만 열리고 나머지는 닫힌다', 'name이 다른 details는 이 그룹과 무관하게 독립적으로 동작한다', '페이지 새로고침은 일어나지 않는다']}
+/>
+
+<Quiz
+  questionNumber={5}
+  question="구형 브라우저가 details name의 name 속성을 지원하지 않을 때 벌어지는 일은?"
+  options={['각 details가 독립적으로 열리고 닫히며 오류는 나지 않는다', '페이지 렌더링 자체가 멈춘다', 'summary 텍스트가 사라진다', '자동으로 자바스크립트 폴리필이 로드된다']}
+  correctAnswer={1}
+  explanation="name 속성을 모르는 브라우저는 이를 그냥 무시하므로 details가 각자 독립적으로 토글되는 기본 동작만 유지된다."
+  optionExplanations={['정답. 알 수 없는 속성은 무시되고 기본 동작만 남는 점진적 향상이 적용된다', '알 수 없는 속성이 있어도 파싱과 렌더링은 계속된다', 'summary 콘텐츠는 name 지원 여부와 무관하게 그대로 보인다', '브라우저가 자동으로 폴리필을 내려받지는 않는다']}
+/>
+
+<Quiz
+  questionNumber={6}
+  question="dialog가 모달로 열려 있는 동안 popover 메뉴 버튼을 눌러도 반응하지 않는 이유는?"
+  options={['모달 dialog가 top layer를 차지하며 배경 요소를 비활성화하기 때문', 'popover 코드에 오류가 있기 때문', 'CSS z-index가 잘못 설정되었기 때문', '브라우저가 popover API를 지원하지 않기 때문']}
+  correctAnswer={1}
+  explanation="모달 dialog가 열려 있으면 배경의 상호작용 가능한 요소들이 비활성화되어, 같은 문서 안의 popover 트리거 버튼도 반응하지 않는다."
+  optionExplanations={['정답. 모달이 배경을 막는 동작 때문이다', '코드 오류가 아니라 모달의 정상 동작이다', 'z-index가 아니라 top layer와 배경 비활성화가 원인이다', 'popover 자체는 정상 지원되고 있어도 배경이 막혀 있어 반응하지 않는다']}
+/>
+
+<Quiz
+  questionNumber={7}
+  question="popover의 위치를 화면 중앙 대신 헤더 아래 오른쪽으로 옮기려 할 때 CSS에서 먼저 해제해야 하는 것은?"
+  options={['popover 기본 위치를 잡는 inset 값', 'display 속성', 'position 속성 자체', 'z-index 값']}
+  correctAnswer={1}
+  explanation="브라우저가 popover에 기본으로 적용하는 inset 값을 unset한 뒤 top·right 같은 값으로 원하는 위치를 다시 지정한다."
+  optionExplanations={['정답. inset을 풀어야 원하는 좌표로 재배치할 수 있다', 'display를 바꾸는 것은 위치 재배치와 직접 관련이 없다', 'position 자체를 없애면 오히려 배치가 예측 불가능해진다', 'z-index는 쌓임 순서를 바꿀 뿐 위치 자체를 옮기지 않는다']}
+/>
+
+<Quiz
+  questionNumber={8}
+  question="이번 실습에서 inert를 건 뒤 반드시 다시 false로 되돌려야 하는 이유는?"
+  options={['그대로 두면 해당 영역을 사용자가 영영 조작할 수 없게 되기 때문', 'inert가 켜진 상태에서는 CSS가 전혀 적용되지 않기 때문', 'inert는 한 번 켜면 페이지를 새로고침해야 꺼지기 때문', 'inert는 브라우저 캐시를 무효화하기 때문']}
+  correctAnswer={1}
+  explanation="inert를 켠 채로 방치하면 해당 서브트리는 포커스·클릭·검색 대상에서 계속 제외되어 사용자가 다시는 그 영역을 쓸 수 없게 된다."
+  optionExplanations={['정답. 처리가 끝나면 inert를 꺼서 다시 조작 가능하게 되돌려야 한다', 'inert가 켜진 상태에서도 CSS 스타일은 그대로 적용된다', 'inert 속성은 자바스크립트로 언제든 즉시 껐다 켤 수 있다', 'inert는 브라우저 캐시와 관련이 없다']}
+/>
+
+<Quiz
+  questionNumber={9}
+  question="dialog 안 폼에서 method를 dialog로 지정한 버튼을 눌렀을 때 일어나는 일로 옳은 것은?"
+  options={['페이지 이동 없이 dialog가 닫히고 버튼 value가 returnValue에 저장된다', '서버로 폼 데이터가 전송된다', '페이지 전체가 새로고침된다', '팝업 창이 새로 열린다']}
+  correctAnswer={1}
+  explanation="method가 dialog인 폼은 제출 시 페이지 이동 없이 dialog를 닫고, 눌린 버튼의 value 값을 dialog의 returnValue에 담는다."
+  optionExplanations={['정답. 페이지 이동 없이 dialog만 닫히고 값이 returnValue에 남는다', '이 방식은 서버 전송을 일으키지 않는다', '페이지 새로고침은 일어나지 않는다', '새 창이나 새 팝업이 열리지 않는다']}
+/>
+
+<Quiz
+  questionNumber={10}
+  question="이 실습에서 오버레이 네 가지 중 배경 처리를 개발자가 직접 자바스크립트로 관리해야 하는 것은?"
+  options={['inert', 'dialog의 showModal()', 'popover의 auto 모드', 'details의 name 속성']}
+  correctAnswer={1}
+  explanation="dialog와 popover(auto)는 배경 처리 방식을 브라우저가 정해 두었고, details name도 그룹 토글이 자동이지만, inert는 언제 걸고 뗄지 전적으로 개발자가 코드로 결정해야 한다."
+  optionExplanations={['정답. inert는 켜고 끄는 시점을 개발자가 직접 관리해야 한다', 'showModal()은 배경 비활성화를 브라우저가 자동으로 처리한다', 'popover auto 모드의 라이트 디스미스는 브라우저가 자동으로 처리한다', 'details name의 그룹 토글은 브라우저가 자동으로 처리한다']}
+/>
+
+## 참고 자료
+
+- [MDN — `<dialog>`](https://developer.mozilla.org/en-US/docs/Web/HTML/Reference/Elements/dialog)
+- [MDN — Popover API](https://developer.mozilla.org/en-US/docs/Web/API/Popover_API)
+- [MDN — `popover` 전역 속성](https://developer.mozilla.org/en-US/docs/Web/HTML/Reference/Global_attributes/popover)
+- [MDN — `inert` 전역 속성](https://developer.mozilla.org/en-US/docs/Web/HTML/Reference/Global_attributes/inert)
+- [MDN Blog — HTML details exclusive accordions](https://developer.mozilla.org/en-US/blog/html-details-exclusive-accordions)

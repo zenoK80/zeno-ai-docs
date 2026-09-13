@@ -1,0 +1,249 @@
+---
+title: '24. 문서에 붙이는 보안 속성'
+description: 'iframe의 sandbox 토큰, rel="noopener"/"noreferrer"가 막는 window.opener 공격, CSP meta 태그의 한계, crossorigin과 referrerpolicy까지 HTML 태그에 붙이는 보안 속성을 정리한다'
+---
+
+<Callout type="info">
+  **이번 문서의 목표:** 이 문서를 다 읽으면 `<iframe>`의 `sandbox` 토큰으로 외부 콘텐츠의 권한을 좁히고, `rel="noopener"`가 막는 구체적인 공격을 설명하고, CSP(Content Security Policy)를 `<meta>` 태그로 걸 때의 한계와 `crossorigin`/`referrerpolicy`가 각각 무엇을 통제하는지 판단할 수 있게 됩니다.
+</Callout>
+
+## 왜 필요한가 — HTML 태그 하나가 보안 구멍이 될 수 있다
+
+지금까지의 편들은 대부분 "이 태그로 무엇을 더 잘 만들 수 있는가"를 다뤘습니다. 이 편은 반대로 접근합니다. **외부 콘텐츠를 끌어오는 태그**(`<iframe>`, `<a target="_blank">`, `<img>`, `<script>` 등)는 잘못 쓰면 그 자체로 공격 통로가 됩니다. 다른 사이트의 광고를 `<iframe>`으로 끼워 넣었는데 그 안의 스크립트가 내 페이지를 자기 마음대로 조작하거나, 사용자가 외부 링크를 새 탭으로 열었을 뿐인데 원래 탭이 피싱 페이지로 바뀌는 일이 실제로 일어납니다. 21편에서 `<script type="module">`이 실행 방식을 바꾸는 것을 봤다면, 이 편은 "실행 방식이 아니라 **권한** 자체를 태그 속성으로 좁히는" 이야기입니다.
+
+이 편은 보안 헤더(HTTP 응답 헤더) 전체를 다루는 자리가 아닙니다. 서버가 보내는 헤더는 서버 설정의 영역이므로, 여기서는 **HTML 태그의 속성으로 표현하는 보안 설정**만 깊게 다룹니다.
+
+## 1. `<iframe>`의 `sandbox` — 외부 콘텐츠의 권한을 기본 전체 차단부터 시작하기
+
+### 왜 필요한가
+
+`<iframe>`(인라인 프레임, 문서 안에 다른 문서를 끼워 넣는 요소)은 광고·지도·결제 위젯처럼 다른 출처(origin)의 콘텐츠를 내 페이지 안에 넣을 때 씁니다. 문제는 아무 설정 없는 `<iframe>`은 그 안의 콘텐츠에게 **일반 페이지와 똑같은 권한**을 내어준다는 점입니다. 폼 제출, 팝업 창 띄우기, 자바스크립트 실행, 최상위 페이지 이동 시도까지 전부 허용됩니다.
+
+**`sandbox`** 속성은 이 권한을 **기본값 전체 차단**으로 뒤집습니다. `sandbox` 속성만 붙이고 아무 값도 주지 않으면 스크립트 실행, 폼 제출, 팝업, 최상위 탐색까지 모두 막힙니다. 그리고 필요한 권한만 토큰(token, 허용 항목 이름)으로 하나씩 다시 열어 줍니다.
+
+```html
+<!-- 스크립트 실행과 같은 출처 취급만 허용, 나머지는 전부 차단 -->
+<iframe src="https://widget.example.com" sandbox="allow-scripts allow-same-origin"></iframe>
+```
+
+| 토큰 | 다시 허용하는 것 |
+|------|-------------------|
+| `allow-scripts` | 자바스크립트 실행 |
+| `allow-same-origin` | 자신을 자신의 출처인 것처럼 취급(쿠키·저장소 접근 등) |
+| `allow-forms` | 폼 제출 |
+| `allow-popups` | `window.open` 같은 팝업 창 띄우기 |
+| `allow-top-navigation` | 최상위 페이지(`iframe`을 포함한 부모 탭) 자체를 다른 주소로 이동시키기 |
+| `allow-modals` | `alert`/`confirm` 같은 모달 대화상자 띄우기 |
+
+> **쉽게 말하면:** `sandbox`가 없는 `<iframe>`은 손님에게 내 집 열쇠 전체를 맡기는 것이고, `sandbox`를 붙이는 것은 "일단 문을 다 잠그고, 손님이 꼭 필요하다는 방만 하나씩 열어 주는" 것입니다.
+
+<Callout type="warning">
+  **자주 틀리는 점:** `allow-scripts`와 `allow-same-origin`을 **동시에** 주면, 이론적으로는 그 iframe 안의 스크립트가 자신의 sandbox 제약을 스스로 해제할 수 있는 경로가 생길 수 있다고 알려져 있습니다(같은 출처 콘텐츠일 때). 신뢰하지 않는 외부 콘텐츠라면 이 두 토큰을 함께 주는 조합을 특히 신중하게 검토해야 합니다.
+</Callout>
+
+## 2. `rel="noopener"`/`"noreferrer"` — `window.opener`를 노린 공격 막기
+
+### 문제 상황
+
+`<a href="https://외부사이트" target="_blank">`로 링크를 새 탭에서 열면, 새로 열린 탭의 자바스크립트는 `window.opener`라는 참조로 **원래 탭의 window 객체에 접근할 수 있습니다.** 여기서 널리 알려진 공격 패턴이 나옵니다. **탭내빙**(tabnabbing, 탭 가로채기)이라 부르는 이 공격은, 새로 열린 악성 탭이 `window.opener.location`을 조작해 사용자가 원래 보고 있던(신뢰하던) 탭을 몰래 피싱 로그인 페이지로 바꿔치기하는 방식입니다. 사용자는 뒤로 돌아가서 익숙한 사이트라고 믿고 아이디·비밀번호를 입력하게 됩니다.
+
+### `rel` 값 두 개의 차이
+
+```html
+<a href="https://partner.example.com" target="_blank" rel="noopener noreferrer">
+  제휴사 페이지 새 탭에서 열기
+</a>
+```
+
+| 값 | 막는 것 |
+|----|---------|
+| `noopener` | 새 탭의 `window.opener`를 `null`로 만들어 원래 탭에 접근하지 못하게 막는다 |
+| `noreferrer` | `noopener` 효과에 더해, 이동할 때 `Referer` 헤더(어느 페이지에서 왔는지 알리는 정보)까지 보내지 않는다 |
+
+2026-09 기준 최신 브라우저는 `target="_blank"`인 링크에 `rel="noopener"`를 명시하지 않아도 **기본적으로 `noopener`처럼 동작**하도록 바뀌었습니다. 다만 이 기본 동작은 비교적 최근에 표준화된 관행이고 오래된 브라우저·특정 렌더링 경로에서는 다를 수 있으므로, 여전히 **명시적으로 `rel="noopener"`를 붙이는 것이 안전한 관행**으로 권장됩니다.
+
+<Callout type="warning">
+  **자주 틀리는 점:** "요즘 브라우저는 알아서 막아주니까 안 써도 된다"고 단정하지 않습니다. 정적 분석 도구(린터)와 코드 리뷰 관행 상으로도 명시적으로 `rel="noopener"`를 다는 것이 표준 권장 사항이며, 서드파티 콘텐츠를 그대로 렌더링하는 CMS·마크다운 렌더러 등 브라우저 기본 동작을 신뢰하기 어려운 경로에서는 특히 중요합니다.
+</Callout>
+
+## 3. CSP를 `<meta>` 태그로 걸 때의 한계
+
+### CSP가 하는 일
+
+**CSP**(Content Security Policy, 콘텐츠 보안 정책)는 "이 페이지는 어떤 출처의 스크립트·이미지·스타일만 불러올 수 있다"를 선언해, 공격자가 페이지에 악성 스크립트를 주입하는 **XSS**(Cross-Site Scripting, 교차 사이트 스크립팅) 공격의 피해 범위를 줄이는 정책입니다. 원래는 HTTP 응답 헤더(`Content-Security-Policy`)로 서버가 내려주는 것이 기본 방식이지만, 서버 설정 권한이 없는 경우 HTML의 `<meta>` 태그로도 선언할 수 있습니다.
+
+```html
+<meta http-equiv="Content-Security-Policy" content="default-src 'self'; img-src https:; script-src 'self'" />
+```
+
+### `<meta>` 방식의 한계
+
+| 항목 | HTTP 헤더 방식 | `<meta>` 태그 방식 |
+|------|-----------------|----------------------|
+| 적용 시점 | 응답이 도착하는 즉시, HTML 파싱 시작 전부터 | HTML 파싱이 그 `<meta>` 태그에 도달한 뒤부터 — **그 이전에 로드된 리소스는 정책 적용 전** |
+| `frame-ancestors` 지시어(다른 사이트가 나를 iframe으로 감싸는 것 제한) | 지원 | **지원하지 않음** |
+| `report-uri`/`report-to`(정책 위반 보고 수집) | 지원 | **지원하지 않음** |
+| 서버 코드 수정 권한 필요 여부 | 필요 | 불필요(HTML만 수정) |
+
+> **쉽게 말하면:** HTTP 헤더로 거는 CSP는 건물 정문에 세우는 보안 검색대이고, `<meta>` 태그로 거는 CSP는 로비를 지난 뒤 복도 중간에 세우는 검색대입니다. 로비(문서 맨 앞부분)를 지나는 동안 이미 들어온 것은 검사하지 못합니다.
+
+<Callout type="warning">
+  **단정하지 않기:** "`<meta>` 태그로 CSP를 걸었으니 안전하다"고 단정하지 않습니다. `<meta>` 방식은 서버 헤더를 설정할 권한이 없을 때 쓰는 **차선책**이며, `frame-ancestors`처럼 아예 지원되지 않는 지시어가 있다는 점, 문서 맨 앞부분에 최대한 일찍 배치해도 그 앞의 리소스는 보호되지 않는다는 점을 함께 알아야 합니다.
+</Callout>
+
+## 4. `crossorigin`과 `referrerpolicy` — 각각 다른 것을 통제한다
+
+이 두 속성은 이름이 비슷해 보이지만 통제 대상이 완전히 다릅니다.
+
+| 속성 | 통제하는 것 |
+|------|--------------|
+| `crossorigin` | 다른 출처의 리소스를 요청할 때 **자격 증명(credential, 쿠키 등)을 함께 보낼지**와, 응답 본문을 자바스크립트로 읽을 수 있게 **CORS 헤더를 요구할지**를 결정 |
+| `referrerpolicy` | 요청을 보낼 때 **이전 페이지 주소(Referer)를 얼마나 자세히 노출할지**를 결정 |
+
+### `crossorigin`
+
+```html
+<script src="https://cdn.example.com/lib.js" crossorigin="anonymous"></script>
+```
+
+- `anonymous`: 자격 증명 없이 요청하고, 서버가 올바른 CORS 헤더를 보내야 브라우저가 응답을 스크립트에 노출한다.
+- `use-credentials`: 쿠키 등 자격 증명을 포함해 요청한다.
+- 특히 `<script>`의 오류 스택 트레이스를 온전히 읽거나, `<img>`를 `<canvas>`에 그려 픽셀 데이터를 읽으려면(캔버스 오염 방지 규칙) `crossorigin`과 서버의 CORS 헤더가 함께 맞아야 합니다.
+
+### `referrerpolicy`
+
+```html
+<a href="https://partner.example.com" referrerpolicy="no-referrer-when-downgrade">파트너 링크</a>
+```
+
+| 값(대표) | 동작 |
+|----------|------|
+| `no-referrer` | Referer를 아예 보내지 않는다 |
+| `same-origin` | 같은 출처로 이동할 때만 Referer를 보낸다 |
+| `strict-origin-when-cross-origin` | 대부분 브라우저의 현재 기본값 — 다른 출처로 갈 때는 전체 경로 대신 출처(scheme+host+port)까지만 보낸다 |
+
+<Callout type="warning">
+  **자주 틀리는 점:** `crossorigin` 속성이 있으면 CORS 오류가 자동으로 해결된다고 착각하는 경우가 많습니다. `crossorigin`은 **브라우저가 요청을 어떻게 보낼지**를 정하는 클라이언트 쪽 설정일 뿐이고, 실제로 응답을 허용할지는 **서버가 CORS 헤더로 응답해야** 합니다. 서버가 협조하지 않으면 `crossorigin` 속성을 아무리 잘 써도 요청은 차단됩니다.
+</Callout>
+
+## 값을 바꿔가며 sandbox 동작 확인하기
+
+<CodePlayground
+  template="static"
+  activeFile="/index.html"
+  label="iframe sandbox 토큰을 지우거나 추가하며 동작 변화를 확인"
+  files={{
+    '/index.html': `<!DOCTYPE html>
+<html lang="ko">
+<head>
+  <meta charset="UTF-8" />
+  <link rel="stylesheet" href="/styles.css" />
+</head>
+<body>
+  <h1>iframe sandbox 실습</h1>
+  <p>sandbox 속성 값을 지우거나 토큰을 더하며 아래 iframe 안 버튼의 동작 변화를 관찰하세요.</p>
+
+  <h2>(A) sandbox 없음 — 모든 권한 허용</h2>
+  <iframe src="/inner.html" title="제한 없는 iframe"></iframe>
+
+  <h2>(B) sandbox="" — 전부 차단</h2>
+  <iframe src="/inner.html" sandbox="" title="전부 차단된 iframe"></iframe>
+
+  <h2>(C) sandbox="allow-scripts" — 스크립트 실행만 허용</h2>
+  <iframe src="/inner.html" sandbox="allow-scripts" title="스크립트만 허용된 iframe"></iframe>
+</body>
+</html>`,
+    '/inner.html': `<!DOCTYPE html>
+<html lang="ko">
+<head><meta charset="UTF-8" /></head>
+<body>
+  <button id="버튼">클릭하면 팝업 시도</button>
+  <p id="결과">대기 중</p>
+  <script>
+    document.getElementById("버튼").addEventListener("click", () => {
+      try {
+        window.open("about:blank");
+        document.getElementById("결과").textContent = "팝업 시도 실행됨";
+      } catch (e) {
+        document.getElementById("결과").textContent = "차단됨: " + e.message;
+      }
+    });
+  </script>
+</body>
+</html>`,
+    '/styles.css': `body { font-family: system-ui, sans-serif; padding: 16px; }
+iframe { width: 100%; height: 90px; border: 1px solid #d1d5db; margin-bottom: 16px; }
+h2 { font-size: 15px; margin-bottom: 4px; }`,
+  }}
+/>
+
+(B)에서는 `sandbox`에 값을 아예 비워 두었으므로 스크립트 자체가 실행되지 않아 버튼을 눌러도 아무 반응이 없어야 합니다. (C)에서는 `allow-scripts`만 허용했으므로 스크립트는 돌지만, `allow-popups`가 없어 `window.open` 호출이 브라우저에 따라 조용히 무시되는 것을 관찰할 수 있습니다. `sandbox` 값에 `allow-popups`를 추가해 보면서 차이를 확인해 보시기 바랍니다.
+
+## 핵심 정리
+
+- `<iframe>`의 `sandbox` 속성은 기본값을 전체 차단으로 뒤집고, 필요한 권한만 `allow-scripts`·`allow-same-origin`·`allow-forms`·`allow-popups` 같은 토큰으로 다시 연다. `allow-scripts`와 `allow-same-origin`을 함께 신뢰할 수 없는 콘텐츠에 주는 조합은 특히 주의한다.
+- `rel="noopener"`는 새 탭의 `window.opener`를 끊어 탭내빙(tabnabbing) 공격을 막고, `rel="noreferrer"`는 여기에 더해 Referer 정보 전달까지 막는다. 최신 브라우저의 기본 동작과 무관하게 명시적으로 붙이는 것이 안전한 관행이다.
+- CSP를 `<meta>` 태그로 걸면 서버 설정 없이도 적용할 수 있지만, 그 태그에 도달하기 전 로드된 리소스는 보호받지 못하고 `frame-ancestors`·리포팅 지시어는 지원하지 않는다.
+- `crossorigin`은 자격 증명 포함 여부와 CORS 응답 요구 여부를 정하는 클라이언트 쪽 설정이고, `referrerpolicy`는 이동·요청 시 Referer 노출 범위를 정한다. 둘 다 서버 쪽 협조(CORS 헤더 등)가 없으면 원하는 대로 동작하지 않을 수 있다.
+
+## 마무리 복습
+
+<Quiz
+  questionNumber={1}
+  question="sandbox 속성만 붙이고 값을 아무것도 주지 않은 iframe의 기본 동작으로 옳은 것은?"
+  options={['일반 iframe과 동일하게 모든 권한이 허용된다', '스크립트 실행, 폼 제출, 팝업 등 대부분의 권한이 기본적으로 모두 차단된다', 'CSS만 차단되고 자바스크립트는 그대로 실행된다', '외부 리소스 로드 자체가 완전히 금지된다']}
+  correctAnswer={2}
+  explanation="sandbox 속성만 붙이고 값을 비워 두면 스크립트 실행, 폼 제출, 팝업, 최상위 탐색 등 대부분의 권한이 기본적으로 차단된다. 필요한 권한은 토큰으로 하나씩 다시 열어야 한다."
+  optionExplanations={['sandbox를 붙이는 목적 자체가 이 기본 허용을 뒤집는 것이다', '정답 — 기본값은 전체 차단이다', 'CSS 로드 자체를 sandbox가 별도로 막지는 않는다', '리소스 자체의 로드가 아니라 실행 권한을 제한하는 속성이다']}
+/>
+
+<Quiz
+  questionNumber={2}
+  question="target 속성을 _blank로 지정해 새 탭에서 연 페이지가 window.opener를 통해 할 수 있는 공격으로 알려진 것은?"
+  options={['원래 탭의 쿠키를 직접 훔쳐 콘솔에 출력한다', '원래 탭의 위치를 조작해 피싱 페이지로 바꿔치기하는 탭내빙 공격을 시도한다', '원래 탭의 CPU 사용량을 강제로 높인다', '새 탭 자신의 히스토리를 삭제한다']}
+  correctAnswer={2}
+  explanation="window.opener를 통해 새 탭이 원래 탭의 location을 조작하면, 사용자가 신뢰하던 원래 탭이 몰래 피싱 페이지로 바뀌는 탭내빙(tabnabbing) 공격이 가능해진다."
+  optionExplanations={['window.opener만으로 쿠키를 직접 읽어올 수는 없다', '정답 — 이것이 탭내빙 공격의 핵심 메커니즘이다', '이런 공격 형태로 알려져 있지 않다', '자기 자신의 히스토리 삭제는 이 공격의 목적이 아니다']}
+/>
+
+<Quiz
+  questionNumber={3}
+  question="rel 값 noreferrer가 noopener에 더해 추가로 막는 것은?"
+  options={['iframe 안 스크립트 실행', '이동 시 Referer 헤더로 이전 페이지 주소가 전달되는 것', 'CSP 정책 적용 자체', 'crossorigin 요청에서 자격 증명 전송']}
+  correctAnswer={2}
+  explanation="noopener는 window.opener 접근을 끊고, noreferrer는 여기에 더해 이동할 때 Referer 헤더로 이전 페이지 주소가 전달되는 것까지 막는다."
+  optionExplanations={['iframe과는 무관한 속성이다', '정답 — noreferrer의 추가 효과다', 'CSP와는 별개의 메커니즘이다', 'crossorigin 속성이 통제하는 영역이다']}
+/>
+
+<Quiz
+  questionNumber={4}
+  question="CSP를 meta 태그로 선언할 때의 한계로 옳지 않은 것은?"
+  options={['그 meta 태그에 도달하기 전에 이미 로드된 리소스는 정책이 적용되지 않는다', 'frame-ancestors 지시어를 지원하지 않는다', 'report-uri/report-to 같은 위반 보고 지시어를 지원하지 않는다', '서버 설정 권한이 있어야만 사용할 수 있다']}
+  correctAnswer={4}
+  explanation="meta 태그 방식의 장점이 바로 서버 설정 권한 없이 HTML 파일 수정만으로 적용할 수 있다는 점이다. 나머지 세 항목은 meta 방식의 실제 한계다."
+  optionExplanations={['맞는 설명이다 — 파싱 순서상의 한계다', '맞는 설명이다 — meta 방식이 지원하지 않는 지시어다', '맞는 설명이다 — 보고 수집은 헤더 방식에서만 가능하다', '정답(틀린 설명) — 오히려 서버 권한이 없을 때 쓰는 차선책이다']}
+/>
+
+<Quiz
+  questionNumber={5}
+  question="crossorigin 속성에 대한 설명으로 가장 알맞은 것은?"
+  options={['서버의 CORS 헤더 설정과 무관하게 항상 응답을 읽을 수 있게 해준다', '자격 증명 포함 여부와 CORS 응답 요구 여부를 정하는 클라이언트 쪽 설정이며, 서버가 CORS 헤더로 협조해야 실제로 응답을 읽을 수 있다', 'referrerpolicy와 동일하게 Referer 헤더 노출 범위를 정한다', 'iframe의 sandbox 토큰 중 하나다']}
+  correctAnswer={2}
+  explanation="crossorigin은 브라우저가 요청을 어떻게 보낼지 정하는 클라이언트 쪽 설정일 뿐이며, 서버가 올바른 CORS 헤더로 응답하지 않으면 요청이 차단된다."
+  optionExplanations={['서버의 협조 없이는 응답을 읽을 수 없다', '정답 — 클라이언트 설정과 서버 협조가 함께 필요하다', 'Referer 노출 범위는 referrerpolicy가 통제한다', 'sandbox와는 별개의 속성이다']}
+/>
+
+<Quiz
+  questionNumber={6}
+  question="referrerpolicy 값을 no-referrer로 지정했을 때의 동작은?"
+  options={['이동할 때 Referer 헤더를 아예 보내지 않는다', '같은 출처로 이동할 때만 전체 경로를 담아 보낸다', 'window.opener를 null로 만든다', 'CORS 자격 증명을 항상 함께 전송한다']}
+  correctAnswer={1}
+  explanation="no-referrer 값은 어떤 상황에서도 Referer 헤더를 보내지 않도록 지정하는 정책값이다."
+  optionExplanations={['정답 — Referer 헤더 자체를 보내지 않는다', '이 동작은 same-origin 값에 해당한다', 'window.opener 차단은 noopener의 역할이다', 'referrerpolicy는 자격 증명 전송 여부와 무관하다']}
+/>
+
+## 참고 자료
+
+- [MDN — Referrer-Policy 헤더](https://developer.mozilla.org/en-US/docs/Web/HTTP/Headers/Referrer-Policy)
+- [MDN — `<iframe>` sandbox 속성](https://developer.mozilla.org/en-US/docs/Web/HTML/Reference/Elements/iframe#sandbox)
+- [MDN — Content-Security-Policy](https://developer.mozilla.org/en-US/docs/Web/HTTP/Headers/Content-Security-Policy)

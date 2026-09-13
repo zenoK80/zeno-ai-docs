@@ -1,0 +1,299 @@
+---
+title: '24. 종합 실습 2: 검증기로 오류 찾아 고치기'
+description: 'Nu HTML Checker에 일부러 틀린 HTML을 넣어 메시지를 읽고, 콘텐츠 모델 위반·필수 속성 누락·중첩 오류를 스스로 찾아 고친다'
+---
+
+<Callout type="info">
+  **이번 문서의 목표:** 이 문서를 다 읽고 실습기를 직접 고쳐 보면, Nu HTML Checker가 내놓는 오류·경고 메시지를 읽고 어느 줄의 어떤 규칙 위반인지 스스로 짚어내고, 콘텐츠 모델 위반·필수 속성 누락·중첩 오류를 직접 고칠 수 있게 됩니다.
+</Callout>
+
+## 왜 "일부러 틀린 코드"로 연습하는가
+
+21편에서 Nu HTML Checker(누 에이치티엠엘 체커) 사용법과 대표적인 실수 유형을 이미 배웠습니다. 하지만 검증기 메시지를 실제로 **읽고 해석하는 능력**은 예제를 눈으로 보는 것만으로는 늘지 않습니다. 사람이 짠 코드에 파묻힌 진짜 실수를 찾아내려면, 먼저 "이런 실수는 이런 문장으로 지적당한다"는 감을 몸에 익혀야 합니다.
+
+> **쉽게 말하면:** 의사가 되려면 정상 엑스레이 사진만 봐서는 안 됩니다. 골절된 사진을 보고 "여기가 부러졌다"고 짚어내는 연습이 필요합니다. 이 편은 일부러 부러뜨린 HTML을 보여주고 여러분이 짚어내게 하는 자리입니다.
+
+이 편도 새 개념을 배우지 않습니다. `<Steps>`로 대표적인 오류 유형 다섯 가지를 하나씩 훑고, 마지막에 다섯 가지가 전부 섞인 `<CodePlayground>`를 제공합니다. 실제 검증은 [Nu HTML Checker](https://validator.w3.org/nu/)에 실습기의 코드를 복사해 붙여 넣고 돌려 보는 것을 권합니다. 실습기 자체는 브라우저 렌더링만 보여주고 검증기 기능은 내장하지 않으므로, 브라우저가 "그냥 화면에 띄워 버리는" 관대함과 검증기가 "규칙 위반을 콕 집는" 엄격함의 차이를 직접 대비해 보세요.
+
+## 대표 오류 다섯 가지
+
+<Steps>
+
+### 1. 콘텐츠 모델 위반 — p 안에 div
+
+05편에서 배운 규칙입니다. `p`는 phrasing 콘텐츠(phrasing content, 문장 흐름 콘텐츠)만 담을 수 있는데 `div`는 flow 콘텐츠(flow content)에 속해 phrasing보다 큰 범주입니다.
+
+```html
+<!-- 틀린 코드 -->
+<p>
+  오늘의 공지사항입니다.
+  <div>중요: 내일은 휴무입니다.</div>
+</p>
+```
+
+Nu HTML Checker는 이런 코드를 만나면 대략 다음과 같은 메시지를 냅니다.
+
+```
+Error: Element div not allowed as child of element p in this context.
+```
+
+브라우저는 이 상황을 조용히 "복구"합니다. `div`를 만나는 순간 열려 있던 `p`를 자동으로 닫아 버리고, `div`를 `p`의 형제로 새로 시작합니다(22편에서 배운 파싱 오류 복구입니다). 그래서 화면은 큰 문제 없이 뜨지만, 여러분이 의도한 "이 문단 전체가 하나의 `p`"라는 구조는 사라지고 둘로 쪼개진 `p`와 `div`가 됩니다.
+
+```html
+<!-- 고친 코드 -->
+<p>오늘의 공지사항입니다.</p>
+<div>중요: 내일은 휴무입니다.</div>
+```
+
+### 2. 필수 속성 누락 — alt 없는 img
+
+08편에서 배운 규칙입니다. `img`는 `alt` 속성이 필수입니다. 장식용이라 대체 텍스트가 필요 없다고 판단했더라도 속성 자체를 생략하면 안 되고, `alt=""`(빈 문자열)로 명시해야 합니다.
+
+```html
+<!-- 틀린 코드 -->
+<img src="logo.png" width="120" height="40" />
+```
+
+```
+Error: An img element must have an alt attribute, except under certain conditions.
+```
+
+이 오류는 브라우저 화면에는 아무 영향이 없습니다. 이미지는 평소처럼 뜹니다. 하지만 스크린 리더 사용자에게는 이 이미지가 무엇인지 알려줄 방법이 아예 없어지고, 이미지 로딩이 실패했을 때 화면에 남는 대체 텍스트도 없습니다.
+
+```html
+<!-- 고친 코드: 정보성 이미지라면 -->
+<img src="logo.png" alt="소보로 카페 로고" width="120" height="40" />
+
+<!-- 고친 코드: 순수 장식용이라면 -->
+<img src="logo.png" alt="" width="120" height="40" />
+```
+
+### 3. label 연결 누락
+
+13편에서 배운 규칙입니다. `input`에 `label`이 아예 없거나, `for`와 `id`가 일치하지 않으면 검증기가 잡아냅니다.
+
+```html
+<!-- 틀린 코드 -->
+<label>이메일</label>
+<input type="email" id="이메일" name="email" />
+```
+
+```
+Warning: The label's for attribute doesn't match any element id.
+```
+
+이 경우는 `label`이 있긴 하지만 `for` 속성 자체가 빠져서 어떤 입력과도 연결되지 않은 채 그냥 화면에 떠 있는 텍스트가 됩니다. 클릭해도 입력에 포커스가 가지 않고, 스크린 리더는 이 `label`과 `input`을 별개로 읽습니다.
+
+```html
+<!-- 고친 코드 -->
+<label for="이메일">이메일</label>
+<input type="email" id="이메일" name="email" />
+```
+
+### 4. 헤딩 레벨 건너뛰기
+
+18편에서 배운 실무 규칙입니다. 스펙 오류는 아니지만(문서 아웃라인 알고리즘 자체가 스펙에서 제거되었으므로 "건너뛰면 안 된다"는 하드 에러 규칙은 없습니다), 접근성 검사기와 검증기 모두 랭크(rank, 순위)를 건너뛰는 구조를 경고로 잡아냅니다.
+
+```html
+<!-- 틀린 코드 -->
+<h1>메뉴</h1>
+<h4>커피</h4>
+```
+
+```
+Warning: Heading levels should not be skipped.
+```
+
+스크린 리더 사용자는 제목만 골라 들으며 문서를 탐색하는 경우가 많습니다. `h1` 다음에 `h4`가 오면 "`h2`와 `h3`에 있었어야 할 중간 단계 구조가 어디로 갔는가"라는 혼란을 줍니다. 형제 섹션이 아니라 하위 섹션이라면 랭크를 하나씩만 낮춰야 합니다.
+
+```html
+<!-- 고친 코드 -->
+<h1>메뉴</h1>
+<h2>커피</h2>
+```
+
+### 5. 시맨틱 오용 — 클릭 이벤트만을 위한 div
+
+17·21편에서 다룬 실무 실수입니다. 검증기가 하드 에러로 잡지는 않지만(문법상 `div`는 어디에나 쓸 수 있으므로), 접근성 관점에서는 치명적인 실수입니다. 클릭할 수 있게 만들 의도라면 `button` 요소를 써야 키보드 포커스·Enter/Space 키 활성화·스크린 리더의 "버튼" 역할 안내가 전부 공짜로 따라옵니다.
+
+```html
+<!-- 틀린 코드: 시각적으로는 버튼처럼 보이지만 -->
+<div class="button" onclick="submitForm()">제출</div>
+```
+
+이 `div`는 마우스 클릭에는 반응하지만, 키보드로 `Tab` 키를 눌러도 포커스가 가지 않고 `Enter` 키를 눌러도 아무 일이 일어나지 않습니다. 스크린 리더는 이것을 그냥 "제출"이라는 텍스트로만 읽어 버튼인지 알 수 없습니다.
+
+```html
+<!-- 고친 코드 -->
+<button type="button" onclick="submitForm()">제출</button>
+```
+
+</Steps>
+
+## 다섯 가지가 섞인 실습기 — 직접 찾아 고치기
+
+아래 `index.html`에는 방금 배운 다섯 가지 오류가 모두 섞여 있습니다. 브라우저 미리보기는 문제없이 뜨는 것을 먼저 확인하세요(오류 복구 덕분입니다). 그다음 코드를 직접 읽으며 다섯 곳을 찾아 고쳐 보세요. 확신이 서지 않으면 코드를 [Nu HTML Checker](https://validator.w3.org/nu/)에 붙여 넣어 실제 메시지를 확인하는 것을 권합니다.
+
+<CodePlayground
+  template="static"
+  activeFile="/index.html"
+  label="다섯 가지 오류를 찾아 직접 고쳐 보세요"
+  files={{
+    '/index.html': `<!doctype html>
+<html lang="ko">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>연습용 오류 페이지</title>
+    <link rel="stylesheet" href="styles.css" />
+  </head>
+  <body>
+    <h1>공지사항</h1>
+
+    <!-- 오류 1: p 안에 div -->
+    <p>
+      이번 주 공지입니다.
+      <div>중요: 내일은 휴무입니다.</div>
+    </p>
+
+    <!-- 오류 2: alt 없는 img -->
+    <img src="notice.png" width="100" height="60" />
+
+    <!-- 오류 3: label 연결 누락 -->
+    <label>연락처</label>
+    <input type="tel" id="연락처-입력" name="phone" />
+
+    <!-- 오류 4: 헤딩 레벨 건너뛰기 -->
+    <h4>세부 안내</h4>
+    <p>자세한 내용은 아래 버튼을 눌러 확인하세요.</p>
+
+    <!-- 오류 5: 클릭용 div -->
+    <div class="button" onclick="alert('확인했습니다')">확인</div>
+  </body>
+</html>`,
+    '/styles.css': `body {
+  font-family: system-ui, sans-serif;
+  max-width: 480px;
+  margin: 0 auto;
+  padding: 1rem;
+}
+.button {
+  display: inline-block;
+  padding: 0.5rem 1rem;
+  border: 1px solid #333;
+  cursor: pointer;
+}`,
+  }}
+/>
+
+코드를 다 고쳤다면 다음 다섯 줄과 비교해 보세요. 순서는 위 오류 번호와 같습니다.
+
+```html
+<p>이번 주 공지입니다.</p>
+<div>중요: 내일은 휴무입니다.</div>
+
+<img src="notice.png" alt="공지 아이콘" width="100" height="60" />
+
+<label for="연락처-입력">연락처</label>
+<input type="tel" id="연락처-입력" name="phone" />
+
+<h2>세부 안내</h2>
+<p>자세한 내용은 아래 버튼을 눌러 확인하세요.</p>
+
+<button type="button" onclick="alert('확인했습니다')">확인</button>
+```
+
+## 검증기 결과를 읽는 순서
+
+검증기가 한 번에 여러 메시지를 쏟아내면 어디부터 봐야 할지 막막할 수 있습니다. 다음 순서로 읽으면 효율이 좋습니다.
+
+| 순서 | 확인할 것 | 이유 |
+|------|-----------|------|
+| 1 | Error(오류)부터, Warning(경고)은 나중에 | Error는 스펙 위반이 확정된 것이고, Warning은 대개 접근성·관행 권고다 |
+| 2 | 메시지에 적힌 줄 번호(line)·칸(column) | 대부분의 메시지가 정확한 위치를 알려준다 |
+| 3 | 같은 유형 오류가 여러 번 반복되는지 | 하나를 고치면 같은 실수로 생긴 다른 오류가 한 번에 사라지는 경우가 많다 |
+| 4 | 오류를 고친 뒤 반드시 재검증 | 오류 복구 과정에서 트리 구조가 예상과 달라져, 고친 자리 근처에 새 오류가 드러나기도 한다 |
+
+<Callout type="warning">
+  **자주 틀리는 점:** 검증기에서 Error가 하나도 없다고 해서 접근성까지 완벽하다는 뜻은 아닙니다(20편에서 배운 원칙입니다). Nu HTML Checker는 **문법과 콘텐츠 모델**을 검사하는 도구이지, 대체 텍스트의 품질이나 색 대비 같은 실질적인 접근성 수준까지 판단하지는 않습니다. "클릭용 div" 실수도 검증기는 하드 에러로 잡지 않는다는 점이 이를 잘 보여줍니다.
+</Callout>
+
+## 핵심 정리
+
+- 콘텐츠 모델 위반은 브라우저가 조용히 트리를 다시 짜서 화면은 뜨지만, 의도한 구조와는 달라진다.
+- `alt` 누락, `label`-`input` 연결 끊김은 화면에는 티가 안 나고 스크린 리더 사용자에게만 문제가 되므로 검증기 없이는 스스로 발견하기 어렵다.
+- 헤딩 레벨 건너뛰기는 하드 에러가 아니라 경고이지만, 제목만 훑어 탐색하는 스크린 리더 사용자에게는 실질적인 장애물이다.
+- 클릭 가능한 `div`는 검증기가 잡지 못하는 대표적인 시맨틱 오용이다. 검증 통과가 접근성 완성을 뜻하지 않는다.
+- 검증기 결과는 Error부터, 줄 번호를 따라, 고친 뒤 재검증까지가 한 세트다.
+
+## 마무리 복습
+
+<Quiz
+  questionNumber={1}
+  question="p 태그 안에 div를 넣었을 때 브라우저가 실제로 하는 동작은?"
+  options={['div를 무시하고 화면에 표시하지 않는다', '열려 있던 p를 자동으로 닫고 div를 형제로 새로 시작한다', '페이지 전체 렌더링을 멈춘다', 'div를 p의 자식으로 그대로 유지한다']}
+  correctAnswer={2}
+  explanation="브라우저의 파싱 오류 복구 알고리즘은 p의 콘텐츠 모델에 맞지 않는 div를 만나는 순간 열려 있던 p를 암묵적으로 닫고, div를 p의 형제로 새로 시작한다. 화면은 뜨지만 의도한 중첩 구조는 사라진다."
+  optionExplanations={['div는 무시되지 않고 화면에 정상적으로 표시된다', '정답 — 암묵적 태그 닫기가 파싱 오류 복구의 핵심 동작이다', '콘텐츠 모델 위반은 렌더링을 멈추는 치명적 오류가 아니다', 'div가 p의 자식으로 유지된다면 콘텐츠 모델 위반이 그대로 남는 것인데 실제로는 트리가 재구성된다']}
+/>
+
+<Quiz
+  questionNumber={2}
+  question="img 요소의 alt 속성을 아예 생략했을 때 벌어지는 일로 옳은 것은?"
+  options={['이미지가 화면에 표시되지 않는다', '검증기가 필수 속성 누락 오류를 낸다', '브라우저가 자동으로 파일명을 alt 값으로 채운다', 'CSS로 지정한 배경색이 사라진다']}
+  correctAnswer={2}
+  explanation="alt는 img의 필수 속성이라 생략하면 Nu HTML Checker가 오류를 낸다. 브라우저 화면 표시 자체에는 영향이 없고, 파일명을 자동으로 채워주는 동작도 없다."
+  optionExplanations={['alt 누락은 이미지 표시 자체를 막지 않는다', '정답 — 필수 속성 누락은 검증기가 잡아내는 대표적인 오류다', '브라우저가 파일명을 대체 텍스트로 자동 생성하지는 않는다', 'alt와 CSS 배경색은 서로 무관하다']}
+/>
+
+<Quiz
+  questionNumber={3}
+  question="label에 for 속성이 없어 어떤 input과도 연결되지 않았을 때, 실제로 벌어지는 문제는?"
+  options={['페이지 빌드가 실패한다', 'label 텍스트가 화면에서 사라진다', 'label을 클릭해도 input에 포커스가 가지 않는다', 'input에 입력한 값이 서버로 전송되지 않는다']}
+  correctAnswer={3}
+  explanation="연결이 끊긴 label은 문법적으로는 유효해 빌드나 텍스트 표시에는 문제가 없지만, 클릭 시 연결된 입력에 포커스를 옮기는 label 고유의 동작이 사라진다. 스크린 리더 연결도 함께 끊긴다."
+  optionExplanations={['for 값 불일치는 문법 오류가 아니므로 빌드는 통과한다', 'label 텍스트 자체는 화면에 정상적으로 표시된다', '정답 — 클릭 시 포커스 이동이라는 label의 핵심 동작이 끊긴다', 'name이 있는 input이라면 값 전송 자체는 label 연결과 무관하게 이루어진다']}
+/>
+
+<Quiz
+  questionNumber={4}
+  question="h1 다음에 곧바로 h4를 쓰는 것에 대한 설명으로 옳은 것은?"
+  options={['빌드 시점에 반드시 에러가 발생한다', '스펙상 하드 에러는 아니지만 검증기·접근성 검사기가 경고로 잡는다', '2022년 스펙 개정 이후로는 완전히 금지되어 사용할 수 없다', 'CSS로 시각적 크기만 맞추면 문제가 되지 않는다']}
+  correctAnswer={2}
+  explanation="문서 아웃라인 알고리즘 자체가 스펙에서 제거되어 랭크 건너뛰기를 금지하는 하드 규칙은 없지만, 제목만 훑어 탐색하는 스크린 리더 사용자에게 실질적인 혼란을 주므로 검증기와 접근성 검사기가 경고로 지적한다."
+  optionExplanations={['하드 에러가 아니라 경고이므로 빌드 자체가 막히지는 않는다', '정답 — 문법 규칙은 아니지만 접근성 관행상 경고 대상이다', '완전히 금지되었다는 것은 사실이 아니며 여전히 경고 수준이다', 'CSS 시각적 크기와 실제 heading 랭크 구조는 별개의 문제다']}
+/>
+
+<Quiz
+  questionNumber={5}
+  question="onclick이 달린 div 대신 button을 써야 하는 근본적인 이유로 가장 알맞은 것은?"
+  options={['div보다 button이 더 빨리 렌더링되기 때문에', 'button은 키보드 포커스·활성화·스크린 리더 역할 안내가 기본으로 딸려 오기 때문에', 'div에는 onclick 속성을 아예 쓸 수 없기 때문에', 'button은 CSS로 스타일링이 불가능해 시맨틱을 강제하기 때문에']}
+  correctAnswer={2}
+  explanation="button은 Tab 키 포커스 이동, Enter/Space 키로 활성화, 스크린 리더의 버튼 역할 안내가 브라우저 기본 동작으로 딸려 온다. 반면 div는 순전히 마우스 클릭에만 반응하고 이런 접근성 동작이 전혀 없다."
+  optionExplanations={['렌더링 속도 차이는 이 선택의 근거가 아니다', '정답 — 키보드·스크린 리더 지원이 기본 제공된다는 것이 핵심이다', 'div에도 onclick 속성 자체는 문법적으로 사용할 수 있다', 'button도 CSS로 자유롭게 스타일링할 수 있어 이 설명은 틀렸다']}
+/>
+
+<Quiz
+  questionNumber={6}
+  question="검증기 메시지를 읽을 때 권장되는 순서로 가장 알맞은 것은?"
+  options={['Warning을 전부 해결한 뒤 Error를 본다', 'Error부터 줄 번호를 따라 확인하고, 고친 뒤 재검증한다', '메시지 순서와 무관하게 마음에 드는 것부터 고친다', '한 번 검증한 결과만 믿고 다시 검증하지 않는다']}
+  correctAnswer={2}
+  explanation="스펙 위반이 확정된 Error를 먼저 처리하고, 줄 번호를 따라가며 확인한 뒤, 고친 결과가 새로운 오류를 만들지 않았는지 재검증하는 것이 효율적인 순서다. 오류 복구로 트리 구조가 바뀌면 근처에 새 오류가 드러날 수 있다."
+  optionExplanations={['Error가 더 확정적인 문제이므로 먼저 처리하는 것이 합리적이다', '정답 — Error 우선, 줄 번호 순, 재검증까지가 한 세트다', '무작위로 접근하면 관련된 오류를 놓치기 쉽다', '고친 뒤 재검증하지 않으면 새로 생긴 오류를 놓칠 수 있다']}
+/>
+
+<Quiz
+  questionNumber={7}
+  question="Nu HTML Checker에서 오류가 하나도 없다는 결과가 뜻하는 것으로 옳은 것은?"
+  options={['이 페이지는 접근성 기준을 완전히 충족한다', '문법과 콘텐츠 모델 규칙은 지켰지만 접근성 품질까지 보장하지는 않는다', '색 대비와 대체 텍스트 품질까지 검사를 통과했다는 뜻이다', '스크린 리더로 테스트할 필요가 더 이상 없다는 뜻이다']}
+  correctAnswer={2}
+  explanation="Nu HTML Checker는 문법·콘텐츠 모델 검사 도구다. 클릭용 div처럼 문법적으로는 유효하지만 접근성에 문제가 되는 패턴은 잡아내지 못하므로, 검증 통과가 접근성 완성을 의미하지 않는다."
+  optionExplanations={['검증 통과와 접근성 완성은 별개의 기준이다', '정답 — 문법 검사와 접근성 품질 검사는 범위가 다르다', '색 대비·대체 텍스트 품질은 이 검증기의 검사 범위가 아니다', '문법 검증이 실사용자 테스트를 대체하지는 못한다']}
+/>
+
+## 참고 자료
+
+- [W3C — Nu HTML Checker](https://validator.w3.org/nu/)
+- [MDN — `<h1>`–`<h6>` HTML section heading elements](https://developer.mozilla.org/en-US/docs/Web/HTML/Reference/Elements/Heading_Elements)
+- [MDN — HTML: A good basis for accessibility](https://developer.mozilla.org/en-US/docs/Learn_web_development/Core/Accessibility/HTML)
+- [WHATWG — 13.2 Parsing HTML documents](https://html.spec.whatwg.org/multipage/parsing.html)

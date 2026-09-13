@@ -1,0 +1,201 @@
+---
+title: '15. autocomplete 토큰 체계 제대로 쓰기'
+description: '단일 토큰과 섹션·그룹 토큰을 조합하는 autocomplete 문법을 정리하고, 자동완성이 접근성·개인정보에 미치는 영향과 off가 항상 지켜지지 않는 이유를 살펴본다'
+---
+
+<Callout type="info">
+  **이번 문서의 목표:** 이 문서를 다 읽으면 `autocomplete` 속성값을 "필드 이름 하나"가 아니라 **여러 토큰(token, 표준이 정한 낱말)이 정해진 순서로 조합된 문자열**로 이해하고, 배송지·청구지처럼 같은 종류의 필드가 여러 번 나오는 폼에서 브라우저가 헷갈리지 않게 값을 작성하며, `autocomplete="off"`가 왜 로그인 폼에서는 자주 무시되는지 설명할 수 있습니다.
+</Callout>
+
+## 왜 그냥 `name="email"`만으로는 부족한가
+
+브라우저와 비밀번호 관리자(password manager)는 사용자가 예전에 입력했던 이름·주소·카드번호를 기억했다가 자동으로 채워 넣습니다. 이 기능을 **자동완성**(autofill, 오토필)이라고 부릅니다. 문제는 브라우저가 "이 칸이 무엇을 묻는 칸인지"를 알아내는 방법입니다.
+
+`name` 속성은 서버로 보낼 때 쓰는 키(key)일 뿐이라 `name="a1"`처럼 서버 개발자 마음대로 지어도 됩니다. 브라우저는 이 값만으로 "이건 이메일란이다"를 확신할 수 없습니다. 그래서 HTML은 **자동완성 전용으로 의미를 알려주는 표준 어휘**를 따로 정의했고, 이것이 `autocomplete` 속성입니다.
+
+> **쉽게 말하면:** `name`은 서버에게 보내는 소포 상자에 붙이는 임의의 라벨이고, `autocomplete`는 "이 상자 안에는 정확히 무엇이 들었는지"를 브라우저와 비밀번호 관리자에게 알려주는 표준 규격 라벨입니다.
+
+## 1. 단일 필드 토큰 — 가장 기본 단위
+
+`autocomplete`에 넣을 수 있는 값 중 가장 흔한 것은 **필드 이름 하나짜리 토큰**입니다. 아래는 실무에서 자주 쓰는 항목입니다.
+
+| 토큰 | 의미 |
+|---|---|
+| `name` | 전체 이름(성+이름 통합) |
+| `given-name` | 이름(성을 뺀 부분) |
+| `family-name` | 성 |
+| `email` | 이메일 주소 |
+| `tel` | 전화번호 전체 |
+| `username` | 로그인 아이디 |
+| `current-password` | 지금 로그인에 쓰는 기존 비밀번호 |
+| `new-password` | 새로 설정하는 비밀번호(가입, 비밀번호 변경) |
+| `one-time-code` | 문자·이메일로 오는 일회용 인증번호 |
+| `organization` | 소속 회사·기관명 |
+| `street-address` | 도로명 주소 전체(한 줄) |
+| `postal-code` | 우편번호 |
+| `country` | 국가 |
+| `cc-name` | 카드 명의자 이름 |
+| `cc-number` | 카드 번호 |
+| `cc-exp` | 카드 유효기간(월/년 통합) |
+| `cc-csc` | 카드 보안 코드(CVC/CVV) |
+| `bday` | 생년월일 |
+| `url` | 개인·소속 웹사이트 주소 |
+
+```html
+<label>이메일 <input type="email" name="email" autocomplete="email"></label>
+<label>새 비밀번호 <input type="password" name="pw" autocomplete="new-password"></label>
+```
+
+`current-password`와 `new-password`를 구분하는 이유는 명확합니다. 로그인 폼의 비밀번호란에 자동으로 채워 넣을 값과, 회원가입·비밀번호 변경 폼에서 **새로** 만드는 값은 브라우저 입장에서 전혀 다른 취급을 받아야 하기 때문입니다. 이 둘을 섞어 쓰면 비밀번호 관리자가 기존 비밀번호를 새 비밀번호란에 채워 넣는 등 엉뚱한 동작을 할 수 있습니다.
+
+## 2. 섹션·그룹 토큰 — 같은 종류의 필드가 여러 번 나올 때
+
+### 문제 상황
+
+주문 폼에 배송지 주소와 청구지 주소가 둘 다 있다면, `postal-code`란이 한 페이지에 두 개 생깁니다. 토큰 하나만 놓고 보면 브라우저는 "둘 다 우편번호"라는 것만 알 뿐, 어느 쪽이 배송지이고 어느 쪽이 청구지인지 구분하지 못합니다. 이를 풀기 위해 `autocomplete` 값은 **여러 토큰을 공백으로 이어 붙인 조합**을 허용합니다.
+
+### 조합 순서 규칙
+
+`autocomplete` 값은 다음 순서로 토큰을 이어 붙입니다. 순서를 어기면 무시되므로 정확히 지켜야 합니다.
+
+1. `section-*` (선택) — 임의로 이름 붙인 섹션 구분자. 예: `section-shipping`, `section-billing`
+2. `shipping` 또는 `billing` (선택) — 배송지/청구지 구분
+3. `home` / `work` / `mobile` / `fax` / `pager` (선택, 연락처 계열 필드 전용) — 어떤 종류의 연락처인지
+4. 마지막으로 위 1번 표에 있는 **필드 이름 토큰** (필수)
+
+```html
+<!-- 배송지 우편번호와 청구지 우편번호를 구분 -->
+<label>배송지 우편번호
+  <input name="shipZip" autocomplete="shipping postal-code">
+</label>
+<label>청구지 우편번호
+  <input name="billZip" autocomplete="billing postal-code">
+</label>
+
+<!-- 집 전화와 회사 전화를 구분 -->
+<label>집 전화
+  <input type="tel" autocomplete="home tel">
+</label>
+<label>회사 전화
+  <input type="tel" autocomplete="work tel">
+</label>
+
+<!-- 완전히 임의로 이름 붙인 두 개의 배송 섹션(예: 두 개의 다른 수령인) -->
+<input autocomplete="section-recipient1 shipping name">
+<input autocomplete="section-recipient2 shipping name">
+```
+
+| 상황 | 올바른 조합 예 |
+|---|---|
+| 배송지 도로명 주소 | `shipping street-address` |
+| 청구지 카드 번호 | `billing cc-number` |
+| 회사 이메일 | `work email` |
+| 아무 그룹 구분 없이 단일 이메일란 | `email` (그룹 토큰 없이 필드 이름만) |
+
+<Callout type="warning">
+  **자주 틀리는 점:** 토큰 순서를 뒤집어 `postal-code shipping`처럼 쓰면 브라우저가 전체 값을 통째로 무시하고 자동완성을 아예 제공하지 않습니다. 반드시 "섹션 → 배송/청구 → 연락처 종류 → 필드 이름" 순서를 지켜야 합니다.
+</Callout>
+
+## 3. 자동완성과 접근성·개인정보
+
+### 접근성 관점
+
+`autocomplete`는 겉보기엔 단순 편의 기능 같지만, 접근성 관점에서 무게가 상당합니다. **운동 장애**가 있어 타이핑 자체가 힘든 사용자, **기억·인지 장애**가 있어 자신의 주소나 카드번호를 매번 정확히 기억해 내기 어려운 사용자에게 자동완성은 편의가 아니라 **폼을 완료할 수 있느냐 없느냐를 가르는 요소**입니다. 웹 접근성 지침(WCAG, Web Content Accessibility Guidelines)의 "Identify Input Purpose"(입력 목적 식별) 성공 기준이 바로 이 `autocomplete` 토큰을 올바르게 붙이라고 요구하는 항목입니다.
+
+### 개인정보 관점
+
+동시에 자동완성은 개인정보 노출 위험도 함께 가져옵니다. 공용 컴퓨터나 여러 사람이 함께 쓰는 기기에서 주소·카드번호가 자동으로 채워지면, 다음 사용자가 그 값을 그대로 볼 수 있습니다. 그래서 다음과 같은 균형을 따집니다.
+
+- 개인 기기, 일반적인 배송지·연락처 정보 → 자동완성을 적극 허용하는 것이 접근성에 이득
+- 공용 키오스크, 결제 단말처럼 여러 사람이 같은 화면을 쓰는 환경 → `autocomplete="off"`를 고려할 수 있음(단, 아래에서 볼 한계가 있음)
+
+## 4. `autocomplete="off"`가 항상 지켜지지 않는 이유
+
+### 표준상의 의미와 실제 동작의 괴리
+
+`autocomplete="off"`는 표준상 "이 필드는 브라우저가 이전 입력값을 기억해 자동으로 채우지 말라"는 요청입니다. 그런데 실제로는 로그인 폼의 `username`·`current-password`란에 `autocomplete="off"`를 붙여도 대부분의 브라우저와 비밀번호 관리자는 이를 **무시하고 자동완성 제안을 계속 띄웁니다.**
+
+이유는 명확합니다. 비밀번호 관리자는 사용자가 비밀번호를 안전하게(길고 복잡하게, 매 사이트마다 다르게) 만들고 저장하도록 돕는 보안 도구입니다. 만약 웹사이트가 `off` 하나로 이 도구를 마음대로 꺼버릴 수 있다면, 오히려 사용자가 짧고 기억하기 쉬운(따라서 취약한) 비밀번호를 쓰도록 내모는 결과가 됩니다. 그래서 주요 브라우저 벤더들은 **로그인·비밀번호 관련 필드에서는 사이트의 `off` 요청보다 사용자의 보안 이익을 우선한다**는 정책을 택했습니다.
+
+| 필드 종류 | `autocomplete="off"`의 실제 효과 |
+|---|---|
+| 일반 텍스트 입력(이름, 메모 등) | 대체로 요청대로 자동완성이 꺼짐 |
+| `username`, `current-password`, `new-password` | 대부분의 최신 브라우저가 무시하고 자동완성·비밀번호 저장 제안을 계속 표시 |
+| 신용카드 번호 | 브라우저마다 정책이 갈리며, `off`를 지켜주는 경우와 무시하는 경우가 혼재 |
+
+<Callout type="warning">
+  **자주 틀리는 점:** "`autocomplete="off"`를 붙였으니 이 비밀번호란은 저장되지 않는다"고 단정하면 안 됩니다. 브라우저 구현은 벤더마다, 버전마다 다르고 계속 바뀌는 영역이므로, 민감한 필드를 다룰 때는 `off` 하나에 의존하지 말고 02편에서 배운 대로 그 시점의 실제 브라우저 동작을 직접 확인하는 것이 안전합니다.
+</Callout>
+
+### 그렇다면 무엇을 해야 하는가
+
+민감한 필드라도 `autocomplete` 자체를 아예 없애기보다는, 적절한 표준 토큰(`new-password` 등)을 정확히 붙여 브라우저가 **올바른 종류의 자동완성**(강력한 새 비밀번호 제안 등)을 하도록 유도하는 편이 보안과 사용성 양쪽에 더 유리한 경우가 많습니다. 정말 자동완성을 막아야 하는 특수한 상황(카드 결제 단말의 공용 화면 등)이라면, `off` 하나에 기대지 말고 애초에 그 필드를 자동완성 후보로 인식하기 어려운 이름·구조로 설계하는 등 여러 겹의 대응이 필요합니다.
+
+## 핵심 정리
+
+- `autocomplete`는 `name`과 달리 브라우저·비밀번호 관리자가 이해하는 표준 어휘이며, `email`·`new-password`·`cc-number` 같은 정해진 필드 이름 토큰을 쓴다.
+- 같은 종류의 필드가 여러 번 나올 때는 "섹션 → 배송/청구 → 연락처 종류 → 필드 이름" 순서로 토큰을 조합해 브라우저가 구분하게 한다. 순서가 틀리면 값 전체가 무시된다.
+- `current-password`와 `new-password`를 구분해야 비밀번호 관리자가 기존 값과 새 값을 헷갈리지 않는다.
+- 자동완성은 운동·인지 장애가 있는 사용자에게 접근성 차원의 필수 기능이 될 수 있지만, 동시에 공용 기기에서는 개인정보 노출 위험도 있다.
+- `autocomplete="off"`는 특히 로그인·비밀번호 필드에서 브라우저 보안 정책에 의해 자주 무시된다. 민감한 필드일수록 `off`에만 의존하지 말고 올바른 표준 토큰을 붙이는 쪽이 더 안전하다.
+
+## 마무리 복습
+
+<Quiz
+  questionNumber={1}
+  question="autocomplete 속성이 name 속성과 다른 점으로 가장 알맞은 것은?"
+  options={['autocomplete은 서버로 전송되는 값의 키를 정한다', 'autocomplete은 브라우저와 비밀번호 관리자가 이해하는 표준 어휘로 필드의 의미를 알려준다', '두 속성은 완전히 동일한 역할을 하는 별칭이다', 'autocomplete은 CSS 스타일링에만 쓰인다']}
+  correctAnswer={2}
+  explanation="name은 서버 전송용 임의의 키인 반면 autocomplete은 브라우저가 필드의 의미를 표준적으로 이해하도록 돕는 정해진 어휘다."
+  optionExplanations={['서버 전송 키를 정하는 것은 name의 역할이다', '정답 — 표준화된 의미 전달이 핵심 역할이다', '역할이 서로 다르며 별칭 관계가 아니다', 'CSS와는 무관한 폼 관련 속성이다']}
+/>
+
+<Quiz
+  questionNumber={2}
+  question="배송지 우편번호란에 autocomplete을 붙일 때 올바른 토큰 순서는?"
+  options={['postal-code shipping', 'shipping postal-code', 'postal-code section-shipping', 'off shipping postal-code']}
+  correctAnswer={2}
+  explanation="자동완성 토큰은 섹션 및 배송/청구 구분 토큰이 먼저 오고 필드 이름 토큰이 마지막에 온다. shipping postal-code가 올바른 순서다."
+  optionExplanations={['필드 이름이 먼저 오면 값 전체가 무시된다', '정답 — 배송 구분 토큰 다음에 필드 이름이 온다', '섹션 토큰이 뒤에 있어 순서가 틀렸다', 'off와 다른 토큰을 함께 쓰는 조합은 유효하지 않다']}
+/>
+
+<Quiz
+  questionNumber={3}
+  question="current-password와 new-password를 구분해서 써야 하는 이유로 가장 알맞은 것은?"
+  options={['두 값은 서버에서 완전히 다른 이름으로 저장되기 때문이다', '비밀번호 관리자가 기존 비밀번호와 새로 만드는 비밀번호를 다르게 취급해야 엉뚱한 자동완성을 막을 수 있기 때문이다', 'CSS 의사 클래스가 두 토큰에 따라 달라지기 때문이다', '두 토큰 중 하나는 더 이상 표준이 아니기 때문이다']}
+  correctAnswer={2}
+  explanation="로그인용 기존 비밀번호와 새로 설정하는 비밀번호는 브라우저 입장에서 서로 다른 취급이 필요하다. 구분하지 않으면 기존 비밀번호가 새 비밀번호란에 잘못 채워지는 등의 문제가 생길 수 있다."
+  optionExplanations={['name 속성과는 별개의 이야기다', '정답 — 비밀번호 관리자의 올바른 동작을 위한 구분이다', 'CSS 의사 클래스와 직접적인 관련은 없다', '둘 다 현재 표준에 포함된 유효한 토큰이다']}
+/>
+
+<Quiz
+  questionNumber={4}
+  question="autocomplete 값 off에 대한 설명으로 옳은 것은?"
+  options={['모든 브라우저에서 예외 없이 항상 자동완성을 완전히 차단한다', '일반 텍스트 필드에서는 대체로 지켜지지만, 로그인·비밀번호 필드에서는 브라우저 보안 정책에 의해 자주 무시된다', '이 값을 붙이면 서버로 값이 전송되지 않는다', 'HTML 표준에서 이미 폐지된 값이다']}
+  correctAnswer={2}
+  explanation="autocomplete=off는 표준상 요청이지만, 로그인 관련 필드에서는 사용자의 보안 이익을 위해 여러 브라우저가 이 요청을 무시하고 자동완성 제안을 계속 표시한다."
+  optionExplanations={['필드 종류와 브라우저에 따라 실제 동작이 달라진다', '정답 — 필드 종류에 따라 지켜지는 정도가 다르다', '값 전송 여부와는 무관한 속성이다', '현재도 표준에 정의되어 있는 값이다']}
+/>
+
+<Quiz
+  questionNumber={5}
+  question="autocomplete 토큰이 접근성 측면에서 중요한 이유로 가장 알맞은 것은?"
+  options={['자동완성이 스크린 리더의 음성 속도를 조절하기 때문이다', '운동·인지 장애가 있는 사용자에게 자동완성이 폼 완료 가능 여부를 좌우할 수 있기 때문이다', 'autocomplete이 없으면 색상 대비가 낮아지기 때문이다', '자동완성이 키보드 포커스 순서를 결정하기 때문이다']}
+  correctAnswer={2}
+  explanation="타이핑이 어렵거나 정보를 정확히 기억하기 어려운 사용자에게 자동완성은 단순 편의가 아니라 폼을 완료할 수 있는지 여부를 가르는 요소가 될 수 있다."
+  optionExplanations={['음성 속도와는 관련이 없다', '정답 — WCAG의 입력 목적 식별 기준이 다루는 지점이다', '색상 대비는 별개의 접근성 기준이다', '포커스 순서는 DOM 순서나 tabindex가 결정한다']}
+/>
+
+<Quiz
+  questionNumber={6}
+  question="같은 페이지에 배송지 전화번호와 청구지 전화번호가 각각 있을 때 청구지 전화번호란에 알맞은 autocomplete 값은?"
+  options={['tel billing', 'billing tel', 'tel', 'section-billing']}
+  correctAnswer={2}
+  explanation="배송/청구 구분 토큰이 필드 이름 토큰보다 앞에 와야 하므로 billing tel이 올바른 순서다."
+  optionExplanations={['필드 이름이 앞에 오면 순서 위반으로 무시될 수 있다', '정답 — 청구지 구분과 필드 이름이 올바른 순서로 조합됐다', '단일 필드 이름만으로는 배송지와 구분되지 않는다', '필드 이름 토큰이 빠져 있어 불완전하다']}
+/>
+
+## 참고 자료
+
+- [MDN — autocomplete 속성](https://developer.mozilla.org/en-US/docs/Web/HTML/Reference/Attributes/autocomplete)
+- [MDN — Client-side form validation](https://developer.mozilla.org/en-US/docs/Learn_web_development/Extensions/Forms/Form_validation)

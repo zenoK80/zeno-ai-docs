@@ -1,0 +1,322 @@
+---
+title: '20. @starting-style과 이산 값 전환'
+description: 'display: none과 콘텐츠 가시성 전환이 오랫동안 불가능했던 이유를 짚고, @starting-style과 transition-behavior: allow-discrete로 진입·퇴장 애니메이션을 CSS만으로 구현한다'
+---
+
+<Callout type="info">
+  **이번 문서의 목표:** 이 문서를 다 읽으면 `display`처럼 중간값이 없는 속성이 왜 그동안 전환(transition, 트랜지션)되지 않았는지 정확히 설명하고, `@starting-style`과 `transition-behavior: allow-discrete`를 조합해 `display: none`으로 사라지는 요소에도 CSS만으로 부드러운 진입·퇴장 애니메이션을 만들 수 있게 됩니다.
+</Callout>
+
+## 1. 왜 필요한가 — 두 가지 오래된 문제
+
+### 문제 1 — 사라지는 요소는 전환되지 않는다
+
+CSS의 `transition`(전환)은 속성값이 A에서 B로 바뀔 때 그 중간 단계를 계산해 부드럽게 보여주는 기능입니다. `opacity: 1`에서 `opacity: 0`으로 바뀌면 브라우저는 1, 0.9, 0.8, …처럼 중간값을 만들어 페이드아웃을 그립니다. 이것이 가능한 이유는 `opacity`가 **연속적인 숫자값**이라 중간값을 만들 수 있기 때문입니다.
+
+그런데 `display: block`에서 `display: none`으로 바뀌는 경우를 생각해 봅시다. `display`에는 "block과 none의 중간"이라는 것이 존재하지 않습니다. 이런 속성을 **이산 속성**(discrete property, 불연속 속성)이라고 부릅니다. 오랫동안 이산 속성은 전환 목록에 넣어도 **중간 시점 없이 즉시 전환 시작 또는 종료 시점에 값이 바뀌는 것**으로 정의되어 있었습니다. 문제는 `display: none`이 적용되는 순간 요소가 렌더 트리에서 아예 빠지므로, 같이 걸어둔 `opacity` 전환이 재생될 시간조차 없이 요소가 통째로 사라져 버린다는 것입니다.
+
+```css
+/* 이렇게 써도 페이드아웃이 보이지 않는다 */
+.모달 {
+  opacity: 1;
+  transition: opacity 0.3s;
+}
+
+.모달[hidden] {
+  display: none;
+  opacity: 0;
+}
+```
+
+`hidden` 속성이 붙는 순간 `display: none`이 **즉시** 적용되어 요소가 화면과 접근성 트리에서 동시에 사라지므로, `opacity` 전환이 시작되기도 전에 재생할 대상이 없어집니다.
+
+### 문제 2 — 나타나는 요소는 처음부터 최종 모습이다
+
+반대 방향도 문제입니다. 요소를 화면에 새로 추가하면서 `opacity: 0`에서 `opacity: 1`로 페이드인시키고 싶다고 합시다.
+
+```css
+.토스트 {
+  opacity: 0;
+  transition: opacity 0.3s;
+}
+
+.토스트.보임 {
+  opacity: 1;
+}
+```
+
+`.보임` 클래스를 요소가 DOM에 추가되는 **바로 그 순간** 함께 붙이면, 브라우저는 첫 페인트(paint, 그리기) 전에 이미 `opacity: 1`이라는 최종 상태를 계산해버려 전환할 "이전 값"이 없는 것으로 처리하는 경우가 흔합니다. 그래서 예전에는 `requestAnimationFrame`을 이중으로 걸어 클래스를 한 프레임 늦게 붙이는 편법("더블 rAF 트릭")을 자바스크립트로 구현해야 했습니다.
+
+> **쉽게 말하면:** 사진을 찍기 전에 이미 포즈를 다 잡고 있으면 "포즈를 잡아가는 과정"은 사진에 담기지 않습니다. 진입 애니메이션이 재생되려면 "잡기 전 포즈"를 브라우저에게 미리 알려줘야 합니다.
+
+## 2. `@starting-style` — 진입 시 시작 스타일 정의하기
+
+### 정의
+
+**`@starting-style`**은 요소가 "이전에 렌더링되지 않다가 새로 나타나는 순간"에 적용할 **시작 스타일**을 정의하는 규칙입니다. 이렇게 정의된 시작 스타일과 실제 스타일 사이를 브라우저가 전환으로 이어줍니다.
+
+```css
+.토스트 {
+  opacity: 1;
+  transform: translateY(0);
+  transition: opacity 0.3s, transform 0.3s;
+
+  @starting-style {
+    opacity: 0;
+    transform: translateY(-10px);
+  }
+}
+```
+
+이 규칙은 "이 요소가 새로 나타날 때는 `opacity: 0`, `translateY(-10px)`에서 시작해서, 지금 선언된 `opacity: 1`, `translateY(0)`으로 전환하라"는 뜻입니다. 더블 rAF 같은 자바스크립트 편법 없이, CSS 선언만으로 "시작 값"과 "끝 값"을 모두 CSS 쪽에 둘 수 있게 된 것입니다.
+
+<Callout type="warning">
+  **자주 틀리는 점:** `@starting-style` 블록은 **평소에는 적용되지 않는** 특별한 스타일입니다. 요소가 이미 렌더링되어 있는 상태에서 다른 속성이 바뀌는 일반적인 전환에는 전혀 관여하지 않고, 오직 "새로 나타나는 그 순간"에만 한 번 개입합니다.
+</Callout>
+
+## 3. `transition-behavior: allow-discrete` — 이산 속성도 전환 대상에 넣기
+
+### 정의
+
+**`transition-behavior`**(전환 동작 방식) 속성의 `allow-discrete` 값은 `display`, `content-visibility`처럼 원래 전환되지 않던 이산 속성도 전환 목록에 포함시킵니다. 이때 이산 속성은 중간값을 만드는 대신, **전환 시작 시점 또는 종료 시점 중 하나에서 값을 스위치**합니다.
+
+```css
+.모달 {
+  transition: opacity 0.3s, display 0.3s allow-discrete;
+}
+```
+
+`transition-behavior`는 단독 속성으로도 쓸 수 있지만, 위처럼 `transition` 축약 안에 마지막 키워드로 붙이는 방식이 흔합니다.
+
+### 사라질 때와 나타날 때의 규칙이 다르다
+
+이산 속성이 전환에 포함되면, 값이 바뀌는 방향에 따라 스위치 시점이 달라집니다.
+
+- **사라지는 방향**(예: `display: flex` → `display: none`): 전환이 **끝나는 시점**까지 이전 값(`flex`)을 유지하다가, 전환이 끝난 후에야 `none`으로 전환됩니다. 즉 페이드아웃이 끝날 때까지 요소가 화면에 남아 있습니다.
+- **나타나는 방향**(예: `display: none` → `display: flex`): 전환이 **시작되는 시점**에 즉시 `flex`로 전환됩니다. 그래야 요소가 화면에 존재해야 페이드인 전환이 눈에 보이기 때문입니다.
+
+이 비대칭적인 규칙 덕분에 "사라질 때는 다 사라진 뒤에 `display: none`", "나타날 때는 나타나자마자 `display: flex`"라는, 우리가 직관적으로 기대하는 동작이 그대로 구현됩니다.
+
+## 4. 둘을 합쳐 완성하는 진입·퇴장 애니메이션
+
+두 기능은 짝을 이뤄 씁니다. `@starting-style`은 "나타날 때 어디서 출발하는가"를, `transition-behavior: allow-discrete`는 "`display: none` 단계 자체를 언제 넘나드는가"를 각각 책임집니다.
+
+```css
+.모달 {
+  opacity: 0;
+  transform: scale(0.9);
+  display: none;
+  transition: opacity 0.25s, transform 0.25s, display 0.25s allow-discrete;
+
+  &.열림 {
+    display: flex;
+    opacity: 1;
+    transform: scale(1);
+
+    @starting-style {
+      opacity: 0;
+      transform: scale(0.9);
+    }
+  }
+}
+```
+
+`.열림` 클래스가 붙는 순간(진입): `display`가 `allow-discrete` 덕분에 즉시 `flex`로 바뀌어 요소가 화면에 그려지고, 동시에 `@starting-style`이 지정한 "작고 투명한" 상태에서 실제 값으로 전환이 시작됩니다.
+
+`.열림` 클래스가 빠지는 순간(퇴장): `opacity`와 `transform`이 먼저 원래 값으로 되돌아가는 전환을 재생하고, `display`는 `allow-discrete` 덕분에 그 전환이 **끝날 때까지** `flex`를 유지하다가 마지막에 `none`으로 바뀝니다. 그래서 요소가 사라지는 과정이 눈에 보입니다.
+
+### 지원 상태와 폴백
+
+`@starting-style`과 `transition-behavior: allow-discrete`는 둘 다 **최신 브라우저 기준**입니다(2024-08 Baseline newly available). 지원하지 않는 브라우저에서는 두 규칙이 그냥 무시되므로, 요소는 애니메이션 없이 즉시 나타나고 즉시 사라집니다. 이는 기능이 실패하는 것이 아니라 **자연스러운 성능 저하**(graceful degradation, 우아한 성능 저하)로 이어지는 경우입니다 — 모션이 빠졌을 뿐 기능 자체(모달이 열리고 닫히는 것)는 정상 동작합니다.
+
+```css
+@supports not (transition-behavior: allow-discrete) {
+  /* 미지원 브라우저에서는 즉시 표시/숨김으로 충분하다는 것을 명시하는 문서화용 규칙 */
+  .모달 {
+    transition: none;
+  }
+}
+```
+
+### `@property`와의 조합 — 애니메이션 가능한 커스텀 속성까지
+
+13편·14편에서 다룬 `@property`로 타입을 지정한 커스텀 속성은 색상·숫자처럼 연속적인 값으로 취급되어 전환이 가능해집니다. `@starting-style`은 이런 커스텀 속성에도 그대로 적용되어, 진입 시 시작 색상·숫자를 지정하는 데 함께 쓸 수 있습니다.
+
+```css
+@property --강조폭 {
+  syntax: '<percentage>';
+  inherits: false;
+  initial-value: 0%;
+}
+
+.진행바 {
+  --강조폭: 100%;
+  transition: --강조폭 0.4s;
+
+  @starting-style {
+    --강조폭: 0%;
+  }
+}
+```
+
+## 5. `visibility` 전환과의 차이 — 완전히 새로운 기능은 아니다
+
+사실 `display`가 최초의 이산 전환 대상은 아닙니다. `visibility`(보이기·숨기기, `hidden`/`visible`)는 오래전부터 전환 목록에 넣을 수 있었고, 방향에 따라 시작 또는 끝 시점에 스위치되는 규칙도 이미 있었습니다. 다만 `visibility: hidden`은 요소를 화면에서만 숨길 뿐 **레이아웃 공간은 그대로 차지**합니다. `display: none`은 레이아웃에서 요소를 완전히 제거해 공간까지 접습니다. `display`가 오랫동안 전환 대상이 아니었던 이유가 바로 이 완전한 제거 때문이며, `transition-behavior: allow-discrete`가 처음으로 이 간극을 메운 것입니다.
+
+| 구분 | `visibility: hidden` | `display: none` |
+|------|-----------------------|------------------|
+| 레이아웃 공간 | 유지(자리 차지) | 제거(공간 접힘) |
+| 이산 전환 지원 시점 | 오래전부터 가능 | `transition-behavior: allow-discrete` 등장 이후 |
+| 접근성 트리 | 제거됨(스크린 리더가 못 읽음) | 제거됨(스크린 리더가 못 읽음) |
+| 클릭·포커스 | 불가능 | 불가능 |
+
+## 6. 직접 확인하기 — 모달 진입·퇴장 전환
+
+<CodePlayground
+  template="static"
+  activeFile="/styles.css"
+  label="display: none 요소에 @starting-style로 진입·퇴장 애니메이션 적용하기"
+  files={{
+    '/index.html': `<button id="열기버튼">모달 열기</button>
+
+<div class="모달" id="모달">
+  <div class="모달내용">
+    <p>display: none에서 나타나고 사라지는 모달입니다.</p>
+    <button id="닫기버튼">닫기</button>
+  </div>
+</div>
+
+<script>
+  const 모달 = document.getElementById('모달');
+  document.getElementById('열기버튼').addEventListener('click', () => {
+    모달.classList.add('열림');
+  });
+  document.getElementById('닫기버튼').addEventListener('click', () => {
+    모달.classList.remove('열림');
+  });
+</script>`,
+    '/styles.css': `body {
+  font-family: system-ui, sans-serif;
+  padding: 2rem;
+}
+
+.모달 {
+  display: none;
+  position: fixed;
+  inset: 0;
+  align-items: center;
+  justify-content: center;
+  background: rgb(0 0 0 / 0%);
+  transition: background 0.3s, display 0.3s allow-discrete;
+}
+
+.모달.열림 {
+  display: flex;
+  background: rgb(0 0 0 / 50%);
+
+  @starting-style {
+    background: rgb(0 0 0 / 0%);
+  }
+}
+
+.모달내용 {
+  background: white;
+  padding: 2rem;
+  border-radius: 12px;
+  opacity: 0;
+  transform: scale(0.85) translateY(20px);
+  transition: opacity 0.3s, transform 0.3s;
+}
+
+.모달.열림 .모달내용 {
+  opacity: 1;
+  transform: scale(1) translateY(0);
+
+  @starting-style {
+    opacity: 0;
+    transform: scale(0.85) translateY(20px);
+  }
+}`,
+  }}
+/>
+
+"모달 열기" 버튼을 눌러 배경이 어두워지며 카드가 커지는 진입 애니메이션을, "닫기" 버튼을 눌러 그 역방향 퇴장 애니메이션을 확인하세요. `.모달`의 `display`가 `allow-discrete` 덕분에 배경 페이드아웃이 끝날 때까지 `flex`로 유지되다가 마지막에 `none`으로 바뀌는 것이 핵심입니다. `transition` 지속 시간을 늘려보면(`0.3s`를 `1.5s`로) 사라지는 동안 모달이 여전히 클릭 가능한 상태로 화면에 남아 있는 것도 관찰할 수 있습니다.
+
+## 핵심 정리
+
+- `display`처럼 중간값이 없는 이산 속성은 값이 바뀌는 즉시 전환되어, `display: none`이 걸리는 순간 요소가 렌더 트리에서 사라지므로 함께 건 다른 전환이 재생될 시간이 없었다.
+- `@starting-style`은 요소가 새로 나타나는 순간에만 적용되는 시작 스타일을 정의해, 자바스크립트 더블 rAF 편법 없이 진입 애니메이션의 출발점을 CSS로 지정한다.
+- `transition-behavior: allow-discrete`는 이산 속성을 전환 목록에 포함시키되, 사라질 때는 전환이 끝난 뒤 스위치하고 나타날 때는 전환이 시작되자마자 스위치하는 비대칭 규칙으로 동작한다.
+- 두 기능은 짝을 이뤄 `display: none` 요소의 진입·퇴장 애니메이션을 완성하며, `@property`로 타입을 지정한 커스텀 속성에도 함께 적용할 수 있다.
+- 둘 다 최신 브라우저 기준(2024-08 Baseline newly available)이라 미지원 브라우저에서는 모션 없이 즉시 표시·숨김으로 자연스럽게 성능이 저하된다.
+
+## 마무리 복습
+
+<Quiz
+  questionNumber={1}
+  question="display: none으로 전환되는 요소에서 opacity 전환이 보이지 않았던 근본적인 이유는?"
+  options={['opacity는 애초에 전환 가능한 속성이 아니기 때문이다', 'display: none이 즉시 적용되어 요소가 렌더 트리에서 바로 사라져 전환이 재생될 시간이 없기 때문이다', '브라우저가 opacity와 display를 동시에 처리하지 못하는 버그 때문이다', 'transition 속성에 opacity를 명시하지 않으면 항상 무시되기 때문이다']}
+  correctAnswer={2}
+  explanation="display는 이산 속성이라 값이 바뀌는 즉시 적용된다. display: none이 즉시 걸리면 요소가 렌더 트리에서 바로 빠져, 함께 건 opacity 전환이 재생될 대상 자체가 사라진다."
+  optionExplanations={['opacity는 연속값이라 원래부터 전환이 가능한 속성이다', '정답 — 즉시 적용되는 이산 속성이 근본 원인이다', '버그가 아니라 이산 속성의 정의에 따른 정상 동작이다', 'opacity 자체는 전환 목록에 명시되어 있었다는 전제의 문제다']}
+/>
+
+<Quiz
+  questionNumber={2}
+  question="@starting-style 규칙이 적용되는 시점은?"
+  options={['요소의 모든 속성값이 바뀔 때마다 매번 적용된다', '요소가 이전에 렌더링되지 않다가 새로 나타나는 순간에만 적용된다', '페이지가 처음 로드될 때 모든 요소에 한 번씩 적용된다', '사용자가 스크롤할 때마다 반복 적용된다']}
+  correctAnswer={2}
+  explanation="@starting-style은 요소가 새로 렌더링되기 시작하는 특별한 순간에만 개입하는 시작 스타일이며, 이미 존재하는 요소의 일반적인 속성 변경에는 관여하지 않는다."
+  optionExplanations={['일반적인 속성 변경에는 관여하지 않는다', '정답 — 새로 나타나는 순간에만 한정된 특별한 규칙이다', '모든 요소가 아니라 실제로 새로 나타나는 요소에만 해당한다', '스크롤과는 무관한 규칙이다']}
+/>
+
+<Quiz
+  questionNumber={3}
+  question="transition-behavior: allow-discrete가 이산 속성을 전환시키는 방식은?"
+  options={['중간값을 계산해 부드럽게 보간한다', '값이 바뀌는 방향에 따라 전환 시작 또는 종료 시점 중 하나에서 값을 스위치한다', '항상 전환이 시작되는 즉시 값을 바꾼다', '항상 전환이 끝난 뒤에만 값을 바꾼다']}
+  correctAnswer={2}
+  explanation="이산 속성은 중간값이 없으므로 보간하지 않는다. 대신 나타나는 방향은 전환 시작 시점에, 사라지는 방향은 전환 종료 시점에 값을 스위치하는 비대칭 규칙을 따른다."
+  optionExplanations={['이산 속성은 중간값 자체가 존재하지 않아 보간할 수 없다', '정답 — 방향에 따라 스위치 시점이 달라지는 것이 핵심이다', '나타나는 방향에만 해당하는 설명이며 사라지는 방향은 다르다', '사라지는 방향에만 해당하는 설명이며 나타나는 방향은 다르다']}
+/>
+
+<Quiz
+  questionNumber={4}
+  question="display: flex에서 display: none으로 사라지는 전환에서, allow-discrete가 적용됐을 때 display 값이 실제로 none으로 바뀌는 시점은?"
+  options={['전환이 시작되는 즉시', '전환이 끝난 직후', '전환 시작과 동시에 opacity만 0이 되고 display는 절대 바뀌지 않는다', '사용자가 페이지를 새로고침할 때']}
+  correctAnswer={2}
+  explanation="사라지는 방향에서는 다른 속성(opacity 등)의 전환이 끝날 때까지 이전 display 값을 유지하다가, 전환이 끝난 후에야 none으로 전환되어 화면에서 완전히 사라진다."
+  optionExplanations={['즉시 바뀌면 페이드아웃이 보이지 않는 원래 문제가 재현된다', '정답 — 전환이 끝난 뒤에 스위치되는 것이 사라지는 방향의 규칙이다', 'display 값도 결국 none으로 전환되며 영구히 flex로 남지 않는다', '새로고침과는 무관한 CSS 전환 타이밍 규칙이다']}
+/>
+
+<Quiz
+  questionNumber={5}
+  question="@starting-style과 transition-behavior: allow-discrete를 지원하지 않는 브라우저에서 벌어지는 일로 가장 알맞은 것은?"
+  options={['페이지 전체가 렌더링되지 않는 치명적 오류가 발생한다', '두 규칙이 무시되고 요소가 애니메이션 없이 즉시 나타나거나 사라진다', 'CSS 파일 전체가 무효 처리되어 모든 스타일이 깨진다', '자동으로 자바스크립트 폴백 코드가 실행된다']}
+  correctAnswer={2}
+  explanation="미지원 브라우저는 두 규칙을 이해하지 못해 무시하며, 그 결과 모션 없이 즉시 표시·숨김이 이뤄지는 자연스러운 성능 저하로 이어진다. 기능 자체는 정상 동작한다."
+  optionExplanations={['알 수 없는 규칙은 무시될 뿐 페이지 전체에 치명적 오류를 일으키지 않는다', '정답 — 우아한 성능 저하로 이어지는 것이 CSS의 일반적인 무시 규칙이다', '해당 선언만 무시되며 CSS 파일 전체가 무효화되지 않는다', 'CSS만으로는 자동으로 자바스크립트가 실행되지 않는다']}
+/>
+
+<Quiz
+  questionNumber={6}
+  question="visibility: hidden과 display: none의 차이로 옳은 것은?"
+  options={['visibility: hidden은 레이아웃 공간을 유지하고, display: none은 공간까지 제거한다', '두 속성은 완전히 동일하게 동작한다', 'display: none만 스크린 리더에서 숨겨지고 visibility: hidden은 그대로 읽힌다', 'visibility: hidden은 이산 속성이 아니라 연속값 속성이다']}
+  correctAnswer={1}
+  explanation="visibility: hidden은 요소를 시각적으로만 숨기고 레이아웃 자리는 그대로 차지하는 반면, display: none은 레이아웃에서 요소 자체를 완전히 제거해 공간이 접힌다."
+  optionExplanations={['정답 — 레이아웃 공간 유지 여부가 두 속성의 핵심 차이다', '레이아웃 처리 방식이 서로 다르므로 동일하지 않다', '둘 다 접근성 트리에서 제거되어 스크린 리더가 읽지 않는다', 'visibility 역시 중간값이 없는 이산 속성이다']}
+/>
+
+<Quiz
+  questionNumber={7}
+  question="@property로 타입을 지정한 커스텀 속성에 @starting-style을 함께 쓰는 이유는?"
+  options={['타입 없이는 @starting-style 문법 자체가 오류를 일으키기 때문이다', '타입 지정으로 값이 연속값처럼 취급되어 전환이 가능해지고, 그 진입 시작값을 지정할 수 있기 때문이다', '@property가 없으면 커스텀 속성은 CSS에서 아예 사용할 수 없기 때문이다', '@starting-style은 커스텀 속성에는 적용할 수 없어 이 조합 자체가 불가능하다']}
+  correctAnswer={2}
+  explanation="일반 커스텀 속성은 타입이 없어 문자열처럼 취급되어 전환되지 않는다. @property로 syntax를 지정하면 연속값으로 취급되어 전환이 가능해지고, 그 시작값을 @starting-style로 지정할 수 있다."
+  optionExplanations={['문법 오류가 아니라 전환 가능 여부의 문제다', '정답 — 타입 지정이 전환 가능성을 열어주는 전제 조건이다', '타입 없는 커스텀 속성도 값 저장용으로는 사용할 수 있다', '두 기능은 실제로 함께 조합해 쓸 수 있다']}
+/>
+
+## 참고 자료
+
+- [MDN — @starting-style](https://developer.mozilla.org/en-US/docs/Web/CSS/@starting-style)
+- [MDN — transition-behavior](https://developer.mozilla.org/en-US/docs/Web/CSS/transition-behavior)
+- [MDN — CSS Transitions: Using CSS transitions](https://developer.mozilla.org/en-US/docs/Web/CSS/CSS_transitions/Using_CSS_transitions)

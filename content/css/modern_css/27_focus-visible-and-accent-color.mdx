@@ -1,0 +1,236 @@
+---
+title: '27. focus-visible과 accent-color'
+description: '마우스 포커스와 키보드 포커스를 구분하는 브라우저의 판단 기준을 이해하고, accent-color로 네이티브 폼 컨트롤 색상을 안전하게 커스터마이즈하는 법을 다룬다'
+---
+
+<Callout type="info">
+  **이번 문서의 목표:** 이 문서를 다 읽으면 `outline: none`이 왜 접근성을 해치는 흔한 실수인지 설명하고, `:focus-visible`로 키보드 사용자에게만 포커스 표시를 남기며, `accent-color`로 체크박스·라디오·범위 슬라이더의 색을 안전하게 바꿀 수 있게 됩니다.
+</Callout>
+
+## 1. :focus-visible — 누구를 위한 표시인지 구분하기
+
+### 왜 필요한가
+
+버튼을 마우스로 클릭하면 브라우저는 기본적으로 그 버튼 둘레에 파란 테두리(outline, 외곽선)를 그립니다. 디자이너 입장에서는 "클릭했을 뿐인데 왜 테두리가 남지"라는 불만이 나오기 쉽고, 그래서 오랫동안 다음과 같은 코드가 관행처럼 퍼졌습니다.
+
+```css
+/* 한때 널리 퍼졌던, 그러나 접근성을 해치는 코드 */
+:focus {
+  outline: none;
+}
+```
+
+문제는 **이 테두리가 마우스 사용자만을 위한 것이 아니라는 점**입니다. 키보드로 `Tab` 키를 눌러 페이지를 이동하는 사용자, 스위치 장치를 쓰는 사용자에게 포커스 테두리는 "지금 화면의 어느 요소가 선택되어 있는가"를 알려주는 유일한 시각적 단서입니다. 마우스를 쓰지 못하거나 시각적으로 위치를 가늠하기 어려운 사용자에게 `outline: none`은 지도 없이 미로에 들어가라는 것과 같습니다.
+
+> **쉽게 말하면:** `:focus-visible`은 "이 포커스 표시가 지금 정말 필요한 사람에게 보이는가"를 브라우저가 스스로 판단해서 골라 보여주는 선택자입니다.
+
+### :focus, :focus-within, :focus-visible 비교
+
+셋 다 이름에 focus가 들어가지만 겨냥하는 범위가 다릅니다.
+
+| 선택자 | 대상 | 언제 걸리는가 |
+|---|---|---|
+| `:focus` | 포커스를 받은 요소 자신 | 마우스 클릭이든 키보드 이동이든 포커스를 받으면 항상 |
+| `:focus-within` | 자기 자신 또는 자손 중 하나라도 포커스를 받은 조상 요소 | 폼(form)의 어떤 입력창에 포커스가 있을 때 폼 전체를 강조하고 싶을 때 |
+| `:focus-visible` | 브라우저가 "시각적으로 표시할 필요가 있다"고 판단한 포커스 상태 | 대체로 키보드 탐색일 때, 마우스 클릭에서는 대체로 걸리지 않음 |
+
+```css
+/* 마우스로 클릭해도, 키보드로 이동해도 항상 스타일이 걸린다 */
+button:focus {
+  outline: 2px solid blue;
+}
+
+/* 브라우저 판단상 키보드 탐색일 때만 걸린다 */
+button:focus-visible {
+  outline: 2px solid blue;
+}
+```
+
+### 브라우저는 어떻게 판단하는가
+
+`:focus-visible`이 걸릴지는 자바스크립트가 켜고 끄는 단순한 플래그가 아니라, 브라우저 내부의 **판단 기준**(heuristic, 휴리스틱 — 완벽한 규칙은 아니지만 대체로 맞는 경험적 판단법)으로 정해집니다. 대표적인 규칙은 다음과 같습니다.
+
+- 텍스트 입력창(`<input type="text">` 등)처럼 원래 클릭해서 바로 타이핑하는 요소는 마우스로 클릭해도 `:focus-visible`이 걸립니다. 클릭 직후에도 커서 위치를 봐야 하기 때문입니다.
+- 버튼처럼 클릭 자체가 동작을 끝내는 요소는 마우스 클릭 시 `:focus-visible`이 걸리지 않고, `Tab` 키로 이동해 들어왔을 때만 걸립니다.
+- 스크립트로 `.focus()`를 호출한 경우 등 애매한 상황은 브라우저마다 조금씩 규칙이 다를 수 있습니다.
+
+<Callout type="warning">
+  **자주 틀리는 점:** `:focus-visible`을 "키보드 전용 선택자"라고 외우면 절반만 맞습니다. 정확히는 "브라우저가 시각적 표시가 필요하다고 판단한 상황"이며, 입력창처럼 클릭 후에도 위치 확인이 필요한 요소는 마우스 클릭에도 걸립니다. 완벽한 규칙이 아니라 대체로 맞는 경험적 판단이라는 점을 기억해 두면 예외 상황을 만났을 때 당황하지 않습니다.
+</Callout>
+
+### 실전 패턴 — 안전한 outline 재설정
+
+```css
+/* outline: none만 쓰지 않는다 */
+button {
+  outline: none; /* 위험 — 아무도 포커스를 못 본다 */
+}
+
+/* :focus-visible로 필요한 대상에게만 다시 그려준다 */
+button:focus {
+  outline: none;
+}
+button:focus-visible {
+  outline: 2px solid royalblue;
+  outline-offset: 2px;
+}
+```
+
+`outline`을 완전히 지우는 대신, 마우스 클릭에서는 지우고(`:focus`에서 `outline: none`) 키보드 탐색이 필요한 순간에는(`:focus-visible`) 다시 그려주는 방식입니다. 디자이너가 원하는 "클릭했을 때 테두리가 안 보였으면 좋겠다"는 요구와, 키보드 사용자의 접근성 요구를 동시에 만족시킵니다.
+
+### 실습 — 마우스와 키보드로 각각 눌러보기
+
+<CodePlayground
+  template="static"
+  activeFile="/styles.css"
+  label="버튼을 마우스로 클릭해 보고, Tab 키로도 이동해 차이를 확인하세요"
+  files={{
+    '/index.html': `<p>버튼을 마우스로 클릭한 뒤, Tab 키로 다시 이동해 보세요.</p>
+<button class="focus-only">:focus만 적용</button>
+<button class="focus-visible-only">:focus-visible만 적용</button>`,
+    '/styles.css': `body { font-family: sans-serif; padding: 24px; }
+button { display: block; margin-bottom: 16px; padding: 8px 16px; font-size: 16px; }
+
+.focus-only:focus {
+  outline: 3px solid crimson;
+}
+
+.focus-visible-only:focus-visible {
+  outline: 3px solid seagreen;
+}`,
+  }}
+/>
+
+첫 번째 버튼은 마우스로 클릭해도 빨간 테두리가 남고, 두 번째 버튼은 마우스 클릭에서는 조용하다가 `Tab` 키로 이동했을 때만 초록 테두리가 나타나는 것을 확인할 수 있습니다.
+
+`:focus-visible`은 오래전부터 안정된 **널리 사용 가능**(Baseline: Widely available) 기능이라 폴백 걱정 없이 바로 도입할 수 있습니다.
+
+## 2. accent-color — 네이티브 폼 컨트롤의 색만 바꾼다
+
+### 왜 필요한가
+
+체크박스·라디오 버튼·범위(range) 슬라이더·진행 표시줄(progress) 같은 **네이티브 폼 컨트롤**(운영체제가 직접 그려주는 기본 UI 부품)은 브라우저와 운영체제마다 기본 색이 제각각입니다. 브랜드 색을 맞추고 싶어서 개발자들은 예전에 이 요소들을 통째로 숨기고 `<div>`와 `<span>`으로 똑같이 생긴 가짜 체크박스를 만드는 방식을 자주 썼습니다. 문제는 그 가짜 체크박스에 키보드 조작, 스크린 리더용 상태 알림, 폼 제출 값 연결 같은 네이티브 기능을 전부 손수 다시 만들어야 했다는 점입니다. 조금만 놓쳐도 접근성이 깨졌습니다.
+
+> **쉽게 말하면:** `accent-color`는 "이 색만 브랜드 컬러로 바꾸고, 나머지 동작은 브라우저가 알아서 하던 대로 해줘"라는 한 줄짜리 부탁입니다.
+
+### 정의와 적용 대상
+
+```css
+:root {
+  accent-color: royalblue;
+}
+```
+
+이 속성은 체크박스·라디오·range·progress 등 브라우저가 그리는 폼 컨트롤의 강조색(선택 표시, 채워진 부분의 색)만 바꿉니다. 요소의 구조나 동작, 키보드 조작, 접근성 트리(accessibility tree, 스크린 리더가 읽는 요소 정보 목록)에 노출되는 역할(role)과 상태는 전혀 건드리지 않습니다.
+
+```html
+<label><input type="checkbox" checked /> 이용약관에 동의합니다</label>
+<label><input type="radio" name="plan" checked /> 월간 결제</label>
+<input type="range" min="0" max="100" value="40" />
+<progress value="0.6"></progress>
+```
+
+### 요소를 통째로 다시 만드는 것과 비교
+
+| 구분 | `accent-color`로 색만 변경 | `<div>`로 가짜 컨트롤 제작 |
+|---|---|---|
+| 키보드 조작(스페이스바, 화살표 키) | 브라우저가 그대로 처리 | 직접 구현 필요 |
+| 스크린 리더 인식(role, 상태) | 자동으로 올바르게 노출 | ARIA 속성을 직접 붙이고 검증 필요 |
+| 폼 제출 시 값 처리 | 기존 `name`/`value` 그대로 동작 | 자바스크립트로 값 동기화 필요 |
+| 커스터마이즈 자유도 | 강조색 하나로 제한적 | 모양을 완전히 자유롭게 제어 가능 |
+
+강조색만 바꾸면 되는 상황이라면 `accent-color` 한 줄이 훨씬 안전합니다. 체크박스의 모양 자체(예: 완전히 다른 아이콘 모양)까지 바꿔야 한다면 그때는 `appearance: none`과 함께 더 정교한 커스텀 스타일링이 필요하지만, 그 경우에도 네이티브 요소의 접근성 기능을 잃지 않도록 각별히 주의해야 합니다.
+
+### 실습 — 색 하나로 톤 맞추기
+
+<CodePlayground
+  template="static"
+  activeFile="/styles.css"
+  label="accent-color 값을 바꿔 체크박스·라디오·슬라이더 색이 함께 바뀌는 것을 확인하세요"
+  files={{
+    '/index.html': `<form>
+  <label><input type="checkbox" checked /> 알림 받기</label><br />
+  <label><input type="radio" name="plan" checked /> 무료 플랜</label>
+  <label><input type="radio" name="plan" /> 프로 플랜</label><br />
+  <input type="range" min="0" max="100" value="60" /><br />
+  <progress value="0.6"></progress>
+</form>`,
+    '/styles.css': `body { font-family: sans-serif; padding: 24px; }
+form {
+  accent-color: tomato; /* 이 값을 바꿔서 전체 톤이 함께 바뀌는지 확인해 보세요 */
+  display: grid;
+  gap: 12px;
+}`,
+  }}
+/>
+
+`accent-color`도 **널리 사용 가능**(Baseline: Widely available)한 기능이라 별도 폴백 없이 바로 쓸 수 있습니다.
+
+## 핵심 정리
+
+- `outline: none`만 걸어 포커스 표시를 완전히 없애는 것은 키보드·스위치 장치 사용자의 접근성을 해치는 흔한 실수다.
+- `:focus`는 방식과 무관하게 항상, `:focus-within`은 자손이 포커스를 받은 조상에, `:focus-visible`은 브라우저가 시각적 표시가 필요하다고 판단한 상황에만 걸린다.
+- `:focus-visible`의 판단은 완벽한 규칙이 아니라 경험적 판단(heuristic)이며, 텍스트 입력창처럼 클릭 후 위치 확인이 필요한 요소는 마우스 클릭에도 걸릴 수 있다.
+- `accent-color`는 체크박스·라디오·range·progress의 강조색만 바꾸고 키보드 조작·스크린 리더 인식·폼 제출 로직은 그대로 유지해, 요소를 통째로 다시 만드는 것보다 안전하다.
+- 두 기능 모두 널리 사용 가능한 접근성 기본기다.
+
+## 마무리 복습
+
+<Quiz
+  questionNumber={1}
+  question="outline: none만 적용하는 코드가 접근성 문제가 되는 이유는?"
+  options={['CSS 문법 오류를 일으키기 때문에', '키보드나 스위치 장치로 탐색하는 사용자가 현재 포커스 위치를 시각적으로 알 수 없게 되기 때문에', '마우스 클릭 동작 자체가 멈추기 때문에', '모든 브라우저에서 빌드가 깨지기 때문에']}
+  correctAnswer={2}
+  explanation="포커스 테두리는 키보드나 스위치 장치로 탐색하는 사용자에게 현재 어느 요소가 선택되어 있는지 알려주는 유일한 시각적 단서이므로, 이를 무조건 없애면 그런 사용자가 페이지를 탐색하기 어려워진다."
+  optionExplanations={['문법적으로는 유효한 CSS라 오류를 일으키지 않는다', '정답 — 키보드 탐색 사용자의 위치 파악 수단을 없애는 것이다', '마우스 클릭 동작 자체는 영향받지 않는다', '이 속성 때문에 빌드가 깨지지는 않는다']}
+/>
+
+<Quiz
+  questionNumber={2}
+  question=":focus-within에 대한 설명으로 옳은 것은?"
+  options={['자기 자신이나 자손 요소 중 하나라도 포커스를 받으면 걸린다', '키보드 탐색일 때만 걸린다', '자손 요소와 무관하게 자기 자신이 포커스를 받을 때만 걸린다', '마우스 클릭에서는 절대 걸리지 않는다']}
+  correctAnswer={1}
+  explanation=":focus-within은 자기 자신뿐 아니라 자손 중 하나라도 포커스를 받으면 걸리는 선택자로, 예를 들어 폼 안의 입력창에 포커스가 있을 때 폼 전체를 강조하는 데 쓰인다."
+  optionExplanations={['정답 — 자손의 포커스까지 감지하는 것이 이 선택자의 핵심이다', '방식과 무관하게 포커스 여부만으로 걸린다', '자손의 포커스도 감지하는 것이 이 선택자의 특징이다', '마우스 클릭으로 자손이 포커스를 받아도 걸린다']}
+/>
+
+<Quiz
+  questionNumber={3}
+  question="텍스트 입력창을 마우스로 클릭했을 때 :focus-visible이 걸리는 경우가 있는 이유는?"
+  options={['텍스트 입력창은 :focus-visible을 지원하지 않기 때문에', '클릭 직후에도 커서 위치 확인이 필요해 브라우저가 시각적 표시가 필요하다고 판단하기 때문에', '모든 요소는 마우스 클릭 시 항상 :focus-visible이 걸리기 때문에', 'CSS 우선순위 규칙 때문에 강제로 걸리기 때문에']}
+  correctAnswer={2}
+  explanation=":focus-visible의 판단은 완벽한 규칙이 아니라 경험적 판단이며, 텍스트 입력창처럼 클릭 후에도 커서 위치를 시각적으로 확인해야 하는 요소는 마우스 클릭에도 포커스 표시가 필요하다고 판단되어 걸린다."
+  optionExplanations={['텍스트 입력창도 이 선택자를 지원한다', '정답 — 클릭 후 위치 확인 필요성이라는 판단 기준 때문이다', '버튼처럼 클릭으로 동작이 끝나는 요소는 대체로 걸리지 않는다', '우선순위가 아니라 브라우저의 판단 로직에 따른 것이다']}
+/>
+
+<Quiz
+  questionNumber={4}
+  question="accent-color를 사용했을 때 유지되는 것은?"
+  options={['체크박스의 키보드 조작과 스크린 리더 인식', '요소의 시각적 모양 전체', 'HTML 구조 자체가 사라지는 대신 새 구조로 대체된다', '접근성 트리에 노출되는 역할이 사라진다']}
+  correctAnswer={1}
+  explanation="accent-color는 강조색만 바꿀 뿐, 네이티브 폼 컨트롤의 키보드 조작·스크린 리더 인식·역할과 상태는 그대로 유지된다."
+  optionExplanations={['정답 — 색만 바꿀 뿐 네이티브 기능은 그대로 유지된다', '모양 전체가 아니라 강조색만 바뀐다', 'HTML 구조는 그대로 유지된다', '접근성 트리의 역할과 상태는 변하지 않는다']}
+/>
+
+<Quiz
+  questionNumber={5}
+  question="체크박스를 div 요소로 완전히 새로 만들어 커스터마이즈할 때 흔히 발생하는 문제는?"
+  options={['CSS 파일 용량이 항상 줄어든다', '키보드 조작·스크린 리더 인식·폼 제출 값 처리를 직접 다시 구현해야 하고 놓치면 접근성이 깨진다', '브라우저가 렌더링 자체를 거부한다', 'accent-color가 자동으로 적용되어 문제가 없다']}
+  correctAnswer={2}
+  explanation="네이티브 컨트롤을 흉내 낸 커스텀 요소는 키보드 조작, 스크린 리더가 인식하는 역할과 상태, 폼 제출 값 연결을 모두 직접 구현해야 하며, 하나라도 놓치면 접근성이 깨지기 쉽다."
+  optionExplanations={['CSS 용량과는 직접적인 관계가 없다', '정답 — 네이티브 기능을 손수 재구현해야 하는 부담과 위험이다', '유효한 HTML/CSS이므로 렌더링 자체는 정상 동작한다', 'accent-color는 네이티브 폼 컨트롤에만 적용되며 div로 만든 커스텀 요소에는 적용되지 않는다']}
+/>
+
+<Quiz
+  questionNumber={6}
+  question="2026년 9월 기준 :focus-visible과 accent-color의 지원 상태로 옳은 것은?"
+  options={['둘 다 실험적 단계라 @supports로 감싸야 한다', '둘 다 널리 사용 가능(Widely available)한 접근성 기본기다', ':focus-visible만 지원되고 accent-color는 아직 지원되지 않는다', '두 기능은 서로 충돌하므로 함께 쓸 수 없다']}
+  correctAnswer={2}
+  explanation=":focus-visible과 accent-color는 둘 다 오래전에 안정화되어 널리 사용 가능한 상태이므로 폴백 없이 바로 도입할 수 있다."
+  optionExplanations={['둘 다 이미 안정적으로 지원되어 별도 폴백이 필요 없다', '정답 — 둘 다 접근성 기본기로 자리 잡은 안정 기능이다', 'accent-color도 널리 사용 가능한 상태다', '두 기능은 서로 다른 목적을 다루며 함께 사용하는 데 문제가 없다']}
+/>
+
+## 참고 자료
+
+- [MDN - :focus-visible](https://developer.mozilla.org/en-US/docs/Web/CSS/:focus-visible)
+- [MDN - accent-color](https://developer.mozilla.org/en-US/docs/Web/CSS/accent-color)

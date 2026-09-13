@@ -1,0 +1,255 @@
+---
+title: '12. 마진 상쇄: 여백이 예상과 다르게 보일 때'
+description: '세로 방향 마진 두 개가 더해지지 않고 하나로 겹쳐지는 마진 상쇄 현상을 실제 픽셀 계산으로 끝까지 추적하고, 상쇄를 막는 방법과 DevTools 확인법을 정리한다'
+---
+
+<Callout type="info">
+  **이번 문서의 목표:** 이 문서를 다 읽으면 세로로 붙어 있는 두 요소의 마진 값만 보고 실제 화면 간격이 몇 픽셀이 될지 직접 계산할 수 있고, 왜 그렇게 계산되는지, 어떻게 하면 그 계산 방식을 막을 수 있는지 설명할 수 있게 됩니다.
+</Callout>
+
+## 왜 예상한 여백이 안 나오는가
+
+문단 두 개를 세로로 쌓았습니다.
+
+```css
+p {
+  margin-top: 30px;
+  margin-bottom: 20px;
+}
+```
+
+첫 문단의 `margin-bottom: 20px`와 둘째 문단의 `margin-top: 30px`이 있으니 둘 사이 간격은 20 + 30 = 50px일 것 같습니다. 그런데 실제로 재보면 **30px**입니다. 버그가 아닙니다. CSS는 특정 조건에서 세로 방향 마진 두 개를 더하지 않고 **더 큰 값 하나만 남기고 겹쳐버립니다.** 이 현상을 **마진 상쇄**(margin collapsing)라고 부릅니다.
+
+> **쉽게 말하면:** 마진 상쇄는 두 사람이 서로에게 팔을 뻗어 악수하는 것과 같습니다. 한 사람이 30cm를 뻗고 다른 사람이 20cm를 뻗어도, 실제 두 사람 사이 거리는 50cm가 아니라 더 긴 쪽인 30cm로 정해집니다. 짧게 뻗은 팔은 긴 쪽 안에 흡수됩니다.
+
+<Callout type="warning">
+  마진 상쇄는 **세로 방향(margin-top, margin-bottom)에서만** 일어납니다. `margin-left`, `margin-right`는 상쇄되지 않고 항상 그대로 더해집니다. 또한 일반 흐름(normal flow)의 블록 레벨 요소 사이에서만 일어나며, `position: absolute`나 `float`가 걸린 요소, Flexbox·Grid 아이템에는 애초에 적용되지 않습니다.
+</Callout>
+
+## 경우 1 — 인접 형제 사이의 상쇄
+
+### 둘 다 양수일 때: 더 큰 값이 남는다
+
+```html
+<p class="위" style="margin-bottom: 20px;">위 문단</p>
+<p class="아래" style="margin-top: 30px;">아래 문단</p>
+```
+
+| 단계 | 값 |
+|------|-----|
+| 위 문단의 margin-bottom | 20px |
+| 아래 문단의 margin-top | 30px |
+| 상쇄 규칙 | 둘 다 양수 → 더 큰 값 하나만 남는다 |
+| **실제 간격** | max(20, 30) = **30px** |
+
+일반적인 덧셈이 아니라 "더 넓게 뻗은 쪽이 이긴다"는 것이 규칙입니다.
+
+### 하나는 양수, 하나는 음수일 때: 큰 양수에서 음수의 절댓값을 뺀다
+
+```html
+<p class="위" style="margin-bottom: -10px;">위 문단</p>
+<p class="아래" style="margin-top: 30px;">아래 문단</p>
+```
+
+| 단계 | 값 |
+|------|-----|
+| 위 문단의 margin-bottom | −10px |
+| 아래 문단의 margin-top | 30px |
+| 상쇄 규칙 | 가장 큰 양수 + 가장 작은(가장 음수인) 음수 |
+| **실제 간격** | 30 + (−10) = **20px** |
+
+양수 마진이 음수 마진만큼 잡아먹히는 방식입니다. 30px 뻗었는데 상대가 10px만큼 잡아당기니 실제로는 20px만 벌어진 셈입니다.
+
+### 둘 다 음수일 때: 절댓값이 더 큰 쪽(더 음수인 쪽)이 남는다
+
+```html
+<p class="위" style="margin-bottom: -15px;">위 문단</p>
+<p class="아래" style="margin-top: -25px;">아래 문단</p>
+```
+
+| 단계 | 값 |
+|------|-----|
+| 위 문단의 margin-bottom | −15px |
+| 아래 문단의 margin-top | −25px |
+| 상쇄 규칙 | 둘 다 음수 → 절댓값이 더 큰(더 음수인) 값이 남는다 |
+| **실제 간격** | **−25px** (두 요소가 25px만큼 겹친다) |
+
+세 가지 경우를 하나로 요약하면 이렇습니다.
+
+| 두 마진의 부호 | 상쇄 결과 |
+|----------------|-----------|
+| 양수, 양수 | 둘 중 더 큰 값 |
+| 양수, 음수 | 가장 큰 양수 + 가장 작은 음수(즉 큰 양수에서 절댓값을 뺀 값) |
+| 음수, 음수 | 절댓값이 더 큰(더 음수인) 값 |
+
+## 경우 2 — 부모와 첫 자식 사이의 상쇄
+
+부모 요소에 테두리(border)도, 안쪽 여백(padding)도, 콘텐츠 사이 어떤 경계도 없다면, **자식의 margin-top이 부모의 상자를 뚫고 나가 부모 바깥의 요소와 상쇄**됩니다. 부모가 자식의 마진을 "대신 입는" 셈입니다.
+
+```html
+<div class="부모" style="margin-top: 10px;">
+  <p class="자식" style="margin-top: 40px;">첫 자식 문단</p>
+</div>
+```
+
+| 단계 | 값 |
+|------|-----|
+| 부모의 margin-top | 10px |
+| 자식(첫 문단)의 margin-top | 40px |
+| 상쇄 조건 | 부모에 border-top·padding-top·다른 콘텐츠가 없다 |
+| 상쇄 규칙 | 부모의 margin-top과 자식의 margin-top이 하나로 겹친다 → 둘 다 양수이므로 더 큰 값 |
+| **실제 결과** | 부모 상자 위쪽 여백 = max(10, 40) = **40px** (자식의 40px이 부모 밖으로 "새어 나간다") |
+
+이때 자식 문단 자체와 부모 상자 사이의 안쪽 간격은 **0px**입니다. 40px의 여백은 부모 안쪽이 아니라 부모 바깥, 즉 부모 위에 있는 다른 요소와의 사이에 생깁니다. 처음 보면 "자식에게 준 마진이 부모 위로 튀어나갔다"는 것이 당혹스럽지만, 이것이 상쇄의 정상 동작입니다.
+
+### 상쇄를 막는 법 — 경계를 만든다
+
+부모에 `padding-top`이나 `border-top`을 단 1px이라도 주면, 자식의 마진이 더 이상 부모 밖으로 새어 나가지 못합니다. 경계가 생겼기 때문입니다.
+
+```html
+<div class="부모" style="margin-top: 10px; border-top: 1px solid transparent;">
+  <p class="자식" style="margin-top: 40px;">첫 자식 문단</p>
+</div>
+```
+
+| 단계 | 값 |
+|------|-----|
+| 부모의 margin-top(상쇄되지 않고 그대로) | 10px |
+| border-top이 만든 경계 | 상쇄를 차단 |
+| 자식의 margin-top(부모 안쪽에 그대로 적용) | 40px |
+| **부모 바깥 위쪽 여백** | **10px** (더 이상 자식 값과 섞이지 않음) |
+| **부모 안쪽, 자식 위 간격** | **40px** (이제는 새지 않고 안쪽에 그대로 보임) |
+
+`border`나 `padding` 외에도 `overflow: hidden`이나 `display: flow-root`처럼 새로운 **블록 서식 맥락**(BFC, Block Formatting Context)을 만드는 방법으로도 상쇄를 막을 수 있습니다. BFC의 정확한 정의와 형성 조건 전체 목록은 17편에서 다룹니다. 지금은 "BFC가 생기면 그 안의 마진이 바깥으로 새지 않는 울타리가 된다"는 정도만 기억해도 충분합니다.
+
+## 경우 3 — 내용이 없는 빈 블록의 자기 상쇄
+
+`height`도, `border`도, `padding`도, 내용도 없는 빈 `<div>`는 자신의 `margin-top`과 `margin-bottom`끼리 상쇄됩니다.
+
+```html
+<div style="margin-top: 20px; margin-bottom: 35px;"></div>
+```
+
+| 단계 | 값 |
+|------|-----|
+| margin-top | 20px |
+| margin-bottom | 35px |
+| 상쇄 조건 | 높이·테두리·패딩·내용이 전부 없음 |
+| **이 빈 div가 차지하는 세로 공간** | max(20, 35) = **35px** (두 마진이 서로를 통과해 겹친다) |
+
+이 35px짜리 빈 상자는 자기보다 위에 있는 요소, 아래에 있는 요소와도 또 상쇄될 수 있습니다. 빈 블록이 "구분선을 하나 그은 것"이 아니라 "투명하게 사라져 위아래 요소끼리 직접 상쇄시키는 통로"처럼 동작한다는 뜻입니다.
+
+## 상쇄를 막는 방법 정리
+
+| 방법 | 원리 |
+|------|------|
+| `padding` 추가 | content와 마진 사이에 실제 공간이 생겨 경계가 만들어진다 |
+| `border` 추가 | 마진이 통과할 수 없는 물리적 경계선이 생긴다 |
+| `overflow: hidden`(또는 `auto`) | 새 블록 서식 맥락(BFC)이 생겨 내부 마진이 바깥과 격리된다 |
+| `display: flow-root` | 부작용 없이 BFC만 만들 목적의 전용 값(17편에서 상세히 다룸) |
+| Flexbox·Grid 컨테이너의 자식으로 만들기 | Flex·Grid 아이템은 애초에 마진 상쇄 규칙이 적용되지 않는다(20편 이후 상세) |
+
+## 값을 바꿔가며 확인하기
+
+<CodePlayground
+  template="vanilla"
+  activeFile="/index.js"
+  showConsole
+  label="margin-bottom과 margin-top을 바꿔가며 실제 간격을 픽셀로 확인하기"
+  files={{
+    '/index.html': `<div class="위" style="margin-bottom: 20px; background: #cde;">위 블록</div>
+<div class="아래" style="margin-top: 30px; background: #edc;">아래 블록</div>`,
+    '/index.js': `const 위 = document.querySelector(".위");
+const 아래 = document.querySelector(".아래");
+
+const 위아래 = 위.getBoundingClientRect();
+const 아래박스 = 아래.getBoundingClientRect();
+
+const 실제간격 = Math.round(아래박스.top - 위아래.bottom);
+
+console.log("margin-bottom(위):", getComputedStyle(위).marginBottom);
+console.log("margin-top(아래):", getComputedStyle(아래).marginTop);
+console.log("단순 합이라면 예상 간격:", 20 + 30, "px");
+console.log("실제 측정된 간격(상쇄 결과):", 실제간격, "px");`,
+  }}
+/>
+
+`index.html`의 두 `margin` 값을 여러 조합으로 바꿔가며 콘솔에 찍히는 "실제 측정된 간격"이 항상 이 문서의 상쇄 규칙표(양수·음수 조합)와 일치하는지 확인해 보세요. 특히 `margin-bottom`을 음수로 바꿔 두 번째 경우(양수+음수)를 직접 재현해 보는 것을 권합니다.
+
+<Callout type="warning">
+  **자주 틀리는 점:** "margin은 항상 서로 더해진다"는 가정으로 레이아웃 간격을 계산하면 실무에서 반드시 틀립니다. 세로 방향 마진은 상쇄를 먼저 의심해야 하고, 가로 방향(`margin-left`/`margin-right`)은 상쇄 없이 그대로 더해진다는 것도 함께 기억해야 합니다. 또한 `position: absolute`로 뗀 요소나 `display: flex`의 자식은 애초에 상쇄 규칙 대상이 아니므로, "왜 여기서는 상쇄가 안 되지"라는 질문이 든다면 그 요소가 일반 흐름 안에 있는지부터 확인해야 합니다.
+</Callout>
+
+## DevTools로 확인하기
+
+DevTools의 박스 모델 다이어그램에서 마진 영역은 가장 바깥쪽 주황색(또는 브라우저별 배색) 층으로 표시됩니다. 두 요소가 상쇄된 상태라면, 각 요소의 박스 모델에는 여전히 원래 지정한 `margin-top`/`margin-bottom` 숫자가 각각 표시되지만, 실제 요소 사이의 빈 공간을 자로 재듯 클릭해서 확인하면(요소를 각각 선택해 위치 좌표 차이를 계산하면) 상쇄된 값(둘 중 큰 값)만큼만 떨어져 있는 것을 볼 수 있습니다. "패널에 적힌 숫자"와 "실제 화면 간격"이 다르게 느껴진다면 상쇄를 의심하는 것이 첫 단계입니다. DevTools를 이용한 종합적인 디버깅 절차는 30편에서 다룹니다.
+
+## 핵심 정리
+
+- 마진 상쇄는 세로 방향(margin-top/margin-bottom)에서만, 일반 흐름의 블록 레벨 요소 사이에서만 일어난다.
+- 인접 형제 사이: 둘 다 양수면 더 큰 값, 하나가 음수면 가장 큰 양수 + 가장 작은 음수, 둘 다 음수면 절댓값이 더 큰 값이 남는다.
+- 부모와 첫(또는 마지막) 자식 사이: 부모에 border·padding 등 경계가 없으면 자식의 마진이 부모 밖으로 새어 나가 부모의 마진과 상쇄된다.
+- 내용 없는 빈 블록은 자신의 margin-top과 margin-bottom끼리 상쇄되어, 위아래 요소 사이의 상쇄 통로처럼 동작한다.
+- padding·border 추가, `overflow: hidden`이나 `display: flow-root`로 새 BFC를 만들면 상쇄를 막을 수 있고, Flexbox·Grid 아이템은 애초에 상쇄 대상이 아니다.
+
+## 마무리 복습
+
+<Quiz
+  questionNumber={1}
+  question="위 문단 margin-bottom: 20px, 아래 문단 margin-top: 40px일 때 인접 형제 사이의 실제 간격은?"
+  options={['60px', '40px', '20px', '80px']}
+  correctAnswer={2}
+  explanation="둘 다 양수이므로 더 큰 값 하나만 남는다. max(20, 40) = 40px."
+  optionExplanations={['단순히 두 값을 더한 착각이다', '정답 — 둘 다 양수일 때는 더 큰 값이 남는다', '더 작은 값을 고른 계산이다', '두 값을 더하고 여유를 더한 임의의 값이다']}
+/>
+
+<Quiz
+  questionNumber={2}
+  question="위 문단 margin-bottom: -10px, 아래 문단 margin-top: 35px일 때 실제 간격은?"
+  options={['45px', '25px', '10px', '35px']}
+  correctAnswer={2}
+  explanation="하나가 음수일 때는 가장 큰 양수와 가장 작은 음수를 더한다. 35 + (-10) = 25px."
+  optionExplanations={['단순 합산은 상쇄 규칙과 다르다', '정답 — 35 + (-10) = 25px', '음수 값만 취한 계산이다', '양수 값만 취하고 음수를 무시한 계산이다']}
+/>
+
+<Quiz
+  questionNumber={3}
+  question="부모 요소에 border-top이나 padding-top이 전혀 없을 때, 첫 자식의 margin-top에 대한 설명으로 옳은 것은?"
+  options={['부모 안쪽에서만 적용되고 절대 밖으로 나가지 않는다', '부모 상자를 통과해 부모 바깥 요소와 상쇄될 수 있다', 'margin-left처럼 항상 그대로 더해진다', '자동으로 0으로 무시된다']}
+  correctAnswer={2}
+  explanation="부모에 경계(border, padding 등)가 없으면 자식의 margin-top이 부모 상자를 뚫고 나가 부모의 margin-top과 상쇄된다."
+  optionExplanations={['경계가 없으면 오히려 밖으로 새어 나간다', '정답 — 부모-자식 간 마진 상쇄가 일어난다', '가로 방향 마진과 달리 세로 방향은 상쇄 대상이다', '무시되는 것이 아니라 부모의 마진과 겹쳐 반영된다']}
+/>
+
+<Quiz
+  questionNumber={4}
+  question="내용도 높이도 border도 padding도 없는 빈 div에 margin-top: 15px, margin-bottom: 25px가 있을 때, 이 div가 실제로 차지하는 세로 공간은?"
+  options={['40px', '25px', '15px', '0px']}
+  correctAnswer={2}
+  explanation="빈 블록은 자신의 margin-top과 margin-bottom끼리 상쇄된다. 둘 다 양수이므로 더 큰 값인 25px만 남는다."
+  optionExplanations={['두 값을 단순히 더한 값으로, 상쇄를 반영하지 않았다', '정답 — 더 큰 값인 25px만 남는다', '더 작은 값을 고른 계산이다', '마진이 상쇄되어 하나로 남을 뿐 완전히 0이 되지는 않는다']}
+/>
+
+<Quiz
+  questionNumber={5}
+  question="다음 중 세로 방향 마진 상쇄가 일어나지 않는 상황은?"
+  options={['일반 흐름의 두 블록 레벨 형제 요소 사이', '부모에 border-top이 없는 첫 자식과 부모 사이', 'display: flex 컨테이너의 자식 요소 사이', '내용이 없는 빈 블록 요소 자신의 위아래 마진 사이']}
+  correctAnswer={3}
+  explanation="Flexbox·Grid의 아이템은 마진 상쇄 규칙이 아예 적용되지 않는 별도의 레이아웃 모델이다. 나머지 세 상황은 모두 상쇄가 일어나는 전형적인 경우다."
+  optionExplanations={['전형적인 인접 형제 상쇄 상황이다', '전형적인 부모-자식 상쇄 상황이다', '정답 — flex 아이템은 상쇄 규칙 대상이 아니다', '전형적인 빈 블록 자기 상쇄 상황이다']}
+/>
+
+<Quiz
+  questionNumber={6}
+  question="부모-자식 간 마진 상쇄를 막는 방법으로 적절하지 않은 것은?"
+  options={['부모에 border-top: 1px solid transparent 추가하기', '부모에 padding-top을 1px 이상 주기', '부모에 overflow: hidden을 주어 새 블록 서식 맥락을 만들기', '자식의 margin-top 값을 그대로 두고 부모의 font-size를 키우기']}
+  correctAnswer={4}
+  explanation="font-size는 마진 상쇄와 관련이 없다. border, padding, 새 BFC 생성은 모두 부모와 자식 사이에 경계를 만들어 상쇄를 차단하는 검증된 방법이다."
+  optionExplanations={['테두리가 생겨 상쇄를 막는 경계가 된다', '안쪽 여백이 생겨 상쇄를 막는 경계가 된다', 'BFC가 생성되어 내부 마진이 바깥과 격리된다', '정답 — font-size 변경은 마진 상쇄와 무관하다']}
+/>
+
+## 참고 자료
+
+- [MDN — CSS box model](https://developer.mozilla.org/en-US/docs/Web/CSS/Guides/Box_model)
+- [MDN — Mastering margin collapsing](https://developer.mozilla.org/en-US/docs/Web/CSS/CSS_box_model/Mastering_margin_collapsing)
+- [MDN — Introduction to formatting contexts](https://developer.mozilla.org/en-US/docs/Web/CSS/Guides/Display/Formatting_contexts)

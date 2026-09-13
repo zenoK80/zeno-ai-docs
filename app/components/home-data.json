@@ -1,12 +1,58 @@
 {
-  "generatedAt": "2026-09-13T13:06:11.903Z",
-  "groupCount": 4,
-  "seriesCount": 22,
+  "generatedAt": "2026-09-13T18:56:43.760Z",
+  "groupCount": 6,
+  "seriesCount": 26,
   "groups": [
+    {
+      "title": "CSS",
+      "description": "2개 시리즈 · 문서 63편",
+      "order": "01",
+      "series": [
+        {
+          "title": "CSS 기본기",
+          "description": "CSS라는 이름의 어원과 스타일시트 개념을 통해, HTML·CSS·JS가 왜 각자 다른 역할을 맡는지, 브라우저가 CSS를 화면에 반영하기까지 어떤 큰 흐름을 거치는지 지도를 그린다",
+          "href": "/css/css_fundamentals/01_what-is-css",
+          "documentCount": 32,
+          "preview": "code",
+          "accent": "blue"
+        },
+        {
+          "title": "모던 CSS",
+          "description": "CSS Fundamentals가 끝나는 지점을 경계선으로 긋고, \"최근 몇 년 사이 새로 생겼거나 작성 방식 자체를 바꾼 것\"이라는 이 과목의 기준을 지도로 그린다",
+          "href": "/css/modern_css/01_modern-css-boundary",
+          "documentCount": 31,
+          "preview": "code",
+          "accent": "green"
+        }
+      ]
+    },
+    {
+      "title": "HTML",
+      "description": "2개 시리즈 · 문서 54편",
+      "order": "02",
+      "series": [
+        {
+          "title": "HTML 기본기",
+          "description": "HTML을 HyperText·Markup·Language 세 조각으로 쪼개 뜻을 풀고, CSS·JS와의 역할 분담, WHATWG Living Standard와 옛 버전 표기의 관계를 정리한다",
+          "href": "/html/html_fundamentals/01_what-is-html-and-its-role",
+          "documentCount": 25,
+          "preview": "code",
+          "accent": "amber"
+        },
+        {
+          "title": "모던 HTML",
+          "description": "JS 라이브러리가 흉내 내던 모달·툴팁·아코디언이 표준 HTML로 들어온 배경과 Baseline 개념을 잡고, 이 과목 전체의 3대 축 지도를 그린다",
+          "href": "/html/modern_html/01_why-modern-html",
+          "documentCount": 29,
+          "preview": "code",
+          "accent": "red"
+        }
+      ]
+    },
     {
       "title": "JavaScript",
       "description": "2개 시리즈 · 문서 65편",
-      "order": "01",
+      "order": "03",
       "series": [
         {
           "title": "ECMAScript",
@@ -29,7 +75,7 @@
     {
       "title": "React",
       "description": "3개 시리즈 · 문서 46편",
-      "order": "02",
+      "order": "04",
       "series": [
         {
           "title": "React 기초",
@@ -60,7 +106,7 @@
     {
       "title": "독학사",
       "description": "11개 시리즈 · 문서 272편",
-      "order": "03",
+      "order": "05",
       "series": [
         {
           "title": "1단계 기초통계학",
@@ -155,7 +201,7 @@
     {
       "title": "자격증",
       "description": "6개 시리즈 · 문서 154편",
-      "order": "04",
+      "order": "06",
       "series": [
         {
           "title": "ADsP",

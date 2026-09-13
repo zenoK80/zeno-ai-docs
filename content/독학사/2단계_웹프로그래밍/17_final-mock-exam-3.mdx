@@ -1,0 +1,433 @@
+---
+title: '17. 독학사 2단계 웹 프로그래밍 예상기출문제 3'
+description: 'XML·Ajax와 웹 표준·접근성을 중심으로 인터넷·HTML·CSS·JavaScript까지 골고루 다루는 22문항 종합형 모의고사'
+---
+
+<Callout type="warning">
+  **재구성 출제 고지:** 이 모의고사는 국가평생교육진흥원 독학학위제 웹 프로그래밍 과목의 공식 출제기준(평가영역)을 근거로 새로 구성한 **재구성 문항**입니다. 실제 기출 문항을 그대로 옮긴 것이 아니며, 회차별 실제 문항 수·시험 시간은 매 공고마다 다를 수 있으므로 응시 전 반드시 **공고 확인이 필요**합니다. XML·Ajax·웹 표준·접근성은 개념 간 비교와 사례 판별이 핵심 출제 지점이므로, 두 개념의 차이가 무엇인지 스스로 한 문장으로 말할 수 있는지 확인하며 풀어 보세요.
+</Callout>
+
+## 문항 구성
+
+| 영역 | 문항 수 | 문항 번호 |
+| --- | --- | --- |
+| 인터넷과 웹의 기본 구조 | 2 | 1–2 |
+| HTML | 3 | 3–5 |
+| CSS | 3 | 6–8 |
+| JavaScript | 4 | 9–12 |
+| XML과 Ajax | 5 | 13–17 |
+| 웹 표준과 접근성 | 5 | 18–22 |
+
+### 문제 1
+
+HTTP와 HTTPS는 이름이 비슷하지만 통신 내용의 보호 여부에서 근본적인 차이가 있다.
+
+<Quiz
+  questionNumber={1}
+  question="HTTP와 HTTPS의 차이에 대한 설명으로 옳은 것은?"
+  options={['HTTPS는 HTTP 통신 내용을 암호화하기 위해 TLS를 덧붙인 프로토콜이며, 기본 포트로 443을 사용한다', 'HTTP와 HTTPS는 이름만 다를 뿐 실제로는 완전히 동일한 프로토콜이다', 'HTTPS는 암호화 대신 압축 기능만 추가된 프로토콜이다', 'HTTP는 항상 443번 포트를, HTTPS는 항상 80번 포트를 사용한다']}
+  correctAnswer={1}
+  explanation="HTTPS(HTTP Secure)는 HTTP 통신에 TLS(Transport Layer Security, 전송 계층 보안) 계층을 추가해 주고받는 내용을 암호화한 프로토콜이다. HTTP의 기본 포트는 80, HTTPS의 기본 포트는 443으로 서로 다르며, HTTPS의 핵심은 압축이 아니라 암호화와 신원 확인이다."
+  optionExplanations={['정답 — TLS를 통한 암호화와 기본 포트 443이 HTTPS의 핵심 특징이다.', '암호화 여부라는 근본적인 차이가 있어 완전히 동일하다고 볼 수 없다.', 'HTTPS의 핵심 목적은 압축이 아니라 통신 내용의 암호화다.', '기본 포트가 서로 반대로 서술되어 있다. HTTP가 80, HTTPS가 443이다.']}
+/>
+
+### 문제 2
+
+브라우저는 서버에서 받은 HTML과 CSS를 그대로 그리는 것이 아니라, 몇 단계의 내부 처리를 거쳐 화면을 구성한다.
+
+<Quiz
+  questionNumber={2}
+  question="브라우저가 HTML과 CSS를 받아 화면을 그리는 과정에 대한 설명으로 옳은 것은?"
+  options={['HTML을 파싱해 DOM 트리를 만들고 CSS를 파싱해 CSSOM을 만든 뒤, 이 둘을 결합해 화면에 그릴 렌더 트리를 구성한다', '브라우저는 CSS를 전혀 해석하지 않고 HTML 태그가 나온 순서대로만 그대로 그린다', 'DOM 트리는 자바스크립트 실행이 모두 끝난 뒤에야 생성되기 시작한다', '렌더 트리는 화면에 보이지 않도록 숨겨진 요소까지 모두 포함해서 구성된다']}
+  correctAnswer={1}
+  explanation="브라우저는 HTML을 파싱해 문서 구조를 나타내는 DOM(Document Object Model, 문서 객체 모델) 트리를 만들고, CSS를 파싱해 스타일 정보를 담은 CSSOM을 만든 뒤, 두 트리를 결합해 실제로 화면에 그릴 대상만 담은 렌더 트리를 구성한다. DOM 생성은 문서를 읽는 즉시 시작되며, display 값이 none으로 숨겨진 요소는 렌더 트리에서 제외된다."
+  optionExplanations={['정답 — DOM, CSSOM, 렌더 트리로 이어지는 처리 순서를 정확히 설명한다.', '브라우저는 CSS를 해석해 스타일을 적용한 뒤 화면을 그린다.', 'DOM 트리 생성은 문서를 읽는 즉시 시작되며 자바스크립트 실행 완료를 기다리지 않는다.', '화면에 표시되지 않도록 숨겨진 요소는 렌더 트리 구성에서 제외되는 것이 일반적이다.']}
+/>
+
+### 문제 3
+
+문서의 언어와 문자 인코딩은 head 안의 속성과 메타 태그로 지정한다.
+
+```html
+<!doctype html>
+<html lang="ko">
+  <head>
+    <meta charset="UTF-8">
+    <title>예시 문서</title>
+  </head>
+  <body></body>
+</html>
+```
+
+<Quiz
+  questionNumber={3}
+  question="위 문서의 lang 속성과 charset 메타 태그에 대한 설명으로 옳은 것은?"
+  options={['lang 속성은 문서의 주요 언어를 스크린 리더 등에 알려주고, charset은 문서를 해석할 문자 인코딩을 지정한다', 'lang 속성은 문서에 사용할 글꼴을 지정하는 속성이다', 'charset을 지정하지 않아도 모든 문자가 항상 깨지지 않고 정상적으로 표시된다', 'lang 속성 값은 반드시 영어(en)만 사용할 수 있다']}
+  correctAnswer={1}
+  explanation="html 요소의 lang 속성은 문서에서 주로 쓰이는 언어가 무엇인지 브라우저와 스크린 리더에 알려주어, 스크린 리더가 올바른 언어의 발음 규칙으로 읽을 수 있게 돕는다. meta charset은 문서를 어떤 문자 인코딩(여기서는 UTF-8)으로 해석할지 지정하며, 이를 잘못 지정하거나 생략하면 한글 같은 다국어 문자가 깨져 보일 수 있다. lang 속성 값은 ko, en 등 필요한 언어 코드를 자유롭게 지정할 수 있다."
+  optionExplanations={['정답 — lang과 charset의 정확한 역할이다.', 'lang은 언어 코드를 지정하는 속성이며 글꼴과는 무관하다.', 'charset을 잘못 지정하거나 생략하면 문자가 깨져 보일 수 있다.', 'lang 속성에는 ko, en, ja 등 다양한 언어 코드를 지정할 수 있다.']}
+/>
+
+### 문제 4
+
+새 탭에서 외부 링크를 열 때는 보안을 위한 추가 속성을 함께 지정하는 것이 권장된다.
+
+```html
+<a href="https://example.com" target="_blank" rel="noopener">외부 링크</a>
+```
+
+<Quiz
+  questionNumber={4}
+  question="위 a 요소에서 target 속성 값 _blank와 rel 속성 값 noopener에 대한 설명으로 옳은 것은?"
+  options={['target 값 _blank는 링크를 새 탭이나 새 창에서 열고, rel 값 noopener는 새로 열린 페이지가 window.opener를 통해 원래 페이지에 접근하지 못하도록 막아 보안을 강화한다', 'target 값 _blank는 항상 같은 탭에서 페이지를 새로 고쳐 이동시킨다', 'rel 값 noopener는 링크의 글자 색을 바꾸는 스타일 속성이다', 'target과 rel 속성은 함께 쓸 수 없고 반드시 둘 중 하나만 지정해야 한다']}
+  correctAnswer={1}
+  explanation="target 속성 값 _blank는 링크를 클릭했을 때 현재 탭이 아니라 새 탭(또는 새 창)에서 열리게 한다. 이때 새로 열린 페이지는 기본적으로 window.opener를 통해 원래 페이지 창에 접근할 수 있는데, 이는 악의적인 페이지가 원래 페이지를 조작할 수 있는 보안 위험으로 이어질 수 있다. rel 값 noopener는 이 연결 통로를 차단해 새 페이지가 원래 페이지에 접근하지 못하도록 막는다."
+  optionExplanations={['정답 — target과 rel의 정확한 역할과 noopener의 보안상 의미다.', '_blank는 새 탭·새 창에서 여는 것이 정의이며 같은 탭 이동이 아니다.', 'rel은 링크와 대상 문서의 관계를 나타내는 속성으로 스타일과는 무관하다.', 'target과 rel은 서로 다른 목적의 속성으로 함께 지정할 수 있다.']}
+/>
+
+### 문제 5
+
+관련된 폼 요소들을 시각적·의미적으로 묶고 그룹 전체에 제목을 붙일 때 fieldset과 legend를 함께 사용한다.
+
+```html
+<fieldset>
+  <legend>배송 정보</legend>
+  <label for="addr">주소</label>
+  <input type="text" id="addr" name="addr">
+</fieldset>
+```
+
+<Quiz
+  questionNumber={5}
+  question="위 코드에서 fieldset과 legend 요소에 대한 설명으로 옳은 것은?"
+  options={['fieldset은 관련된 폼 요소들을 하나의 그룹으로 묶고, legend는 그 그룹 전체에 붙는 제목을 나타낸다', 'fieldset은 입력값을 서버로 전송하기 전에 자동으로 암호화하는 요소다', 'legend 요소는 화면에 전혀 표시되지 않는 숨김 전용 요소다', 'fieldset 안에는 하나의 입력 요소만 넣을 수 있다']}
+  correctAnswer={1}
+  explanation="fieldset은 관련 있는 폼 컨트롤들을 하나의 그룹으로 묶어 시각적인 테두리와 의미적인 그룹 구조를 함께 제공하고, legend는 그 그룹이 무엇에 관한 것인지 알려주는 제목 역할을 한다. 스크린 리더는 fieldset 안의 각 입력 요소를 읽을 때 legend의 제목을 함께 안내해 사용자가 맥락을 이해하도록 돕는다. fieldset은 암호화 기능이 없고, legend는 기본적으로 화면에 보이며, fieldset 안에는 여러 입력 요소를 자유롭게 넣을 수 있다."
+  optionExplanations={['정답 — fieldset은 그룹 묶음, legend는 그 그룹의 제목이라는 정확한 설명이다.', 'fieldset은 순수하게 구조적·시각적 그룹 요소이며 암호화와는 무관하다.', 'legend는 기본적으로 화면에 표시되는 제목 텍스트다.', 'fieldset 안에는 여러 개의 폼 컨트롤을 자유롭게 넣을 수 있다.']}
+/>
+
+### 문제 6
+
+화면 너비에 따라 다른 스타일을 적용하려면 미디어 쿼리(media query)를 사용한다.
+
+```css
+.container { display: block; }
+
+@media (max-width: 768px) {
+  .container { display: none; }
+}
+```
+
+<Quiz
+  questionNumber={6}
+  question="위 미디어 쿼리에 대한 설명으로 옳은 것은?"
+  options={['뷰포트 너비가 768px 이하일 때만 container 요소의 display 값이 none으로 바뀐다', '미디어 쿼리는 자바스크립트가 있어야만 동작하는 기능이다', 'max-width 768px 조건은 화면 너비가 768px보다 클 때만 적용된다', '미디어 쿼리 안의 규칙은 항상 바깥의 일반 규칙보다 우선순위가 낮아 항상 무시된다']}
+  correctAnswer={1}
+  explanation="media (max-width: 768px)는 뷰포트 너비가 768px 이하일 때 그 안의 규칙을 적용하라는 조건이다. 조건을 만족하면 container의 display 값이 none으로 덮어써져 화면에 보이지 않게 된다. 미디어 쿼리는 순수하게 CSS만으로 동작하며 자바스크립트가 필요 없고, 조건을 만족하는 미디어 쿼리 안의 규칙은 일반 규칙과 동일한 우선순위 규칙(더 나중에 오거나 더 구체적인 규칙이 이긴다)을 따른다."
+  optionExplanations={['정답 — max-width 조건의 의미와 적용 결과를 정확히 설명한다.', '미디어 쿼리는 CSS 자체 기능으로 자바스크립트 없이 동작한다.', 'max-width는 지정한 값 이하일 때 적용되는 조건이며 반대로 서술되어 있다.', '미디어 쿼리 안의 규칙도 다른 CSS 규칙과 동일한 우선순위 계산을 따르며 조건만 만족하면 정상 적용된다.']}
+/>
+
+### 문제 7
+
+콜론 하나로 쓰는 선택자와 콜론 두 개로 쓰는 선택자는 이름은 비슷해도 역할이 다르다.
+
+<Quiz
+  questionNumber={7}
+  question="가상 클래스(pseudo-class)와 가상 요소(pseudo-element)에 대한 설명으로 옳은 것은?"
+  options={['hover처럼 콜론 하나로 쓰는 가상 클래스는 요소의 특정 상태를 나타내고, before처럼 콜론 두 개로 쓰는 가상 요소는 요소 안에 새로운 내용을 만들어 낸다', '가상 클래스와 가상 요소는 콜론 개수만 다를 뿐 완전히 같은 기능을 한다', '가상 요소는 자바스크립트로 이미 만들어 놓은 요소만을 대상으로 동작한다', '가상 클래스는 항상 새로운 HTML 요소를 문서에 추가하는 선택자다']}
+  correctAnswer={1}
+  explanation="hover, focus, nth-child 같은 가상 클래스는 요소가 마우스 위에 있다거나 몇 번째 자식이라는 등 특정 상태·조건을 나타내는 선택자다. before, after 같은 가상 요소는 실제 문서에는 없는 콘텐츠를 요소 앞뒤에 새로 만들어 삽입하는 역할을 한다. 가상 요소는 자바스크립트로 만든 요소가 아니라 스타일시트만으로 화면에 나타나는 가상의 콘텐츠이며, 가상 클래스는 새 요소를 추가하지 않고 기존 요소의 상태만을 대상으로 한다."
+  optionExplanations={['정답 — 상태 표현과 콘텐츠 생성이라는 서로 다른 역할을 정확히 구분한다.', '콜론 개수가 다른 이유는 역할이 다르기 때문이며 완전히 같은 기능이 아니다.', '가상 요소는 CSS만으로 화면에 나타나는 것이며 자바스크립트로 만든 요소를 전제하지 않는다.', '가상 클래스는 새 요소를 추가하지 않고 기존 요소의 상태를 대상으로 스타일을 적용한다.']}
+/>
+
+### 문제 8
+
+flex 컨테이너의 자식 배치는 justify-content 속성으로 조절한다.
+
+```html
+<div style="display: flex; justify-content: space-between; width: 300px;">
+  <div style="width: 50px;">A</div>
+  <div style="width: 50px;">B</div>
+  <div style="width: 50px;">C</div>
+</div>
+```
+
+<Quiz
+  questionNumber={8}
+  question="justify-content 값 space-between이 적용된 위 flex 컨테이너에 대한 설명으로 옳은 것은?"
+  options={['첫 번째 자식은 컨테이너의 맨 왼쪽에, 마지막 자식은 맨 오른쪽에 붙고, 남는 공간은 자식들 사이의 간격으로 균등하게 분배된다', 'space-between은 모든 자식의 앞뒤에 동일한 여백을 만들어 양 끝에도 간격이 생기게 한다', 'justify-content는 flex 컨테이너의 세로(교차축) 정렬만 담당하는 속성이다', 'flex 컨테이너의 자식들은 justify-content 값과 관계없이 항상 세로로 쌓인다']}
+  correctAnswer={1}
+  explanation="space-between은 첫 번째 자식과 마지막 자식을 컨테이너 양 끝에 붙이고, 자식들 사이의 남는 공간만 균등하게 나누어 간격으로 배분하는 값이다. 양 끝에도 여백을 만드는 것은 space-around나 space-evenly의 특징이다. justify-content는 flex 컨테이너의 주축(가로, display flex의 기본값인 row일 때) 정렬을 담당하며, display flex를 지정하면 기본적으로 자식들은 가로로 나란히 배치된다."
+  optionExplanations={['정답 — space-between의 정확한 동작이다.', '양 끝에도 여백을 만드는 것은 space-around나 space-evenly의 특징이며 space-between과는 다르다.', 'justify-content는 기본 방향에서 가로(주축) 정렬을 담당한다.', 'display flex의 기본 방향은 가로이므로 자식들은 기본적으로 옆으로 나란히 배치된다.']}
+/>
+
+### 문제 9
+
+다음 코드를 살펴보자.
+
+```js
+const obj = { name: "민수", age: 20 };
+const jsonText = JSON.stringify(obj);
+console.log(typeof jsonText);
+const parsed = JSON.parse(jsonText);
+console.log(parsed.age);
+```
+
+JSON.stringify는 자바스크립트 값을 JSON 형식의 문자열로 바꾸고, JSON.parse는 그 반대로 JSON 문자열을 다시 자바스크립트 값으로 되돌린다.
+
+<Quiz
+  questionNumber={9}
+  question="위 코드를 실행했을 때 두 콘솔 출력으로 옳은 것은?"
+  options={['string, 그다음 20', 'object, 그다음 20', 'string, 그다음 문자열 20', 'object, 그다음 undefined']}
+  correctAnswer={1}
+  explanation="JSON.stringify가 만들어 내는 결과는 항상 문자열이므로 typeof jsonText는 string이다. JSON.parse는 그 문자열을 다시 자바스크립트 객체로 되돌리므로 parsed는 원래 obj와 같은 구조를 갖고, parsed.age는 숫자 20이 된다."
+  optionExplanations={['정답 — stringify의 결과는 문자열, parse로 되돌린 age는 숫자 20이다.', 'JSON.stringify의 반환값은 객체가 아니라 문자열이다.', 'JSON.parse는 숫자를 문자열이 아니라 원래의 숫자 타입으로 복원한다.', 'JSON.parse는 원본 데이터를 정상적으로 복원하므로 age 값이 사라지지 않는다.']}
+/>
+
+### 문제 10
+
+다음 코드를 살펴보자.
+
+```js
+const user = { id: 1, name: "하늘", email: "sky@example.com" };
+const { name, email } = user;
+console.log(name);
+console.log(email);
+```
+
+구조 분해 할당(destructuring assignment)은 객체의 속성 이름과 똑같은 이름의 변수를 만들어 그 값을 한 번에 꺼내 담는 문법이다.
+
+<Quiz
+  questionNumber={10}
+  question="위 코드를 실행한 결과로 옳은 것은?"
+  options={['하늘, 그다음 sky@example.com', 'undefined, 그다음 undefined', 'id, 그다음 name', '객체 user 전체가 그대로 두 번 출력된다']}
+  correctAnswer={1}
+  explanation="const 뒤 중괄호 안에 name과 email을 나열하면, user 객체에서 같은 이름을 가진 속성의 값을 각각 꺼내 name과 email이라는 변수에 담는다. user.name의 값인 하늘이 name 변수에, user.email의 값인 sky@example.com이 email 변수에 담기므로 두 줄은 순서대로 그 값을 출력한다."
+  optionExplanations={['정답 — 구조 분해 할당은 같은 이름의 속성 값을 그대로 변수에 담는다.', '구조 분해 할당은 실제로 존재하는 속성의 값을 정상적으로 꺼내 담는다.', '변수 이름이 아니라 그 변수에 담긴 값이 출력된다.', '구조 분해 할당은 필요한 속성 값만 꺼내는 것이며 객체 전체를 출력하지 않는다.']}
+/>
+
+### 문제 11
+
+다음 코드를 살펴보자.
+
+```js
+function parseNumber(text) {
+  try {
+    const value = JSON.parse(text);
+    return value;
+  } catch (error) {
+    return "변환 실패";
+  }
+}
+console.log(parseNumber("123"));
+console.log(parseNumber("이건 숫자가 아님"));
+```
+
+try 블록 안에서 오류가 발생하면 그 즉시 실행이 멈추고 catch 블록으로 넘어가 오류를 처리한다. JSON.parse는 올바른 JSON 형식이 아닌 문자열을 받으면 오류를 발생시킨다.
+
+<Quiz
+  questionNumber={11}
+  question="위 코드를 실행한 결과로 옳은 것은?"
+  options={['123, 그다음 변환 실패', '변환 실패, 그다음 123', '123, 그다음 123', '변환 실패, 그다음 변환 실패']}
+  correctAnswer={1}
+  explanation="문자열 123은 올바른 JSON 형식의 숫자이므로 JSON.parse가 성공해 숫자 123을 그대로 반환한다. 반면 이건 숫자가 아님이라는 문자열은 올바른 JSON 형식이 아니므로 JSON.parse가 오류를 발생시키고, try 블록의 실행이 중단되어 catch 블록으로 넘어가 변환 실패라는 문자열이 반환된다."
+  optionExplanations={['정답 — 올바른 JSON은 정상 변환되고, 그렇지 않은 문자열은 catch로 넘어가 변환 실패가 반환된다.', '두 경우의 결과가 서로 반대로 서술되어 있다.', '두 번째 인자는 올바른 JSON 형식이 아니므로 오류가 발생해 catch로 넘어간다.', '첫 번째 인자는 올바른 JSON 형식이므로 오류 없이 정상적으로 변환된다.']}
+/>
+
+### 문제 12
+
+다음 코드를 살펴보자.
+
+```js
+const values = [0, "", null, undefined, NaN, "0", []];
+let count = 0;
+values.forEach(function (v) {
+  if (v) {
+    count++;
+  }
+});
+console.log(count);
+```
+
+조건문에서 값 자체를 그대로 검사하면, 그 값이 참으로 취급되는지(truthy) 거짓으로 취급되는지(falsy)에 따라 결과가 갈린다. 0, 빈 문자열, null, undefined, NaN은 falsy로 취급되는 대표적인 값이지만, 문자 0이 들어 있는 문자열 "0"과 빈 배열은 falsy가 아니라 truthy로 취급된다는 점이 자주 틀리는 지점이다.
+
+<Quiz
+  questionNumber={12}
+  question="위 코드 실행 후 count의 값으로 옳은 것은?"
+  options={['0', '1', '2', '7']}
+  correctAnswer={3}
+  explanation="배열에 담긴 일곱 값 중 0, 빈 문자열, null, undefined, NaN 다섯 개는 falsy라서 if 조건을 통과하지 못한다. 반면 문자 0이 들어 있는 문자열 (빈 문자열이 아니라 길이가 1인 문자열)과 빈 배열은 falsy 목록에 들어 있지 않아 truthy로 취급되므로 if 조건을 통과한다. 따라서 count는 2가 된다."
+  optionExplanations={['falsy 다섯 개만 있고 truthy는 하나도 없다고 착각한 경우다.', '문자열 0과 빈 배열 중 하나만 truthy로 잘못 판단한 경우다.', '정답 — 문자열 0과 빈 배열이 truthy로 취급되어 count가 2가 된다.', '일곱 값 모두 truthy라고 착각한 경우로, falsy 값 다섯 개를 놓친 것이다.']}
+/>
+
+### 문제 13
+
+다음은 네임스페이스(namespace)를 선언한 XML 문서다.
+
+```xml
+<book xmlns:lib="http://example.com/library">
+  <lib:title>독학사 웹프로그래밍</lib:title>
+</book>
+```
+
+같은 태그 이름이 서로 다른 출처의 문서에서 각기 다른 의미로 쓰일 수 있으므로, XML은 xmlns 속성으로 네임스페이스를 선언해 접두어를 통해 태그의 출처를 구분한다.
+
+<Quiz
+  questionNumber={13}
+  question="위 XML에서 xmlns 속성과 태그 이름 앞의 lib 접두어에 대한 설명으로 옳은 것은?"
+  options={['xmlns는 네임스페이스를 선언해 같은 이름의 태그가 서로 다른 문서·출처에서 와도 구분할 수 있게 해주고, lib는 그 네임스페이스에 속한 태그임을 나타내는 접두어다', 'xmlns 속성은 태그의 글자 색을 지정하는 스타일 속성이다', 'lib 접두어가 붙은 태그는 자바스크립트에서만 사용할 수 있고 XML 파서는 인식하지 못한다', '네임스페이스는 HTML에서만 사용되는 개념이며 XML에는 존재하지 않는다']}
+  correctAnswer={1}
+  explanation="xmlns:lib=주소 형태의 선언은 lib라는 접두어가 지정된 URI로 식별되는 네임스페이스에 속한다는 것을 뜻한다. 이렇게 하면 서로 다른 문서나 표준에서 만든 같은 이름의 태그(예: title)가 섞여도 lib:title처럼 접두어로 구분할 수 있다. 네임스페이스는 스타일과 무관하며, 자바스크립트 전용 문법이 아니라 XML 표준 자체의 개념이다."
+  optionExplanations={['정답 — 네임스페이스 선언과 접두어의 역할을 정확히 설명한다.', 'xmlns는 스타일이 아니라 태그의 출처(네임스페이스)를 구분하는 역할을 한다.', '접두어가 붙은 태그는 XML 파서가 표준적으로 해석할 수 있는 문법이다.', '네임스페이스는 XML 표준 자체에 정의된 개념이다.']}
+/>
+
+### 문제 14
+
+XML 문서의 구조를 미리 정해 두고 그 구조를 지켰는지 검사하는 방법으로 DTD나 XML 스키마가 쓰인다.
+
+<Quiz
+  questionNumber={14}
+  question="XML 문서에서 DTD나 XML 스키마가 하는 역할로 옳은 것은?"
+  options={['문서에 어떤 요소와 속성이 어떤 순서·구조로 올 수 있는지 규칙을 정의해, 문서가 그 규칙에 맞는지(유효한지) 검사할 수 있게 한다', 'DTD와 스키마는 XML 문서의 글자 색과 글꼴을 지정하는 역할을 한다', 'DTD가 있으면 잘 정형화(well-formed) 조건을 지키지 않아도 자유롭게 문서를 작성할 수 있다', '스키마는 서버에 저장된 데이터베이스 테이블을 자동으로 생성해 주는 기능이다']}
+  correctAnswer={1}
+  explanation="DTD(Document Type Definition, 문서 형식 정의)나 XML 스키마는 어떤 요소가 어떤 자식 요소·속성을 가질 수 있고 몇 번 나올 수 있는지 같은 구조 규칙을 정의한 뒤, 실제 XML 문서가 그 규칙을 지켰는지(유효성, validity)를 검사하는 데 쓰인다. 이는 태그가 올바르게 열리고 닫혔는지 같은 정형화 조건과는 별개의, 더 상세한 구조 검증이며, 잘 정형화 조건을 대체하지 않는다."
+  optionExplanations={['정답 — 구조 규칙 정의와 유효성 검사가 DTD·스키마의 핵심 역할이다.', 'DTD와 스키마는 구조를 정의하는 것이지 시각적 스타일과는 무관하다.', 'DTD가 있어도 잘 정형화 조건은 별개로 반드시 지켜야 한다.', 'XML 스키마는 문서 구조 검증용이며 데이터베이스 테이블 생성 기능이 아니다.']}
+/>
+
+### 문제 15
+
+전통적인 폼 제출 방식과 Ajax 방식은 서버와 데이터를 주고받는 방식과 화면 갱신 방식에서 차이가 있다.
+
+<Quiz
+  questionNumber={15}
+  question="전통적인 폼 제출 방식과 Ajax 방식의 차이에 대한 설명으로 옳은 것은?"
+  options={['전통적인 폼 제출은 서버 응답을 받으면 페이지 전체를 새로 불러오지만, Ajax는 필요한 데이터만 받아와 페이지의 일부만 갱신할 수 있다', '전통적인 폼 제출과 Ajax는 항상 정확히 같은 사용자 경험을 제공한다', 'Ajax 방식은 반드시 페이지 전체를 새로고침해야만 동작한다', '전통적인 폼 제출 방식은 브라우저가 아예 지원하지 않는 방식이다']}
+  correctAnswer={1}
+  explanation="전통적인 폼 제출은 서버가 새 HTML 문서를 응답으로 돌려주고 브라우저가 그 문서로 페이지 전체를 다시 불러오는 방식이다. Ajax는 자바스크립트가 백그라운드에서 서버와 통신해 필요한 데이터만 받아오고, 받은 데이터로 화면의 일부(예: 목록 하나)만 갱신할 수 있어 페이지 전체를 새로고침할 필요가 없다."
+  optionExplanations={['정답 — 전체 새로고침과 부분 갱신이라는 핵심 차이를 정확히 설명한다.', '두 방식은 화면 갱신 범위와 사용자 체감 속도에서 뚜렷한 차이를 만든다.', 'Ajax의 핵심 장점이 바로 전체 새로고침 없이 동작할 수 있다는 점이다.', '전통적인 폼 제출은 HTML 표준에 정의된 기본 지원 기능이다.']}
+/>
+
+### 문제 16
+
+브라우저가 서버와 비동기로 통신하는 방법에는 오래전부터 쓰인 XMLHttpRequest 객체와, 비교적 최근에 도입된 fetch 함수가 있다.
+
+<Quiz
+  questionNumber={16}
+  question="XMLHttpRequest 객체와 fetch 함수에 대한 설명으로 옳은 것은?"
+  options={['둘 다 브라우저에서 서버와 비동기로 통신하는 데 사용할 수 있으며, fetch는 프라미스(Promise) 기반으로 더 최근에 도입된 방식이다', 'XMLHttpRequest는 XML 형식의 데이터만 주고받을 수 있고 JSON은 다룰 수 없다', 'fetch 함수는 콜백 함수 없이도 요청 결과를 동기적으로 즉시 반환한다', 'XMLHttpRequest와 fetch는 서버와 통신하는 기능이 전혀 없는 순수 화면 표시 전용 객체다']}
+  correctAnswer={1}
+  explanation="XMLHttpRequest는 이름에 XML이 들어 있지만 실제로는 JSON을 비롯한 다양한 형식의 데이터를 주고받을 수 있는 오래된 비동기 통신 객체이고, fetch는 프라미스를 기본으로 반환하도록 설계되어 then으로 응답을 처리하기 편한, 비교적 최근에 도입된 방식이다. fetch도 결국 비동기로 동작하므로 결과를 동기적으로 즉시 반환하지 않는다."
+  optionExplanations={['정답 — 두 API 모두 비동기 통신 수단이며 fetch가 더 최근에 도입된 프라미스 기반 방식이다.', 'XMLHttpRequest도 JSON을 포함한 다양한 형식의 데이터를 주고받을 수 있다.', 'fetch도 네트워크 응답을 기다려야 하므로 비동기로 동작하며 즉시 값을 반환하지 않는다.', '두 객체 모두 서버와 데이터를 주고받기 위한 통신 수단이다.']}
+/>
+
+### 문제 17
+
+폼에 입력된 값을 서버로 보낼 때는 자바스크립트 객체를 JSON 문자열로 바꾸어 전송하는 경우가 많다.
+
+```js
+const formData = { title: "글 제목", content: "내용입니다" };
+fetch("/api/posts", {
+  method: "POST",
+  headers: { "Content-Type": "application/json" },
+  body: JSON.stringify(formData),
+});
+```
+
+<Quiz
+  questionNumber={17}
+  question="위 코드에서 JSON.stringify(formData)에 대한 설명으로 옳은 것은?"
+  options={['자바스크립트 객체 formData를 서버로 전송할 수 있는 JSON 형식의 문자열로 변환한다', 'JSON.stringify는 객체를 서버에 자동으로 저장하는 함수다', 'JSON.stringify를 쓰면 formData 객체가 배열로 바뀐다', 'body에는 자바스크립트 객체를 그대로 전달해야 하며 문자열로 바꾸면 오류가 발생한다']}
+  correctAnswer={1}
+  explanation="fetch의 body에는 문자열이나 정해진 형식의 데이터만 담을 수 있어, 자바스크립트 객체를 그대로 전달할 수 없다. JSON.stringify(formData)는 객체 formData를 그 내용을 그대로 담은 JSON 형식의 문자열로 바꿔주어, 그 문자열을 body에 담아 서버로 전송할 수 있게 해준다. 이 함수는 서버 저장을 직접 수행하지 않으며, 객체를 배열로 바꾸지도 않는다."
+  optionExplanations={['정답 — 객체를 전송 가능한 JSON 문자열로 바꾸는 것이 stringify의 역할이다.', 'JSON.stringify는 문자열 변환만 담당하며 저장은 서버 쪽 로직이 처리한다.', 'JSON.stringify는 객체 구조를 유지한 채 문자열로 표현할 뿐 배열로 바꾸지 않는다.', '오히려 객체를 문자열로 바꾸지 않고 그대로 전달하면 fetch가 오류를 일으키거나 의도한 형식으로 전송되지 않는다.']}
+/>
+
+### 문제 18
+
+제목 태그(h1부터 h6까지)는 글자 크기를 위한 것이 아니라 문서의 논리적인 구조를 나타내기 위한 태그다.
+
+```html
+<h1>독학사 웹 프로그래밍</h1>
+<h3>1단원 소개</h3>
+```
+
+<Quiz
+  questionNumber={18}
+  question="위와 같이 h1 다음에 h2를 건너뛰고 h3을 바로 사용하는 것에 대한 설명으로 옳은 것은?"
+  options={['제목 태그의 단계를 건너뛰면 스크린 리더 사용자가 문서의 구조를 파악하기 어려워질 수 있어 순서대로 단계를 낮추는 것이 권장된다', 'h1부터 h6까지의 숫자는 글자 크기만 의미할 뿐 문서 구조와는 전혀 관계가 없다', '제목 태그는 몇 단계를 건너뛰어도 접근성에 아무 영향이 없다', 'h3은 h1보다 더 상위의 제목을 나타내는 태그다']}
+  correctAnswer={1}
+  explanation="스크린 리더 사용자는 제목 태그의 단계를 이용해 문서의 목차를 훑어보듯 탐색하는 경우가 많다. h1 다음에 h2 없이 h3으로 건너뛰면, 이 단계 사이에 무엇이 빠졌는지 혼란을 줄 수 있어 순서대로 단계를 낮추는 것이 권장된다. h1부터 h6의 숫자는 단순한 글자 크기 지정이 아니라 문서의 논리적 계층 구조를 나타내며, 숫자가 작을수록 더 상위 제목이다."
+  optionExplanations={['정답 — 단계를 건너뛰면 구조 탐색에 혼란을 줄 수 있어 순서대로 낮추는 것이 권장된다.', '제목 태그의 숫자는 문서의 논리적 계층 구조를 나타내는 의미론적 정보다.', '단계를 건너뛰면 스크린 리더 사용자의 구조 탐색에 혼란을 줄 수 있다.', '숫자가 작을수록 상위 제목이므로 h1이 h3보다 상위 제목이다.']}
+/>
+
+### 문제 19
+
+시각 장애나 저시력, 색약 등을 가진 사용자도 텍스트를 읽을 수 있으려면 글자 색과 배경색 사이에 충분한 명도 대비가 필요하다.
+
+<Quiz
+  questionNumber={19}
+  question="웹 접근성에서 글자 색과 배경색의 명도 대비(color contrast)를 충분히 확보해야 하는 이유로 가장 옳은 것은?"
+  options={['저시력 사용자나 색 인식에 어려움이 있는 사용자도 텍스트 내용을 읽을 수 있도록 하기 위해서다', '명도 대비는 오직 디자인의 미적 완성도만을 위한 요소이며 접근성과는 무관하다', '명도 대비를 높이면 페이지의 로딩 속도가 빨라진다', '명도 대비 기준은 이미지에만 적용되고 텍스트에는 적용되지 않는다']}
+  correctAnswer={1}
+  explanation="명도 대비가 낮으면 저시력 사용자나 색각 이상이 있는 사용자에게는 글자와 배경이 구분되지 않아 내용을 읽기 어려워진다. 그래서 웹 접근성 지침은 텍스트와 배경 사이에 일정 수준 이상의 명도 대비를 확보하도록 권장한다. 이는 디자인 취향의 문제가 아니라 정보를 인식할 수 있게 하는 접근성의 핵심 요건이며, 로딩 속도와는 관련이 없다."
+  optionExplanations={['정답 — 명도 대비 확보의 실질적 목적은 텍스트 가독성과 정보 인식이다.', '명도 대비는 미적 요소가 아니라 정보를 인식 가능하게 만드는 접근성 요건이다.', '명도 대비 조정은 색상 값 문제이며 로딩 속도와는 관련이 없다.', '명도 대비 기준은 텍스트뿐 아니라 의미를 전달하는 그래픽 요소에도 함께 권장된다.']}
+/>
+
+### 문제 20
+
+레이블과 입력란을 연결하는 방법에는 for·id로 따로 연결하는 방식과, label이 input을 감싸는 방식이 있다.
+
+```html
+<label>
+  이메일
+  <input type="email" name="email">
+</label>
+```
+
+<Quiz
+  questionNumber={20}
+  question="위처럼 label 요소가 input 요소를 감싸는 방식에 대한 설명으로 옳은 것은?"
+  options={['label이 input을 감싸면 for와 id 속성으로 따로 연결하지 않아도 레이블과 입력란이 연결되어, 레이블 텍스트를 클릭해도 입력란에 포커스가 이동한다', 'label로 감싸는 방식은 스크린 리더가 아예 인식하지 못하는 잘못된 마크업이다', 'label 요소는 감싸는 방식으로는 절대 사용할 수 없고 항상 for 속성으로만 연결해야 한다', 'label로 감싸면 입력란의 검증 규칙이 자동으로 사라진다']}
+  correctAnswer={1}
+  explanation="label이 input을 직접 감싸는 방식은 for와 id를 따로 지정하지 않아도 그 안에 담긴 입력 요소와 자동으로 연결된 것으로 인정된다. 그래서 레이블 텍스트를 클릭해도 입력란에 포커스가 이동하고, 스크린 리더도 이 관계를 정상적으로 인식해 레이블 텍스트를 함께 읽어준다. label로 감싸는 방식은 for·id 방식과 함께 표준에서 인정하는 유효한 연결 방법이며, required나 pattern 같은 검증 규칙과는 무관하다."
+  optionExplanations={['정답 — 감싸는 방식도 표준에서 인정하는 유효한 레이블 연결 방법이다.', '감싸는 방식도 표준에 정의된 방법으로 스크린 리더가 정상적으로 인식한다.', 'for·id 방식과 감싸는 방식 둘 다 표준에서 인정하는 연결 방법이다.', '레이블 연결 방식과 입력값 검증 규칙은 서로 별개의 기능이다.']}
+/>
+
+### 문제 21
+
+자동화된 접근성 검사 도구는 유용하지만 만능은 아니며, 판단할 수 있는 범위에 한계가 있다.
+
+<Quiz
+  questionNumber={21}
+  question="자동 웹 접근성 검사 도구에 대한 설명으로 옳은 것은?"
+  options={['자동 도구는 alt 속성 누락처럼 기계적으로 판단 가능한 문제는 잘 찾아내지만, 대체 텍스트의 내용이 실제로 적절한지 같은 의미 판단은 사람의 검토가 필요하다', '자동 검사 도구를 한 번 통과하면 그 페이지는 모든 접근성 기준을 완벽하게 만족한 것으로 확정된다', '자동 검사 도구는 색상 대비나 대체 텍스트 존재 여부조차 확인할 수 없다', '접근성 검사는 오직 사람의 눈으로 확인하는 방법만 존재하며 자동화된 도구는 전혀 없다']}
+  correctAnswer={1}
+  explanation="자동 검사 도구는 alt 속성이 아예 없는지, 명도 대비 수치가 기준을 만족하는지처럼 기계적으로 계산·판별 가능한 항목을 빠르고 정확하게 찾아낸다. 하지만 alt 속성에 적힌 텍스트가 이미지 내용과 실제로 맞는 설명인지, 화면의 논리적 흐름이 사용자에게 자연스러운지처럼 맥락과 의미를 이해해야 하는 판단은 사람이 직접 검토해야 한다. 따라서 자동 도구 통과가 완전한 접근성 준수를 보장하지 않는다."
+  optionExplanations={['정답 — 기계적 검사와 의미 판단의 역할 분담을 정확히 설명한다.', '자동 도구가 잡아내지 못하는 의미적 문제가 있어 통과만으로 완벽을 보장할 수 없다.', '색상 대비 수치나 alt 속성 존재 여부는 자동 도구가 비교적 잘 확인할 수 있는 대표적인 항목이다.', '접근성 검사에는 자동화된 도구와 사람의 수동 검토가 함께 쓰인다.']}
+/>
+
+### 문제 22
+
+모바일 기기에서 페이지가 알맞은 크기로 보이게 하려면 viewport 메타 태그를 지정하는 것이 표준적인 방법이다.
+
+```html
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+```
+
+<Quiz
+  questionNumber={22}
+  question="위 viewport 메타 태그에 대한 설명으로 옳은 것은?"
+  options={['뷰포트 너비를 기기의 실제 화면 너비에 맞추고 초기 확대·축소 배율을 1로 지정해, 모바일 기기에서 페이지가 알맞은 크기로 표시되도록 돕는다', 'viewport 메타 태그는 페이지의 배경색을 지정하는 태그다', '이 태그를 생략해도 모바일 기기에서 항상 동일하게 잘 보인다', 'viewport 메타 태그는 자바스크립트 실행 여부를 제어하는 태그다']}
+  correctAnswer={1}
+  explanation="width=device-width는 뷰포트 너비를 기기의 실제 화면 너비에 맞추라는 뜻이고, initial-scale=1.0은 페이지가 처음 열릴 때 확대·축소 배율을 1배로 지정하라는 뜻이다. 이 메타 태그가 없으면 모바일 브라우저가 데스크톱 화면 기준의 넓은 가상 뷰포트를 가정해 페이지를 축소해서 보여주는 경우가 많아, 반응형 디자인이 의도대로 동작하지 않을 수 있다."
+  optionExplanations={['정답 — viewport 메타 태그의 두 속성값이 정확히 하는 역할이다.', 'viewport 메타 태그는 레이아웃 기준을 지정하는 것이지 배경색과는 무관하다.', '이 태그를 생략하면 모바일 기기에서 페이지가 의도와 다르게 축소되어 보일 수 있다.', 'viewport 메타 태그는 레이아웃 기준을 지정할 뿐 자바스크립트 실행과는 무관하다.']}
+/>
+
+## 참고 자료
+
+- [MDN Web Docs - XML](https://developer.mozilla.org/en-US/docs/Web/XML)
+- [MDN Web Docs - AJAX](https://developer.mozilla.org/en-US/docs/Glossary/AJAX)
+- [W3C WAI - Web Accessibility Initiative](https://www.w3.org/WAI/)
+- [W3C WAI - Introduction to Web Accessibility](https://www.w3.org/WAI/fundamentals/accessibility-intro/)
+- [MDN Web Docs - CSS](https://developer.mozilla.org/en-US/docs/Web/CSS)
+- [국가평생교육진흥원 독학학위제 시험안내](https://bdes.nile.or.kr/nile/exam/nExam2_1.do)

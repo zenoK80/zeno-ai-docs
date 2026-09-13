@@ -1,0 +1,354 @@
+---
+title: '05. HTML 표·폼·멀티미디어'
+description: '표 관련 태그, 폼 요소와 입력 유형, 버튼·레이블·검증 기초, img/audio/video 요소를 독학사 출제 포인트 중심으로 정리한다'
+---
+
+<Callout type="info">
+  **이번 문서의 목표:** 이 문서를 다 읽으면 표(table)를 구성하는 태그의 역할을 구분하고, 폼(form) 안의 입력 요소와 레이블(label)의 연결 방식을 설명하며, `input`의 `type` 속성별 동작과 HTML5 검증(validation) 속성을 판별하고, 이미지·오디오·비디오 요소의 핵심 속성을 시험형 문제에 맞게 답할 수 있게 됩니다.
+</Callout>
+
+## 표(table)로 데이터 정리하기
+
+> **쉽게 말하면:** 표는 "행(row)과 열(column)이 만나는 칸에 데이터를 넣는" 구조이고, HTML은 그 구조를 태그 하나하나로 쪼개 표현합니다.
+
+HTML에서 표를 만들 때 가장 먼저 알아야 할 것은, 표가 단순히 눈에 보이는 격자무늬가 아니라 **의미 있는 데이터 구조**라는 점입니다. 02편에서 "블록·인라인 감각"을 다루면서 태그가 콘텐츠의 성격을 규정한다고 했는데, 표 관련 태그들도 마찬가지로 각자 정확한 역할이 있습니다. 독학사 시험은 이 역할을 뒤섞어 놓고 "다음 중 옳지 않은 것은?"으로 묻는 경우가 많으므로, 태그 하나하나의 자리를 정확히 구분해야 합니다.
+
+표의 기본 골격은 다음과 같습니다.
+
+```html
+<table>
+  <caption>2단계 웹 프로그래밍 편성표</caption>
+  <thead>
+    <tr>
+      <th>편 번호</th>
+      <th>주제</th>
+    </tr>
+  </thead>
+  <tbody>
+    <tr>
+      <td>05</td>
+      <td>표·폼·멀티미디어</td>
+    </tr>
+    <tr>
+      <td>06</td>
+      <td>CSS 선택자</td>
+    </tr>
+  </tbody>
+  <tfoot>
+    <tr>
+      <td colspan="2">총 2개 편 표시</td>
+    </tr>
+  </tfoot>
+</table>
+```
+
+각 태그가 맡는 역할을 표로 정리하면 다음과 같습니다.
+
+| 태그 | 이름(영단어) | 역할 |
+|------|-------------|------|
+| `table` | table(테이블) | 표 전체를 감싸는 컨테이너 |
+| `caption` | caption(캡션, 제목) | 표 전체의 제목. `table`의 첫 자식이어야 한다 |
+| `thead` | table head(테이블 헤드) | 열 제목(헤더) 행 묶음 |
+| `tbody` | table body(테이블 바디) | 실제 데이터 행 묶음 |
+| `tfoot` | table foot(테이블 풋) | 요약·합계 등 마무리 행 묶음 |
+| `tr` | table row(테이블 로우) | 표의 한 행(row) |
+| `th` | table header(테이블 헤더) | 제목 역할의 칸. 기본적으로 굵게, 가운데 정렬 |
+| `td` | table data(테이블 데이터) | 일반 데이터 칸 |
+
+**왜 `thead`·`tbody`·`tfoot`을 나눠 쓰는가**가 시험에서 자주 나오는 포인트입니다. 브라우저가 표를 렌더링할 때 `thead`는 화면을 스크롤해도 위에 고정하거나 인쇄 시 매 페이지 반복하는 등 별도로 취급할 수 있고, 스크린 리더 같은 보조 기술도 `thead`의 `th`를 "이 열의 제목"으로 안내해 시각장애인 사용자가 표를 읽을 때 맥락을 놓치지 않게 돕습니다. 즉 이 구분은 장식이 아니라 **의미 구조**(semantic, 시맨틱)입니다. 11편에서 다룰 웹 접근성(accessibility)의 기초가 여기서부터 시작됩니다.
+
+`th`에는 `scope` 속성을 붙여 그 제목이 행을 가리키는지 열을 가리키는지 명시할 수 있습니다. `scope="col"`이면 그 아래 열 전체의 제목이고, `scope="row"`이면 그 오른쪽 행 전체의 제목입니다. 표가 단순하면 생략해도 렌더링에는 지장이 없지만, 복잡한 표(행과 열 제목이 모두 있는 표)에서는 `scope`가 없으면 보조 기술이 어떤 칸이 어떤 제목에 속하는지 판단하기 어려워집니다.
+
+### 칸을 합치는 colspan과 rowspan
+
+칸을 가로로 합치려면 `colspan`(column span, 열 병합)을, 세로로 합치려면 `rowspan`(row span, 행 병합)을 씁니다. 값은 "몇 칸을 차지하는가"를 뜻하는 정수입니다.
+
+```html
+<table>
+  <tr>
+    <th>구분</th>
+    <th colspan="2">1학기 성적</th>
+  </tr>
+  <tr>
+    <td rowspan="2">홍길동</td>
+    <td>중간</td>
+    <td>85</td>
+  </tr>
+  <tr>
+    <td>기말</td>
+    <td>90</td>
+  </tr>
+</table>
+```
+
+<Callout type="warning">
+  **자주 틀리는 점:** `colspan`으로 칸을 합치면 그 행에서 실제로 써야 할 `td`·`th` 개수가 줄어듭니다. 위 예시의 첫 행은 원래 3칸(구분, 중간, 기말)이 필요하지만 `colspan="2"` 덕분에 2개의 태그(`th`, `th`)만으로 3칸을 채웁니다. 이 계산을 틀리면 표의 열이 어긋나 버립니다. "이 표에서 몇 번째 행에 `td`가 몇 개 있어야 하는가"를 묻는 문제는 반드시 `colspan`·`rowspan`으로 이미 채워진 칸 수를 먼저 빼고 세어야 합니다.
+</Callout>
+
+## 폼(form)의 기본 구조
+
+> **쉽게 말하면:** 폼은 "사용자가 입력한 값을 한데 모아 서버로 보내는 상자"입니다.
+
+폼(form)은 회원가입, 로그인, 검색창처럼 사용자 입력을 받아 처리하는 모든 웹 기능의 출발점입니다. `form` 요소 자체는 화면에 보이는 게 아니라, 그 안에 들어있는 입력 요소들을 하나의 전송 단위로 묶는 **컨테이너** 역할을 합니다.
+
+```html
+<form action="/register" method="post">
+  <p>
+    <label for="사용자이름">이름</label>
+    <input type="text" id="사용자이름" name="username" />
+  </p>
+  <p>
+    <button type="submit">가입하기</button>
+  </p>
+</form>
+```
+
+`form` 태그의 핵심 속성 두 가지는 시험에 반드시 나온다고 봐도 됩니다.
+
+| 속성 | 뜻 | 값 예시 |
+|------|-----|--------|
+| `action` | 데이터를 보낼 목적지 URL | `/register` |
+| `method` | 전송 방식 | `get` 또는 `post` |
+
+`method="get"`은 입력값을 URL 뒤에 쿼리 문자열(query string, 예: `?username=hong`)로 붙여 보내고, `method="post"`는 URL에 노출하지 않고 요청 본문(body)에 담아 보냅니다. 01편에서 다룬 HTTP 요청·응답의 흐름을 떠올리면, `GET`은 "이 정보를 조회해 달라"는 성격이라 URL에 남아도 되는 검색어 정도에 어울리고, `POST`는 "이 정보를 서버에 새로 만들거나 바꿔 달라"는 성격이라 비밀번호처럼 URL에 남으면 안 되는 값에 적합합니다. 이 차이 때문에 회원가입·로그인 폼은 관례적으로 `POST`를 씁니다.
+
+### 레이블(label)과 입력 요소 연결하기
+
+`label`은 입력 요소가 무엇을 입력받는지 설명하는 글자표입니다. 단순히 글자를 옆에 나열하는 것과는 다릅니다. `label`의 `for` 속성 값과 입력 요소의 `id` 속성 값이 **정확히 일치**해야 두 요소가 프로그래밍적으로 연결됩니다.
+
+<CodePlayground
+  template="static"
+  activeFile="/index.html"
+  label="label의 for와 input의 id를 다르게 바꿔보고 클릭 동작이 어떻게 달라지는지 확인하세요"
+  files={{
+    '/index.html': `<link rel="stylesheet" href="styles.css" />
+<form>
+  <p>
+    <label for="구독체크">뉴스레터 구독</label>
+    <input type="checkbox" id="구독체크" name="subscribe" />
+  </p>
+  <p>
+    <label>레이블 글자를 클릭해도 반응하지 않는 예시
+      <input type="checkbox" id="다른id" name="broken" />
+    </label>
+  </p>
+</form>`,
+    '/styles.css': `body { font-family: sans-serif; padding: 1rem; }
+label { display: inline-block; margin-bottom: 0.5rem; }`,
+  }}
+/>
+
+레이블이 입력 요소와 정확히 연결되면 **레이블 글자를 클릭하는 것만으로도 입력 요소가 초점(focus)을 받거나 체크박스가 토글**됩니다. 이는 사용성뿐 아니라 접근성 관점에서도 중요합니다. 스크린 리더 사용자는 입력란에 초점이 갈 때 연결된 `label`의 글자를 읽어주는데, 연결이 끊기면 "이 입력란이 무엇을 위한 것인지" 안내받지 못합니다.
+
+`label`은 `for`/`id` 없이도 입력 요소를 통째로 감싸는 방식으로 연결할 수 있습니다(위 코드의 두 번째 예시처럼 보이지만, 사실 이 예시는 `label`이 `input`을 감싸고 있으므로 실제로는 정상 연결입니다 — 겉모습은 같아도 `for`/`id` 명시 없이 감싸는 방식과, 명시적으로 연결하는 방식 두 가지가 모두 유효한 연결법이라는 뜻입니다). 시험에서는 두 방식 모두 "올바른 연결"로 인정되며, `id`만 있고 `for`가 다른 값이거나 아예 없는 경우만 "연결이 끊긴 잘못된 예"로 출제됩니다.
+
+## 입력 유형(input type)별 동작
+
+`input` 태그는 `type` 속성 값에 따라 완전히 다른 입력 위젯으로 바뀌는 독특한 태그입니다. 태그 이름은 하나(`input`)인데 역할은 여러 개인 셈이라, 독학사 시험에서 "다음 중 `type` 값과 그 동작이 잘못 짝지어진 것은?" 유형으로 자주 나옵니다.
+
+| type 값 | 렌더링 결과 | 시험 포인트 |
+|---------|------------|-------------|
+| `text` | 한 줄 텍스트 입력란 | 기본값. 아무 제약 없는 문자열 |
+| `password` | 입력한 글자가 가려지는 입력란 | 값은 그대로 전송되며 마스킹은 화면 표시만 가림 |
+| `email` | 텍스트 입력란 + 이메일 형식 검증 | `@` 포함 여부 등을 브라우저가 자동 검증 |
+| `number` | 숫자 전용 입력란(증감 화살표 포함) | `min`·`max`·`step`으로 범위·간격 제한 |
+| `checkbox` | 사각형 체크박스 | 같은 `name`으로 여러 개를 두면 다중 선택 |
+| `radio` | 원형 라디오 버튼 | 같은 `name`을 가진 그룹 중 하나만 선택 가능 |
+| `date` | 날짜 선택 위젯 | 브라우저가 달력 UI를 자동 제공 |
+| `file` | 파일 선택 버튼 | `accept`로 허용 확장자·MIME 타입 제한 |
+| `hidden` | 화면에 보이지 않는 입력란 | 사용자가 못 보지만 폼 전송 시 함께 전송됨 |
+| `submit` | 제출 버튼 | 클릭 시 `form`의 `action`으로 전송 시작 |
+
+`checkbox`와 `radio`의 차이는 시험에서 특히 많이 다뤄집니다. **체크박스는 각각 독립적으로 켜고 끌 수 있어 여러 개를 동시에 선택**할 수 있지만, **라디오 버튼은 같은 `name` 값을 공유하는 그룹 안에서 오직 하나만** 선택할 수 있습니다. 이는 "관심사를 모두 골라주세요"에는 체크박스가, "성별을 선택하세요"처럼 상호 배타적인 선택에는 라디오 버튼이 어울린다는 뜻입니다.
+
+```html
+<fieldset>
+  <legend>좋아하는 프로그래밍 언어(복수 선택)</legend>
+  <label><input type="checkbox" name="lang" value="html" />HTML</label>
+  <label><input type="checkbox" name="lang" value="css" />CSS</label>
+</fieldset>
+
+<fieldset>
+  <legend>학습 단계(하나만 선택)</legend>
+  <label><input type="radio" name="level" value="beginner" />입문</label>
+  <label><input type="radio" name="level" value="advanced" />심화</label>
+</fieldset>
+```
+
+`fieldset`(필드셋)은 관련된 입력 요소들을 하나의 그룹으로 묶는 태그이고, `legend`(레전드, 범례)는 그 그룹의 제목입니다. 라디오 버튼 그룹을 만들 때 `fieldset`으로 감싸지 않아도 동작은 하지만, 여러 라디오 그룹이 한 폼 안에 섞여 있을 때 어디까지가 한 그룹인지 시각적·의미적으로 명확히 구분해 주는 역할을 합니다.
+
+## 버튼과 폼 전송
+
+폼을 전송하는 버튼에는 두 가지 표기법이 있습니다.
+
+```html
+<input type="submit" value="가입하기" />
+<button type="submit">가입하기</button>
+```
+
+두 방식 모두 폼을 제출하지만, `button` 태그는 안에 다른 태그(예: 아이콘용 이미지)를 넣을 수 있는 반면 `input type="submit"`은 텍스트만 `value`로 지정할 수 있다는 차이가 있습니다. `button` 태그의 `type` 속성에는 세 가지 값이 있는데, 이 값을 빠뜨리는 실수가 시험 함정으로 자주 등장합니다.
+
+| button의 type 값 | 동작 |
+|-------------------|------|
+| `submit` | 폼을 전송한다(값을 생략하면 이것이 기본값) |
+| `reset` | 폼의 모든 입력을 초기값으로 되돌린다 |
+| `button` | 아무 동작도 하지 않는다(JavaScript로 직접 동작을 지정해야 함) |
+
+<Callout type="warning">
+  **자주 틀리는 점:** `form` 안에 있는 `button`은 `type`을 명시하지 않으면 기본값이 `submit`입니다. "페이지 새로고침 없이 동작만 처리하고 싶어서" JavaScript용 버튼을 만들었는데 `type="button"`을 빠뜨리면, 클릭 시 의도치 않게 폼이 전송되면서 페이지가 이동해 버립니다. 08·09편에서 JavaScript로 버튼 클릭을 처리할 때 이 실수가 자주 나오므로 지금 기억해 두는 것이 좋습니다.
+</Callout>
+
+## 폼 검증(validation) 기초
+
+> **쉽게 말하면:** 검증은 "서버로 보내기 전에 값이 규칙에 맞는지 브라우저가 먼저 확인하는 것"입니다.
+
+HTML5부터는 JavaScript 없이도 몇 가지 속성만으로 기본적인 입력 검증(validation)을 브라우저가 대신해 줍니다.
+
+| 속성 | 뜻 | 예시 |
+|------|-----|------|
+| `required` | 반드시 값을 채워야 전송 가능 | `<input required />` |
+| `minlength` / `maxlength` | 문자열 길이의 최소·최대 | `<input maxlength="10" />` |
+| `min` / `max` | 숫자·날짜의 최소·최대 | `<input type="number" min="1" max="100" />` |
+| `pattern` | 정규식(regular expression)과 일치해야 함 | `<input pattern="[0-9]{3}-[0-9]{4}" />` |
+| `placeholder` | 입력 전 안내 문구(검증과 무관, 값 아님) | `<input placeholder="예: 010-1234" />` |
+
+여기서 흔히 헷갈리는 것이 `placeholder`입니다. `placeholder`는 입력란이 비어 있을 때만 흐리게 보이는 안내 문구일 뿐, 실제 입력값이 아니며 폼을 전송해도 서버로 넘어가지 않습니다. 반면 `value` 속성은 실제로 채워지는 값입니다. "사용자가 아무것도 입력하지 않고 전송했을 때 서버가 받는 값은?"이라는 문제에서 `placeholder`를 답으로 고르면 틀립니다. 정답은 "빈 문자열"입니다.
+
+`required`가 걸린 입력란을 비운 채 전송을 시도하면 브라우저가 자체 팝업으로 "이 입력란을 작성하세요" 같은 메시지를 띄우고 전송을 막습니다. 이는 **서버로 요청 자체가 가지 않는다**는 뜻입니다. 다만 이 클라이언트 측 검증(client-side validation)은 사용자 경험을 위한 1차 방어선일 뿐, 브라우저 개발자 도구로 속성을 지우거나 `curl` 같은 도구로 직접 요청을 보내면 우회할 수 있습니다. 그래서 보안이 중요한 값은 **서버 측에서도 반드시 다시 검증**해야 한다는 원칙이 있습니다 — 이는 이 과목의 범위를 넘는 서버 사이드 주제이므로 "클라이언트 검증만으로는 보안을 보장할 수 없다"는 결론만 기억해 두면 됩니다.
+
+## 멀티미디어 요소 — img, audio, video
+
+### 이미지(img)
+
+`img` 태그는 문서에 이미지를 삽입하는 태그로, 닫는 태그가 없는 빈 요소(void element)입니다. 02편에서 다룬 "일부 태그는 내용이 없어 닫는 태그가 필요 없다"는 규칙이 여기에 해당합니다.
+
+```html
+<img src="diagram.png" alt="클라이언트-서버 통신 구조도" width="600" height="400" />
+```
+
+| 속성 | 뜻 | 시험 포인트 |
+|------|-----|-------------|
+| `src` | 이미지 파일 경로(source) | 상대 경로·절대 경로 모두 가능 |
+| `alt` | 대체 텍스트(alternative text) | 이미지를 못 보는 상황(로딩 실패, 스크린 리더)에서 대신 읽히는 글 |
+| `width` / `height` | 표시 크기 | 미리 지정하면 이미지 로딩 전에도 자리를 확보해 레이아웃이 밀리지 않음 |
+
+`alt` 속성은 시험에서 매우 자주 다뤄지는 접근성 포인트입니다. `alt`를 아예 생략하면 스크린 리더가 파일명(`diagram.png` 같은 의미 없는 문자열)을 그대로 읽어버리는 경우가 있어 사용자에게 혼란을 줍니다. 반대로 장식 목적으로만 쓰이는 이미지(정보를 전달하지 않는 배경 무늬 등)는 `alt=""`(빈 문자열)로 두어 스크린 리더가 아예 건너뛰게 하는 것이 올바른 방법입니다. "장식용 이미지는 `alt` 속성 자체를 없애야 한다"는 진술은 틀린 설명으로 자주 출제되니 주의해야 합니다 — 속성을 아예 없애는 것과 빈 문자열을 주는 것은 접근성 트리에서 다르게 처리됩니다.
+
+### 오디오(audio)와 비디오(video)
+
+`audio`와 `video`는 여러 형식(format)의 미디어 파일을 대비해 `source` 태그를 자식으로 여러 개 둘 수 있는 구조를 갖습니다.
+
+```html
+<video controls width="480">
+  <source src="lecture.mp4" type="video/mp4" />
+  <source src="lecture.webm" type="video/webm" />
+  이 브라우저는 비디오 태그를 지원하지 않습니다.
+</video>
+
+<audio controls>
+  <source src="sound.mp3" type="audio/mpeg" />
+  <source src="sound.ogg" type="audio/ogg" />
+</audio>
+```
+
+브라우저는 `source` 태그를 위에서부터 순서대로 검사해, 자신이 재생할 수 있는 `type`(MIME 타입)의 첫 번째 항목을 선택합니다. 이 방식을 **점진적 향상**(progressive enhancement)이라고 부르는데, 최신 형식을 먼저 제시하고 오래된 형식을 뒤에 대비책으로 두어 다양한 브라우저 환경을 폭넓게 지원하기 위함입니다. `video`·`audio` 태그의 여는 태그와 닫는 태그 사이에 있는 일반 텍스트(위 예시의 "이 브라우저는...")는 **대체 콘텐츠**(fallback content)로, 두 태그를 아예 이해하지 못하는 아주 오래된 브라우저에서만 표시됩니다.
+
+| 속성 | 뜻 |
+|------|-----|
+| `controls` | 재생·일시정지·볼륨 등 기본 컨트롤 UI를 표시 |
+| `autoplay` | 페이지 로드 시 자동 재생(대부분 브라우저는 소리 없는 경우에만 허용) |
+| `loop` | 끝나면 처음부터 반복 재생 |
+| `muted` | 음소거 상태로 시작 |
+
+<Callout type="warning">
+  **자주 틀리는 점:** `autoplay`만 걸고 `muted`를 빼먹으면 최신 브라우저 대부분이 자동재생 자체를 차단합니다. 사용자 경험을 해치는 소리 자동 재생을 막기 위한 브라우저 정책 때문인데, "`autoplay` 속성만 있으면 무조건 소리와 함께 자동 재생된다"는 진술은 실제 동작과 다른 틀린 설명으로 출제될 수 있습니다.
+</Callout>
+
+## 핵심 정리
+
+- 표는 `table` 안에서 `thead`/`tbody`/`tfoot`이 행 묶음의 역할을 나누고, `tr`은 행, `th`는 제목 칸, `td`는 데이터 칸을 맡는다. `colspan`·`rowspan`은 칸 병합이며 병합된 만큼 그 행에 실제로 쓸 태그 개수가 줄어든다.
+- 폼은 `form`의 `action`(목적지)·`method`(GET/POST)로 전송을 정의하고, `label`의 `for`와 입력 요소의 `id`가 일치해야 클릭·스크린 리더 연결이 성립한다.
+- `input`은 `type` 값에 따라 완전히 다른 위젯이 되며, `checkbox`(다중 선택)와 `radio`(단일 선택, 같은 `name` 그룹)의 차이를 정확히 구분해야 한다.
+- `button`은 `type`을 명시하지 않으면 `submit`이 기본값이라 의도치 않은 폼 전송을 일으킬 수 있다.
+- `required`·`pattern`·`min`/`max` 등은 브라우저가 대신하는 클라이언트 측 검증이며, `placeholder`는 안내 문구일 뿐 실제 전송값이 아니다.
+- `img`의 `alt`는 접근성의 핵심이며, 장식용 이미지는 속성을 없애는 것이 아니라 `alt=""`로 둔다. `audio`·`video`는 여러 `source`로 형식을 대비하고 컨트롤 태그 사이 텍스트는 대체 콘텐츠다.
+
+## 마무리 복습
+
+<Quiz
+  questionNumber={1}
+  question="표에서 thead, tbody, tfoot을 나누어 쓰는 이유로 가장 옳은 것은?"
+  options={['셋 중 하나만 있어도 되므로 나머지는 삭제해도 무방하다', '행 묶음의 의미를 구분해 스크린 리더 안내와 인쇄·스크롤 처리를 돕는다', 'CSS 없이도 표에 색이 자동으로 칠해지게 하기 위해서다', 'thead가 있으면 tr과 td 태그를 생략할 수 있다']}
+  correctAnswer={2}
+  explanation="thead·tbody·tfoot은 표의 행 묶음에 의미를 부여해 스크린 리더가 제목 행을 안내하거나 브라우저가 인쇄·스크롤 시 다르게 처리할 수 있게 돕는 시맨틱 구조다."
+  optionExplanations={['셋 모두 필수는 아니지만 삭제 가능 여부와 도입 이유는 별개의 질문이다', '정답 — 의미 구분과 접근성·표시 처리가 핵심 이유다', '자동 색칠 기능은 존재하지 않으며 CSS로 별도 지정해야 한다', 'tr과 td는 여전히 각 행·칸마다 필요하다']}
+/>
+
+<Quiz
+  questionNumber={2}
+  question="다음 표에서 colspan=&quot;2&quot;가 적용된 첫 행에 실제로 필요한 th·td 태그 개수를 옳게 설명한 것은? (원래 3칸짜리 행)"
+  options={['3칸이므로 태그도 반드시 3개 있어야 한다', '병합된 만큼 줄어들어 2개의 태그만 있으면 된다', 'colspan은 태그 개수와 무관하며 항상 1개면 충분하다', '병합 속성이 있으면 tr 자체를 생략해도 된다']}
+  correctAnswer={2}
+  explanation="colspan으로 2칸을 병합하면 원래 3칸이 필요한 자리를 2개의 태그(하나는 colspan=2, 하나는 일반)로 채울 수 있다."
+  optionExplanations={['병합된 칸만큼 태그 개수가 줄어들므로 3개는 틀렸다', '정답 — 병합된 만큼 실제 태그 개수가 줄어든다', 'colspan 값에 따라 실제로 차지하는 칸 수가 달라지므로 개수와 무관하지 않다', 'tr은 행 자체를 나타내므로 병합 여부와 상관없이 필요하다']}
+/>
+
+<Quiz
+  questionNumber={3}
+  question="label의 for 속성과 input의 id 속성 연결에 대한 설명으로 옳은 것은?"
+  options={['for와 id 값이 달라도 이름이 비슷하면 자동으로 연결된다', 'for와 id 값이 정확히 일치해야 클릭·스크린 리더 연결이 성립한다', 'label은 input을 감싸는 방식으로는 절대 연결할 수 없다', 'id 속성은 폼 요소에서 사용할 수 없는 속성이다']}
+  correctAnswer={2}
+  explanation="label의 for 값과 input의 id 값이 정확히 일치해야 두 요소가 프로그래밍적으로 연결되어 클릭·포커스·스크린 리더 안내가 정상 동작한다."
+  optionExplanations={['값이 정확히 일치해야 하며 비슷한 정도로는 연결되지 않는다', '정답 — 정확한 일치가 연결의 조건이다', 'label이 input을 감싸는 방식도 유효한 연결 방법 중 하나다', 'id는 모든 HTML 요소에서 쓸 수 있는 전역 속성으로 폼 요소도 예외가 아니다']}
+/>
+
+<Quiz
+  questionNumber={4}
+  question="checkbox와 radio의 차이에 대한 설명으로 옳은 것은?"
+  options={['checkbox는 하나만 선택 가능하고 radio는 여러 개 선택 가능하다', 'checkbox는 여러 개 동시 선택이 가능하고, radio는 같은 name 그룹 안에서 하나만 선택된다', '두 입력 유형은 동작이 완전히 동일하고 모양만 다르다', 'radio는 name 속성 없이도 그룹으로 동작한다']}
+  correctAnswer={2}
+  explanation="checkbox는 각각 독립적으로 켜고 끌 수 있어 다중 선택이 가능하지만, radio는 같은 name 값을 공유하는 그룹 내에서 하나만 선택 가능하다."
+  optionExplanations={['설명이 정반대로 뒤바뀌어 있다', '정답 — 다중 선택과 단일 선택의 차이가 핵심이다', '선택 개수 제한 방식이 서로 다르므로 동작이 다르다', 'radio 그룹은 같은 name 값을 공유해야 하나만 선택되도록 동작한다']}
+/>
+
+<Quiz
+  questionNumber={5}
+  question="form 안의 button 태그에서 type 속성을 생략했을 때의 기본 동작은?"
+  options={['reset과 동일하게 동작해 입력값이 초기화된다', 'submit과 동일하게 동작해 폼이 전송된다', '아무 동작도 하지 않아 JavaScript로만 제어할 수 있다', 'button 태그는 type 속성이 필수라 생략하면 렌더링되지 않는다']}
+  correctAnswer={2}
+  explanation="form 안의 button은 type을 생략하면 기본값이 submit이므로, 클릭 시 폼이 전송되며 의도치 않은 페이지 이동을 유발할 수 있다."
+  optionExplanations={['reset이 기본값이라는 설명은 틀렸다', '정답 — 기본값은 submit이다', '아무 동작도 하지 않는 것은 type=&quot;button&quot;을 명시했을 때다', 'type을 생략해도 button 태그 자체는 정상적으로 렌더링된다']}
+/>
+
+<Quiz
+  questionNumber={6}
+  question="placeholder 속성에 대한 설명으로 옳은 것은?"
+  options={['입력란이 비어 있을 때 안내 문구로 표시되며 실제 전송값이 아니다', '사용자가 아무 값도 입력하지 않으면 placeholder 문구가 그대로 서버로 전송된다', 'placeholder는 required와 동일한 검증 기능을 수행한다', 'placeholder 값은 value 속성과 항상 같은 값이어야 한다']}
+  correctAnswer={1}
+  explanation="placeholder는 입력란이 비어 있을 때만 흐리게 표시되는 안내 문구로, 실제 입력값이 아니며 빈 채로 전송하면 서버는 빈 문자열을 받는다."
+  optionExplanations={['정답 — 안내 문구일 뿐 전송값이 아니다', '전송되는 값은 빈 문자열이며 placeholder 문구가 전송되지 않는다', 'placeholder는 검증 기능이 없으며 required와는 별개의 속성이다', 'placeholder와 value는 서로 다른 목적의 별개 속성이다']}
+/>
+
+<Quiz
+  questionNumber={7}
+  question="img 태그의 alt 속성 사용법으로 가장 옳은 것은?"
+  options={['정보 전달용 이미지는 alt를 생략해도 무방하다', '장식용 이미지는 alt 속성 자체를 삭제해야 한다', '장식용 이미지는 alt=&quot;&quot;로 두어 스크린 리더가 건너뛰게 한다', 'alt 속성은 이미지 크기를 지정하는 역할을 한다']}
+  correctAnswer={3}
+  explanation="정보를 전달하지 않는 장식용 이미지는 alt를 빈 문자열로 두어 스크린 리더가 그 이미지를 건너뛰도록 하는 것이 올바른 접근성 처리다."
+  optionExplanations={['정보 전달용 이미지는 alt가 없으면 스크린 리더가 파일명을 읽는 등 혼란을 준다', 'alt 속성 자체를 삭제하는 것과 빈 문자열을 주는 것은 접근성 트리에서 다르게 처리된다', '정답 — alt=&quot;&quot;가 장식용 이미지의 올바른 처리 방법이다', '크기는 width·height 속성이 담당한다']}
+/>
+
+<Quiz
+  questionNumber={8}
+  question="video 태그 안에 여러 개의 source 태그를 두는 이유로 가장 옳은 것은?"
+  options={['같은 영상을 여러 번 반복 재생하기 위해서다', '브라우저마다 지원하는 형식이 달라 재생 가능한 첫 형식을 선택하게 하기 위해서다', 'source가 여러 개면 화면에 영상이 여러 개 동시에 표시된다', 'source 태그는 하나만 허용되며 여러 개 두면 오류가 발생한다']}
+  correctAnswer={2}
+  explanation="브라우저는 source 태그를 순서대로 검사해 재생 가능한 첫 형식(MIME 타입)을 선택하므로, 여러 형식을 대비해 여러 source를 두는 점진적 향상 방식이 쓰인다."
+  optionExplanations={['반복 재생은 loop 속성이 담당하는 기능이다', '정답 — 다양한 브라우저 환경을 지원하기 위한 형식 대비다', '여러 source 중 재생 가능한 하나만 선택되어 재생된다', 'video·audio 태그는 여러 개의 source 자식을 허용한다']}
+/>
+
+## 참고 자료
+
+- [WHATWG HTML Standard](https://html.spec.whatwg.org/)
+- [MDN Web Docs - HTML](https://developer.mozilla.org/en-US/docs/Web/HTML)
+- [W3C WAI - Introduction to Web Accessibility](https://www.w3.org/WAI/fundamentals/accessibility-intro/)

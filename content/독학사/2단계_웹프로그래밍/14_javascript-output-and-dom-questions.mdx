@@ -1,0 +1,477 @@
+---
+title: '14. JavaScript 출력 예측 문제'
+description: '변수·형 변환 결과, 함수·배열·객체 동작, DOM 조작 결과, 이벤트 동작 예측을 코드와 함께 재구성한 유형 문제 22문항'
+---
+
+<Callout type="warning">
+  **재구성 출제 고지:** 이 문제집은 국가평생교육진흥원 독학학위제 2단계 웹 프로그래밍 출제기준(JavaScript 문법·함수·객체·배열·DOM·이벤트 영역)의 평가 범위와 문항 유형을 분석해 새로 구성한 **재구성 문항**입니다. 실제 기출 문항을 그대로 옮긴 것이 아닙니다. 회차별 정확한 문항 수·시험 시간은 시행처 공고를 확인해야 하며, 여기서는 22문항을 표준 분량으로 구성했습니다.
+</Callout>
+
+## 출제 범위와 문항 배분
+
+| 영역 | 문항 수 | 문항 번호 | 관련 편 |
+| --- | --- | --- | --- |
+| 변수·형 변환 결과 | 6 | 1–6 | 08 |
+| 함수·배열·객체 동작 | 7 | 7–13 | 08, 09 |
+| DOM 조작 결과 | 5 | 14–18 | 09 |
+| 이벤트 동작 예측 | 4 | 19–22 | 09 |
+
+코드 문항은 한 줄씩 실행 순서를 따라가며 변수 값이 바뀌는 지점을 표로 적어보고 정답을 확인하세요. 특히 형 변환 규칙, 콜백 함수의 호출 시점, DOM 요소를 잘못 찾았을 때의 오류는 독학사 시험에서 반복 출제되는 대표 함정입니다.
+
+## 변수·형 변환 결과 (1–6)
+
+### 문제 1
+
+```javascript
+let x = 10;
+var x = 20;
+console.log(x);
+```
+
+<Quiz
+  questionNumber={1}
+  question="위 코드를 실행하면 어떤 일이 벌어지는가?"
+  options={['같은 스코프에서 let으로 선언한 이름을 var로 다시 선언하는 것이 문법 오류로 취급되어 실행되지 않는다.', '20이 출력된다.', '10이 출력된다.', 'undefined가 출력된다.']}
+  correctAnswer={1}
+  explanation="let으로 선언한 식별자는 같은 스코프 안에서 var로도, let으로도 다시 선언할 수 없다. 이런 코드는 문법 오류(구문 분석 단계의 오류)를 일으켜 해당 줄 이전의 코드조차 실행되지 않는다. var의 느슨한 재선언 허용 규칙은 let·const에는 적용되지 않는다."
+  optionExplanations={['let으로 선언한 식별자의 재선언 금지 규칙 위반이라는 설명이 정확하므로 정답이다.', '문법 오류로 실행 자체가 되지 않으므로 20이 출력되는 일은 없다.', '문법 오류로 실행 자체가 되지 않으므로 10이 출력되는 일도 없다.', '문법 오류 단계에서 막히므로 undefined 출력까지 가지도 못한다.']}
+/>
+
+### 문제 2
+
+```javascript
+console.log(typeof '10' + 5);
+```
+
+<Quiz
+  questionNumber={2}
+  question="위 코드를 실행했을 때 출력되는 값은?"
+  options={['string5', '15', 'number', '105']}
+  correctAnswer={1}
+  explanation="typeof 연산자는 더하기(+)보다 우선순위가 높으므로 typeof '10'이 먼저 계산되어 문자열 string이 된다. 이어서 string과 숫자 5를 더하기 연산자로 연결하면, 숫자 5가 문자열로 변환되어 이어 붙는 문자열 연결이 일어나 string5가 된다."
+  optionExplanations={['typeof가 먼저 계산되어 string이 되고 5와 문자열 연결이 일어난 결과이므로 정답이다.', '15는 두 값을 숫자로 더했을 때 나올 값이지만 typeof의 결과는 문자열이라 숫자 덧셈이 되지 않는다.', 'number는 typeof 5의 결과이지 typeof 10 문자열의 결과가 아니다.', '105는 자릿수를 이어붙였을 때 나올 법한 값이지만 실제 연산 순서와 맞지 않는다.']}
+/>
+
+### 문제 3
+
+```javascript
+console.log(5 + '5');
+console.log(5 - '5');
+```
+
+<Quiz
+  questionNumber={3}
+  question="위 두 줄을 순서대로 실행했을 때 출력되는 값으로 옳은 것은?"
+  options={['55, 그리고 0', '10, 그리고 0', '55, 그리고 55', 'NaN, 그리고 NaN']}
+  correctAnswer={1}
+  explanation="더하기 연산자는 피연산자 중 하나라도 문자열이면 문자열 연결로 동작하므로 5와 5를 이어붙인 55가 된다. 반면 빼기 연산자는 문자열 연결이라는 별도 의미가 없어, 숫자로 변환할 수 있는 문자열이라면 숫자로 바꿔 계산한다. 따라서 5 - 5는 0이 된다."
+  optionExplanations={['더하기는 문자열 연결(55), 빼기는 숫자 변환 후 뺄셈(0)이라는 설명이 정확하므로 정답이다.', '10은 두 값을 모두 숫자로 더했을 때 나올 값이지만 더하기 연산자는 문자열이 섞이면 연결을 우선한다.', '두 번째 줄은 뺄셈이므로 문자열 연결 결과인 55가 나오지 않는다.', '문자열 5는 숫자로 변환 가능한 문자열이므로 NaN이 되지 않는다.']}
+/>
+
+### 문제 4
+
+```javascript
+console.log(0 == '0');
+console.log(0 === '0');
+```
+
+<Quiz
+  questionNumber={4}
+  question="위 두 줄을 순서대로 실행했을 때 출력되는 값으로 옳은 것은?"
+  options={['true, 그리고 false', 'true, 그리고 true', 'false, 그리고 false', 'false, 그리고 true']}
+  correctAnswer={1}
+  explanation="느슨한 동등 연산자(==)는 두 값의 타입이 다르면 먼저 타입을 변환한 뒤 비교하므로, 문자열 0을 숫자로 변환해 0과 같아져 true가 된다. 엄격한 동등 연산자(===)는 타입 변환 없이 타입과 값이 모두 같아야 true이므로, 숫자와 문자열은 타입이 다르기 때문에 false가 된다."
+  optionExplanations={['느슨한 비교는 형 변환 후 true, 엄격한 비교는 타입이 달라 false라는 설명이 정확하므로 정답이다.', '엄격한 비교는 타입까지 같아야 하므로 숫자와 문자열 비교는 true가 될 수 없다.', '느슨한 비교는 형 변환을 거쳐 값이 같아지므로 false가 아니라 true다.', '두 결과의 순서가 실제와 반대로 되어 있으므로 옳지 않다.']}
+/>
+
+### 문제 5
+
+```javascript
+if ('') {
+  console.log('참');
+} else {
+  console.log('거짓');
+}
+```
+
+<Quiz
+  questionNumber={5}
+  question="위 코드를 실행했을 때 출력되는 값은?"
+  options={['거짓', '참', '아무것도 출력되지 않는다.', '빈 문자열 그대로 출력된다.']}
+  correctAnswer={1}
+  explanation="빈 문자열은 불리언 문맥에서 false로 취급되는 대표적인 거짓 같은 값(falsy value)이다. 조건문의 조건 자리에서 빈 문자열은 false로 변환되어 else 블록이 실행된다. 0, null, undefined, NaN도 같은 falsy 값에 속한다."
+  optionExplanations={['빈 문자열이 falsy 값으로 취급되어 else 블록이 실행된다는 설명이 정확하므로 정답이다.', '빈 문자열은 true가 아니라 false로 취급되므로 참이 출력되지 않는다.', '조건문은 반드시 참 또는 거짓 중 한 블록을 실행하므로 아무것도 출력되지 않는 경우는 없다.', '조건문의 조건식 자체는 화면에 값을 출력하지 않으며, console.log에 전달된 문자열만 출력된다.']}
+/>
+
+### 문제 6
+
+```javascript
+console.log(Number('3.14'));
+console.log(Number('abc'));
+console.log(parseInt('42px'));
+```
+
+<Quiz
+  questionNumber={6}
+  question="위 세 줄을 순서대로 실행했을 때 출력되는 값으로 옳은 것은?"
+  options={['3.14, 그리고 NaN, 그리고 42', '3, 그리고 0, 그리고 42', '3.14, 그리고 0, 그리고 NaN', 'NaN, 그리고 NaN, 그리고 NaN']}
+  correctAnswer={1}
+  explanation="Number 함수는 전체 문자열을 숫자로 완전히 변환할 수 있을 때만 그 숫자를 반환하고, 변환할 수 없는 문자가 섞여 있으면 NaN을 반환한다. 반면 parseInt는 문자열 앞부분부터 숫자로 해석 가능한 만큼만 읽고 그 이후는 무시하므로, 42px에서 42만 읽고 px는 버려 42를 반환한다."
+  optionExplanations={['Number는 전체 변환 가능 여부로, parseInt는 앞부분만 읽는 방식으로 동작한다는 설명이 정확하므로 정답이다.', 'Number에 소수 형태 문자열 3.14를 넣으면 소수점까지 그대로 3.14를 반환하며 정수로 자르지 않는다.', 'Number에 abc 문자열을 넣으면 숫자로 전혀 변환할 수 없으므로 0이 아니라 NaN이 된다.', '소수 형태 문자열 3.14는 완전히 숫자로 변환 가능하므로 NaN이 되지 않는다.']}
+/>
+
+## 함수·배열·객체 동작 (7–13)
+
+### 문제 7
+
+```javascript
+function add(a, b) {
+  return a + b;
+}
+console.log(add(3));
+```
+
+<Quiz
+  questionNumber={7}
+  question="위 코드를 실행했을 때 출력되는 값은?"
+  options={['NaN', '3', '오류가 발생해 프로그램이 즉시 멈춘다.', 'undefined']}
+  correctAnswer={1}
+  explanation="JavaScript 함수는 선언된 매개변수 개수보다 적은 개수의 인자로 호출해도 오류가 나지 않는다. 전달되지 않은 매개변수 b는 자동으로 undefined가 된다. 따라서 a + b는 3 + undefined가 되고, 숫자와 undefined를 더하면 NaN이 된다."
+  optionExplanations={['b가 undefined가 되어 3 + undefined 연산이 NaN이 된다는 설명이 정확하므로 정답이다.', 'b가 undefined이므로 단순히 3만 더한 값이 나오지 않는다.', '인자 개수가 부족해도 문법 오류나 실행 중단이 일어나지 않는다.', 'add 함수의 반환값은 a + b의 계산 결과인 NaN이지, undefined 자체가 반환되는 것이 아니다.']}
+/>
+
+### 문제 8
+
+```javascript
+function outer() {
+  let count = 0;
+  function inner() {
+    count = count + 1;
+    return count;
+  }
+  return inner;
+}
+const counter = outer();
+console.log(counter());
+console.log(counter());
+```
+
+<Quiz
+  questionNumber={8}
+  question="위 코드에서 두 번의 counter() 호출 결과로 옳은 것은?"
+  options={['1, 그리고 2', '1, 그리고 1', '0, 그리고 1', 'undefined, 그리고 undefined']}
+  correctAnswer={1}
+  explanation="inner 함수는 자신을 둘러싼 outer 함수의 지역 변수 count를 기억하는 클로저(closure)를 형성한다. outer가 이미 실행을 마쳤어도 inner가 count를 계속 참조하고 있어 count는 메모리에서 사라지지 않는다. counter를 호출할 때마다 같은 count 값이 누적되어 1씩 증가하므로 1, 2 순서로 출력된다."
+  optionExplanations={['클로저가 count 값을 유지하며 호출할 때마다 누적 증가한다는 설명이 정확하므로 정답이다.', '클로저 덕분에 두 번째 호출에서도 값이 유지되어 증가하므로 1이 반복되지 않는다.', 'count는 0에서 시작하지만 첫 호출에서 이미 1이 되어 반환되므로 0이 그대로 출력되지 않는다.', 'inner 함수는 명확히 count 값을 반환하므로 undefined가 출력되지 않는다.']}
+/>
+
+### 문제 9
+
+```javascript
+const arr = [1, 2, 3, 4, 5];
+const result = arr.filter(function (n) {
+  return n % 2 === 0;
+});
+console.log(result);
+```
+
+<Quiz
+  questionNumber={9}
+  question="위 코드를 실행했을 때 result의 값은?"
+  options={['[2, 4]', '[1, 3, 5]', '2', '[1, 2, 3, 4, 5]']}
+  correctAnswer={1}
+  explanation="filter 메서드는 배열의 각 요소를 콜백 함수에 전달해, 콜백이 true를 반환하는 요소만 모아 새 배열로 반환한다. n % 2 === 0은 2로 나눈 나머지가 0인지, 즉 짝수인지를 검사하는 조건이므로 짝수인 2와 4만 모여 새 배열 [2, 4]가 만들어진다."
+  optionExplanations={['짝수만 골라낸 새 배열이라는 설명이 filter의 정확한 동작이므로 정답이다.', '[1, 3, 5]는 홀수만 남기는 조건일 때 나올 결과이며 이 코드의 조건과 반대다.', 'filter는 배열을 반환하는 메서드이지 개수를 세는 메서드가 아니므로 숫자 2가 아니다.', 'filter는 원본 배열을 그대로 반환하지 않고 조건을 통과한 요소만 걸러낸 새 배열을 반환한다.']}
+/>
+
+### 문제 10
+
+```javascript
+const numbers = [1, 2, 3];
+const doubled = numbers.map(function (n) {
+  return n * 2;
+});
+console.log(numbers);
+console.log(doubled);
+```
+
+<Quiz
+  questionNumber={10}
+  question="위 두 줄의 console.log 결과로 옳은 것은?"
+  options={['[1, 2, 3], 그리고 [2, 4, 6]', '[2, 4, 6], 그리고 [2, 4, 6]', '[1, 2, 3], 그리고 [1, 2, 3]', '[2, 4, 6], 그리고 [1, 2, 3]']}
+  correctAnswer={1}
+  explanation="map 메서드는 원본 배열을 직접 바꾸지 않고, 콜백 함수의 반환값들을 모아 완전히 새로운 배열을 만들어 반환한다. 따라서 원본 numbers는 [1, 2, 3] 그대로 남아 있고, map이 반환한 doubled는 각 값을 두 배로 만든 [2, 4, 6]이 된다."
+  optionExplanations={['map이 원본은 그대로 두고 새 배열을 반환한다는 설명이 정확하므로 정답이다.', 'numbers 자체는 map에 의해 변경되지 않으므로 [2, 4, 6]으로 바뀌지 않는다.', 'doubled는 map의 계산 결과를 담은 새 배열이므로 원본과 같은 [1, 2, 3]이 아니다.', '원본과 결과 배열이 서로 뒤바뀐 설명이므로 옳지 않다.']}
+/>
+
+### 문제 11
+
+```javascript
+const person = {
+  name: '민수',
+  greet: function () {
+    return '안녕, ' + this.name;
+  },
+};
+const greetFn = person.greet;
+console.log(person.greet());
+```
+
+<Quiz
+  questionNumber={11}
+  question="person.greet()를 직접 호출했을 때 출력되는 값은?"
+  options={['안녕, 민수', '안녕, undefined', 'greetFn을 먼저 정의해야 실행되므로 오류가 발생한다.', '안녕,']}
+  correctAnswer={1}
+  explanation="person.greet()처럼 객체의 프로퍼티를 통해 메서드를 호출하면, 함수 안의 this는 그 메서드를 호출한 객체(여기서는 person)를 가리킨다. 따라서 this.name은 person.name인 민수가 되어 안녕, 민수가 출력된다."
+  optionExplanations={['객체를 통해 호출했으므로 this가 person을 가리켜 이름이 정상 출력된다는 설명이 정확하므로 정답이다.', 'this.name이 undefined가 되는 경우는 greetFn처럼 객체 없이 함수만 따로 떼어 호출했을 때 나타나는 현상이다.', 'greetFn 변수의 존재 여부는 person.greet()를 직접 호출하는 이 줄의 실행과 무관하다.', 'this.name이 정상적으로 민수 값을 가지므로 이름이 빠진 채 출력되지 않는다.']}
+/>
+
+### 문제 12
+
+```javascript
+const greetFn = function () {
+  return '안녕, ' + this.name;
+};
+const person = { name: '민수', greet: greetFn };
+const standalone = person.greet;
+console.log(standalone());
+```
+
+<Quiz
+  questionNumber={12}
+  question="standalone()처럼 메서드를 객체에서 떼어내 변수에 담아 호출하면 일반적으로 어떤 값이 출력되는가?"
+  options={['안녕, undefined (this가 person을 가리키지 않기 때문)', '안녕, 민수', '오류가 발생해 프로그램이 멈춘다.', '안녕, standalone']}
+  correctAnswer={1}
+  explanation="함수를 객체의 프로퍼티가 아니라 독립된 변수로 호출하면, this는 더 이상 원래 객체(person)를 가리키지 않는다. 엄격 모드나 대부분의 모듈 환경에서는 this가 undefined가 되어 this.name도 undefined가 되므로 안녕, undefined가 된다. 이는 함수 정의만으로는 this가 고정되지 않고 호출 방식에 따라 달라진다는 점을 보여주는 대표 함정이다."
+  optionExplanations={['호출 방식이 바뀌면 this가 person을 잃어버려 undefined가 된다는 설명이 정확하므로 정답이다.', '안녕, 민수가 나오려면 this가 person을 가리켜야 하는데, 객체 없이 호출했으므로 그렇지 않다.', '이 호출 자체는 문법적으로 문제가 없어 프로그램이 멈추지 않는다.', 'this.name은 변수 이름 standalone을 가리키지 않으며 this가 무엇을 참조하는지에 따라 값이 정해진다.']}
+/>
+
+### 문제 13
+
+```javascript
+const arr = ['a', 'b', 'c'];
+console.log(arr.length);
+arr.length = 1;
+console.log(arr);
+```
+
+<Quiz
+  questionNumber={13}
+  question="위 코드를 순서대로 실행했을 때 두 console.log의 출력 결과로 옳은 것은?"
+  options={['3, 이후 배열에는 a 하나만 남는다', '3, 이후 배열이 a·b·c 그대로 유지된다', '2, 이후 배열에는 a 하나만 남는다', '3, 이후 배열이 undefined로 바뀐다']}
+  correctAnswer={1}
+  explanation="배열의 length 프로퍼티는 요소 개수를 세어 보여주는 값이므로 처음에는 3이 출력된다. 그런데 이 length 프로퍼티는 읽기 전용이 아니라 직접 값을 대입할 수 있는 특수한 프로퍼티라서, length를 1로 줄이면 실제로 배열의 뒤쪽 요소들이 잘려나가 a 하나만 남는다."
+  optionExplanations={['처음 길이 3과, length를 줄였을 때 요소가 실제로 잘려나간다는 동작을 정확히 설명하므로 정답이다.', 'length를 1로 바꾼 뒤에는 배열이 그대로 유지되지 않고 요소가 잘려나간다.', '초기 배열의 요소는 세 개이므로 첫 출력은 2가 아니라 3이다.', 'length를 줄이는 것은 배열을 통째로 지우는 것이 아니라 지정한 길이만큼만 남기는 동작이다.']}
+/>
+
+## DOM 조작 결과 (14–18)
+
+### 문제 14
+
+```html
+<p id="msg">원래 문구</p>
+```
+
+```javascript
+document.getElementById('msg').textContent = '바뀐 문구';
+```
+
+<Quiz
+  questionNumber={14}
+  question="위 스크립트를 실행한 뒤 화면에 나타나는 문구는?"
+  options={['바뀐 문구', '원래 문구', '원래 문구바뀐 문구', '아무 문구도 보이지 않는다.']}
+  correctAnswer={1}
+  explanation="getElementById는 지정한 id를 가진 요소 하나를 찾아 반환하고, textContent 프로퍼티에 새 문자열을 대입하면 그 요소 안의 텍스트 내용 전체가 대입한 문자열로 완전히 교체된다. 기존 텍스트에 이어 붙는 것이 아니라 통째로 바뀐다."
+  optionExplanations={['textContent 대입이 기존 내용을 완전히 교체한다는 설명이 정확하므로 정답이다.', '대입 연산이 실행되었으므로 원래 문구가 그대로 남지 않는다.', 'textContent 대입은 기존 텍스트에 이어 붙이는 것이 아니라 교체하는 것이다.', 'id가 일치하는 요소를 정상적으로 찾았으므로 요소 자체가 사라지지 않는다.']}
+/>
+
+### 문제 15
+
+```html
+<p class="item">사과</p>
+<p class="item">바나나</p>
+```
+
+```javascript
+const list = document.getElementsByClassName('item');
+console.log(list.length);
+```
+
+<Quiz
+  questionNumber={15}
+  question="위 스크립트의 console.log 출력 결과는?"
+  options={['2', '1', '0', 'undefined']}
+  correctAnswer={1}
+  explanation="getElementsByClassName은 지정한 클래스를 가진 요소를 모두 찾아 담은 컬렉션을 반환한다. 문서 안에 item 클래스를 가진 문단이 두 개 있으므로 이 컬렉션의 length는 2가 된다. 이 메서드는 단수형 getElementById와 달리 항상 여러 개를 담을 수 있는 컬렉션을 반환한다는 점에 주의해야 한다."
+  optionExplanations={['item 클래스를 가진 요소 두 개를 담은 컬렉션의 length이므로 2가 정답이다.', '일치하는 요소가 두 개이므로 1은 개수를 하나 놓친 값이다.', '일치하는 요소가 실제로 존재하므로 0이 아니다.', 'length는 숫자를 반환하는 프로퍼티이므로 undefined가 아니다.']}
+/>
+
+### 문제 16
+
+```html
+<ul id="list"></ul>
+```
+
+```javascript
+const ul = document.getElementById('list');
+const li = document.createElement('li');
+li.textContent = '새 항목';
+ul.appendChild(li);
+```
+
+<Quiz
+  questionNumber={16}
+  question="위 스크립트를 실행한 뒤 화면에 나타나는 결과로 옳은 것은?"
+  options={['새 항목이라는 글자를 담은 목록 항목이 ul 태그 안의 자식으로 추가되어 화면에 나타난다.', '새 항목이라는 문자열이 alert 창으로 표시된다.', 'ul 요소 자체가 새 항목이라는 이름으로 바뀐다.', 'createElement만으로는 요소가 문서에 반영되지 않아 아무 변화가 없다.']}
+  correctAnswer={1}
+  explanation="createElement는 아직 문서 어디에도 속하지 않은 새 요소를 메모리 상에서만 만든다. textContent로 내용을 채운 뒤 appendChild로 원하는 부모 요소(여기서는 ul)의 마지막 자식으로 실제로 붙여야 비로소 화면에 나타난다. 이 세 단계(생성-내용 채우기-붙이기)를 모두 거쳐야 DOM에 반영된다."
+  optionExplanations={['생성한 요소를 appendChild로 실제 문서에 붙였으므로 목록 항목이 화면에 나타난다는 설명이 정확하므로 정답이다.', 'alert는 별도의 함수를 호출해야 나타나며 이 코드에는 그런 호출이 없다.', 'appendChild는 ul 태그의 이름 자체를 바꾸는 것이 아니라 자식 요소를 추가하는 동작이다.', 'appendChild까지 실행했으므로 문서에 실제로 반영되어 화면에 변화가 나타난다.']}
+/>
+
+### 문제 17
+
+```html
+<div id="box" style="width: 100px;"></div>
+```
+
+```javascript
+const box = document.getElementById('box');
+box.style.width = '200px';
+box.style.backgroundColor = 'skyblue';
+```
+
+<Quiz
+  questionNumber={17}
+  question="위 스크립트를 실행한 뒤 box 요소의 상태로 옳은 것은?"
+  options={['가로 폭이 200px로 바뀌고 배경색이 하늘색으로 적용된다.', '원래 지정된 100px 폭이 유지되고 배경색만 바뀐다.', 'style 프로퍼티를 통한 변경은 CSS 파일을 직접 수정하지 않으므로 화면에는 반영되지 않는다.', 'backgroundColor라는 이름이 CSS 문법과 달라 오류가 발생한다.']}
+  correctAnswer={1}
+  explanation="자바스크립트에서 요소의 style 프로퍼티에 값을 대입하면 해당 요소에 인라인 스타일이 즉시 적용되어 화면에 바로 반영된다. CSS의 하이픈으로 이어진 속성 이름(background-color)은 자바스크립트에서 카멜 표기법(backgroundColor)으로 접근하는 것이 올바른 문법이며 오류가 아니다."
+  optionExplanations={['width와 backgroundColor 대입이 모두 인라인 스타일로 즉시 반영된다는 설명이 정확하므로 정답이다.', 'width에 새 값을 대입했으므로 원래의 100px이 그대로 유지되지 않는다.', 'style 프로퍼티 대입은 인라인 스타일을 즉시 바꾸는 표준적인 방법이며 화면에 반영된다.', 'backgroundColor는 background-color에 대응하는 올바른 카멜 표기법이므로 오류가 아니다.']}
+/>
+
+### 문제 18
+
+```html
+<p id="target">문단</p>
+```
+
+```javascript
+const target = document.getElementById('target');
+target.classList.add('highlight');
+console.log(target.className);
+```
+
+<Quiz
+  questionNumber={18}
+  question="target 요소에 처음부터 class 속성이 전혀 없었다면, 위 스크립트의 console.log 출력 결과는?"
+  options={['highlight', 'undefined', '빈 문자열', 'add highlight']}
+  correctAnswer={1}
+  explanation="classList.add 메서드는 지정한 클래스 이름을 요소의 클래스 목록에 추가한다. 원래 class 속성이 없던 요소라면 이 클래스 하나만 새로 생기고, className 프로퍼티로 확인하면 클래스 이름들을 공백으로 구분한 문자열을 얻을 수 있다. 클래스가 하나뿐이므로 그 이름 자체인 highlight가 그대로 출력된다."
+  optionExplanations={['클래스가 새로 하나 추가되어 그 이름이 className에 그대로 반영된다는 설명이 정확하므로 정답이다.', 'className은 문자열을 반환하는 프로퍼티이므로 클래스가 존재하는 이상 undefined가 되지 않는다.', 'classList.add로 클래스를 실제로 추가했으므로 빈 문자열이 되지 않는다.', 'className은 메서드 이름이 아니라 실제 클래스 이름들의 문자열을 반환하므로 add라는 단어가 포함되지 않는다.']}
+/>
+
+## 이벤트 동작 예측 (19–22)
+
+### 문제 19
+
+```html
+<button id="btn">클릭</button>
+```
+
+```javascript
+const btn = document.getElementById('btn');
+btn.addEventListener('click', function () {
+  console.log('클릭되었습니다');
+});
+```
+
+<Quiz
+  questionNumber={19}
+  question="사용자가 버튼을 두 번 클릭했을 때 콘솔에 나타나는 결과로 옳은 것은?"
+  options={['클릭되었습니다가 두 번 출력된다.', '클릭되었습니다가 한 번만 출력된다.', '페이지가 다시 로드되며 콘솔이 초기화된다.', '아무것도 출력되지 않는다.']}
+  correctAnswer={1}
+  explanation="addEventListener로 등록한 이벤트 리스너는 해당 이벤트가 발생할 때마다 매번 실행된다. 버튼을 두 번 클릭하면 click 이벤트가 두 번 발생하고, 그때마다 콜백 함수가 처음부터 다시 실행되어 클릭되었습니다도 두 번 출력된다."
+  optionExplanations={['클릭이 발생할 때마다 리스너가 다시 실행된다는 설명이 정확하므로 정답이다.', '리스너는 이벤트가 일어난 횟수만큼 반복 실행되므로 한 번으로 제한되지 않는다.', 'button 요소의 기본 동작은 폼 제출 등과 관련이 있을 수 있지만, 이 코드만으로는 페이지가 다시 로드되지 않는다.', '이벤트 리스너가 정상적으로 등록되었으므로 클릭할 때마다 로그가 출력된다.']}
+/>
+
+### 문제 20
+
+```html
+<form id="form">
+  <input type="text" />
+  <button type="submit">제출</button>
+</form>
+```
+
+```javascript
+const form = document.getElementById('form');
+form.addEventListener('submit', function (event) {
+  event.preventDefault();
+  console.log('제출을 가로챘습니다');
+});
+```
+
+<Quiz
+  questionNumber={20}
+  question="event.preventDefault()를 호출한 효과로 가장 적절한 것은?"
+  options={['폼이 원래 서버로 데이터를 보내며 페이지를 새로 고치는 기본 동작을 막는다.', '이벤트 리스너 자체가 실행되지 않게 막는다.', '사용자가 입력한 값을 모두 지운다.', '버튼을 다시 누르지 못하도록 비활성화한다.']}
+  correctAnswer={1}
+  explanation="preventDefault는 이벤트가 원래 가지고 있는 브라우저의 기본 동작을 취소하는 메서드다. submit 이벤트의 기본 동작은 폼 데이터를 서버로 전송하며 페이지를 새로 불러오는 것인데, 이를 막으면 자바스크립트로 값 검증이나 별도 처리를 한 뒤 필요할 때만 전송하는 방식을 구현할 수 있다."
+  optionExplanations={['서버 전송과 페이지 새로고침이라는 폼의 기본 동작을 막는다는 설명이 정확하므로 정답이다.', 'preventDefault를 호출하는 시점에는 이미 리스너 함수 자체가 실행되고 있는 중이므로 리스너 실행을 막는 것이 아니다.', '입력값을 지우는 것은 이 메서드의 역할이 아니다.', '버튼 비활성화는 별도의 속성이나 스타일로 처리하는 것이며 preventDefault의 역할이 아니다.']}
+/>
+
+### 문제 21
+
+```html
+<div id="outer" style="padding: 20px;">
+  <button id="inner">안쪽 버튼</button>
+</div>
+```
+
+```javascript
+document.getElementById('outer').addEventListener('click', function () {
+  console.log('outer 클릭');
+});
+document.getElementById('inner').addEventListener('click', function () {
+  console.log('inner 클릭');
+});
+```
+
+<Quiz
+  questionNumber={21}
+  question="사용자가 안쪽 버튼을 클릭했을 때 콘솔에 출력되는 순서로 옳은 것은?"
+  options={['inner 클릭이 먼저, outer 클릭이 나중에 출력된다.', 'outer 클릭만 출력된다.', 'inner 클릭만 출력된다.', 'outer 클릭이 먼저, inner 클릭이 나중에 출력된다.']}
+  correctAnswer={1}
+  explanation="버튼을 클릭하면 이벤트는 먼저 실제로 클릭된 가장 안쪽 요소(inner)에서 발생한 뒤, 이벤트 버블링(bubbling)에 의해 이 요소를 감싸고 있는 조상 요소들(outer)로 순서대로 전파된다. 두 요소 모두에 클릭 리스너가 등록되어 있으므로 inner의 리스너가 먼저, outer의 리스너가 그다음에 실행된다."
+  optionExplanations={['이벤트 버블링에 따라 안쪽 요소의 리스너가 먼저 실행된다는 설명이 정확하므로 정답이다.', 'outer에도 리스너가 등록되어 있고 버블링으로 이벤트가 전파되므로 outer 클릭도 출력된다.', '버블링으로 인해 inner뿐 아니라 outer의 리스너도 함께 실행된다.', '실제 클릭이 발생한 가장 안쪽 요소의 리스너가 먼저 실행되는 것이 버블링의 기본 순서다.']}
+/>
+
+### 문제 22
+
+```html
+<input id="name" type="text" />
+<p id="output"></p>
+```
+
+```javascript
+const input = document.getElementById('name');
+const output = document.getElementById('output');
+input.addEventListener('input', function () {
+  output.textContent = input.value;
+});
+```
+
+<Quiz
+  questionNumber={22}
+  question="사용자가 입력란에 글자를 한 자씩 입력할 때마다 output 문단에서 일어나는 일로 가장 적절한 것은?"
+  options={['글자가 입력될 때마다 즉시 input.value의 현재 값으로 output의 내용이 갱신된다.', '입력이 모두 끝나고 엔터를 눌러야만 한 번 갱신된다.', 'input 이벤트는 마우스 클릭에만 반응하므로 키보드 입력으로는 갱신되지 않는다.', '페이지를 새로고침해야 최신 값이 반영된다.']}
+  correctAnswer={1}
+  explanation="input 이벤트는 사용자가 입력란의 값을 바꿀 때마다(글자를 입력하거나 지울 때마다) 즉시 발생하는 이벤트다. 이 이벤트가 발생할 때마다 리스너가 실행되어 output.textContent를 그 시점의 input.value로 갱신하므로, 실시간으로 입력값이 화면에 그대로 반영되는 미리보기 효과가 나타난다."
+  optionExplanations={['글자를 입력할 때마다 즉시 값이 갱신된다는 설명이 input 이벤트의 정확한 동작이므로 정답이다.', 'input 이벤트는 엔터 키 입력을 기다리지 않고 값이 바뀔 때마다 바로 발생한다.', 'input 이벤트는 키보드 입력, 붙여넣기 등 값이 바뀌는 다양한 방식에 반응하며 마우스 클릭 전용이 아니다.', '이벤트 리스너가 스크립트로 화면을 직접 갱신하므로 페이지 새로고침이 필요하지 않다.']}
+/>
+
+## 참고 자료
+
+- [MDN Web Docs - JavaScript](https://developer.mozilla.org/en-US/docs/Web/JavaScript)
+- [MDN Web Docs - DOM](https://developer.mozilla.org/en-US/docs/Web/API/Document_Object_Model)
+- [MDN Web Docs - Web APIs / Events](https://developer.mozilla.org/en-US/docs/Web/API/Event)

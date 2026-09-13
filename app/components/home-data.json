@@ -1,7 +1,7 @@
 {
-  "generatedAt": "2026-09-13T18:56:43.760Z",
+  "generatedAt": "2026-09-13T23:33:48.199Z",
   "groupCount": 6,
-  "seriesCount": 26,
+  "seriesCount": 31,
   "groups": [
     {
       "title": "CSS",
@@ -105,7 +105,7 @@
     },
     {
       "title": "독학사",
-      "description": "11개 시리즈 · 문서 272편",
+      "description": "16개 시리즈 · 문서 389편",
       "order": "05",
       "series": [
         {
@@ -133,12 +133,28 @@
           "accent": "red"
         },
         {
+          "title": "2단계 C프로그래밍",
+          "description": "독학사 제도에서 2단계 C프로그래밍이 차지하는 위치, 출제기준 문서를 읽는 법, 평가 수준과 문제 유형을 먼저 지도로 그린다",
+          "href": "/독학사/2단계_C프로그래밍/01_exam-structure",
+          "documentCount": 27,
+          "preview": "code",
+          "accent": "blue"
+        },
+        {
+          "title": "2단계 논리회로",
+          "description": "집합과 원소 표기, 명제와 논리값, 논리함수·변수 표기법을 논리회로 시험에 쓰는 언어로 정리한다",
+          "href": "/독학사/2단계_논리회로/01_math-basics",
+          "documentCount": 27,
+          "preview": "code",
+          "accent": "green"
+        },
+        {
           "title": "2단계 머신러닝",
           "description": "인공지능·머신러닝·딥러닝의 포함 관계와 지도·비지도·강화학습이라는 학습 패러다임, 모델·파라미터·하이퍼파라미터·특징·레이블 같은 핵심 용어를 정리한다",
           "href": "/독학사/2단계_머신러닝/01_ml-basics",
           "documentCount": 24,
           "preview": "chart",
-          "accent": "blue"
+          "accent": "amber"
         },
         {
           "title": "2단계 운영체제",
@@ -146,7 +162,31 @@
           "href": "/독학사/2단계_운영체제/01_os-terminology-map",
           "documentCount": 21,
           "preview": "code",
+          "accent": "red"
+        },
+        {
+          "title": "2단계 웹프로그래밍",
+          "description": "인터넷과 WWW의 관계, URL·도메인·IP, 클라이언트-서버 구조, HTTP 요청과 응답의 흐름을 독학사 2단계 출제 범위에 맞춰 정리한다.",
+          "href": "/독학사/2단계_웹프로그래밍/01_internet-and-web-basics",
+          "documentCount": 19,
+          "preview": "code",
+          "accent": "blue"
+        },
+        {
+          "title": "2단계 이산수학",
+          "description": "명제·논리기호, 집합 기호, 수열·함수 표기, 그래프·트리 기본 기호까지 이 과목 전체에서 반복해 쓰이는 표기법을 한 번에 정리한다.",
+          "href": "/독학사/2단계_이산수학/01_basic-notation",
+          "documentCount": 26,
+          "preview": "sets",
           "accent": "green"
+        },
+        {
+          "title": "2단계 자료구조",
+          "description": "데이터·자료형·자료구조·추상자료형(ADT)의 관계를 하나의 위계로 정리해 이후 모든 편에서 쓰이는 용어의 기준을 잡는다.",
+          "href": "/독학사/2단계_자료구조/01_prereq-data-structure-basics",
+          "documentCount": 18,
+          "preview": "code",
+          "accent": "amber"
         },
         {
           "title": "2단계 컴퓨터구조",
@@ -154,7 +194,7 @@
           "href": "/독학사/2단계_컴퓨터구조/01_number-system-basics",
           "documentCount": 20,
           "preview": "code",
-          "accent": "amber"
+          "accent": "red"
         },
         {
           "title": "3단계 딥러닝",
@@ -162,7 +202,7 @@
           "href": "/독학사/3단계_딥러닝/01_exam-overview",
           "documentCount": 28,
           "preview": "chart",
-          "accent": "red"
+          "accent": "blue"
         },
         {
           "title": "3단계 정보보호",
@@ -170,7 +210,7 @@
           "href": "/독학사/3단계_정보보호/01_exam-structure",
           "documentCount": 24,
           "preview": "code",
-          "accent": "blue"
+          "accent": "green"
         },
         {
           "title": "3단계 컴퓨터네트워크",
@@ -178,7 +218,7 @@
           "href": "/독학사/3단계_컴퓨터네트워크/01_network-basics",
           "documentCount": 27,
           "preview": "browser",
-          "accent": "green"
+          "accent": "amber"
         },
         {
           "title": "4단계 데이터베이스",
@@ -186,7 +226,7 @@
           "href": "/독학사/4단계_데이터베이스/01_exam-overview",
           "documentCount": 26,
           "preview": "sql",
-          "accent": "amber"
+          "accent": "red"
         },
         {
           "title": "4단계 실용영어",
@@ -194,7 +234,7 @@
           "href": "/독학사/4단계_실용영어/01_exam-structure",
           "documentCount": 24,
           "preview": "code",
-          "accent": "red"
+          "accent": "blue"
         }
       ]
     },
@@ -209,7 +249,7 @@
           "href": "/자격증/ADSP/01_adsp-exam-and-r-setup",
           "documentCount": 30,
           "preview": "code",
-          "accent": "blue"
+          "accent": "green"
         },
         {
           "title": "PC정비사 2급 실기",
@@ -217,7 +257,7 @@
           "href": "/자격증/PC정비사_2급_실기/01_pc-exam-roadmap",
           "documentCount": 17,
           "preview": "code",
-          "accent": "green"
+          "accent": "amber"
         },
         {
           "title": "SQLD",
@@ -225,7 +265,7 @@
           "href": "/자격증/SQLD/00_practice-environment",
           "documentCount": 31,
           "preview": "sql",
-          "accent": "amber"
+          "accent": "red"
         },
         {
           "title": "네트워크관리사 2급 실기",
@@ -233,7 +273,7 @@
           "href": "/자격증/네트워크관리사_2급_실기/01_network-basics-for-practical-use",
           "documentCount": 13,
           "preview": "browser",
-          "accent": "red"
+          "accent": "blue"
         },
         {
           "title": "리눅스마스터 2급 1차",
@@ -241,7 +281,7 @@
           "href": "/자격증/리눅스마스터_2급_1차/00_practice-environment",
           "documentCount": 31,
           "preview": "code",
-          "accent": "blue"
+          "accent": "green"
         },
         {
           "title": "빅데이터분석기사 필기",
@@ -249,7 +289,7 @@
           "href": "/자격증/빅데이터분석기사_필기/01_exam-overview",
           "documentCount": 32,
           "preview": "chart",
-          "accent": "green"
+          "accent": "amber"
         }
       ]
     }

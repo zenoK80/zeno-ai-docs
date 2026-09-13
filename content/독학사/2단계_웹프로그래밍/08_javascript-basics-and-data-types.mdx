@@ -1,0 +1,401 @@
+---
+title: '08. JavaScript 기초 문법과 자료형'
+description: '변수와 식별자, 연산자, 자료형과 형 변환, 조건·반복·함수 기초를 출력 예측 중심으로 정리한다'
+---
+
+<Callout type="info">
+  **이번 문서의 목표:** 이 문서를 다 읽으면 변수 선언 방식(var·let·const)의 차이, JavaScript의 기본 자료형과 `typeof` 결과, 암묵적 형 변환의 규칙, 비교 연산자 `==`와 `===`의 차이, 조건·반복문의 흐름, 함수 선언 방식을 코드만 보고 실행 결과까지 예측할 수 있게 됩니다.
+</Callout>
+
+## JavaScript는 이 과목에서 어떤 역할인가
+
+> **쉽게 말하면:** HTML이 뼈대, CSS가 옷이라면 JavaScript(자바스크립트)는 페이지를 움직이게 하는 근육입니다.
+
+01편에서 클라이언트-서버 개념을 다뤘는데, JavaScript는 브라우저(클라이언트) 안에서 직접 실행되어 사용자의 클릭·입력에 실시간으로 반응하는 유일한 언어입니다. 이번 편은 09편에서 다룰 배열·객체·DOM·이벤트의 토대가 되는 **문법 자체**에 집중합니다. 독학사 시험은 JavaScript 파트에서 개념 설명보다 **"이 코드를 실행하면 무엇이 출력되는가"** 문제 비중이 매우 높으므로, 이 문서도 코드마다 실행 결과를 직접 확인하는 방식으로 구성합니다.
+
+## 변수와 식별자
+
+> **쉽게 말하면:** 변수는 값을 담아 두는 이름표이고, 식별자는 그 이름표에 붙일 수 있는 이름의 규칙입니다.
+
+JavaScript에서 변수를 선언하는 키워드는 세 가지이며, 이 셋의 차이는 반드시 출제된다고 봐도 좋을 만큼 비중이 높습니다.
+
+| 키워드 | 재선언 | 재할당 | 스코프(scope, 유효 범위) |
+|--------|--------|--------|---------------------------|
+| `var` | 가능 | 가능 | 함수 스코프(function scope) |
+| `let` | 불가능 | 가능 | 블록 스코프(block scope) |
+| `const` | 불가능 | 불가능 | 블록 스코프(block scope) |
+
+```js
+var a = 1;
+var a = 2;   // 재선언 가능, 오류 없음
+
+let b = 1;
+// let b = 2; // 오류: 이미 선언된 식별자
+
+const c = 1;
+// c = 2;     // 오류: 상수는 재할당 불가
+```
+
+**스코프**(scope)는 그 변수를 참조할 수 있는 코드의 범위를 뜻합니다. `var`는 함수 단위로만 범위가 나뉘어, `if`나 `for` 같은 블록(중괄호로 감싼 부분) 안에서 선언해도 그 블록을 벗어나 함수 전체에서 접근할 수 있습니다. 반면 `let`·`const`는 블록 단위로 범위가 나뉘어, 선언된 중괄호를 벗어나면 더 이상 접근할 수 없습니다.
+
+```js
+if (true) {
+  var x = 10;
+  let y = 20;
+}
+console.log(x); // 10 — var는 블록을 벗어나도 함수(또는 전역) 범위이므로 접근 가능
+console.log(y); // 오류: y is not defined — let은 블록을 벗어나면 소멸
+```
+
+| 줄 | 코드 | x의 상태 | y의 상태 |
+|----|------|----------|----------|
+| 1 | `if (true) {` | 미정의 | 미정의 |
+| 2 | `var x = 10;` | 10 (함수/전역 범위에 등록) | - |
+| 3 | `let y = 20;` | 10 | 20 (블록 범위에만 등록) |
+| 4 | `}` (블록 종료) | 10 (유지) | 소멸(블록 밖에서 접근 불가) |
+| 5 | `console.log(x)` | 10 출력 | - |
+| 6 | `console.log(y)` | - | 참조 오류 발생 |
+
+이런 차이 때문에 최신 JavaScript 코드에서는 `var`보다 `let`·`const`를 쓰는 것이 원칙입니다. 값이 바뀔 일이 없으면 `const`를, 나중에 재할당이 필요하면 `let`을 쓰는 관례를 기억해 두면 됩니다.
+
+식별자(identifier, 변수·함수 등에 붙이는 이름) 규칙은 다음과 같습니다.
+
+- 문자, 숫자, `_`(밑줄), `$`(달러 기호)를 사용할 수 있지만 **숫자로 시작할 수 없다**.
+- 대소문자를 구분한다(`total`과 `Total`은 다른 식별자).
+- `let`, `const`, `function` 같은 예약어(reserved word, 언어가 이미 문법적으로 쓰고 있는 단어)는 식별자로 쓸 수 없다.
+
+## 자료형(data type)
+
+> **쉽게 말하면:** 자료형은 "이 값이 숫자인지, 글자인지, 참/거짓인지"를 구분하는 값의 종류입니다.
+
+JavaScript의 기본 자료형(원시 타입, primitive type)은 다음과 같습니다.
+
+| 자료형 | 예시 값 | typeof 결과 |
+|--------|---------|--------------|
+| number(숫자) | `10`, `3.14`, `-5` | `"number"` |
+| string(문자열) | `"안녕"`, `'hi'` | `"string"` |
+| boolean(불리언, 참거짓) | `true`, `false` | `"boolean"` |
+| undefined(정의되지 않음) | 값을 할당하지 않은 변수 | `"undefined"` |
+| null(값 없음) | `null` | `"object"`(언어 초기 설계의 오류로 굳어진 예외) |
+| symbol(심벌) | `Symbol("id")` | `"symbol"` |
+| bigint(빅정수) | `10n` | `"bigint"` |
+
+`typeof null`이 `"object"`를 반환하는 것은 JavaScript 초창기부터 있던 잘 알려진 결함(bug)인데, 지금까지도 호환성을 위해 고쳐지지 않고 그대로 유지되고 있습니다. 시험에서 "`typeof null`의 결과는?"이라는 문제가 나오면 상식적으로 `"null"`을 답으로 고르기 쉬운데, 정답은 `"object"`라는 점을 정확히 기억해야 합니다.
+
+```js
+console.log(typeof 42);        // "number"
+console.log(typeof "hello");   // "string"
+console.log(typeof true);      // "boolean"
+console.log(typeof undefined); // "undefined"
+console.log(typeof null);      // "object"
+```
+
+`undefined`와 `null`도 자주 짝을 지어 출제됩니다. **`undefined`는 변수를 선언만 하고 값을 할당하지 않았을 때 JavaScript 엔진이 자동으로 부여하는 값**이고, **`null`은 개발자가 "이 자리에는 값이 없다"는 것을 의도적으로 명시하기 위해 직접 대입하는 값**입니다. 즉 하나는 "아직 정해지지 않음"이고 하나는 "일부러 비워둠"이라는 의미 차이가 있습니다.
+
+## 형 변환(type conversion)
+
+> **쉽게 말하면:** 형 변환은 한 자료형의 값을 다른 자료형으로 바꾸는 것이며, 개발자가 직접 시키기도 하고(명시적) JavaScript가 알아서 처리하기도 합니다(암묵적).
+
+JavaScript는 서로 다른 자료형끼리 연산할 때 자동으로 형을 맞추는 **암묵적 형 변환**(implicit coercion)을 수행합니다. 이 동작이 독학사 JavaScript 파트에서 출력 예측 문제로 가장 많이 나오는 지점입니다.
+
+```js
+console.log("5" + 3);   // "53"
+console.log("5" - 3);   // 2
+console.log("5" * "2"); // 10
+console.log(1 + true);  // 2
+console.log("10" == 10); // true
+console.log("10" === 10); // false
+```
+
+한 줄씩 왜 이런 결과가 나오는지 추적해 보겠습니다.
+
+| 코드 | 연산자의 성격 | 변환 규칙 | 결과 |
+|------|---------------|-----------|------|
+| `"5" + 3` | `+`는 피연산자 중 하나라도 문자열이면 문자열 연결로 동작 | `3`이 `"3"`으로 변환되어 이어붙기 | `"53"` |
+| `"5" - 3` | `-`는 문자열 연결 기능이 없어 항상 숫자 연산으로 해석 | `"5"`가 숫자 `5`로 변환 | `2` |
+| `"5" * "2"` | `*`도 항상 숫자 연산 | 양쪽 모두 숫자로 변환 | `10` |
+| `1 + true` | `+`에서 boolean이 숫자로 변환됨 | `true`는 `1`, `false`는 `0`으로 취급 | `2` |
+
+**`+` 연산자만 문자열 연결과 숫자 덧셈 두 가지 역할을 겸한다**는 점이 이 표의 핵심입니다. 다른 산술 연산자(`-`, `*`, `/`)는 문자열 연결 기능이 없으므로 무조건 양쪽을 숫자로 변환하려 시도합니다.
+
+<Callout type="warning">
+  **자주 틀리는 점:** `"5" + 3`과 `"5" - 3`이 서로 다른 원리로 동작한다는 것을 모르면, 둘 다 숫자 계산이 될 것이라 착각해 `"5" + 3`의 결과를 `8`로 잘못 예측하기 쉽습니다. `+`가 나오면 피연산자 중 문자열이 있는지부터 확인하는 습관이 필요합니다.
+</Callout>
+
+### == 와 === 의 차이
+
+`==`(동등 연산자, loose equality)는 비교 전에 암묵적 형 변환을 먼저 수행한 뒤 값을 비교하고, `===`(일치 연산자, strict equality)는 형 변환 없이 **자료형까지 같아야** `true`를 반환합니다.
+
+```js
+console.log("10" == 10);   // true  — "10"이 숫자 10으로 변환된 뒤 비교
+console.log("10" === 10);  // false — 문자열과 숫자는 자료형이 다름
+console.log(0 == false);   // true  — false가 0으로 변환됨
+console.log(0 === false);  // false — 숫자와 불리언은 자료형이 다름
+console.log(null == undefined);  // true  — 이 둘만의 특별 규칙
+console.log(null === undefined); // false — 자료형이 다름(object vs undefined)
+```
+
+이런 예측 불가능함 때문에, 실무와 시험 모두에서 **`===`(일치 연산자)를 기본으로 사용하는 것을 권장**합니다. `==`가 굳이 필요한 경우는 매우 드뭅니다.
+
+### 진리값(truthy/falsy) 판별
+
+조건문에서 값 자체를 boolean처럼 평가할 때, JavaScript는 정해진 규칙에 따라 참(truthy)·거짓(falsy)으로 취급합니다. falsy로 취급되는 값은 다음 여섯 가지뿐이며, **이 목록에 없는 값은 모두 truthy**입니다.
+
+```text
+false, 0, "", null, undefined, NaN
+```
+
+```js
+if ("") {
+  console.log("실행 안 됨");
+} else {
+  console.log("빈 문자열은 falsy이므로 이 줄이 실행됨");
+}
+
+if ("0") {
+  console.log("문자열 '0'은 truthy이므로 이 줄이 실행됨");
+}
+```
+
+<Callout type="warning">
+  **자주 틀리는 점:** 숫자 `0`은 falsy이지만, 숫자처럼 보이는 문자열 `"0"`은 **비어 있지 않은 문자열**이므로 truthy입니다. "0이라는 값은 어떤 형태든 항상 falsy다"라는 진술은 틀린 설명이며, 이는 형 변환 문제와 함께 자주 짝지어 출제됩니다.
+</Callout>
+
+## 조건문(conditional statement)
+
+```js
+let 점수 = 75;
+
+if (점수 >= 90) {
+  console.log("A");
+} else if (점수 >= 80) {
+  console.log("B");
+} else if (점수 >= 70) {
+  console.log("C");
+} else {
+  console.log("D");
+}
+```
+
+`if`~`else if`~`else` 구조는 **위에서부터 순서대로 조건을 검사하다가 처음 참(true)이 되는 블록만 실행하고 나머지는 건너뜁니다.** 점수가 75이면 `점수 >= 90`(거짓) → `점수 >= 80`(거짓) → `점수 >= 70`(참, 여기서 멈춤)이 되어 `"C"`가 출력됩니다. 뒤에 있는 `else`는 검사조차 하지 않습니다.
+
+`switch` 문은 하나의 값을 여러 경우와 비교할 때 씁니다.
+
+```js
+let 등급 = "B";
+switch (등급) {
+  case "A":
+    console.log("우수");
+    break;
+  case "B":
+    console.log("보통");
+    break;
+  default:
+    console.log("확인 필요");
+}
+// 출력: "보통"
+```
+
+<Callout type="warning">
+  **자주 틀리는 점:** `case` 블록 끝에 `break`를 빠뜨리면, 해당 `case`가 실행된 뒤 **다음 `case`까지 조건 검사 없이 그대로 이어서 실행**됩니다. 이를 폴스루(fall-through)라고 부릅니다. 위 예시에서 `case "B":` 다음 줄에 `break`가 없다면 `"보통"`을 출력한 뒤 `default`의 `"확인 필요"`까지 이어서 출력되어 버립니다.
+</Callout>
+
+## 반복문(loop)
+
+```js
+for (let i = 1; i <= 3; i++) {
+  console.log(i);
+}
+```
+
+`for` 문은 `초기식; 조건식; 증감식` 세 부분으로 이루어집니다. 실행 순서를 한 단계씩 추적하면 다음과 같습니다.
+
+| 단계 | 수행되는 부분 | i의 값 | 조건 검사(i &lt;= 3) | 출력 |
+|------|----------------|--------|----------------------|------|
+| 1 | 초기식 `let i = 1` (최초 1회만) | 1 | - | - |
+| 2 | 조건식 검사 | 1 | 참 | - |
+| 3 | 본문 실행 | 1 | - | 1 |
+| 4 | 증감식 `i++` | 2 | - | - |
+| 5 | 조건식 검사 | 2 | 참 | - |
+| 6 | 본문 실행 | 2 | - | 2 |
+| 7 | 증감식 `i++` | 3 | - | - |
+| 8 | 조건식 검사 | 3 | 참 | - |
+| 9 | 본문 실행 | 3 | - | 3 |
+| 10 | 증감식 `i++` | 4 | - | - |
+| 11 | 조건식 검사 | 4 | 거짓(4 &lt;= 3 아님) | 반복 종료 |
+
+`while`은 조건식만 앞에 두고, 초기식과 증감식을 직접 작성해야 하는 반복문입니다.
+
+```js
+let i = 0;
+while (i < 3) {
+  console.log(i);
+  i++;
+}
+// 0, 1, 2 순서로 출력
+```
+
+`do...while`은 `while`과 거의 같지만 **조건을 나중에 검사**하기 때문에, 조건이 처음부터 거짓이더라도 본문이 최소 한 번은 실행된다는 차이가 있습니다.
+
+```js
+let n = 10;
+do {
+  console.log(n); // 10 출력 — 조건이 거짓인데도 한 번은 실행됨
+} while (n < 5);
+```
+
+<CodePlayground
+  template="vanilla"
+  activeFile="/index.js"
+  showConsole
+  label="반복 횟수와 조건을 바꿔가며 콘솔에 찍히는 값을 직접 확인하세요"
+  files={{
+    '/index.js': `for (let i = 1; i <= 5; i++) {
+  if (i % 2 === 0) {
+    console.log(\`\${i}는 짝수\`);
+  } else {
+    console.log(\`\${i}는 홀수\`);
+  }
+}`,
+  }}
+/>
+
+`break`는 반복문 자체를 즉시 빠져나가고, `continue`는 현재 반복만 건너뛰고 다음 반복으로 넘어갑니다. 이 둘의 차이도 출력 예측 문제에 자주 나옵니다.
+
+```js
+for (let i = 1; i <= 5; i++) {
+  if (i === 3) continue;
+  if (i === 5) break;
+  console.log(i);
+}
+// 1, 2, 4 출력 — 3은 건너뛰고(continue), 5는 아예 반복을 멈춘다(break)
+```
+
+## 함수(function) 기초
+
+> **쉽게 말하면:** 함수는 "이름을 붙여 재사용할 수 있는 코드 묶음"입니다.
+
+```js
+function 더하기(a, b) {
+  return a + b;
+}
+
+console.log(더하기(3, 4)); // 7
+```
+
+`function` 키워드로 만드는 이 방식을 **함수 선언문**(function declaration)이라고 합니다. `a`, `b`는 **매개변수**(parameter, 함수를 정의할 때 받기로 약속한 값의 자리)이고, 호출할 때 실제로 넘기는 `3`, `4`는 **인수**(argument, 실제로 전달하는 값)입니다. `return`은 함수의 실행을 그 자리에서 끝내고 지정한 값을 호출한 자리로 돌려주는 키워드로, `return`이 없는 함수는 자동으로 `undefined`를 반환합니다.
+
+함수를 변수에 담는 방식도 있습니다.
+
+```js
+const 곱하기 = function (a, b) {
+  return a * b;
+};
+
+const 빼기 = (a, b) => a - b; // 화살표 함수(arrow function)
+```
+
+**함수 표현식**(function expression)은 이름 없는(또는 이름이 있어도 외부에서 그 이름으로 호출할 수 없는) 함수를 만들어 변수에 대입하는 방식이고, **화살표 함수**(arrow function)는 `function` 키워드 없이 `=>` 기호로 더 짧게 쓰는 최신 문법입니다. 화살표 함수에서 본문이 표현식 하나뿐이면 `return`과 중괄호를 생략하고 그 값이 자동으로 반환됩니다(위 `빼기` 예시).
+
+<Callout type="warning">
+  **자주 틀리는 점:** 함수 선언문(`function 이름() {}`)은 **호이스팅**(hoisting)이라는 특성 때문에 코드에서 실제로 작성된 위치보다 앞에서 호출해도 정상 동작합니다. 반면 함수 표현식이나 화살표 함수를 `const`·`let`에 대입한 경우, 대입 코드보다 앞에서 호출하면 오류가 발생합니다.
+
+```js
+console.log(더하기(1, 2)); // 3 — 정상 동작(호이스팅)
+function 더하기(a, b) {
+  return a + b;
+}
+
+console.log(빼기(5, 2)); // 오류: 아직 초기화되지 않음
+const 빼기 = (a, b) => a - b;
+```
+</Callout>
+
+## 핵심 정리
+
+- `var`는 재선언 가능·함수 스코프, `let`은 재선언 불가·블록 스코프, `const`는 재선언·재할당 모두 불가·블록 스코프다.
+- 기본 자료형은 number·string·boolean·undefined·null·symbol·bigint이며, `typeof null`은 예외적으로 `"object"`를 반환한다.
+- `+`는 피연산자에 문자열이 있으면 연결 연산으로, 그 외 산술 연산자는 항상 숫자 변환 연산으로 동작한다.
+- `==`는 형 변환 후 비교, `===`는 자료형까지 일치해야 참이며 실무·시험 모두 `===` 사용을 권장한다.
+- falsy 값은 `false, 0, "", null, undefined, NaN` 여섯 가지뿐이고 그 외는 모두 truthy다.
+- `if`~`else if`~`else`는 처음 참인 블록만 실행하고, `switch`는 `break`가 없으면 다음 case로 흘러넘친다(fall-through).
+- `for`·`while`은 조건을 먼저 검사하지만 `do...while`은 본문을 최소 한 번 실행한 뒤 조건을 검사한다. `break`는 반복 종료, `continue`는 그 회차만 건너뛴다.
+- 함수 선언문은 호이스팅되어 선언 전에도 호출할 수 있지만, 함수 표현식·화살표 함수를 담은 변수는 대입 이전에 호출하면 오류가 난다.
+
+## 마무리 복습
+
+<Quiz
+  questionNumber={1}
+  question="var, let, const의 스코프(유효 범위)에 대한 설명으로 옳은 것은?"
+  options={['셋 모두 블록 스코프를 가진다', 'var는 함수 스코프, let과 const는 블록 스코프를 가진다', 'var는 블록 스코프, let과 const는 함수 스코프를 가진다', '셋 모두 전역 스코프만 가진다']}
+  correctAnswer={2}
+  explanation="var는 함수 단위로 범위가 정해지는 함수 스코프이고, let과 const는 중괄호 블록 단위로 범위가 정해지는 블록 스코프다."
+  optionExplanations={['var는 블록이 아니라 함수 스코프를 가진다', '정답 — var는 함수 스코프, let·const는 블록 스코프다', '설명이 정반대로 뒤바뀌어 있다', '세 키워드 모두 선언 위치에 따라 범위가 제한될 수 있다']}
+/>
+
+<Quiz
+  questionNumber={2}
+  question="다음 코드를 실행했을 때 콘솔에 출력되는 값은? console.log(typeof null);"
+  options={['"null"', '"undefined"', '"object"', '"boolean"']}
+  correctAnswer={3}
+  explanation="typeof null은 JavaScript 초기 설계의 결함으로 인해 예외적으로 object를 반환하며, 호환성 때문에 지금까지 수정되지 않고 유지되고 있다."
+  optionExplanations={['상식적으로 예상되는 값이지만 실제 결과가 아니다', 'undefined는 값을 할당하지 않은 변수의 typeof 결과다', '정답 — 잘 알려진 예외적 동작이다', 'boolean은 true·false 값의 typeof 결과다']}
+/>
+
+<Quiz
+  questionNumber={3}
+  question="다음 코드의 출력 결과로 옳은 것은? console.log(&quot;5&quot; + 3); console.log(&quot;5&quot; - 3);"
+  options={['8 그리고 8', '&quot;53&quot; 그리고 2', '2 그리고 &quot;53&quot;', '&quot;53&quot; 그리고 &quot;2&quot;']}
+  correctAnswer={2}
+  explanation="+ 연산자는 피연산자에 문자열이 있으면 문자열 연결로 동작해 &quot;53&quot;이 되고, - 연산자는 문자열 연결 기능이 없어 양쪽을 숫자로 변환해 2가 된다."
+  optionExplanations={['두 연산자 모두 숫자 계산으로 처리했다는 잘못된 전제다', '정답 — + 는 문자열 연결, - 는 숫자 변환으로 동작한다', '두 결과의 순서가 뒤바뀌어 있다', '두 번째 결과는 문자열이 아니라 숫자 2다']}
+/>
+
+<Quiz
+  questionNumber={4}
+  question="&quot;10&quot; == 10 과 &quot;10&quot; === 10 의 결과를 순서대로 옳게 나열한 것은?"
+  options={['true, true', 'false, false', 'true, false', 'false, true']}
+  correctAnswer={3}
+  explanation="==는 형 변환 후 값만 비교해 true가 되고, ===는 자료형까지 같아야 하므로 문자열과 숫자는 다른 자료형이라 false가 된다."
+  optionExplanations={['두 번째 비교는 자료형이 달라 false여야 한다', '첫 번째 비교는 형 변환 후 값이 같아 true여야 한다', '정답 — 형 변환 여부에 따라 결과가 갈린다', '순서가 뒤바뀌어 있다']}
+/>
+
+<Quiz
+  questionNumber={5}
+  question="다음 중 falsy(거짓으로 취급되는) 값이 아닌 것은?"
+  options={['0', '&quot;&quot;(빈 문자열)', '&quot;0&quot;(문자 0 하나로 이루어진 문자열)', 'null']}
+  correctAnswer={3}
+  explanation="falsy 값은 false, 0, 빈 문자열, null, undefined, NaN 여섯 가지뿐이며, 비어 있지 않은 문자열 &quot;0&quot;은 truthy로 취급된다."
+  optionExplanations={['숫자 0은 falsy 값이다', '빈 문자열은 falsy 값이다', '정답 — 문자열 내용이 있으므로 truthy다', 'null은 falsy 값이다']}
+/>
+
+<Quiz
+  questionNumber={6}
+  question="다음 switch 문에서 case &quot;B&quot;: 다음 줄에 break가 없을 때 출력 결과로 옳은 것은? (등급 값은 &quot;B&quot;)"
+  options={['&quot;보통&quot;만 출력된다', '&quot;확인 필요&quot;만 출력된다', '&quot;보통&quot;과 &quot;확인 필요&quot;가 순서대로 모두 출력된다', '아무것도 출력되지 않는다']}
+  correctAnswer={3}
+  explanation="break가 없으면 해당 case 실행 후 조건 검사 없이 바로 다음 코드로 흘러넘치는 폴스루가 발생해, &quot;보통&quot;을 출력한 뒤 default의 &quot;확인 필요&quot;까지 이어서 출력된다."
+  optionExplanations={['break가 없으면 다음 case까지 이어서 실행된다', '&quot;보통&quot;도 함께 출력되므로 이 값만 나오는 것은 틀렸다', '정답 — 폴스루로 두 문구가 모두 출력된다', 'case &quot;B&quot;가 일치하므로 반드시 무언가 출력된다']}
+/>
+
+<Quiz
+  questionNumber={7}
+  question="for (let i = 1; i &lt;= 5; i++) { if (i === 3) continue; if (i === 5) break; console.log(i); } 의 출력 결과로 옳은 것은?"
+  options={['1, 2, 3, 4', '1, 2, 4', '1, 2, 4, 5', '1, 2, 3, 4, 5']}
+  correctAnswer={2}
+  explanation="continue는 i가 3일 때 그 회차의 출력만 건너뛰고 반복을 계속하며, break는 i가 5일 때 반복 자체를 즉시 종료시켜 5는 출력되지 않는다."
+  optionExplanations={['3이 아니라 건너뛰는 대상이며 4까지만 나열되어도 5가 빠진 이유가 다르다', '정답 — continue로 3을 건너뛰고 break로 5 이전에 종료된다', '5는 break로 인해 출력 전에 반복이 종료된다', '3은 continue로 건너뛰어 출력되지 않는다']}
+/>
+
+<Quiz
+  questionNumber={8}
+  question="함수 선언문과 화살표 함수를 담은 const 변수의 호이스팅(hoisting) 차이로 옳은 것은?"
+  options={['둘 다 선언 이전에 호출해도 정상 동작한다', '함수 선언문은 선언 이전에 호출해도 정상 동작하지만, const에 담긴 화살표 함수는 대입 이전에 호출하면 오류가 발생한다', '함수 선언문은 반드시 선언 이후에만 호출할 수 있다', 'const에 담긴 화살표 함수만 선언 이전 호출이 가능하다']}
+  correctAnswer={2}
+  explanation="함수 선언문은 호이스팅되어 코드 실행 전에 이미 함수 전체가 등록되지만, const로 선언한 화살표 함수는 대입 코드가 실행되기 전까지 사용할 수 없어 그 이전에 호출하면 오류가 난다."
+  optionExplanations={['const에 담긴 화살표 함수는 대입 이전 호출 시 오류가 발생한다', '정답 — 호이스팅 여부에 따른 차이를 정확히 설명한다', '함수 선언문은 오히려 선언 이전에도 호출 가능하다', '설명이 정반대로 뒤바뀌어 있다']}
+/>
+
+## 참고 자료
+
+- [MDN Web Docs - JavaScript](https://developer.mozilla.org/en-US/docs/Web/JavaScript)

@@ -1,0 +1,434 @@
+---
+title: '23. 독학사 C프로그래밍 기출·유형 ① (기본 문법·제어문)'
+description: '프로그램 구조·컴파일 흐름, 기본 자료형과 연산자, 조건문·반복문을 손코딩·출력 예측 중심으로 재구성한 유형 문제 20문항'
+---
+
+<Callout type="warning">
+  **재구성 출제 고지:** 이 문제집은 국가평생교육진흥원 독학학위제 2단계 C프로그래밍 출제기준(자료형·연산자·입출력, 조건/반복 영역)의 평가 범위와 문항 유형을 분석해 새로 구성한 **재구성 문항**입니다. 실제 기출 문항을 그대로 옮긴 것이 아닙니다. 회차별 정확한 문항 수·시험 시간은 시행처 공고를 확인해야 하며, 여기서는 20문항을 표준 분량으로 구성했습니다.
+</Callout>
+
+## 출제 범위와 문항 배분
+
+| 영역 | 문항 수 | 문항 번호 | 관련 편 |
+| --- | --- | --- | --- |
+| 프로그램 구조·컴파일 흐름 | 3 | 1–3 | 06 |
+| 기본 자료형·형 변환·sizeof | 4 | 4–6, 16 | 07 |
+| 연산자와 표현식 평가 | 6 | 7–8, 14–15, 17–18 | 08 |
+| 조건문·반복문 제어 구조 | 7 | 9–13, 19–20 | 09 |
+
+각 문제의 코드를 먼저 손으로 한 줄씩 따라가며 변수 값을 표로 적어본 뒤 정답을 확인하세요. 특히 증감 연산자·논리 연산자의 단락 평가(short-circuit evaluation)·switch문의 break 누락은 독학사 시험에서 반복 출제되는 대표 함정입니다.
+
+## 프로그램 구조·컴파일 흐름 (1–3)
+
+### 문제 1
+
+<Quiz
+  questionNumber={1}
+  question="C프로그램에서 운영체제가 프로그램 실행을 시작할 때 가장 먼저 호출하는 함수로 옳은 것은?"
+  options={['main 함수', 'start 함수', 'init 함수', '가장 먼저 선언된 함수']}
+  correctAnswer={1}
+  explanation="C프로그램은 함수의 선언 순서와 무관하게 항상 main 함수에서 실행이 시작된다. main은 프로그램의 진입점(entry point)이다."
+  optionExplanations={['main이 C프로그램의 표준 진입점이므로 정답이다.', 'start라는 이름의 함수를 자동으로 호출하는 규칙은 C 표준에 없다.', 'init이라는 이름의 함수를 자동으로 호출하는 규칙은 C 표준에 없다.', 'C는 함수의 작성 순서와 무관하게 항상 main에서 시작하므로 옳지 않다.']}
+/>
+
+### 문제 2
+
+<Quiz
+  questionNumber={2}
+  question="main 함수가 return 0을 실행하고 종료했을 때의 의미로 가장 적절한 것은?"
+  options={['프로그램이 오류 없이 정상적으로 종료되었음을 운영체제에 알린다.', '프로그램이 비정상적으로 종료되었음을 뜻한다.', '0번째 함수가 아직 실행 중이라는 뜻이다.', 'return 0은 아무 의미가 없는 관례일 뿐이다.']}
+  correctAnswer={1}
+  explanation="main 함수의 반환값은 운영체제나 이 프로그램을 호출한 다른 프로그램에게 실행 결과를 알리는 종료 코드다. 관례적으로 0은 정상 종료를, 0이 아닌 값은 어떤 종류의 오류가 있었음을 나타낸다."
+  optionExplanations={['0을 반환하는 것이 정상 종료를 알리는 표준 관례이므로 정답이다.', '0은 정상 종료를 뜻하며 비정상 종료와는 반대다.', '반환값은 함수 실행 순서가 아니라 종료 상태를 나타내는 값이다.', '운영체제나 호출 프로그램이 이 값을 실제로 참조할 수 있으므로 의미 없는 관례가 아니다.']}
+/>
+
+### 문제 3
+
+<Quiz
+  questionNumber={3}
+  question="선행처리기(preprocessor)가 #include 지시문을 처리하는 방식으로 가장 적절한 것은?"
+  options={['헤더 파일의 내용을 그대로 해당 위치에 삽입한다.', '헤더 파일을 별도로 컴파일해 실행 파일로 만든다.', '헤더 파일 이름만 실행 파일에 기록해 둔다.', '헤더 파일의 함수 몸체만 삭제하고 나머지를 삽입한다.']}
+  correctAnswer={1}
+  explanation="선행처리기는 컴파일이 시작되기 전 단계에서 동작하며, #include 지시문을 만나면 지정된 헤더 파일의 내용을 텍스트 그대로 그 위치에 복사해 넣는다. 이후 컴파일 단계에서는 이렇게 합쳐진 코드를 대상으로 번역이 진행된다."
+  optionExplanations={['헤더 파일 내용을 그대로 삽입한다는 것이 #include의 정확한 동작이므로 정답이다.', '헤더 파일은 별도로 컴파일되어 실행 파일이 되는 것이 아니라 소스에 삽입될 뿐이다.', '단순히 이름만 기록하는 것이 아니라 실제 내용이 삽입된다.', '함수 몸체를 삭제하는 처리는 #include의 동작과 무관하다.']}
+/>
+
+## 기본 자료형·형 변환·sizeof (4–6, 16)
+
+### 문제 4
+
+이 문제집의 계산 문제는 특별한 언급이 없는 한 `int`는 4바이트, `char`는 1바이트, `double`은 8바이트인 환경을 기준으로 한다.
+
+```c
+#include <stdio.h>
+
+int main(void) {
+    printf("%d\n", (int)(sizeof(int) + sizeof(char)));
+    return 0;
+}
+```
+
+<Quiz
+  questionNumber={4}
+  question="위 코드를 int 4바이트, char 1바이트 환경에서 실행했을 때 출력되는 값은?"
+  options={['5', '4', '8', '9']}
+  correctAnswer={1}
+  explanation="sizeof(int)는 4, sizeof(char)는 1이므로 두 값을 더하면 4 + 1 = 5이다."
+  optionExplanations={['4와 1을 더한 5가 정확한 결과이므로 정답이다.', '4는 sizeof(int)만의 값이지 두 값을 더한 것이 아니다.', '8은 sizeof(double)에 해당하는 값으로 이 계산과 무관하다.', '9는 sizeof(int)를 두 번 더한 값에 가까워 이 계산과 맞지 않는다.']}
+/>
+
+### 문제 5
+
+```c
+#include <stdio.h>
+
+int main(void) {
+    int a = 7, b = 2;
+    double result = a / b;
+    printf("%.1f\n", result);
+    return 0;
+}
+```
+
+<Quiz
+  questionNumber={5}
+  question="위 코드를 실행했을 때 출력되는 값은?"
+  options={['3.0', '3.5', '3.0000001', '4.0']}
+  correctAnswer={1}
+  explanation="a와 b가 모두 int형이므로 a / b는 정수 나눗셈으로 먼저 계산되어 몫인 3이 된다. 이 정수 3이 double형 result에 대입되면서 3.0으로 변환되므로 소수점 첫째 자리까지 출력하면 3.0이다."
+  optionExplanations={['정수 나눗셈으로 몫 3이 나온 뒤 double로 변환된 3.0이 정확한 결과이므로 정답이다.', '3.5는 실수 나눗셈을 했을 때 나올 값이지만, a와 b가 모두 int이므로 정수 나눗셈이 먼저 일어난다.', '이 코드는 부동소수점 오차가 나타날 계산을 포함하지 않는다.', '4.0은 나눗셈 결과를 반올림했을 때 나올 수 있는 값이지만 실제 계산 결과와 다르다.']}
+/>
+
+### 문제 6
+
+```c
+#include <stdio.h>
+
+int main(void) {
+    int score = 1000000;
+    short small_score = score;
+    printf("%d\n", small_score);
+    return 0;
+}
+```
+
+<Quiz
+  questionNumber={6}
+  question="short가 16비트인 환경에서 위 코드를 컴파일·실행했을 때 나타나는 현상으로 가장 적절한 것은?"
+  options={['컴파일 오류가 발생해 실행 파일이 만들어지지 않는다.', '컴파일은 통과하지만 short의 표현 범위를 넘는 값이 잘려 1000000과 다른 값이 출력된다.', '1000000이 그대로 출력된다.', '실행 중 프로그램이 무한 대기 상태에 빠진다.']}
+  correctAnswer={2}
+  explanation="int에서 short로의 대입은 암묵적 형 변환으로 허용되어 컴파일은 정상적으로 통과한다. 다만 short는 16비트라 65536가지 값만 표현할 수 있어, 1000000을 65536으로 나눈 나머지인 16960이 저장되어 원래 값과 다른 값이 출력된다."
+  optionExplanations={['암묵적 형 변환은 문법적으로 허용되므로 컴파일 오류가 아니다.', '값이 잘려 원래 값과 다르게 출력된다는 설명이 정확하므로 정답이다.', 'short의 표현 범위를 넘는 값이므로 1000000이 그대로 출력되지 않는다.', '이 코드에는 무한 대기를 유발할 반복문이나 입력 대기가 없다.']}
+/>
+
+## 연산자와 표현식 평가 (7–8, 14–15, 17–18)
+
+### 문제 7
+
+```c
+#include <stdio.h>
+
+int main(void) {
+    int result = 5 + 3 * 2;
+    printf("%d\n", result);
+    return 0;
+}
+```
+
+<Quiz
+  questionNumber={7}
+  question="위 코드를 실행했을 때 출력되는 값은?"
+  options={['11', '16', '13', '10']}
+  correctAnswer={1}
+  explanation="곱셈 연산자는 덧셈 연산자보다 우선순위가 높으므로 3 곱하기 2가 먼저 계산되어 6이 되고, 그 뒤 5를 더하면 11이 된다."
+  optionExplanations={['곱셈을 먼저 계산한 뒤 덧셈을 한 11이 정확한 결과이므로 정답이다.', '16은 덧셈을 먼저 계산했을 때(5+3=8, 8×2=16) 나오는 값으로 우선순위를 잘못 적용한 오답이다.', '13은 계산 도중 자릿수를 잘못 더했을 때 나올 수 있는 값이다.', '10은 곱셈 결과를 잘못 계산했을 때 나올 수 있는 값이다.']}
+/>
+
+### 문제 8
+
+```c
+#include <stdio.h>
+
+int main(void) {
+    int x = 5;
+    int y = x++ + ++x;
+    printf("%d %d\n", x, y);
+    return 0;
+}
+```
+
+<Quiz
+  questionNumber={8}
+  question="위 코드를 실행했을 때 출력되는 x와 y의 값으로 옳은 것은?"
+  options={['7 12', '6 11', '7 11', '6 12']}
+  correctAnswer={1}
+  explanation="x++는 현재 값 5를 식에 사용한 뒤 x를 6으로 증가시킨다. 이어서 ++x는 x를 6에서 7로 먼저 증가시킨 뒤 그 값 7을 식에 사용한다. 따라서 y는 5 더하기 7인 12가 되고, 최종 x는 7이다."
+  optionExplanations={['x가 7, y가 12가 되는 계산 과정이 정확하므로 정답이다.', 'x++를 먼저 증가시킨 값으로 잘못 사용하면 나올 수 있는 값이다.', 'y 계산에서 증가 순서를 잘못 적용했을 때 나올 수 있는 값이다.', 'x의 최종값을 잘못 계산했을 때 나올 수 있는 조합이다.']}
+/>
+
+### 문제 14
+
+```c
+#include <stdio.h>
+
+int main(void) {
+    int a = 0;
+    int b = 5;
+    if (a != 0 && (b = 10) > 0) {
+        printf("A");
+    }
+    printf("%d\n", b);
+    return 0;
+}
+```
+
+<Quiz
+  questionNumber={9}
+  question="위 코드를 실행했을 때 출력되는 결과로 가장 적절한 것은?"
+  options={['5', '10', 'A5', 'A10']}
+  correctAnswer={1}
+  explanation="논리 AND 연산자는 왼쪽 조건이 거짓이면 오른쪽 조건을 평가하지 않는 단락 평가(short-circuit evaluation)를 한다. a가 0이므로 a != 0은 거짓이고, 이 시점에서 오른쪽의 (b = 10)은 실행되지 않아 b는 원래 값 5 그대로 남는다. if문 전체도 거짓이므로 A는 출력되지 않는다."
+  optionExplanations={['왼쪽 조건이 거짓이라 오른쪽 대입이 실행되지 않으므로 b는 5 그대로이며, 이것이 정답이다.', '오른쪽의 b = 10이 실행되었다고 가정했을 때 나오는 값으로, 단락 평가를 고려하지 않은 오답이다.', 'if문 조건 전체가 거짓이므로 A는 출력되지 않는다.', 'A도 출력되지 않고 b도 10으로 바뀌지 않으므로 둘 다 틀렸다.']}
+/>
+
+### 문제 15
+
+```c
+#include <stdio.h>
+
+int main(void) {
+    int a = 7;
+    int result = (a % 2 == 0) ? 100 : 200;
+    printf("%d\n", result);
+    return 0;
+}
+```
+
+<Quiz
+  questionNumber={10}
+  question="위 코드를 실행했을 때 출력되는 값은?"
+  options={['200', '100', '0', '7']}
+  correctAnswer={1}
+  explanation="a는 7이므로 a를 2로 나눈 나머지는 1이다. 1은 0과 같지 않으므로 조건식은 거짓이 되어 삼항 연산자는 콜론 뒤의 값인 200을 result에 대입한다."
+  optionExplanations={['조건이 거짓이므로 콜론 뒤의 값 200이 선택되어 이것이 정답이다.', '100은 조건이 참일 때(a가 짝수일 때) 나오는 값이다.', '0은 이 코드의 어떤 계산 결과와도 일치하지 않는다.', '7은 a의 원래 값일 뿐 삼항 연산자의 결과가 아니다.']}
+/>
+
+### 문제 17
+
+```c
+#include <stdio.h>
+
+int main(void) {
+    char c = 'A';
+    c = c + 1;
+    printf("%c\n", c);
+    return 0;
+}
+```
+
+<Quiz
+  questionNumber={11}
+  question="위 코드를 실행했을 때 출력되는 문자는?"
+  options={['B', 'A', 'C', 'b']}
+  correctAnswer={1}
+  explanation="문자 'A'는 아스키 코드 값 65로 저장되어 있다. 여기에 정수 1을 더한 66은 문자 'B'의 아스키 코드 값이므로, %c로 출력하면 B가 나온다."
+  optionExplanations={['아스키 코드 값이 1 증가해 A 다음 문자인 B가 되므로 정답이다.', 'A는 더하기 전의 원래 값이지 계산 결과가 아니다.', 'C는 1이 아니라 2를 더했을 때 나오는 값이다.', '소문자 b는 대문자와 소문자의 아스키 코드 값 차이(32)를 고려하지 않아 나온 값이다.']}
+/>
+
+### 문제 18
+
+```c
+#include <stdio.h>
+
+int main(void) {
+    unsigned char u = 255;
+    u = u + 1;
+    printf("%d\n", u);
+    return 0;
+}
+```
+
+<Quiz
+  questionNumber={12}
+  question="unsigned char가 8비트인 환경에서 위 코드를 실행했을 때 출력되는 값은?"
+  options={['0', '256', '255', '1']}
+  correctAnswer={1}
+  explanation="unsigned char는 8비트로 0부터 255까지의 값만 표현할 수 있다. 255에 1을 더한 256은 표현 범위를 벗어나므로, 256을 256(2의 8제곱)으로 나눈 나머지인 0으로 순환(wrap around)한다."
+  optionExplanations={['표현 범위를 넘는 값이 순환해 0이 되는 것이 부호 없는 정수 오버플로의 정확한 동작이므로 정답이다.', '256은 unsigned char의 표현 범위를 벗어난 값이라 실제로 저장될 수 없다.', '255는 더하기 전의 원래 값일 뿐 계산 결과가 아니다.', '1은 순환 계산을 잘못 적용했을 때 나올 수 있는 값이다.']}
+/>
+
+## 조건문·반복문 제어 구조 (9–13, 19–20)
+
+### 문제 9
+
+```c
+#include <stdio.h>
+
+int main(void) {
+    int x = 5;
+    if (x > 0)
+        if (x > 10)
+            printf("A");
+        else
+            printf("B");
+    return 0;
+}
+```
+
+<Quiz
+  questionNumber={13}
+  question="위 코드를 실행했을 때 출력되는 결과는?"
+  options={['B', 'A', '아무것도 출력되지 않는다', '컴파일 오류가 발생한다']}
+  correctAnswer={1}
+  explanation="else는 중괄호로 짝이 명확히 표시되지 않은 경우 문법상 가장 가까운 if에 연결된다. 이 코드에서 else는 x &gt; 10 조건의 if에 연결되며, x가 5이므로 x &gt; 10은 거짓이라 else 블록인 B가 출력된다."
+  optionExplanations={['else가 가장 가까운 if(x > 10)에 연결되고 그 조건이 거짓이므로 B가 출력되어 정답이다.', 'A는 x > 10이 참일 때만 출력되는데 x는 5이므로 조건이 거짓이다.', 'x > 0이 참이므로 안쪽 if-else 문이 실행되어 반드시 무언가 출력된다.', '이 코드는 문법적으로 올바른 중첩 if-else 구조이므로 컴파일 오류가 나지 않는다.']}
+/>
+
+### 문제 10
+
+```c
+#include <stdio.h>
+
+int main(void) {
+    int n = 2;
+    switch (n) {
+        case 1:
+            printf("one ");
+        case 2:
+            printf("two ");
+        case 3:
+            printf("three ");
+            break;
+        default:
+            printf("other");
+    }
+    return 0;
+}
+```
+
+<Quiz
+  questionNumber={14}
+  question="위 코드를 실행했을 때 출력되는 결과는?"
+  options={['two three ', 'two ', 'two three other', 'one two three ']}
+  correctAnswer={1}
+  explanation="n이 2이므로 case 2로 진입한다. case 2에는 break가 없으므로 그 다음 case 3의 코드까지 이어서 실행되는 폴스루(fall-through)가 일어나고, case 3의 break에서 멈춘다. 따라서 two 와 three 가 순서대로 출력된다."
+  optionExplanations={['case 2에서 시작해 break 없이 case 3까지 이어져 실행되므로 이것이 정답이다.', 'case 2 뒤에 break가 없으므로 case 3의 코드까지 실행되어 two 만 출력되고 끝나지 않는다.', 'case 3의 break가 default로의 진입을 막으므로 other는 출력되지 않는다.', 'case 1은 n이 1일 때만 진입하는데 n은 2이므로 one 은 출력되지 않는다.']}
+/>
+
+### 문제 11
+
+```c
+#include <stdio.h>
+
+int main(void) {
+    int i = 5;
+    while (i < 5) {
+        printf("A");
+        i++;
+    }
+    printf("end");
+    return 0;
+}
+```
+
+<Quiz
+  questionNumber={15}
+  question="위 코드를 실행했을 때 출력되는 결과는?"
+  options={['end', 'Aend', '무한 루프에 빠진다', '컴파일 오류가 발생한다']}
+  correctAnswer={1}
+  explanation="while문은 조건을 먼저 검사한 뒤 몸체를 실행한다. i가 5이고 조건이 5 미만인지 검사하는데 이는 처음부터 거짓이므로 while문의 몸체는 한 번도 실행되지 않고 곧바로 end만 출력된다. 만약 do-while문이었다면 조건 검사 전에 몸체가 최소 한 번 실행되어 Aend가 출력되었을 것이다."
+  optionExplanations={['조건이 처음부터 거짓이라 while문 몸체가 한 번도 실행되지 않으므로 end만 출력되는 것이 정답이다.', 'Aend는 do-while문처럼 몸체가 최소 한 번 실행되었을 때 나오는 결과이지 while문의 결과가 아니다.', 'i가 증가하는 조건에 진입하지 못하므로 무한 루프에 빠지지 않는다.', '이 코드는 문법적으로 올바른 while문이므로 컴파일 오류가 나지 않는다.']}
+/>
+
+### 문제 12
+
+```c
+#include <stdio.h>
+
+int main(void) {
+    int sum = 0;
+    for (int i = 1; i <= 3; i++) {
+        for (int j = 1; j <= 2; j++) {
+            sum += i * j;
+        }
+    }
+    printf("%d\n", sum);
+    return 0;
+}
+```
+
+<Quiz
+  questionNumber={16}
+  question="위 코드를 실행했을 때 출력되는 sum의 값은?"
+  options={['18', '12', '9', '6']}
+  correctAnswer={1}
+  explanation="바깥 반복은 i가 1부터 3까지, 안쪽 반복은 j가 1부터 2까지 돌며 i 곱하기 j를 sum에 누적한다. i가 1일 때 1과 2를 더해 3, i가 2일 때 2와 4를 더해 6(누적 9), i가 3일 때 3과 6을 더해 9(누적 18)가 되어 최종 sum은 18이다."
+  optionExplanations={['각 단계를 누적한 최종 합계 18이 정확한 결과이므로 정답이다.', '12는 안쪽 반복 범위를 잘못 계산했을 때 나올 수 있는 값이다.', '9는 마지막 바깥 반복 한 단계의 누적값에 해당해 전체 합계가 아니다.', '6은 첫 두 단계까지만 계산했을 때 나올 수 있는 값이다.']}
+/>
+
+### 문제 13
+
+```c
+#include <stdio.h>
+
+int main(void) {
+    int sum = 0;
+    for (int i = 1; i <= 5; i++) {
+        if (i == 3) continue;
+        if (i == 5) break;
+        sum += i;
+    }
+    printf("%d\n", sum);
+    return 0;
+}
+```
+
+<Quiz
+  questionNumber={17}
+  question="위 코드를 실행했을 때 출력되는 sum의 값은?"
+  options={['7', '10', '6', '15']}
+  correctAnswer={1}
+  explanation="i가 1일 때 sum은 1, i가 2일 때 sum은 3이 된다. i가 3일 때는 continue를 만나 sum을 더하지 않고 바로 다음 반복으로 넘어간다. i가 4일 때 sum은 7이 된다. i가 5일 때는 sum에 더하기 전에 break를 만나 반복문을 완전히 빠져나가므로 최종 sum은 7이다."
+  optionExplanations={['1, 2, 4를 더한 7이 정확한 최종값이므로 정답이다.', '10은 continue와 break를 모두 무시하고 1부터 4까지 전부 더했을 때 나오는 값이다.', '6은 4를 더하지 않고 멈췄을 때 나올 수 있는 값이다.', '15는 1부터 5까지 전부 더했을 때 나오는 값으로 continue와 break의 효과를 반영하지 않은 오답이다.']}
+/>
+
+### 문제 19
+
+```c
+#include <stdio.h>
+
+int main(void) {
+    int x = -5;
+    if (x) {
+        printf("nonzero");
+    } else {
+        printf("zero");
+    }
+    return 0;
+}
+```
+
+<Quiz
+  questionNumber={18}
+  question="위 코드를 실행했을 때 출력되는 결과는?"
+  options={['nonzero', 'zero', '컴파일 오류가 발생한다', '아무것도 출력되지 않는다']}
+  correctAnswer={1}
+  explanation="C에서 조건식은 0이면 거짓, 0이 아닌 모든 값(양수는 물론 음수도 포함)은 참으로 취급한다. x가 -5로 0이 아니므로 if의 조건은 참이 되어 nonzero가 출력된다."
+  optionExplanations={['음수도 0이 아니므로 참으로 취급되어 nonzero가 출력되는 것이 정답이다.', 'zero는 x가 0일 때만 출력되는데 x는 -5이므로 해당하지 않는다.', '정수를 조건식에 그대로 쓰는 것은 C에서 허용되는 문법이므로 컴파일 오류가 아니다.', 'if-else 구조상 두 갈래 중 반드시 하나는 출력된다.']}
+/>
+
+### 문제 20
+
+<Quiz
+  questionNumber={19}
+  question="정수형 변수를 printf에서 실수 형식 지정자(%f 계열)로 출력하도록 잘못 지정했을 때 나타나는 현상으로 가장 적절한 것은?"
+  options={['형식 지정자와 실제 인자의 자료형이 일치하지 않아 미정의 동작(엉뚱한 값)이 나타날 수 있다.', '컴파일러가 자동으로 형식 지정자를 정수형에 맞게 고쳐 정상 출력한다.', '반드시 컴파일 오류가 발생해 실행 파일이 만들어지지 않는다.', '항상 0.0이 출력된다.']}
+  correctAnswer={1}
+  explanation="printf는 형식 지정자와 실제로 전달된 인자의 자료형이 일치한다고 가정하고 메모리에서 값을 읽어 해석한다. 정수형 인자를 %f처럼 실수용 지정자로 읽으려 하면 저장 방식 자체가 다르기 때때문에 값이 깨져 예측할 수 없는 결과가 나오는 미정의 동작이 된다."
+  optionExplanations={['형식과 실제 자료형이 다르면 값이 잘못 해석되어 미정의 동작이 나타날 수 있다는 설명이 정확하므로 정답이다.', 'printf는 형식 지정자를 실제 인자에 맞춰 자동으로 고쳐주지 않는다.', '이는 문법 오류가 아니라 실행 시점에 값 해석이 잘못되는 문제라 컴파일 오류로 이어지지 않는다.', '항상 0.0이 나온다고 단정할 수 없으며 실제로는 예측 불가능한 값이 나타난다.']}
+/>
+
+## 참고 자료
+
+- [cppreference.com - C 언어 연산자와 제어문 레퍼런스](https://en.cppreference.com/w/c/language)
+- [국가평생교육진흥원 독학학위제](https://bdes.nile.or.kr)

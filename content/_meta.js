@@ -129,6 +129,26 @@ const meta = {
         title: '1단계 기초통계학',
         href: '/독학사/1단계_기초통계학/01_exam-overview',
       },
+      '2단계_C프로그래밍': {
+        title: '2단계 C프로그래밍',
+        href: '/독학사/2단계_C프로그래밍/01_exam-structure',
+      },
+      '2단계_논리회로': {
+        title: '2단계 논리회로',
+        href: '/독학사/2단계_논리회로/01_math-basics',
+      },
+      '2단계_이산수학': {
+        title: '2단계 이산수학',
+        href: '/독학사/2단계_이산수학/01_basic-notation',
+      },
+      '2단계_자료구조': {
+        title: '2단계 자료구조',
+        href: '/독학사/2단계_자료구조/01_prereq-data-structure-basics',
+      },
+      '2단계_웹프로그래밍': {
+        title: '2단계 웹프로그래밍',
+        href: '/독학사/2단계_웹프로그래밍/01_internet-and-web-basics',
+      },
       '2단계_컴퓨터구조': {
         title: '2단계 컴퓨터구조',
         href: '/독학사/2단계_컴퓨터구조/01_number-system-basics',

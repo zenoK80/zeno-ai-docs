@@ -11,6 +11,26 @@ const meta = {
     title: '1단계 기초통계학',
     type: 'page',
   },
+  '2단계_C프로그래밍': {
+    title: '2단계 C프로그래밍',
+    type: 'page',
+  },
+  '2단계_논리회로': {
+    title: '2단계 논리회로',
+    type: 'page',
+  },
+  '2단계_이산수학': {
+    title: '2단계 이산수학',
+    type: 'page',
+  },
+  '2단계_자료구조': {
+    title: '2단계 자료구조',
+    type: 'page',
+  },
+  '2단계_웹프로그래밍': {
+    title: '2단계 웹프로그래밍',
+    type: 'page',
+  },
   '2단계_컴퓨터구조': {
     title: '2단계 컴퓨터구조',
     type: 'page',

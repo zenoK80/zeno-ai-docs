@@ -1,0 +1,28 @@
+const meta = {
+  '01_exam-structure': '01. 독학사 4단계 실용영어 시험 구조와 응시 전략',
+  '02_scope-and-syllabus': '02. 국가평생교육진흥원 평가영역·출제방향 읽기',
+  '03_core-terminology': '03. 실용영어 시험용 핵심 용어·지시문 읽는 법',
+  '04_logical-reading-basics': '04. 논리 독해를 위한 기본 사고 법칙',
+  '05_grammar-basics-bridge': '05. 실용영어 시험에서 자주 나오는 문법 기초 다리',
+  '06_exam-types-overview': '06. 실용영어 전체 출제 유형 지도',
+  '07_vocabulary-frequency': '07. 실용 어휘·구동사·숙어 출제 포인트',
+  '08_vocabulary-application': '08. 어휘·숙어 문제 유형별 풀이 전략',
+  '09_grammar-tenses-voice': '09. 시제·태·수일치·조동사 핵심 어법',
+  '10_grammar-clauses-connectors': '10. 접속사·관계사·절 구조와 논리',
+  '11_grammar-agreement-parallel': '11. 병렬·일치·대명사·전치사 어법',
+  '12_grammar-error-questions': '12. 문법·어법 오류 찾기·수정 유형',
+  '13_reading-main-idea': '13. 주제·요지·제목·요약 독해',
+  '14_reading-detail-inference': '14. 세부사항·추론·태도·함의 문제',
+  '15_reading-blank-order-insertion': '15. 빈칸·순서·삽입·무관 문장 독해',
+  '16_sentence-completion-transformation': '16. 문장 완성·전환·재배열·해석',
+  '17_writing-short-composition': '17. 단문 영작·문장 구성 필수 구문',
+  '18_practical-english-expressions': '18. 생활·실용·비즈니스 영어 필수 표현',
+  '19_dialogue-questions': '19. 대화문·상황별 회화 문제 풀이',
+  '20_integrated-mock-test-1': '20. 실용영어 영역 통합 모의고사 1회',
+  '21_integrated-mock-test-2': '21. 실용영어 영역 통합 모의고사 2회',
+  '22_past-papers-analysis-1': '22. 독학사 4단계 실용영어 기출·복원 분석 1 (최근 3개년)',
+  '23_past-papers-analysis-2': '23. 독학사 4단계 실용영어 기출·복원 분석 2 (유형별 재구성)',
+  '24_final-checklist': '24. 시험 직전 최종 점검·출제 포인트 체크리스트',
+}
+
+export default meta

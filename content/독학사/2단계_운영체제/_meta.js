@@ -1,0 +1,25 @@
+const meta = {
+  '01_os-terminology-map': '01. 운영체제 용어 지도와 시험 언어',
+  '02_hardware-basics-for-os': '02. 운영체제를 읽기 위한 하드웨어 기초',
+  '03_process-and-state-model': '03. 프로세스·프로그램·상태 전이 입문',
+  '04_thread-and-aceess-basics': '04. 스레드와 동기화 기호 읽는 법',
+  '05_os-overview-and-types': '05. 운영체제의 역할·구조·유형',
+  '06_process-management-and-pcb': '06. 프로세스 관리와 PCB의 모든 것',
+  '07_cpu-scheduling-foundations': '07. CPU 스케줄링의 원리와 평가 기준',
+  '08_cpu-scheduling-algorithms': '08. CPU 스케줄링 알고리즘 완전 정복',
+  '09_threads-and-process-communication': '09. 스레드, IPC, 그리고 동시성의 구조',
+  '10_synchronization-and-critical-section': '10. 임계구역과 프로세스 동기화',
+  '11_deadlock': '11. 교착상태의 원인과 해결 전략',
+  '12_memory-management-basic': '12. 메모리 관리와 주소 변환 기초',
+  '13_paging-and-segmentation': '13. 페이징과 세그먼테이션',
+  '14_virtual-memory-and-demand-paging': '14. 가상메모리와 요구 페이징',
+  '15_page-replacement-algorithms': '15. 페이지 교체 알고리즘 계산 특강',
+  '16_file-system-fundamentals': '16. 파일 시스템의 기본 구조',
+  '17_file-allocation-and-directory-structure': '17. 파일 할당 방식과 디렉터리 심화',
+  '18_io-system-and-interrupts': '18. 입출력 시스템과 인터럽트 처리',
+  '19_disk-scheduling': '19. 디스크 스케줄링과 저장장치 접근',
+  '20_protection-and-security': '20. 보호와 보안의 기본 개념',
+  '21_expected-exam-questions': '21. 독학사 2단계 운영체제 예상기출문제',
+}
+
+export default meta

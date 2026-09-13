@@ -1,0 +1,228 @@
+---
+title: '14. SQL 고급: 그룹화·뷰·권한과 간단한 DCL'
+description: 'GROUP BY·HAVING과 집계 함수, VIEW 정의·활용, GRANT/REVOKE 기본 DCL을 예제 데이터로 계산하고 시험에 나오는 보안·권한 개념까지 정리한다'
+---
+
+<Callout type="info">
+  **이번 문서의 목표:** 이 파일을 다 읽으면 GROUP BY로 데이터를 묶어 집계하고 HAVING으로 그룹을 걸러내는 질의를 직접 계산하며, VIEW를 만들어 재사용·보안에 활용하고, GRANT·REVOKE로 권한을 부여·회수하는 SQL을 읽고 쓸 수 있게 된다.
+</Callout>
+
+## 왜 그룹화·뷰·권한이 필요한가
+
+13편의 조인·서브쿼리가 "여러 테이블을 하나로 합치는" 기술이었다면, 이 편은 합쳐진 데이터를 **요약**하고(그룹화), 자주 쓰는 질의를 **재사용 가능한 형태로 저장**하고(뷰), 누가 어떤 데이터를 볼 수 있는지 **통제**하는(권한) 기술입니다. "과목별 평균 성적이 얼마인가", "이 사용자에게는 성적 컬럼을 숨기고 평균만 보여주고 싶다"처럼 실무와 시험 모두에서 자주 나오는 요구를 다룹니다.
+
+> **쉽게 말하면:** GROUP BY는 "같은 값끼리 한 덩어리로 묶기", HAVING은 "묶은 덩어리 중 조건에 맞는 것만 남기기", VIEW는 "자주 쓰는 질의에 이름을 붙여 테이블처럼 쓰기", GRANT/REVOKE는 "누구에게 무엇을 허락하고 거둬들일지 정하기"입니다.
+
+이 편은 13편과 같은 예제 스키마(`STUDENT`, `COURSE`, `ENROLL`)를 계속 사용합니다.
+
+**ENROLL(학번, 과목코드, 성적)**
+
+| 학번 | 과목코드 | 성적 |
+|------|----------|------|
+| S1 | C001 | 90 |
+| S1 | C002 | 85 |
+| S2 | C001 | 78 |
+| S3 | C001 | NULL |
+| S3 | C003 | 92 |
+| S4 | C002 | 88 |
+| S5 | C005 | 70 |
+
+`S3, C001` 행의 성적이 `NULL`인 것은 아직 채점이 끝나지 않은 상태를 뜻합니다. 이 행은 뒤에서 `COUNT(*)`와 `COUNT(성적)`의 차이를 보여주는 데 씁니다.
+
+## 1. GROUP BY — 같은 값끼리 묶기
+
+**GROUP BY**는 지정한 컬럼의 값이 같은 행들을 하나의 그룹으로 묶고, 그 그룹마다 집계 함수(`COUNT`, `SUM`, `AVG`, `MAX`, `MIN`)를 적용합니다.
+
+```sql
+SELECT 과목코드, AVG(성적) AS 평균성적, COUNT(*) AS 전체행수, COUNT(성적) AS 채점행수
+FROM ENROLL
+GROUP BY 과목코드;
+```
+
+`과목코드`별로 행을 묶어 계산해 보겠습니다.
+
+| 과목코드 | 속한 행 | 평균성적(AVG) | 전체행수(COUNT(*)) | 채점행수(COUNT(성적)) |
+|----------|---------|----------------|----------------------|--------------------------|
+| C001 | (S1,90), (S2,78), (S3,NULL) | (90+78)÷2 = 84 | 3 | 2 |
+| C002 | (S1,85), (S4,88) | (85+88)÷2 = 86.5 | 2 | 2 |
+| C003 | (S3,92) | 92 | 1 | 1 |
+| C005 | (S5,70) | 70 | 1 | 1 |
+
+C001 그룹의 계산을 한 줄씩 짚어 봅니다.
+
+$$
+\text{AVG(성적)} = \frac{90 + 78}{2} = 84
+$$
+
+- 분자의 `90 + 78`은 `성적`이 `NULL`이 아닌 행(S1, S2)의 값만 더한 것입니다.
+- 분모의 `2`도 `NULL`이 아닌 행의 개수입니다. **집계 함수는 `COUNT(*)`를 제외하면 `NULL`을 계산에서 제외합니다.**
+
+<Callout type="warning">
+  **자주 틀리는 점:** `COUNT(*)`는 `NULL` 여부와 무관하게 행 자체의 개수를 세지만, `COUNT(컬럼명)`은 그 컬럼 값이 `NULL`이 아닌 행만 셉니다. C001 그룹에서 `COUNT(*)`는 3이지만 `COUNT(성적)`은 2인 이유가 여기에 있습니다. "다음 집계 함수 결과로 옳은 것은?" 유형에서 `NULL` 포함 여부를 놓치면 바로 틀립니다.
+</Callout>
+
+## 2. HAVING — 그룹을 거르는 조건
+
+**HAVING**은 `GROUP BY`로 만든 **그룹 단위**에 조건을 거는 절입니다. 반면 `WHERE`는 그룹을 만들기 **전에** 개별 행 단위로 조건을 겁니다.
+
+```sql
+SELECT 과목코드, AVG(성적) AS 평균성적
+FROM ENROLL
+GROUP BY 과목코드
+HAVING AVG(성적) >= 85;
+```
+
+위에서 계산한 그룹별 평균(C001: 84, C002: 86.5, C003: 92, C005: 70) 중 85 이상인 그룹만 남기면 다음과 같습니다.
+
+| 과목코드 | 평균성적 |
+|----------|----------|
+| C002 | 86.5 |
+| C003 | 92 |
+
+SQL이 실제로 처리되는 논리적 순서를 그림으로 보면 `WHERE`와 `HAVING`이 왜 다른 단계인지 명확해집니다.
+
+```mermaid
+graph LR
+  A[FROM/JOIN<br/>테이블 결합] --> B[WHERE<br/>행 단위 필터]
+  B --> C[GROUP BY<br/>그룹 묶기]
+  C --> D[HAVING<br/>그룹 단위 필터]
+  D --> E[SELECT<br/>컬럼 계산]
+  E --> F[ORDER BY<br/>정렬]
+```
+
+<Callout type="warning">
+  **자주 틀리는 점:** `WHERE` 절에는 집계 함수를 직접 쓸 수 없습니다(`WHERE AVG(성적) >= 85`는 오류입니다). 이유는 위 흐름에서 보듯 `WHERE`는 그룹이 만들어지기 **전** 단계에서 실행되어 아직 "평균"이라는 개념 자체가 존재하지 않기 때문입니다. 집계 함수로 조건을 걸고 싶다면 반드시 `HAVING`을 써야 합니다.
+</Callout>
+
+## 3. VIEW — 질의를 저장해 테이블처럼 쓰기
+
+**뷰**(view)는 SELECT문을 이름 붙여 저장한 **가상 테이블**입니다. 실제로 데이터를 다시 저장하는 것이 아니라, 뷰를 조회할 때마다 저장된 SELECT문이 다시 실행됩니다.
+
+```sql
+CREATE VIEW 과목별평균성적 AS
+SELECT 과목코드, AVG(성적) AS 평균성적
+FROM ENROLL
+GROUP BY 과목코드;
+```
+
+이제 이 뷰를 일반 테이블처럼 조회할 수 있습니다.
+
+```sql
+SELECT * FROM 과목별평균성적 WHERE 평균성적 >= 85;
+```
+
+결과는 앞서 계산한 HAVING 예제와 같은 C002(86.5), C003(92)입니다. 뷰를 쓰면 좋은 점은 다음과 같습니다.
+
+- **재사용**: 복잡한 조인·그룹화 질의를 매번 다시 쓰지 않고 뷰 이름 하나로 호출한다.
+- **단순화**: 사용자는 내부에 몇 개 테이블이 조인되어 있는지 몰라도 뷰만 조회하면 된다.
+- **보안**: 원본 테이블의 일부 컬럼·행만 보여주는 뷰를 만들어, 민감한 컬럼(예: 개별 학생의 원본 성적)을 숨기고 요약값만 공개할 수 있다. 접근 통제의 자세한 원리는 23편(보안·권한)에서 더 다룬다.
+
+<Callout type="warning">
+  **자주 틀리는 점:** 모든 뷰가 `INSERT`·`UPDATE`로 갱신 가능한 것은 아닙니다. 위 `과목별평균성적`처럼 `GROUP BY`·집계 함수가 들어간 뷰, 여러 테이블을 조인한 뷰, `DISTINCT`가 들어간 뷰는 일반적으로 **갱신 불가능한 뷰**(non-updatable view)입니다. "이 뷰에 UPDATE문을 실행하면?"이라는 문제에서 뷰의 정의(집계·조인 포함 여부)를 먼저 확인해야 합니다.
+</Callout>
+
+## 4. GRANT / REVOKE — 권한을 주고 거둬들이기
+
+**DCL**(Data Control Language, 데이터 제어어)은 데이터베이스에 대한 접근 권한을 관리하는 SQL 명령어 집합으로, 대표적으로 `GRANT`(권한 부여)와 `REVOKE`(권한 회수)가 있습니다.
+
+```sql
+GRANT SELECT, INSERT ON ENROLL TO STU_USER;
+```
+
+`STU_USER`라는 사용자에게 `ENROLL` 테이블에 대한 조회(`SELECT`)와 삽입(`INSERT`) 권한을 부여합니다. 뷰에도 똑같이 권한을 줄 수 있습니다.
+
+```sql
+GRANT SELECT ON 과목별평균성적 TO STU_USER WITH GRANT OPTION;
+```
+
+`WITH GRANT OPTION`은 이 사용자가 받은 권한을 **다른 사용자에게 다시 부여할 수 있게** 허락하는 옵션입니다. 권한을 되돌릴 때는 `REVOKE`를 씁니다.
+
+```sql
+REVOKE INSERT ON ENROLL FROM STU_USER;
+```
+
+`ENROLL`에 대한 `INSERT` 권한만 회수하고, 앞서 준 `SELECT` 권한은 그대로 유지됩니다.
+
+Oracle에서 권한은 크게 두 종류로 나뉩니다.
+
+| 권한 종류 | 의미 | 예시 |
+|-----------|------|------|
+| 시스템 권한(system privilege) | 데이터베이스 객체를 만들거나 세션에 접속하는 등 시스템 차원의 동작 권한 | `CREATE TABLE`, `CREATE SESSION` |
+| 객체 권한(object privilege) | 특정 테이블·뷰 등 객체에 대한 조작 권한 | `SELECT`, `INSERT`, `UPDATE`, `DELETE` ON 특정 테이블 |
+
+<Callout type="warning">
+  **자주 틀리는 점:** `GRANT`·`REVOKE`를 DML(Data Manipulation Language, 데이터 조작어)로 분류하는 오답 보기가 자주 나옵니다. `GRANT`·`REVOKE`는 데이터 자체가 아니라 **권한**을 다루므로 DCL입니다. DDL(`CREATE`·`ALTER`·`DROP`), DML(`SELECT`·`INSERT`·`UPDATE`·`DELETE`), DCL(`GRANT`·`REVOKE`)의 분류를 헷갈리지 않아야 합니다.
+</Callout>
+
+## WHERE vs HAVING, DML vs DCL 비교
+
+| 구분 | WHERE | HAVING |
+|------|-------|--------|
+| 적용 시점 | GROUP BY 이전, 행 단위 | GROUP BY 이후, 그룹 단위 |
+| 집계 함수 사용 | 불가능 | 가능 |
+| 목적 | 개별 행을 거른다 | 그룹(요약값)을 거른다 |
+
+| 구분 | DML | DCL |
+|------|-----|-----|
+| 대표 명령어 | SELECT, INSERT, UPDATE, DELETE | GRANT, REVOKE |
+| 다루는 대상 | 데이터 자체 | 데이터에 대한 접근 권한 |
+| 실행 결과 | 데이터가 조회·변경된다 | 사용자의 권한이 변경된다 |
+
+## 핵심 정리
+
+- GROUP BY는 같은 값을 가진 행을 그룹으로 묶고, 그 안에서 집계 함수를 계산한다. COUNT(*)는 NULL 여부와 무관하게 행 수를 세지만 COUNT(컬럼)은 NULL을 제외하고 센다.
+- WHERE는 그룹이 만들어지기 전 행 단위 필터이므로 집계 함수를 쓸 수 없고, HAVING은 그룹이 만들어진 후 그룹 단위로 집계 함수 조건을 건다.
+- SQL의 논리적 처리 순서는 FROM/JOIN → WHERE → GROUP BY → HAVING → SELECT → ORDER BY이다.
+- VIEW는 SELECT문을 저장한 가상 테이블로 재사용·단순화·보안에 쓰이지만, 집계·조인·DISTINCT가 포함된 뷰는 일반적으로 갱신이 불가능하다.
+- DCL의 GRANT는 권한을 부여하고 REVOKE는 권한을 회수하며, Oracle 권한은 시스템 권한과 객체 권한으로 나뉜다. GRANT·REVOKE는 DML이 아니라 DCL이다.
+
+## 마무리 복습
+
+<Quiz
+  questionNumber={1}
+  question="ENROLL 테이블에서 C001 그룹에 (S1,90), (S2,78), (S3,NULL) 세 행이 있을 때, COUNT(*)와 COUNT(성적)의 값으로 옳은 것은?"
+  options={['COUNT(*) = 2, COUNT(성적) = 2', 'COUNT(*) = 3, COUNT(성적) = 3', 'COUNT(*) = 3, COUNT(성적) = 2', 'COUNT(*) = 2, COUNT(성적) = 3']}
+  correctAnswer={3}
+  explanation="COUNT(*)는 NULL 여부와 무관하게 행의 개수를 세므로 3이고, COUNT(성적)은 성적이 NULL이 아닌 행만 세므로 (S1,90)과 (S2,78) 2개다."
+  optionExplanations={['COUNT(*)는 NULL 행도 포함해 3이 되어야 한다', 'COUNT(성적)은 NULL인 (S3,NULL) 행을 제외해야 하므로 3이 아니라 2다', '정답 — COUNT(*)는 전체 행 3, COUNT(성적)은 NULL을 제외한 2다', 'COUNT(*)와 COUNT(성적)의 값이 서로 반대로 제시되어 있다']}
+/>
+
+<Quiz
+  questionNumber={2}
+  question="다음 중 WHERE와 HAVING의 차이에 대한 설명으로 옳지 않은 것은?"
+  options={['WHERE는 GROUP BY로 그룹을 만들기 전 행 단위로 조건을 적용한다', 'HAVING은 GROUP BY로 만든 그룹 단위에 조건을 적용한다', 'WHERE 절에는 AVG, SUM 같은 집계 함수를 직접 사용할 수 있다', 'HAVING 절에는 집계 함수를 사용한 조건을 걸 수 있다']}
+  correctAnswer={3}
+  explanation="WHERE는 그룹이 만들어지기 이전 단계에서 실행되므로 아직 집계값이라는 개념이 존재하지 않아 집계 함수를 직접 쓸 수 없다. 집계 함수 조건은 HAVING에 써야 한다."
+  optionExplanations={['WHERE가 GROUP BY 이전 단계에서 행 단위로 동작한다는 것은 옳은 설명이다', 'HAVING이 그룹 단위로 조건을 적용한다는 것은 옳은 설명이다', '정답 — WHERE 절에 집계 함수를 직접 쓰면 오류가 발생하며, 집계 함수 조건은 HAVING에 써야 한다', 'HAVING 절은 GROUP BY 이후 단계이므로 집계 함수를 이용한 조건을 걸 수 있다는 것은 옳은 설명이다']}
+/>
+
+<Quiz
+  questionNumber={3}
+  question="GROUP BY 과목코드로 묶은 뒤 HAVING AVG(성적) &gt;= 85 조건을 적용했을 때, 예제 데이터(C001 평균 84, C002 평균 86.5, C003 평균 92, C005 평균 70) 기준으로 남는 과목코드는?"
+  options={['C001, C002', 'C002, C003', 'C001, C003, C005', 'C002, C003, C005']}
+  correctAnswer={2}
+  explanation="평균성적이 85 이상인 그룹은 C002(86.5)와 C003(92)이다. C001(84)과 C005(70)는 85 미만이므로 제외된다."
+  optionExplanations={['C001의 평균은 84로 85 미만이므로 조건을 만족하지 못한다', '정답 — C002(86.5)와 C003(92)만 85 이상 조건을 만족한다', 'C001과 C005는 각각 84, 70으로 85 미만이므로 결과에 포함될 수 없다', 'C005의 평균은 70으로 85 미만이므로 조건을 만족하지 못한다']}
+/>
+
+<Quiz
+  questionNumber={4}
+  question="GROUP BY와 집계 함수가 포함된 뷰(VIEW)에 대한 설명으로 옳은 것은?"
+  options={['모든 뷰는 원본 테이블처럼 자유롭게 INSERT·UPDATE할 수 있다', '집계 함수나 GROUP BY가 포함된 뷰는 일반적으로 갱신이 불가능하다', '뷰는 실제 데이터를 별도로 복제해서 저장하는 테이블이다', '뷰는 조회 성능 향상을 위해서만 사용되며 보안 목적으로는 쓰이지 않는다']}
+  correctAnswer={2}
+  explanation="GROUP BY·집계 함수·조인·DISTINCT가 포함된 뷰는 원본 테이블의 어떤 행을 갱신해야 할지 명확하지 않아 일반적으로 갱신이 불가능한 뷰로 취급된다."
+  optionExplanations={['집계·조인·DISTINCT가 포함된 뷰는 갱신이 제한되므로 모든 뷰가 자유롭게 갱신 가능한 것은 아니다', '정답 — 집계 함수나 GROUP BY가 포함된 뷰는 갱신이 불가능한 뷰로 분류되는 것이 일반적이다', '뷰는 데이터를 별도로 저장하지 않는 가상 테이블이며, 조회 시마다 저장된 SELECT문이 다시 실행된다', '뷰는 민감한 컬럼을 숨기고 필요한 부분만 노출하는 보안 목적으로도 널리 쓰인다']}
+/>
+
+<Quiz
+  questionNumber={5}
+  question="GRANT와 REVOKE에 대한 설명으로 옳지 않은 것은?"
+  options={['GRANT는 사용자에게 권한을 부여하는 DCL 명령어이다', 'REVOKE는 이미 부여된 권한을 회수하는 DCL 명령어이다', 'WITH GRANT OPTION은 받은 권한을 다른 사용자에게 다시 부여할 수 있게 하는 옵션이다', 'GRANT와 REVOKE는 데이터 자체를 조작하는 DML 명령어로 분류된다']}
+  correctAnswer={4}
+  explanation="GRANT와 REVOKE는 데이터가 아니라 사용자의 접근 권한을 다루는 DCL(Data Control Language) 명령어이지 DML이 아니다."
+  optionExplanations={['GRANT가 권한을 부여하는 DCL 명령어라는 설명은 옳다', 'REVOKE가 권한을 회수하는 DCL 명령어라는 설명은 옳다', 'WITH GRANT OPTION의 기능 설명은 옳다', '정답 — GRANT·REVOKE는 데이터가 아닌 권한을 다루는 DCL이며 DML로 분류되지 않는다']}
+/>
+
+## 참고 자료
+
+- [Oracle Database SQL Language Reference](https://docs.oracle.com/en/database/oracle/oracle-database/)

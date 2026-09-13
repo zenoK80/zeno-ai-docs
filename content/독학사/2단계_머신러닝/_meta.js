@@ -1,0 +1,28 @@
+const meta = {
+  '01_ml-basics': '01. 인공지능·머신러닝·딥러닝 개념 지도',
+  '02_data-and-prob': '02. 데이터·확률·통계 용어 정리',
+  '03_linear-algebra-ml': '03. 머신러닝에서 쓰이는 기초 선형대수',
+  '04_python-ml-tools': '04. 파이썬·scikit-learn 기본 사용법',
+  '05_exam-overview': '05. 독학사 2단계 머신러닝 시험 구조·출제 포인트',
+  '06_ml-workflow': '06. 머신러닝 전체 흐름과 데이터 전처리 개요',
+  '07_learning-paradigms': '07. 지도·비지도·강화학습 패러다임',
+  '08_regression-linear': '08. 선형·다항 회귀의 원리와 해석',
+  '09_regression-regularization': '09. 릿지·라쏘 회귀와 정규화',
+  '10_logistic-classification': '10. 로지스틱 회귀와 이진·다중 분류',
+  '11_trees-and-nb': '11. 결정트리와 나이브 베이즈 분류',
+  '12_knn-and-svm': '12. K-NN과 SVM: 거리 기반·마진 기반 분류',
+  '13_ensemble-methods': '13. 배깅·랜덤포레스트·부스팅 개요',
+  '14_unsupervised-clustering': '14. K-means·계층적 군집·DBSCAN 개념',
+  '15_association-rules': '15. 연관 규칙과 항목집합 개요',
+  '16_dimensionality': '16. 차원 저주의 직관과 축소 동기',
+  '17_pca-lda': '17. PCA와 LDA의 개념·수식 의미',
+  '18_evaluation-metrics': '18. 분류 평가 지표와 혼동행렬 계산',
+  '19_model-selection': '19. 과적합·편향-분산·교차검증',
+  '20_neural-basics': '20. 퍼셉트론·MLP·역전파의 역할',
+  '21_practice-concepts': '21. 개념 확인·용어 정의 연습문제',
+  '22_practice-calculation': '22. 계산·지표·수식 문제 집중 연습',
+  '23_practice-comparison': '23. 알고리즘 비교·장단점·적용 상황 문제',
+  '24_ml-mock-exam': '24. 독학사 2단계 머신러닝 예상기출모의고사',
+}
+
+export default meta

@@ -1,7 +1,7 @@
 {
-  "generatedAt": "2026-09-14T04:18:24.023Z",
+  "generatedAt": "2026-09-14T04:42:02.557Z",
   "groupCount": 6,
-  "seriesCount": 36,
+  "seriesCount": 41,
   "groups": [
     {
       "title": "CSS",
@@ -105,7 +105,7 @@
     },
     {
       "title": "독학사",
-      "description": "21개 시리즈 · 문서 500편",
+      "description": "26개 시리즈 · 문서 625편",
       "order": "05",
       "series": [
         {
@@ -261,12 +261,28 @@
           "accent": "red"
         },
         {
+          "title": "4단계 국사",
+          "description": "독학사 학위취득 종합시험 체계에서 국사 과목이 차지하는 위치, 시험 형태·문항수·배점, 평가영역·출제기준표를 읽는 법을 정리한다.",
+          "href": "/독학사/4단계_국사/01_exam-structure",
+          "documentCount": 24,
+          "preview": "code",
+          "accent": "blue"
+        },
+        {
+          "title": "4단계 국어",
+          "description": "국어국문학 4단계 학위취득 종합시험의 과목 구성, 문항 유형과 배점, 합격 기준, 효율적인 학습 전략을 정리한다",
+          "href": "/독학사/4단계_국어/01_korean-exam-overview",
+          "documentCount": 27,
+          "preview": "code",
+          "accent": "green"
+        },
+        {
           "title": "4단계 데이터베이스",
           "description": "독학사 학위취득 종합시험 제도와 컴퓨터공학 전공 구조, 4단계 평가 수준, 데이터베이스 과목의 위치와 난이도, 문항 유형·시간 전략을 정리한다",
           "href": "/독학사/4단계_데이터베이스/01_exam-overview",
           "documentCount": 26,
           "preview": "sql",
-          "accent": "blue"
+          "accent": "amber"
         },
         {
           "title": "4단계 실용영어",
@@ -274,7 +290,31 @@
           "href": "/독학사/4단계_실용영어/01_exam-structure",
           "documentCount": 24,
           "preview": "code",
+          "accent": "red"
+        },
+        {
+          "title": "4단계 알고리즘",
+          "description": "독학학위제 4단계 종합시험의 제도적 성격과 알고리즘 과목의 출제범위·평가 수준·문항 유형을 정리해, 이후 학습의 깊이 기준을 잡는다.",
+          "href": "/독학사/4단계_알고리즘/01_exam-outline",
+          "documentCount": 24,
+          "preview": "code",
+          "accent": "blue"
+        },
+        {
+          "title": "4단계 통합컴퓨터시스템",
+          "description": "독학사 4단계 학위취득종합시험에서 통합컴퓨터시스템 과목이 차지하는 위치와 출제기준의 얼개를 정리한다",
+          "href": "/독학사/4단계_통합컴퓨터시스템/01_exam-structure",
+          "documentCount": 24,
+          "preview": "code",
           "accent": "green"
+        },
+        {
+          "title": "4단계 통합프로그래밍",
+          "description": "독학사 학위취득 종합시험에서 통합프로그래밍이 차지하는 위치, 총점합격제·과목별합격제의 의미, 통합프로그래밍이 왜 여러 과목을 코드로 묶어 내는 시험인지 먼저 지도를 그린다",
+          "href": "/독학사/4단계_통합프로그래밍/01_exam-structure",
+          "documentCount": 26,
+          "preview": "code",
+          "accent": "amber"
         }
       ]
     },
@@ -289,7 +329,7 @@
           "href": "/자격증/ADSP/01_adsp-exam-and-r-setup",
           "documentCount": 30,
           "preview": "code",
-          "accent": "amber"
+          "accent": "red"
         },
         {
           "title": "PC정비사 2급 실기",
@@ -297,7 +337,7 @@
           "href": "/자격증/PC정비사_2급_실기/01_pc-exam-roadmap",
           "documentCount": 17,
           "preview": "code",
-          "accent": "red"
+          "accent": "blue"
         },
         {
           "title": "SQLD",
@@ -305,7 +345,7 @@
           "href": "/자격증/SQLD/00_practice-environment",
           "documentCount": 31,
           "preview": "sql",
-          "accent": "blue"
+          "accent": "green"
         },
         {
           "title": "네트워크관리사 2급 실기",
@@ -313,7 +353,7 @@
           "href": "/자격증/네트워크관리사_2급_실기/01_network-basics-for-practical-use",
           "documentCount": 13,
           "preview": "browser",
-          "accent": "green"
+          "accent": "amber"
         },
         {
           "title": "리눅스마스터 2급 1차",
@@ -321,7 +361,7 @@
           "href": "/자격증/리눅스마스터_2급_1차/00_practice-environment",
           "documentCount": 31,
           "preview": "code",
-          "accent": "amber"
+          "accent": "red"
         },
         {
           "title": "빅데이터분석기사 필기",
@@ -329,7 +369,7 @@
           "href": "/자격증/빅데이터분석기사_필기/01_exam-overview",
           "documentCount": 32,
           "preview": "chart",
-          "accent": "red"
+          "accent": "blue"
         }
       ]
     }

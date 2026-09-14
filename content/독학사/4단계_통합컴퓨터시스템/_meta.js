@@ -1,0 +1,28 @@
+const meta = {
+  '01_exam-structure': '01. 통합컴퓨터시스템 과목 개요와 시험 구조',
+  '02_system-terminology-map': '02. 통합컴퓨터시스템 핵심 용어 지도',
+  '03_math-and-performance-basics': '03. 성능·계산 문제를 위한 기본 수학 도구',
+  '04_os-and-architecture-review': '04. 컴퓨터구조·운영체제 3단계 수준 빠른 복습',
+  '05_computer-system-view': '05. 통합컴퓨터시스템: 전체 구조와 관점',
+  '06_processor-and-instruction-set': '06. 프로세서 구조와 명령어 집합',
+  '07_pipeline-basics': '07. 파이프라인 구조와 성능 계산 1',
+  '08_pipeline-hazards': '08. 파이프라인 해저드와 처리 2',
+  '09_memory-hierarchy-basics': '09. 메모리 계층 구조와 캐시 기본',
+  '10_cache-mapping-and-policy': '10. 캐시 매핑·쓰기 정책과 계산',
+  '11_io-and-storage-architecture': '11. 입출력 시스템과 저장장치 구조',
+  '12_disk-raid-and-performance': '12. 디스크 스케줄링·RAID와 성능 계산',
+  '13_os-structure-and-process': '13. 운영체제 구조와 프로세스·스레드: 통합 관점에서 다시 보기',
+  '14_cpu-scheduling': '14. CPU 스케줄링 통합: 다단계 큐·멀티프로세서·실시간 스케줄링',
+  '15_synchronization-and-deadlock': '15. 동기화 기법 비교와 교착상태: 은행원 알고리즘·검출 알고리즘 실전',
+  '16_memory-management': '16. 메모리 관리: 연속 할당·단편화·주소 바인딩 계산',
+  '17_virtual-memory-and-paging': '17. 가상메모리·페이징·페이지 교체',
+  '18_file-system': '18. 파일 시스템 구조와 구현 개요',
+  '19_multiprocessor-and-parallel': '19. 멀티프로세서·병렬·분산 시스템 개요',
+  '20_integrated-system-problems-1': '20. 통합형 문항 1: CPU·메모리·I/O 연계',
+  '21_integrated-system-problems-2': '21. 통합형 문항 2: 운영체제·동기화·분산',
+  '22_chapter-wise-practice': '22. 출제기준 단원별 연습문제',
+  '23_integrated-mock-1': '23. 통합 모의고사 1회분 (해설 포함)',
+  '24_integrated-mock-2': '24. 통합 모의고사 2회분 및 출제 포인트 정리',
+}
+
+export default meta

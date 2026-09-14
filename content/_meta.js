@@ -193,9 +193,29 @@ const meta = {
         title: '3단계 딥러닝',
         href: '/독학사/3단계_딥러닝/01_exam-overview',
       },
+      '4단계_알고리즘': {
+        title: '4단계 알고리즘',
+        href: '/독학사/4단계_알고리즘/01_exam-outline',
+      },
       '4단계_데이터베이스': {
         title: '4단계 데이터베이스',
         href: '/독학사/4단계_데이터베이스/01_exam-overview',
+      },
+      '4단계_통합프로그래밍': {
+        title: '4단계 통합프로그래밍',
+        href: '/독학사/4단계_통합프로그래밍/01_exam-structure',
+      },
+      '4단계_통합컴퓨터시스템': {
+        title: '4단계 통합컴퓨터시스템',
+        href: '/독학사/4단계_통합컴퓨터시스템/01_exam-structure',
+      },
+      '4단계_국어': {
+        title: '4단계 국어',
+        href: '/독학사/4단계_국어/01_korean-exam-overview',
+      },
+      '4단계_국사': {
+        title: '4단계 국사',
+        href: '/독학사/4단계_국사/01_exam-structure',
       },
       '4단계_실용영어': {
         title: '4단계 실용영어',

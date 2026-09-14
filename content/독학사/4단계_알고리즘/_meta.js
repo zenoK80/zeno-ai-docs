@@ -1,0 +1,28 @@
+const meta = {
+  '01_exam-outline': '01. 독학사 4단계 알고리즘 시험 구조와 출제기준',
+  '02_math-basics': '02. 알고리즘 분석을 위한 수학·표기 기초',
+  '03_asymptotic-notation': '03. 점근적 표기와 시간·공간 복잡도',
+  '04_recurrence-basics': '04. 점화식과 재귀 알고리즘 분석 기초',
+  '05_graph-modeling': '05. 그래프 모델링과 표현: 문제를 그래프로 옮기기',
+  '06_basic-sorting': '06. 선택·삽입·버블 정렬: 기본 정렬과 복잡도 비교',
+  '07_advanced-sorting': '07. 퀵·병합 정렬: 분할정복 정렬 알고리즘',
+  '08_heap-sorting': '08. 힙 정렬과 힙 기반 선택 알고리즘',
+  '09_non-comparison-sorting': '09. 기수 정렬과 계수 정렬: 비교 정렬 하한을 넘어서',
+  '10_searching-hashing': '10. 순차·이진 탐색과 해시 탐색: 시간을 사는 대가 계산하기',
+  '11_graph-traversal': '11. DFS와 BFS: 그래프 순회 알고리즘',
+  '12_topology-mst': '12. 위상 정렬과 최소 신장 트리(MST)',
+  '13_shortest-paths': '13. 최단경로 알고리즘: 다익스트라·벨만-포드·플로이드-워셜',
+  '14_string-matching': '14. 문자열 패턴 매칭: 나이브와 KMP',
+  '15_divide-and-conquer': '15. 분할정복 설계 기법과 대표 문제',
+  '16_dynamic-vs-greedy': '16. 동적계획법과 탐욕 알고리즘: 언제 무엇을 쓰는가',
+  '17_backtracking-branch-bound': '17. 백트래킹과 분기한정: 탐색 공간 줄이기',
+  '18_complexity-theory': '18. 계산 복잡도 개요: P·NP·NP-완전·환원',
+  '19_tricky-mixed-questions': '19. 혼합 알고리즘 문제 유형: 정렬·그래프·DP 결합',
+  '20_prev-questions-sorting-search': '20. 예상·기출 변형: 정렬·탐색 파트',
+  '21_prev-questions-graphs': '21. 예상·기출 변형: 그래프·최단경로·MST',
+  '22_prev-questions-design': '22. 예상·기출 변형: 설계 기법(DP·탐욕·분할정복·백트래킹)',
+  '23_prev-questions-complexity': '23. 예상·기출 변형: 계산 복잡도·NP-완전',
+  '24_full-mock-exam': '24. 독학사 4단계 알고리즘 모의 종합시험 (실전 1회분)',
+}
+
+export default meta

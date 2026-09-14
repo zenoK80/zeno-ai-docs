@@ -1,0 +1,441 @@
+---
+title: '23. 독학사 3단계 객체지향프로그래밍 기출 패턴 분석'
+description: '독학사 3단계 객체지향프로그래밍에서 반복되는 출제 패턴과 오개념 포인트를 전 범위에 걸쳐 재구성한 유형 문제 22문항'
+---
+
+<Callout type="warning">
+  **재구성 출제 고지:** 이 문제집은 국가평생교육진흥원 독학학위제 3단계 객체지향프로그래밍 출제기준(평가영역) 전체 범위의 출제 경향을 분석해 새로 구성한 재구성 문항입니다. 실제 기출 문항을 그대로 옮긴 것이 아닙니다. 회차별 정확한 문항 수·시험 시간은 시행처 공고를 확인해야 하며, 여기서는 22문항을 표준 분량으로 구성했습니다.
+</Callout>
+
+## 반복되는 출제 패턴 개관
+
+독학사 3단계 객체지향프로그래밍에서 되풀이해서 나타나는 출제 포인트를 정리하면 아래와 같다. 각 패턴 아래에 해당 패턴을 다루는 문제 번호를 표시해 두었으니, 틀린 문제가 있다면 같은 패턴의 다른 문제도 함께 다시 풀어 보는 것이 좋다.
+
+| 오개념 패턴 | 핵심 함정 | 관련 문제 |
+| --- | --- | --- |
+| 추상 클래스 vs 인터페이스 | 생성자·다중 상속·기본 구현 가능 여부의 차이 | 1–3 |
+| 생성자 안에서 오버라이드된 메서드 호출 | 자식 필드가 아직 초기화되지 않은 시점에 자식 메서드가 실행됨 | 4 |
+| 오버로딩과 오버라이딩의 혼동 | 매개변수 타입이 다르면 오버라이딩이 아니라 별개의 오버로딩이 된다 | 5 |
+| checked·unchecked 예외 계층 | Throwable 아래 Error와 Exception의 구분, RuntimeException의 위치 | 6 |
+| 접근 제어와 패키지의 결합 | default 접근 수준은 클래스 자체에도 적용된다 | 7 |
+| 컬렉션 구현체 선택 | 순서 유지·중복 허용·정렬 여부 조건에 맞는 구현체 고르기 | 8–9 |
+| 정적 바인딩과 동적 바인딩 | 필드·정적 메서드는 정적 바인딩, 오버라이딩된 인스턴스 메서드는 동적 바인딩 | 10 |
+| 다형성의 실무적 가치 | 하위 타입 추가마다 기존 코드를 고쳐야 하는 문제를 다형성이 어떻게 줄이는가 | 11 |
+| UML 표기 구분 | 실선·점선, 속이 빈 삼각형·마름모의 조합이 서로 다른 관계를 뜻함 | 12 |
+| finally와 return의 상호작용 | finally 안의 return이 try의 return 값을 덮어씀 | 13 |
+| 오버라이딩의 공변 반환 타입 | 반환형이 하위 타입으로 바뀌는 것은 오버라이딩 규칙 위반이 아님 | 14 |
+| 객체와 클래스의 관계 | 같은 클래스의 객체라도 필드 값은 서로 다를 수 있음 | 15 |
+| synchronized 블록의 락 객체 | 락으로 사용하는 객체가 스레드 간 공유되어야 동기화가 의미를 가짐 | 16 |
+| 제네릭 없이 사용하는 raw type | 문법적으로는 허용되지만 타입 안전성을 잃는다 | 17 |
+| 오버라이딩 시 접근 범위 확대 | 좁히는 것은 금지되지만 넓히는 것은 허용됨 | 18 |
+| this()와 super()의 동시 사용 금지 | 한 생성자 안에서 둘 다 첫 문장 자리를 다툴 수 없음 | 19 |
+| 캡슐화의 설계 이점 | 내부 구현 변경이 외부 코드에 미치는 영향을 최소화 | 20 |
+| 인터페이스의 추상 메서드 구현 강제 | 구현하지 않으면 클래스 자체가 컴파일되지 않음 | 21 |
+| checked 예외의 위임 | throws로 호출자에게 처리를 미룰 수 있음 | 22 |
+
+## 문제 1
+
+<Quiz
+  questionNumber={1}
+  question="추상 클래스와 인터페이스의 차이에 대한 설명으로 옳지 않은 것은?"
+  options={['① 추상 클래스는 일반 필드와 생성자를 가질 수 있지만, 인터페이스는 생성자를 가질 수 없다', '② 한 클래스는 여러 인터페이스를 구현할 수 있지만, 추상 클래스는 하나만 상속할 수 있다', '③ 추상 클래스에 선언된 추상 메서드는 자식 클래스가 재정의하지 않아도 무방하다', '④ 인터페이스도 default 메서드를 이용해 구현부를 가진 메서드를 선언할 수 있다']}
+  correctAnswer={3}
+  explanation="추상 클래스에 선언된 추상 메서드는 몸체가 없는 선언뿐이므로, 이를 상속받는 구체 클래스(추상 클래스가 아닌 일반 클래스)는 반드시 그 메서드를 재정의해서 몸체를 채워야 한다. 재정의하지 않으면 그 클래스도 추상 클래스로 선언해야 하며, 그렇지 않으면 컴파일 오류가 발생한다."
+  optionExplanations={['추상 클래스는 생성자를 가질 수 있고 인터페이스는 생성자를 가질 수 없다는 차이가 정확하므로 옳은 설명이다.', '자바는 클래스의 다중 상속을 지원하지 않지만 인터페이스는 여러 개를 동시에 구현할 수 있으므로 옳은 설명이다.', '구체 클래스는 추상 메서드를 반드시 구현해야 하므로 재정의하지 않아도 무방하다는 설명은 옳지 않으며 이것이 정답이다.', '자바 8부터 인터페이스에 구현부가 있는 default 메서드를 선언할 수 있으므로 옳은 설명이다.']}
+/>
+
+## 문제 2
+
+```java
+abstract class Shape {
+    abstract double area();
+}
+
+public class Main {
+    public static void main(String[] args) {
+        Shape s = new Shape();
+    }
+}
+```
+
+<Quiz
+  questionNumber={2}
+  question="위 코드를 컴파일했을 때 결과로 옳은 것은?"
+  options={['① 추상 클래스는 인스턴스를 직접 생성할 수 없어 컴파일 오류가 발생한다', '② 정상적으로 객체가 생성되고 area는 0을 반환한다', '③ 런타임에만 오류가 발생한다', '④ Shape 클래스가 자동으로 구체 클래스로 변환되어 정상 실행된다']}
+  correctAnswer={1}
+  explanation="abstract로 선언된 클래스는 몸체가 없는 추상 메서드를 포함할 수 있기 때문에, 완전하지 않은 설계도로 취급되어 new로 직접 인스턴스를 만들 수 없다. Shape는 area라는 추상 메서드를 가진 추상 클래스이므로 new Shape()는 컴파일 시점에 오류로 처리된다."
+  optionExplanations={['추상 클래스는 직접 인스턴스화할 수 없다는 규칙을 정확히 반영하므로 정답이다.', '이 코드는 컴파일 자체가 되지 않으므로 객체가 생성되거나 메서드가 호출될 수 없다.', '이는 컴파일 시점에 걸러지는 오류이지 실행 시점의 오류가 아니다.', '추상 클래스는 자동으로 구체 클래스로 바뀌지 않으며, 구체 클래스가 되려면 개발자가 직접 상속해 추상 메서드를 구현해야 한다.']}
+/>
+
+## 문제 3
+
+<Quiz
+  questionNumber={3}
+  question="한 클래스가 서로 다른 두 인터페이스로부터 시그니처가 같은 default 메서드를 물려받을 때 처리 방법으로 옳은 것은?"
+  options={['① 구현 클래스가 반드시 그 메서드를 오버라이딩해 어느 쪽을 사용할지 명시해야 하며, 그렇지 않으면 컴파일 오류가 발생한다', '② 자바 컴파일러가 임의로 하나를 선택해 자동으로 해결한다', '③ 두 default 메서드가 항상 동시에 실행된다', '④ 이런 상황은 자바에서 애초에 문법적으로 허용되지 않아 인터페이스 선언 자체가 불가능하다']}
+  correctAnswer={1}
+  explanation="서로 다른 인터페이스에서 같은 시그니처의 default 메서드가 충돌하면, 자바는 어느 쪽을 사용할지 스스로 결정하지 않고 컴파일 오류로 처리한다. 이 충돌을 해결하려면 구현 클래스가 그 메서드를 직접 오버라이딩해서 어느 인터페이스의 구현을 쓸지, 또는 완전히 새로운 구현을 쓸지 명시해야 한다."
+  optionExplanations={['개발자가 직접 오버라이딩으로 충돌을 해결해야 한다는 규칙이 정확하므로 정답이다.', '컴파일러가 임의로 하나를 선택해 주지 않고 컴파일 오류로 알려 개발자가 해결하도록 한다.', '충돌하는 두 default 메서드가 동시에 실행되는 문법은 존재하지 않는다.', '인터페이스는 문법적으로 정의될 수 있으며, 문제는 그것을 동시에 구현하는 클래스에서 충돌이 발생한다는 점이다.']}
+/>
+
+## 문제 4
+
+```java
+class Parent {
+    Parent() {
+        show();
+    }
+
+    void show() {
+        System.out.println("Parent show");
+    }
+}
+
+class Child extends Parent {
+    int value = 10;
+
+    @Override
+    void show() {
+        System.out.println("Child show, value = " + value);
+    }
+
+    public static void main(String[] args) {
+        new Child();
+    }
+}
+```
+
+<Quiz
+  questionNumber={4}
+  question="위 코드를 실행했을 때 출력되는 결과로 옳은 것은?"
+  options={['① Child show, value = 0', '② Child show, value = 10', '③ Parent show', '④ 컴파일 오류가 발생한다']}
+  correctAnswer={1}
+  explanation="new Child()를 호출하면 자바는 먼저 상위 클래스인 Parent의 생성자를 실행한다. Parent 생성자 안에서 show를 호출하는데, show는 Child에서 오버라이딩되어 있으므로 동적 바인딩에 의해 Child의 show가 호출된다. 그런데 이 시점은 아직 Child의 필드 초기화(value = 10)가 실행되기 전이므로, value는 int형의 기본값인 0인 상태로 출력된다. 이는 생성자 안에서 오버라이딩 가능한 메서드를 호출할 때 흔히 발생하는 함정이다."
+  optionExplanations={['상위 클래스 생성자가 실행되는 시점에는 아직 자식 클래스의 필드가 초기화되지 않았다는 점을 정확히 반영하므로 정답이다.', 'value가 10으로 초기화되는 것은 Parent 생성자 실행이 끝난 뒤이므로, show가 호출되는 시점에는 아직 0이다.', '동적 바인딩에 의해 Parent의 show가 아니라 Child의 show가 호출되므로 이 출력은 나오지 않는다.', 'show 오버라이딩과 생성자 호출 모두 문법적으로 올바르므로 컴파일 오류가 없다.']}
+/>
+
+## 문제 5
+
+```java
+class Animal {
+    void makeSound(String sound) {
+        System.out.println("동물이 소리를 낸다: " + sound);
+    }
+}
+
+class Dog extends Animal {
+    void makeSound(int volume) {
+        System.out.println("개가 짖는다, 크기: " + volume);
+    }
+
+    public static void main(String[] args) {
+        Animal a = new Dog();
+        a.makeSound("멍멍");
+    }
+}
+```
+
+<Quiz
+  questionNumber={5}
+  question="위 코드를 실행했을 때 출력되는 결과로 옳은 것은?"
+  options={['① 동물이 소리를 낸다: 멍멍', '② 개가 짖는다, 크기: 멍멍', '③ 컴파일 오류가 발생한다', '④ 런타임 오류가 발생한다']}
+  correctAnswer={1}
+  explanation="Dog의 makeSound는 매개변수 타입이 int로, Animal의 makeSound(매개변수 타입 String)와 다르다. 매개변수 타입이 다르면 오버라이딩이 아니라 완전히 별개의 오버로딩된 메서드가 된다. 따라서 Dog는 Animal의 makeSound(String)를 오버라이딩한 것이 아니라 상속받아 그대로 가지고 있을 뿐이며, a.makeSound(문자열 멍멍) 호출은 문자열을 받는 그 상속된 메서드, 즉 Animal에 정의된 makeSound가 그대로 실행된다."
+  optionExplanations={['매개변수 타입이 달라 오버라이딩이 아니라 별개의 오버로딩이 되었고, 그 결과 Animal의 makeSound가 그대로 호출된다는 설명이 정확하므로 정답이다.', 'Dog의 makeSound(int)는 매개변수 타입이 String이 아니라 int이므로 문자열 인자로는 호출될 수 없다.', '서로 다른 매개변수 타입의 메서드를 각각 정의하는 것은 정상적인 오버로딩이므로 컴파일 오류가 아니다.', '이 코드는 정상적으로 컴파일되고 실행되며 런타임 오류를 일으키지 않는다.']}
+/>
+
+## 문제 6
+
+<Quiz
+  questionNumber={6}
+  question="자바 예외 클래스 계층 구조에 대한 설명으로 옳은 것은?"
+  options={['① 모든 예외와 오류는 Throwable 클래스를 최상위 조상으로 하며, 그 아래에 Exception과 Error가 나뉜다', '② RuntimeException은 Error의 하위 클래스이다', '③ Exception 클래스의 모든 하위 클래스는 unchecked 예외이다', '④ Error는 일반적으로 애플리케이션이 잡아서 복구하도록 설계된 checked 예외이다']}
+  correctAnswer={1}
+  explanation="자바의 예외 계층은 Throwable을 최상위로 두고, 그 아래에 시스템 수준의 심각한 문제를 나타내는 Error와, 프로그램에서 처리할 수 있는 문제를 나타내는 Exception이 나뉘어 있다. Exception 아래에는 다시 unchecked 예외인 RuntimeException 계열과, 그 외의 checked 예외들이 나뉜다."
+  optionExplanations={['Throwable을 최상위로 Error와 Exception이 나뉜다는 계층 구조가 정확하므로 정답이다.', 'RuntimeException은 Error가 아니라 Exception의 하위 클래스다.', 'Exception 계열 중 RuntimeException을 제외한 나머지는 checked 예외로 분류된다.', 'Error는 일반적으로 애플리케이션이 복구를 시도하도록 설계되지 않으며 checked 예외로 분류되지도 않는다.']}
+/>
+
+## 문제 7
+
+```java
+package pkgA;
+
+class Helper {
+    void assist() {
+        System.out.println("도움");
+    }
+}
+```
+
+<Quiz
+  questionNumber={7}
+  question="Helper 클래스가 접근 제어자 없이 default로 선언되어 있을 때, 다른 패키지의 클래스에서 Helper를 사용하려고 하면 어떤 일이 발생하는가?"
+  options={['① default 접근 수준은 같은 패키지 내에서만 유효하므로, 다른 패키지에서는 Helper 클래스 자체에 접근할 수 없어 컴파일 오류가 발생한다', '② import문만 작성하면 어떤 패키지에서도 접근할 수 있다', '③ default 클래스는 항상 public 클래스처럼 동작한다', '④ 런타임에만 접근이 제한되고 컴파일은 통과한다']}
+  correctAnswer={1}
+  explanation="접근 제어자는 필드와 메서드뿐 아니라 클래스 자체에도 적용된다. Helper 클래스처럼 접근 제어자를 생략하면 default 접근 수준을 갖게 되어, 같은 패키지 안에서만 그 클래스를 사용할 수 있다. 다른 패키지에서는 import문을 쓰더라도 애초에 클래스에 접근할 권한이 없어 컴파일 오류가 발생한다."
+  optionExplanations={['default 접근 수준이 클래스 자체에도 그대로 적용된다는 규칙을 정확히 반영하므로 정답이다.', 'import문은 이름을 짧게 쓰기 위한 것일 뿐, 접근 제어자가 막고 있는 접근 권한 자체를 만들어 주지는 못한다.', 'default 클래스는 같은 패키지 밖에서는 보이지 않으므로 public 클래스와 동일하게 동작하지 않는다.', '이는 컴파일 시점에 걸러지는 접근 제어 오류이지 실행 시점의 문제가 아니다.']}
+/>
+
+## 문제 8
+
+<Quiz
+  questionNumber={8}
+  question="검색·삽입·삭제가 잦고, 저장 순서를 유지할 필요는 없지만 중복은 허용하지 않아야 하는 자료를 저장하려 할 때 가장 적절한 컬렉션은?"
+  options={['① HashSet', '② ArrayList', '③ LinkedList', '④ TreeMap']}
+  correctAnswer={1}
+  explanation="중복을 허용하지 않고 순서 유지가 필요 없다는 조건에는 Set 계열이 적합하며, 그중에서도 정렬이나 삽입 순서 유지 없이 평균적으로 빠른 검색이 필요한 경우 해시 기반의 HashSet이 가장 적절하다."
+  optionExplanations={['중복 불허와 순서 무관이라는 조건, 그리고 빠른 검색이라는 조건에 모두 부합하므로 정답이다.', 'ArrayList는 List 계열로 중복을 허용하므로 조건에 맞지 않는다.', 'LinkedList도 List 계열이라 중복을 허용하므로 조건에 맞지 않는다.', 'TreeMap은 키와 값을 짝지어 저장하는 Map 구조이며, 이 문제처럼 단일 값을 저장하는 조건과는 맞지 않는다.']}
+/>
+
+## 문제 9
+
+<Quiz
+  questionNumber={9}
+  question="데이터를 삽입한 순서를 그대로 유지하면서 중복도 허용하지 않아야 할 때 사용할 수 있는 컬렉션으로 가장 적절한 것은?"
+  options={['① LinkedHashSet', '② HashSet', '③ TreeSet', '④ ArrayList']}
+  correctAnswer={1}
+  explanation="LinkedHashSet은 HashSet처럼 중복을 허용하지 않으면서도, 내부적으로 연결 리스트 구조를 함께 유지해 삽입한 순서를 그대로 보존한다. 중복 제거와 순서 유지가 동시에 필요할 때 적합한 구현체다."
+  optionExplanations={['중복 제거와 삽입 순서 유지를 모두 만족하는 구현체이므로 정답이다.', 'HashSet은 중복은 제거하지만 삽입 순서를 보장하지 않는다.', 'TreeSet은 삽입 순서가 아니라 정렬 기준에 따른 순서를 유지한다.', 'ArrayList는 순서는 유지하지만 중복을 허용하므로 조건에 맞지 않는다.']}
+/>
+
+## 문제 10
+
+<Quiz
+  questionNumber={10}
+  question="다음 중 동적 바인딩(dynamic binding)에 대한 설명으로 가장 정확한 것은?"
+  options={['① 실행 시점에 객체의 실제 타입을 기준으로 어떤 메서드가 호출될지 결정되는 방식이다', '② 컴파일 시점에 참조 변수의 선언 타입만으로 호출할 메서드가 완전히 결정되는 방식이다', '③ 메서드 오버로딩에서 사용되는 바인딩 방식이다', '④ 필드 접근에도 동일하게 적용되어 실제 객체 타입에 따라 값이 결정되는 방식이다']}
+  correctAnswer={1}
+  explanation="동적 바인딩은 오버라이딩된 인스턴스 메서드를 호출할 때, 코드 작성 시점이 아니라 프로그램이 실제로 실행되는 시점에 그 객체의 실제 타입을 확인해 어떤 메서드 몸체를 실행할지 결정하는 방식이다."
+  optionExplanations={['실행 시점에 실제 객체 타입을 기준으로 호출 메서드가 정해진다는 설명이 동적 바인딩의 정의와 정확히 일치하므로 정답이다.', '이는 동적 바인딩이 아니라 정적 바인딩에 대한 설명이다.', '오버로딩은 컴파일 시점에 인자 타입으로 결정되는 정적 바인딩을 사용한다.', '필드는 오버라이딩되지 않고 항상 정적 바인딩되므로 동적 바인딩이 적용되지 않는다.']}
+/>
+
+## 문제 11
+
+<Quiz
+  questionNumber={11}
+  question="객체지향에서 다형성이 주는 이점에 대한 설명으로 가장 적절한 것은?"
+  options={['① 상위 타입의 참조 변수 하나로 여러 하위 타입 객체를 다루면서, 각 객체에 맞는 동작을 자동으로 호출할 수 있어 코드의 유연성과 확장성이 높아진다', '② 다형성을 사용하면 프로그램의 실행 속도가 항상 더 빨라진다', '③ 다형성은 상속이나 인터페이스 없이도 아무 클래스에서나 자동으로 적용된다', '④ 다형성을 사용하면 접근 제어자를 지정할 필요가 없어진다']}
+  correctAnswer={1}
+  explanation="다형성을 활용하면 상위 타입 하나로 여러 하위 타입 객체를 동일한 방식으로 다룰 수 있어, 새로운 하위 타입이 추가되더라도 그 타입을 사용하는 기존 코드를 크게 수정하지 않아도 되는 유연한 구조를 만들 수 있다."
+  optionExplanations={['코드 수정 없이 새로운 하위 타입을 추가할 수 있는 유연성과 확장성이 다형성의 핵심 이점이므로 정답이다.', '다형성은 설계의 유연성을 위한 개념이지 실행 속도 향상을 보장하는 개념이 아니다.', '다형성은 상속이나 인터페이스 구현 같은 타입 계층 관계가 전제되어야 성립한다.', '접근 제어자는 다형성과 별개로 캡슐화를 위해 여전히 필요한 요소다.']}
+/>
+
+## 문제 12
+
+<Quiz
+  questionNumber={12}
+  question="UML 클래스 다이어그램에서 점선과 속이 빈 삼각형 화살표로 표현되는 관계는?"
+  options={['① 구현 관계로, 클래스가 인터페이스를 구현하는 관계이다', '② 상속 관계로, 클래스가 다른 클래스를 상속하는 관계이다', '③ 합성 관계이다', '④ 연관 관계이다']}
+  correctAnswer={1}
+  explanation="점선과 속이 빈 삼각형의 조합은 구현 관계를 나타낸다. 실선과 속이 빈 삼각형이 클래스 사이의 상속(일반화)을 나타내는 것과 대비해, 점선은 클래스가 인터페이스의 규약을 구현한다는 것을 구분해서 표시한다."
+  optionExplanations={['점선과 속이 빈 삼각형의 조합이 구현 관계를 나타낸다는 표기 규칙이 정확하므로 정답이다.', '상속 관계는 점선이 아니라 실선과 속이 빈 삼각형으로 표현한다.', '합성 관계는 삼각형이 아니라 속이 채워진 마름모로 표현한다.', '연관 관계는 보통 단순한 실선으로 표현하며 속이 빈 삼각형을 사용하지 않는다.']}
+/>
+
+## 문제 13
+
+```java
+public class Main {
+    static int calc() {
+        try {
+            return 1;
+        } finally {
+            return 2;
+        }
+    }
+
+    public static void main(String[] args) {
+        System.out.println(calc());
+    }
+}
+```
+
+<Quiz
+  questionNumber={13}
+  question="위 코드를 실행했을 때 출력되는 값으로 옳은 것은?"
+  options={['① 2', '② 1', '③ 컴파일 오류가 발생한다', '④ 런타임 예외가 발생한다']}
+  correctAnswer={1}
+  explanation="try 블록의 return 1은 반환할 값을 1로 준비해 두지만, 메서드를 완전히 빠져나가기 전에 finally 블록이 실행된다. finally 블록 안에 또 다른 return 2가 있으면, 이 return이 앞서 준비해 둔 반환값을 덮어써 최종적으로 calc는 2를 반환한다. finally 안에서 return을 사용하는 것은 문법적으로는 허용되지만, 값을 예상치 못하게 덮어써 버리므로 실제 코드 작성에서는 피해야 할 습관으로 자주 언급된다."
+  optionExplanations={['finally의 return이 try의 return 값을 덮어쓴다는 동작을 정확히 반영하므로 정답이다.', 'try의 return 1이 준비한 값은 finally의 return 2에 의해 덮어써지므로 최종 반환값이 되지 못한다.', 'try-finally 안에서 각각 return을 사용하는 것은 문법적으로 허용되므로 컴파일 오류가 아니다.', '이 코드에는 예외를 던지는 코드가 없으므로 런타임 예외가 발생하지 않는다.']}
+/>
+
+## 문제 14
+
+```java
+class Animal {}
+class Dog extends Animal {}
+
+class AnimalShelter {
+    Animal getAnimal() {
+        return new Animal();
+    }
+}
+
+class DogShelter extends AnimalShelter {
+    @Override
+    Dog getAnimal() {
+        return new Dog();
+    }
+}
+
+public class Main {
+    public static void main(String[] args) {
+        AnimalShelter shelter = new DogShelter();
+        Animal a = shelter.getAnimal();
+        System.out.println(a.getClass().getSimpleName());
+    }
+}
+```
+
+<Quiz
+  questionNumber={14}
+  question="위 코드를 컴파일하고 실행했을 때 결과로 옳은 것은?"
+  options={['① Dog', '② Animal', '③ 반환형이 다르므로 오버라이딩이 아니라며 컴파일 오류가 발생한다', '④ 런타임 오류가 발생한다']}
+  correctAnswer={1}
+  explanation="자바는 오버라이딩할 때 반환형을 원래 메서드의 반환형과 완전히 같은 타입뿐 아니라, 그 하위 타입으로 좁혀 선언하는 것도 허용한다. 이를 공변 반환 타입이라 부른다. DogShelter의 getAnimal은 Animal의 하위 타입인 Dog를 반환하므로 정상적인 오버라이딩이며, 실제로 생성되는 객체도 Dog이므로 getSimpleName은 Dog를 반환한다."
+  optionExplanations={['공변 반환 타입 규칙에 따라 정상적으로 오버라이딩되고, 실제 생성된 객체가 Dog이므로 정답이다.', 'getClass는 참조 변수의 선언 타입이 아니라 실제 객체의 타입을 반환하므로 Animal이 아니라 Dog가 나온다.', '반환형을 하위 타입으로 좁히는 것은 오버라이딩 규칙 위반이 아니라 허용되는 공변 반환 타입이다.', '이 코드는 정상적으로 컴파일되고 실행되며 예외를 던지지 않는다.']}
+/>
+
+## 문제 15
+
+<Quiz
+  questionNumber={15}
+  question="클래스와 객체의 관계에 대한 설명으로 옳지 않은 것은?"
+  options={['① 클래스는 객체를 만들기 위한 설계도이며, 객체는 클래스로부터 생성된 실체이다', '② 하나의 클래스로부터 여러 개의 서로 다른 객체를 생성할 수 있다', '③ 한 클래스로 생성된 모든 객체는 인스턴스 필드의 값까지 항상 완전히 동일해야 한다', '④ 객체가 생성될 때마다 인스턴스 필드를 위한 메모리 공간이 새로 할당된다']}
+  correctAnswer={3}
+  explanation="같은 클래스로부터 생성된 객체라도 각 객체는 독립된 인스턴스 필드 공간을 가지므로, 서로 다른 값을 얼마든지 저장할 수 있다. 예를 들어 같은 Person 클래스로 만든 두 객체가 서로 다른 이름과 나이를 가질 수 있는 것이 바로 이런 이유다."
+  optionExplanations={['클래스와 객체의 설계도-실체 관계를 정확히 설명하므로 옳은 설명이다.', '하나의 클래스로 여러 객체를 만드는 것은 객체지향의 기본 동작이므로 옳은 설명이다.', '같은 클래스의 객체라도 필드 값이 서로 달라질 수 있으므로 항상 완전히 동일해야 한다는 설명은 옳지 않으며 이것이 정답이다.', '객체가 생성될 때마다 그 객체만의 인스턴스 필드 공간이 새로 할당되므로 옳은 설명이다.']}
+/>
+
+## 문제 16
+
+<Quiz
+  questionNumber={16}
+  question="synchronized(lockObj) 형태의 블록에서 lockObj의 역할로 가장 적절한 것은?"
+  options={['① 그 블록에 진입하려는 여러 스레드가 공유하는 락의 기준이 되는 객체로, 한 스레드가 lockObj의 락을 보유한 동안 다른 스레드는 같은 lockObj에 대한 synchronized 블록에 진입할 수 없다', '② 단순히 주석 역할을 하며 실제 동작에는 영향이 없다', '③ 블록 안에서 사용할 데이터를 저장하는 임시 변수이다', '④ lockObj가 null이어도 아무 문제 없이 동작한다']}
+  correctAnswer={1}
+  explanation="synchronized 블록에 전달하는 객체는 모니터 락의 기준이 된다. 여러 스레드가 같은 lockObj를 기준으로 synchronized 블록에 접근하려 할 때, 그 객체의 락을 이미 가진 스레드가 있다면 다른 스레드는 락이 풀릴 때까지 대기해야 하며, 이렇게 임계 영역에 대한 동시 접근을 막는다."
+  optionExplanations={['lockObj가 공유 락의 기준이 되어 동시 접근을 제한한다는 설명이 정확하므로 정답이다.', 'lockObj는 실제로 동기화 동작에 사용되는 실질적인 락 대상이지 단순한 주석이 아니다.', 'lockObj는 데이터를 저장하는 임시 변수가 아니라 동기화의 기준이 되는 객체다.', 'lockObj가 null이면 synchronized 블록에 진입하려 할 때 널 포인터 예외가 발생한다.']}
+/>
+
+## 문제 17
+
+```java
+import java.util.ArrayList;
+import java.util.List;
+
+public class Main {
+    public static void main(String[] args) {
+        List list = new ArrayList();
+        list.add("문자열");
+        list.add(100);
+        for (Object o : list) {
+            System.out.println(o);
+        }
+    }
+}
+```
+
+<Quiz
+  questionNumber={17}
+  question="위 코드를 실행했을 때 나타나는 현상으로 가장 적절한 것은?"
+  options={['① 문자열 다음 100이 정상적으로 출력된다(단, 컴파일 시 타입 안전성 관련 경고가 발생할 수 있다)', '② 서로 다른 타입을 저장했으므로 컴파일 오류가 발생한다', '③ 100만 출력된다', '④ 런타임에 클래스 형 변환 예외가 발생한다']}
+  correctAnswer={1}
+  explanation="타입 매개변수를 지정하지 않은 raw type List는 문법적으로 여전히 허용되며, 서로 다른 타입의 객체를 자유롭게 담을 수 있다. 다만 컴파일러는 타입 안전성을 보장할 수 없다는 경고를 낼 뿐 오류로 처리하지는 않는다. 반복문에서 각 요소를 Object로 꺼내 그대로 출력하므로 저장한 순서대로 문자열, 100이 출력된다."
+  optionExplanations={['raw type이 컴파일 경고만 유발할 뿐 정상적으로 동작한다는 설명이 정확하므로 정답이다.', 'raw type 사용은 문법적으로 허용되어 컴파일 오류를 일으키지 않는다.', '반복문은 저장된 두 요소를 모두 순서대로 출력하므로 첫 번째 요소도 함께 출력된다.', '이 코드에는 강제로 특정 타입으로 형 변환하는 코드가 없으므로 클래스 형 변환 예외가 발생하지 않는다.']}
+/>
+
+## 문제 18
+
+<Quiz
+  questionNumber={18}
+  question="오버라이딩 시 접근 제어자 변경 규칙에 대한 설명으로 옳은 것은?"
+  options={['① 상위 클래스의 protected 메서드를 하위 클래스에서 public으로 재정의하는 것은 허용된다', '② 상위 클래스의 public 메서드를 하위 클래스에서 protected로 재정의할 수 있다', '③ 접근 제어자는 오버라이딩 시 절대로 변경할 수 없다', '④ private 메서드도 하위 클래스에서 오버라이딩할 수 있다']}
+  correctAnswer={1}
+  explanation="자바는 오버라이딩할 때 접근 범위를 상위 클래스 메서드보다 좁게 줄이는 것만 금지하며, 넓히는 것은 허용한다. 따라서 protected를 public으로 넓히는 재정의는 문법적으로 아무 문제가 없다."
+  optionExplanations={['접근 범위를 넓히는 방향의 변경이 허용된다는 규칙을 정확히 반영하므로 정답이다.', 'public을 protected로 줄이는 것은 접근 범위를 좁히는 것이므로 금지된다.', '접근 제어자는 넓히는 방향으로는 변경할 수 있으므로 절대 변경할 수 없다는 설명은 옳지 않다.', 'private 메서드는 애초에 하위 클래스에 상속되지 않으므로 오버라이딩의 대상이 되지 않는다.']}
+/>
+
+## 문제 19
+
+```java
+class Parent {
+    Parent() {
+        System.out.println("Parent()");
+    }
+}
+
+class Child extends Parent {
+    Child() {
+        super();
+        this(5);
+    }
+
+    Child(int x) {
+        System.out.println("Child(int)");
+    }
+
+    public static void main(String[] args) {
+        new Child();
+    }
+}
+```
+
+<Quiz
+  questionNumber={19}
+  question="위 코드를 컴파일했을 때 결과로 옳은 것은?"
+  options={['① 한 생성자 안에서 this()와 super()를 동시에 사용할 수 없어 컴파일 오류가 발생한다', '② Parent() 다음 Child(int)가 출력된다', '③ Child(int)만 출력된다', '④ 런타임 오류가 발생한다']}
+  correctAnswer={1}
+  explanation="this()와 super()는 모두 생성자의 첫 번째 문장으로만 작성할 수 있는데, 한 생성자 안에서 이 둘을 함께 쓰면 어느 것도 항상 첫 문장이 될 수 없어 문법 규칙에 어긋난다. Child()에서 super()를 먼저 쓰고 그 다음 줄에 this(5)를 쓰면, this(5)가 생성자의 첫 문장이 아니게 되어 컴파일 오류가 발생한다."
+  optionExplanations={['this()와 super()는 동시에 사용할 수 없고 반드시 첫 문장이어야 한다는 규칙 위반을 정확히 짚었으므로 정답이다.', '이 코드는 컴파일 자체가 되지 않으므로 실행 결과를 논할 수 없다.', '이 코드는 컴파일 자체가 되지 않으므로 실행 결과를 논할 수 없다.', '이는 문법 검사 단계에서 걸러지는 컴파일 오류이지 실행 시점의 오류가 아니다.']}
+/>
+
+## 문제 20
+
+<Quiz
+  questionNumber={20}
+  question="캡슐화가 소프트웨어 설계에 주는 이점으로 가장 적절한 것은?"
+  options={['① 내부 구현을 외부로부터 숨기고 공개된 메서드만으로 접근하게 하여, 내부 구현이 바뀌어도 외부 코드에 미치는 영향을 최소화할 수 있다', '② 캡슐화를 적용하면 프로그램의 실행 속도가 항상 빨라진다', '③ 캡슐화는 상속을 사용할 수 없게 만든다', '④ 캡슐화는 모든 필드를 public으로 선언하는 것을 의미한다']}
+  correctAnswer={1}
+  explanation="캡슐화는 객체의 내부 데이터와 구현 세부사항을 외부로부터 숨기고, 공개된 메서드(인터페이스)를 통해서만 상호작용하도록 만든다. 이렇게 하면 나중에 내부 구현 방식을 바꾸더라도, 공개된 메서드의 사용법만 그대로 유지하면 이를 사용하는 외부 코드는 전혀 수정할 필요가 없어진다."
+  optionExplanations={['내부 구현 변경의 영향을 최소화한다는 캡슐화의 핵심 이점을 정확히 설명하므로 정답이다.', '캡슐화는 설계의 안정성을 위한 개념이지 실행 속도를 보장하는 개념이 아니다.', '캡슐화와 상속은 서로 독립적인 객체지향 특성으로, 캡슐화가 상속 사용을 막지 않는다.', '오히려 필드를 private으로 감추고 필요한 메서드만 공개하는 것이 캡슐화의 전형적인 방법이다.']}
+/>
+
+## 문제 21
+
+```java
+interface Flyable {
+    void fly();
+}
+
+class Bird implements Flyable {
+    public static void main(String[] args) {
+        Bird b = new Bird();
+    }
+}
+```
+
+<Quiz
+  questionNumber={21}
+  question="위 코드를 컴파일했을 때 결과로 옳은 것은?"
+  options={['① Flyable 인터페이스의 추상 메서드 fly를 Bird가 구현하지 않아 컴파일 오류가 발생한다', '② 정상적으로 컴파일되고 아무 일도 일어나지 않는다', '③ fly 메서드가 자동으로 빈 구현으로 채워진다', '④ 런타임에만 오류가 발생한다']}
+  correctAnswer={1}
+  explanation="인터페이스를 구현하는 클래스는 그 인터페이스의 모든 추상 메서드를 반드시 구현해야 한다. Bird는 Flyable을 구현한다고 선언했지만 fly 메서드를 정의하지 않았으므로, 자바 컴파일러는 Bird가 인터페이스의 계약을 지키지 않았다고 판단해 컴파일 오류를 낸다."
+  optionExplanations={['인터페이스의 추상 메서드를 구현하지 않으면 컴파일 오류가 난다는 규칙을 정확히 반영하므로 정답이다.', '구현하지 않은 추상 메서드가 있으면 컴파일 자체가 되지 않는다.', '자바는 구현되지 않은 메서드를 자동으로 빈 구현으로 채워 주지 않는다.', '이는 컴파일 시점에 걸러지는 오류이지 실행 시점의 오류가 아니다.']}
+/>
+
+## 문제 22
+
+<Quiz
+  questionNumber={22}
+  question="메서드 안에서 checked 예외를 처리하지 않고 호출한 쪽으로 넘기고 싶을 때 사용하는 방법으로 옳은 것은?"
+  options={['① 메서드 선언부에 throws 키워드로 해당 예외를 명시해 호출자가 처리하도록 위임한다', '② 반드시 그 메서드 안에서 try-catch로 처리해야 하며 다른 방법은 없다', '③ 예외 이름 앞에 unchecked라는 키워드를 붙이면 처리하지 않아도 된다', '④ checked 예외는 무시하면 컴파일러가 자동으로 무시해 준다']}
+  correctAnswer={1}
+  explanation="checked 예외를 그 자리에서 처리하지 않고 호출한 쪽으로 넘기려면, 메서드 선언부에 throws 키워드와 함께 그 예외 타입을 명시하면 된다. 이렇게 하면 그 메서드를 호출하는 쪽이 대신 예외를 처리하거나, 다시 자신의 선언부에 throws로 위임하는 책임을 지게 된다."
+  optionExplanations={['throws로 예외 처리 책임을 호출자에게 위임할 수 있다는 방법이 정확하므로 정답이다.', 'throws 선언으로 처리를 위임하는 방법이 있으므로 반드시 그 메서드 안에서 처리해야 하는 것은 아니다.', 'unchecked라는 키워드는 자바 문법에 존재하지 않는다.', 'checked 예외를 처리하지도 선언하지도 않으면 컴파일러가 오류로 알려 주며 자동으로 무시해 주지 않는다.']}
+/>
+
+## 참고 자료
+
+- 국가평생교육진흥원 독학학위제 - 출제방향/수준: [https://bdes.nile.or.kr/nile/study/nStudy1_1.do](https://bdes.nile.or.kr/nile/study/nStudy1_1.do)
+- 국가평생교육진흥원 독학학위제 - 과목별 평가영역: [https://bdes.nile.or.kr/nile/study/nStudy2_1.do](https://bdes.nile.or.kr/nile/study/nStudy2_1.do)
+- Oracle Java Tutorials - Learning the Java Language: [https://docs.oracle.com/javase/tutorial/java/index.html](https://docs.oracle.com/javase/tutorial/java/index.html)

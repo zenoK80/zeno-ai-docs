@@ -1,0 +1,25 @@
+const meta = {
+  '01_embedded-prerequisites': '01. 임베디드시스템을 읽기 위한 기초 지도',
+  '02_reading-arm-docs': '02. ARM·Cortex-M 문서와 레지스터 표기 읽는 법',
+  '03_embedded-system-overview': '03. 임베디드 시스템 개요와 제약',
+  '04_mcu-mpu-arm-cortex-m': '04. MPU와 MCU, ARM 아키텍처, Cortex-M 개관',
+  '05_arm-registers-modes-exceptions': '05. ARM 동작 모드와 레지스터, 예외 처리',
+  '06_pipeline-execution-interrupt-latency': '06. 파이프라인과 명령 수행, 인터럽트 지연',
+  '07_memory-map-and-storage': '07. 메모리 구조와 메모리 맵',
+  '08_gpio-polling-interrupt-timer': '08. GPIO, 폴링과 인터럽트, 타이머·카운터',
+  '09_pwm-wdt-adc-dac-dma': '09. PWM, WDT, ADC/DAC, DMA',
+  '10_uart-spi-i2c-can': '10. 직렬 통신과 버스: UART, SPI, I2C, CAN',
+  '11_embedded-software-structure-boot': '11. 임베디드 소프트웨어 구조와 부트 과정',
+  '12_device-driver-embedded-c': '12. 디바이스 드라이버와 임베디드 C',
+  '13_realtime-system-basics': '13. 실시간 시스템의 기본 개념',
+  '14_rtos-scheduling': '14. RTOS 스케줄링과 우선순위',
+  '15_rtos-sync-and-communication': '15. RTOS 동기화와 통신',
+  '16_priority-inversion-inheritance': '16. 우선순위 역전과 상속',
+  '17_hw-sw-partition-low-power': '17. HW/SW 분할과 저전력 설계',
+  '18_reliability-debugging-jtag-swd': '18. 신뢰성, 오류 사례, 디버깅과 JTAG/SWD',
+  '19_drills-overview-architecture-memory': '19. 유형문제: 개요·아키텍처·메모리',
+  '20_drills-peripherals-communication-software': '20. 유형문제: 주변장치·통신·소프트웨어',
+  '21_rtos-design-and-mock-exam': '21. 독학사 3단계 임베디드시스템 예상기출문제',
+}
+
+export default meta

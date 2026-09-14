@@ -1,0 +1,216 @@
+---
+title: '17. 입출력(I/O) 기초와 스트림'
+description: 'Java 입출력을 스트림 개념부터 바이트·문자 스트림, 보조 스트림, IOException 처리까지 코드 추적 수준으로 정리한다'
+---
+
+<Callout type="info">
+  **이번 문서의 목표:** 이 파일을 다 읽으면 Java에서 파일을 읽고 쓰는 코드를 스트림 개념으로 설명할 수 있고, 바이트 스트림과 문자 스트림을 구분해 상황에 맞는 클래스를 고를 수 있으며, `IOException`을 처리하는 표준 패턴(`try-with-resources`)을 코드로 작성할 수 있다.
+</Callout>
+
+## 왜 스트림을 알아야 하는가
+
+지금까지 다룬 프로그램은 실행되는 동안에만 데이터를 메모리에 들고 있다가, 프로그램이 종료되면 그 데이터가 모두 사라졌다. 하지만 실제 프로그램은 사용자의 입력을 받고, 화면에 결과를 보여주고, 파일이나 네트워크에 데이터를 저장해야 한다. Java는 이런 **입력**(input, 프로그램 밖에서 안으로 데이터가 들어오는 것)과 **출력**(output, 프로그램 안에서 밖으로 데이터가 나가는 것)을 모두 하나의 공통된 추상 개념인 **스트림**(stream)으로 다룬다. 이 편에서는 스트림이 무엇인지, 그리고 자바가 왜 바이트 스트림과 문자 스트림을 나누어 두 갈래의 클래스 계층을 제공하는지, 마지막으로 입출력 도중 발생하는 예외를 13편에서 배운 예외 처리 문법과 어떻게 연결하는지를 정리한다.
+
+## 스트림이란 무엇인가
+
+> **쉽게 말하면:** 스트림은 데이터가 한쪽 방향으로 순서대로 흘러가는 통로다. 수도관을 생각하면 된다 — 물이 어디서 오는지(파일, 키보드, 네트워크)는 관을 쓰는 입장에서 몰라도 되고, 관에 달린 꼭지(메서드)로 물을 받거나 흘려보내기만 하면 된다.
+
+**스트림**(stream)이란 데이터의 근원(파일, 키보드, 네트워크 등)이 무엇이든 관계없이, 데이터를 순서대로 읽거나 쓸 수 있게 통일된 방식을 제공하는 추상 개념이다. Java는 `java.io` 패키지에 스트림을 다루는 클래스들을 제공하며, 이 클래스들의 최상위에는 다음 네 개의 추상 클래스가 있다.
+
+| 최상위 클래스 | 데이터 단위 | 방향 |
+|---|---|---|
+| `InputStream` | 바이트(byte) | 읽기 |
+| `OutputStream` | 바이트(byte) | 쓰기 |
+| `Reader` | 문자(char) | 읽기 |
+| `Writer` | 문자(char) | 쓰기 |
+
+이 네 클래스는 모두 **추상 클래스**(abstract class, 10편에서 다룬 개념 — 직접 객체를 만들 수 없고 상속받아 구체적인 기능을 완성해야 하는 클래스)다. 실제 코드에서는 `FileInputStream`, `FileReader`처럼 이 추상 클래스를 상속한 **구체 클래스**(concrete class)의 객체를 만들어 사용한다. 이런 구조 덕분에, 프로그램을 작성하는 쪽에서는 데이터가 파일에서 오는지 네트워크에서 오는지 신경 쓰지 않고, `InputStream`이나 `Reader` 타입의 참조 변수 하나로 여러 종류의 입력 장치를 **다형적으로**(09편에서 배운 다형성) 다룰 수 있다.
+
+## 바이트 스트림과 문자 스트림
+
+> **쉽게 말하면:** 바이트 스트림은 그림 파일처럼 "그냥 숫자 덩어리"를 다룰 때 쓰고, 문자 스트림은 텍스트처럼 "사람이 읽는 글자"를 다룰 때 쓴다.
+
+목차 표에서 이 편의 핵심 개념으로 지정된 **바이트 스트림**(byte stream)과 **문자 스트림**(character stream)의 차이는 독학사 시험에서 "어떤 클래스를 언제 쓰는가"를 묻는 형태로 자주 나온다.
+
+- **바이트 스트림**: `InputStream`/`OutputStream` 계열. 데이터를 1바이트(8비트) 단위의 원시 값으로 다룬다. 이미지, 동영상, 실행 파일처럼 텍스트가 아닌 **이진 데이터**(binary data)를 다룰 때 사용한다. 대표적으로 `FileInputStream`, `FileOutputStream`이 있다.
+- **문자 스트림**: `Reader`/`Writer` 계열. 데이터를 사람이 읽는 문자 단위로 다루며, 내부적으로 **문자 인코딩**(character encoding, 문자를 바이트로 바꾸는 규칙, 예: UTF-8)에 따라 바이트와 문자를 자동으로 변환한다. 텍스트 파일을 다룰 때 이 계열을 쓰면 인코딩 처리를 직접 신경 쓸 필요가 줄어든다. 대표적으로 `FileReader`, `FileWriter`가 있다.
+
+<Callout type="warning">
+  시험 함정: "텍스트 파일도 무조건 바이트 스트림으로 읽어야 한다"는 설명은 틀렸다. 텍스트를 다룰 때는 문자 스트림(`Reader`/`Writer`)을 쓰는 것이 인코딩 문제를 줄이는 정석이며, 바이트 스트림은 인코딩과 무관한 이진 데이터를 다룰 때 쓴다. 다만 파일 자체는 결국 디스크에 바이트로 저장되므로, 문자 스트림도 내부적으로는 바이트 스트림을 감싸서 문자로 변환하는 구조로 동작한다는 점도 함께 기억해야 한다.
+</Callout>
+
+### 파일에 문자열 쓰고 읽기
+
+```java
+import java.io.FileWriter;
+import java.io.FileReader;
+import java.io.BufferedReader;
+import java.io.IOException;
+
+public class FileTextDemo {
+    public static void main(String[] args) {
+        String 파일이름 = "점수.txt";
+
+        try (FileWriter writer = new FileWriter(파일이름)) {
+            writer.write("김민준 90\n");
+            writer.write("이서연 85\n");
+        } catch (IOException e) {
+            System.out.println("쓰기 실패: " + e.getMessage());
+        }
+
+        try (BufferedReader reader = new BufferedReader(new FileReader(파일이름))) {
+            String 한줄;
+            while ((한줄 = reader.readLine()) != null) {
+                System.out.println("읽은 줄: " + 한줄);
+            }
+        } catch (IOException e) {
+            System.out.println("읽기 실패: " + e.getMessage());
+        }
+    }
+}
+```
+
+```text
+읽은 줄: 김민준 90
+읽은 줄: 이서연 85
+```
+
+**한 줄씩 실행 추적**
+
+| 단계 | 실행 위치 | 상태 |
+|---|---|---|
+| 1 | `new FileWriter("점수.txt")` | "점수.txt"를 쓰기 모드로 새로 생성(연다) |
+| 2 | `writer.write(...)` 두 번 | 문자열 두 줄을 스트림에 기록 |
+| 3 | try 블록 종료 | `try-with-resources`가 `writer.close()`를 자동 호출 |
+| 4 | `new FileReader("점수.txt")`를 `BufferedReader`로 감쌈 | 같은 파일을 읽기용으로 다시 열고, 한 줄 단위 읽기 기능을 덧붙임 |
+| 5 | `reader.readLine()` 1회차 | "김민준 90"을 반환, `한줄`에 저장, 콘솔에 출력 |
+| 6 | `reader.readLine()` 2회차 | "이서연 85"를 반환, 콘솔에 출력 |
+| 7 | `reader.readLine()` 3회차 | 더 읽을 줄이 없어 `null` 반환, 반복문 조건이 거짓이 되어 종료 |
+
+`readLine()`이 파일 끝에서 `null`을 반환하는 규칙을 반복문 조건으로 삼는 패턴은 자바 텍스트 파일 읽기의 표준 관용구다. C의 `fscanf` 반환값 검사(02단계 C프로그래밍 과목에서 다룬 방식)와 원리는 같지만, 여기서는 "더 읽을 데이터가 없다"는 신호가 정수가 아니라 참조 타입의 `null`이라는 차이가 있다.
+
+## 보조 스트림: 왜 BufferedReader로 감싸는가
+
+앞의 예제에서 `FileReader`를 바로 쓰지 않고 `BufferedReader`로 한 번 더 감쌌다. `BufferedReader`는 **보조 스트림**(wrapper stream) 역할을 하는 클래스로, 내부에 **버퍼**(buffer, 디스크를 매번 오가지 않도록 데이터를 모아두는 메모리 공간)를 두어 한 글자씩 디스크에 접근하는 대신 한 번에 큰 덩어리를 읽어와 성능을 높이고, 그 대가로 `readLine()`처럼 한 줄 단위로 읽는 편리한 메서드를 추가로 제공한다. 이렇게 다른 스트림 객체를 **생성자 인자로 받아서** 감싸는 구조를 **데코레이터**(decorator, 감싸는 대상에 새로운 기능을 덧붙이는 설계) 방식이라고 부르며, `BufferedWriter`, `BufferedInputStream`, `BufferedOutputStream`도 같은 방식으로 동작한다.
+
+| 클래스 | 감싸는 대상 | 추가되는 기능 |
+|---|---|---|
+| `BufferedReader` | `Reader` | 버퍼링, `readLine()` (한 줄 읽기) |
+| `BufferedWriter` | `Writer` | 버퍼링, `newLine()` (줄바꿈 삽입) |
+| `BufferedInputStream` | `InputStream` | 바이트 단위 버퍼링 |
+| `BufferedOutputStream` | `OutputStream` | 바이트 단위 버퍼링 |
+
+## 예외와 I/O의 연결: IOException과 try-with-resources
+
+Java의 입출력 메서드들은 파일이 없거나, 디스크가 가득 찼거나, 권한이 없는 등 다양한 이유로 실패할 수 있다. 이런 상황을 알리기 위해 `java.io` 패키지의 대부분의 메서드는 **`IOException`**을 던지도록 선언되어 있다. `IOException`은 13편에서 다룬 **검사 예외**(checked exception)이므로, 이를 던질 수 있는 메서드를 호출하는 코드는 반드시 `try-catch`로 처리하거나 `throws`로 위임해야 컴파일이 된다.
+
+앞의 예제에서 쓴 `try (FileWriter writer = new FileWriter(파일이름)) { ... }` 형태는 **`try-with-resources`** 구문이다. 이 구문은 `try` 괄호 안에서 선언한 자원을, `try` 블록이 정상적으로 끝나든 예외로 끝나든 **자동으로 `close()`를 호출**해 닫아 준다. 이 구문을 쓰려면 자원이 되는 클래스가 `AutoCloseable` 인터페이스(11편에서 배운 인터페이스의 실제 사용 예)를 구현하고 있어야 하며, `FileWriter`, `FileReader`, `BufferedReader` 등 `java.io`의 스트림 클래스는 모두 이 인터페이스를 구현하고 있다.
+
+```java
+FileReader fr = null;
+try {
+    fr = new FileReader("데이터.txt");
+    // 파일 처리
+} catch (IOException e) {
+    System.out.println("오류: " + e.getMessage());
+} finally {
+    if (fr != null) {
+        try {
+            fr.close();
+        } catch (IOException e) {
+            System.out.println("닫기 실패: " + e.getMessage());
+        }
+    }
+}
+```
+
+위 코드는 `try-with-resources`가 자바 7 이전에 존재하지 않았을 때 자원을 정리하던 전통적인 방식이다. `finally` 블록 안에서 `close()`를 호출해야 하고, `close()` 자체도 `IOException`을 던질 수 있어 그 안에서 또 `try-catch`가 필요해 코드가 길고 중첩된다. `try-with-resources`는 이 반복적인 자원 해제 코드를 자동화해 준다는 점에서, 독학사 시험에서 "왜 try-with-resources를 쓰는가"라는 취지를 묻는 문제의 핵심 포인트가 된다.
+
+<Callout type="warning">
+  시험 함정: "`try-with-resources`를 쓰면 `IOException`을 처리할 필요가 없다"는 설명은 틀렸다. `try-with-resources`는 자원을 **자동으로 닫아주는 것**이지, 예외 자체를 없애주는 것이 아니다. `IOException`은 여전히 검사 예외이므로 `catch`로 잡거나 `throws`로 선언해야 한다.
+</Callout>
+
+## 자주 틀리는 점
+
+- 텍스트를 다뤄야 하는데 바이트 스트림(`FileInputStream`)을 그대로 써서 인코딩 문제를 스스로 만드는 경우가 있다.
+- `BufferedReader`처럼 감싸는 보조 스트림을 쓰지 않고 `FileReader`의 기본 `read()`(문자 하나씩 읽기)만 반복 호출해, 코드가 비효율적이면서도 `readLine()` 같은 편의 기능을 놓치는 경우가 있다.
+- `try-with-resources`가 예외 처리 자체를 없애준다고 착각해 `catch`를 빠뜨리면 컴파일 오류가 난다.
+- 자원을 여러 개 열었을 때 전통적인 `finally` 방식에서 `close()` 호출 순서와 각각의 예외 처리를 빠뜨리는 경우가 있다 — `try-with-resources`는 세미콜론으로 자원을 나열하면 선언의 역순으로 자동으로 닫아 준다.
+
+## 핵심 정리
+
+- 스트림은 데이터의 근원과 무관하게 입출력을 통일된 방식으로 다루는 추상 개념이며, `InputStream`/`OutputStream`(바이트)과 `Reader`/`Writer`(문자)로 나뉜다.
+- 바이트 스트림은 이진 데이터, 문자 스트림은 텍스트 데이터에 쓰며, 문자 스트림은 인코딩 변환을 대신 처리해 준다.
+- `BufferedReader` 같은 보조 스트림은 다른 스트림을 생성자 인자로 감싸 버퍼링과 편의 메서드를 추가하는 데코레이터 구조다.
+- `java.io`의 입출력 메서드는 대부분 검사 예외인 `IOException`을 던지므로 `try-catch`나 `throws`가 필요하다.
+- `try-with-resources`는 자원을 자동으로 닫아 주지만, 예외 처리 자체를 없애 주지는 않는다.
+
+## 마무리 복습
+
+<Quiz
+  questionNumber={1}
+  question="Java 입출력 스트림의 최상위 추상 클래스 네 가지로 옳은 것은?"
+  options={['File, Path, Stream, Buffer', 'InputStream, OutputStream, Reader, Writer', 'Scanner, PrintStream, Socket, Channel', 'Byte, Char, Text, Binary']}
+  correctAnswer={2}
+  explanation="바이트 기반 입출력의 최상위는 InputStream과 OutputStream이고, 문자 기반 입출력의 최상위는 Reader와 Writer다."
+  optionExplanations={['File과 Path는 파일 경로를 표현하는 클래스이지 스트림 최상위 클래스가 아니다', '정답. 바이트 스트림 2개와 문자 스트림 2개다', 'Scanner, PrintStream, Socket, Channel은 각각 특정 목적에 쓰이는 구체적인 클래스로 최상위 추상 클래스가 아니다', 'Byte, Char, Text, Binary는 자바의 스트림 클래스 이름이 아니다']}
+/>
+
+<Quiz
+  questionNumber={2}
+  question="텍스트 파일을 다룰 때 바이트 스트림 대신 문자 스트림을 사용하는 것이 권장되는 이유로 가장 적절한 것은?"
+  options={['문자 스트림이 항상 실행 속도가 더 빠르기 때문에', '문자 스트림이 문자 인코딩 변환을 대신 처리해 주기 때문에', '바이트 스트림은 파일을 아예 열 수 없기 때문에', '문자 스트림은 예외를 발생시키지 않기 때문에']}
+  correctAnswer={2}
+  explanation="문자 스트림(Reader/Writer)은 내부적으로 문자 인코딩에 따라 바이트와 문자를 자동 변환해 주므로, 텍스트를 다룰 때 인코딩 관련 실수를 줄일 수 있다."
+  optionExplanations={['속도 차이는 인코딩 처리 유무보다는 버퍼링 여부 등 다른 요인에 좌우된다', '정답. 인코딩 변환을 대신 처리해 준다', '바이트 스트림도 파일을 정상적으로 열고 읽고 쓸 수 있다', '문자 스트림도 IOException 등 예외를 발생시킬 수 있다']}
+/>
+
+<Quiz
+  questionNumber={3}
+  question="다음 중 보조 스트림(다른 스트림을 감싸 기능을 추가하는 스트림)에 해당하는 것은?"
+  options={['FileReader', 'BufferedReader', 'File', 'String']}
+  correctAnswer={2}
+  explanation="BufferedReader는 다른 Reader 객체를 생성자 인자로 받아 감싸면서 버퍼링과 readLine() 기능을 추가하는 보조 스트림이다."
+  optionExplanations={['FileReader는 파일을 직접 여는 기본 스트림이지 다른 스트림을 감싸는 보조 스트림이 아니다', '정답. 다른 Reader를 감싸는 보조 스트림이다', 'File은 스트림이 아니라 파일 경로를 표현하는 클래스다', 'String은 문자열 클래스이며 스트림과 관련이 없다']}
+/>
+
+<Quiz
+  questionNumber={4}
+  question="BufferedReader의 readLine() 메서드가 파일의 끝에 도달했을 때 반환하는 값은?"
+  options={['빈 문자열("")', '0', 'null', 'EOF라는 문자열']}
+  correctAnswer={3}
+  explanation="readLine()은 더 이상 읽을 줄이 없으면 null을 반환한다. 이 값을 반복문 조건으로 검사해 파일 끝을 판단하는 것이 표준 관용구다."
+  optionExplanations={['빈 문자열은 실제로 내용이 없는 한 줄을 읽었을 때 나올 수 있는 값이지 파일 끝의 신호가 아니다', '0은 정수형 반환값이며 readLine()의 반환형인 String과 맞지 않는다', '정답. 파일 끝에서는 null을 반환한다', 'Java의 readLine()은 EOF라는 문자열을 반환하지 않는다']}
+/>
+
+<Quiz
+  questionNumber={5}
+  question="try-with-resources 구문에 대한 설명으로 옳지 않은 것은?"
+  options={['괄호 안에서 선언한 자원의 close()를 자동으로 호출해 준다', '자원 클래스가 AutoCloseable 인터페이스를 구현하고 있어야 한다', '이 구문을 쓰면 IOException 같은 검사 예외를 catch하거나 throws로 선언할 필요가 없어진다', 'try 블록이 예외로 끝나더라도 자원을 닫아 준다']}
+  correctAnswer={3}
+  explanation="try-with-resources는 자원을 자동으로 닫아 주는 것이지, 예외 처리 자체를 없애 주지는 않는다. IOException은 여전히 검사 예외이므로 catch하거나 throws로 선언해야 한다."
+  optionExplanations={['옳은 설명이다', '옳은 설명이다', '정답. 검사 예외 처리 의무는 그대로 남는다', '옳은 설명이다']}
+/>
+
+<Quiz
+  questionNumber={6}
+  question="이진 데이터(예: 이미지 파일)를 읽고 쓸 때 사용하기에 가장 적절한 스트림 계열은?"
+  options={['Reader/Writer 계열', 'InputStream/OutputStream 계열', 'Scanner 클래스만', 'String 클래스의 메서드만']}
+  correctAnswer={2}
+  explanation="이미지처럼 문자가 아닌 이진 데이터는 바이트 단위로 다루는 InputStream/OutputStream 계열을 사용한다."
+  optionExplanations={['Reader/Writer는 문자 인코딩 변환을 전제로 하므로 이진 데이터에는 적합하지 않다', '정답. 바이트 단위로 다루는 계열이 이진 데이터에 적합하다', 'Scanner는 텍스트 입력을 편리하게 읽기 위한 보조 클래스로 이진 데이터 처리의 표준 수단이 아니다', 'String의 메서드만으로는 파일 입출력을 수행할 수 없다']}
+/>
+
+<Quiz
+  questionNumber={7}
+  question="java.io의 입출력 메서드 대부분이 던지도록 선언된 예외로, catch하거나 throws로 처리하지 않으면 컴파일 오류가 나는 것은?"
+  options={['NullPointerException', 'ArithmeticException', 'IOException', 'ArrayIndexOutOfBoundsException']}
+  correctAnswer={3}
+  explanation="IOException은 java.io 입출력 메서드들이 던지는 대표적인 검사 예외로, 반드시 catch하거나 throws로 선언해야 컴파일이 된다."
+  optionExplanations={['NullPointerException은 비검사 예외로, 컴파일러가 처리를 강제하지 않는다', 'ArithmeticException도 비검사 예외로, 처리하지 않아도 컴파일은 된다', '정답. IOException은 검사 예외로 처리가 강제된다', 'ArrayIndexOutOfBoundsException 역시 비검사 예외다']}
+/>
+
+## 참고 자료
+
+- Oracle Java Tutorials - Basic I/O: https://docs.oracle.com/javase/tutorial/essential/io/index.html
+- Oracle Java Tutorials - Learning the Java Language: https://docs.oracle.com/javase/tutorial/java/index.html

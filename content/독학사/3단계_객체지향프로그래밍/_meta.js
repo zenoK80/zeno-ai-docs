@@ -1,0 +1,28 @@
+const meta = {
+  '01_exam-structure': '01. 독학사 3단계 객체지향프로그래밍 시험 구조와 평가 수준',
+  '02_java-baseline': '02. Java 기초 문법 리마인드와 코드 읽기 규칙',
+  '03_oop-language': '03. 객체지향 프로그래밍 언어로서 Java 개관',
+  '04_class-object-basics': '04. 클래스와 객체의 기본 구조',
+  '05_constructors-this-super': '05. 생성자, this, super 깊게 파기',
+  '06_encapsulation-access': '06. 캡슐화와 접근 제어',
+  '07_packages-and-import': '07. 패키지와 import, 클래스 경로',
+  '08_inheritance-and-overloading': '08. 상속과 메서드 오버로딩',
+  '09_overriding-polymorphism': '09. 오버라이딩과 다형성, 동적 바인딩',
+  '10_abstract-classes': '10. 추상 클래스와 템플릿 설계',
+  '11_interfaces': '11. 인터페이스와 구현 클래스',
+  '12_oop-principles-in-java': '12. 캡슐화·상속·다형성·추상화 종합 정리',
+  '13_exceptions-basics': '13. 예외 처리와 예외 계층 구조',
+  '14_exceptions-advanced': '14. 예외 처리 심화와 사용자 정의 예외',
+  '15_collections-overview': '15. 컬렉션 프레임워크 개관',
+  '16_collections-usage': '16. 컬렉션 구현체 선택과 성능·특성',
+  '17_io-basics': '17. 입출력(I/O) 기초와 스트림',
+  '18_threads-basics': '18. 스레드와 동시성 기초',
+  '19_threads-sync': '19. 스레드 동기화와 간단한 문제 유형',
+  '20_uml-basics': '20. UML 기초와 클래스 다이어그램 읽기',
+  '21_mid-level-mock': '21. 중간 수준 모의문제: 클래스·상속·예외',
+  '22_collection-thread-mock': '22. 모의문제: 컬렉션·스레드·I/O·UML',
+  '23_past-paper-patterns': '23. 독학사 3단계 객체지향프로그래밍 기출 패턴 분석',
+  '24_final-mock-exam': '24. 독학사 3단계 객체지향프로그래밍 최종 모의시험',
+}
+
+export default meta

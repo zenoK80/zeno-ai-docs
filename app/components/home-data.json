@@ -1,7 +1,7 @@
 {
-  "generatedAt": "2026-09-13T23:33:48.199Z",
+  "generatedAt": "2026-09-14T04:18:24.023Z",
   "groupCount": 6,
-  "seriesCount": 31,
+  "seriesCount": 36,
   "groups": [
     {
       "title": "CSS",
@@ -105,7 +105,7 @@
     },
     {
       "title": "독학사",
-      "description": "16개 시리즈 · 문서 389편",
+      "description": "21개 시리즈 · 문서 500편",
       "order": "05",
       "series": [
         {
@@ -197,18 +197,50 @@
           "accent": "red"
         },
         {
+          "title": "3단계 객체지향프로그래밍",
+          "description": "독학사 제도에서 3단계 객체지향프로그래밍이 차지하는 위치, 평가 수준, 문항 유형을 먼저 지도로 그린다",
+          "href": "/독학사/3단계_객체지향프로그래밍/01_exam-structure",
+          "documentCount": 24,
+          "preview": "code",
+          "accent": "blue"
+        },
+        {
           "title": "3단계 딥러닝",
           "description": "독학사 3단계 전공심화과정에서 딥러닝 과목이 어떤 위치에 있는지, 출제기준을 어떻게 읽고 학습 계획으로 옮기는지 정리한다.",
           "href": "/독학사/3단계_딥러닝/01_exam-overview",
           "documentCount": 28,
           "preview": "chart",
-          "accent": "blue"
+          "accent": "green"
+        },
+        {
+          "title": "3단계 소프트웨어공학",
+          "description": "독학사 3단계 소프트웨어공학의 정의, 시험 범위를 해석하는 방법, 생명주기와 산출물의 큰 구조를 잡는다",
+          "href": "/독학사/3단계_소프트웨어공학/01_software-engineering-overview",
+          "documentCount": 22,
+          "preview": "code",
+          "accent": "amber"
+        },
+        {
+          "title": "3단계 임베디드시스템",
+          "description": "임베디드 시스템이 무엇을 다루는 분야인지 범위를 먼저 잡고, 실시간·자원 제약이라는 이 과목 전체를 관통하는 용어와 MCU·MPU 구분을 예고편으로 훑는다.",
+          "href": "/독학사/3단계_임베디드시스템/01_embedded-prerequisites",
+          "documentCount": 21,
+          "preview": "code",
+          "accent": "red"
         },
         {
           "title": "3단계 정보보호",
           "description": "독학사 전공심화과정에서 정보보호학 3단계가 차지하는 위치와 출제기준 문장을 실전 학습 계획으로 바꾸는 방법을 정리한다.",
           "href": "/독학사/3단계_정보보호/01_exam-structure",
           "documentCount": 24,
+          "preview": "code",
+          "accent": "blue"
+        },
+        {
+          "title": "3단계 컴퓨터그래픽스",
+          "description": "래스터·벡터 그래픽스의 차이, 그래픽스 파이프라인의 단계, 디스플레이와 프레임버퍼의 동작 원리를 정리한다",
+          "href": "/독학사/3단계_컴퓨터그래픽스/01_graphics-overview",
+          "documentCount": 16,
           "preview": "code",
           "accent": "green"
         },
@@ -221,12 +253,20 @@
           "accent": "amber"
         },
         {
+          "title": "3단계 프로그래밍언어론",
+          "description": "프로그래밍 언어를 개념적으로 정의하고 언어와 구현을 구분하며, 4대 패러다임과 독학사 프로그래밍언어론의 시험 범위를 지도로 정리한다",
+          "href": "/독학사/3단계_프로그래밍언어론/01_programming-language-vs-implementation",
+          "documentCount": 28,
+          "preview": "code",
+          "accent": "red"
+        },
+        {
           "title": "4단계 데이터베이스",
           "description": "독학사 학위취득 종합시험 제도와 컴퓨터공학 전공 구조, 4단계 평가 수준, 데이터베이스 과목의 위치와 난이도, 문항 유형·시간 전략을 정리한다",
           "href": "/독학사/4단계_데이터베이스/01_exam-overview",
           "documentCount": 26,
           "preview": "sql",
-          "accent": "red"
+          "accent": "blue"
         },
         {
           "title": "4단계 실용영어",
@@ -234,7 +274,7 @@
           "href": "/독학사/4단계_실용영어/01_exam-structure",
           "documentCount": 24,
           "preview": "code",
-          "accent": "blue"
+          "accent": "green"
         }
       ]
     },
@@ -249,7 +289,7 @@
           "href": "/자격증/ADSP/01_adsp-exam-and-r-setup",
           "documentCount": 30,
           "preview": "code",
-          "accent": "green"
+          "accent": "amber"
         },
         {
           "title": "PC정비사 2급 실기",
@@ -257,7 +297,7 @@
           "href": "/자격증/PC정비사_2급_실기/01_pc-exam-roadmap",
           "documentCount": 17,
           "preview": "code",
-          "accent": "amber"
+          "accent": "red"
         },
         {
           "title": "SQLD",
@@ -265,7 +305,7 @@
           "href": "/자격증/SQLD/00_practice-environment",
           "documentCount": 31,
           "preview": "sql",
-          "accent": "red"
+          "accent": "blue"
         },
         {
           "title": "네트워크관리사 2급 실기",
@@ -273,7 +313,7 @@
           "href": "/자격증/네트워크관리사_2급_실기/01_network-basics-for-practical-use",
           "documentCount": 13,
           "preview": "browser",
-          "accent": "blue"
+          "accent": "green"
         },
         {
           "title": "리눅스마스터 2급 1차",
@@ -281,7 +321,7 @@
           "href": "/자격증/리눅스마스터_2급_1차/00_practice-environment",
           "documentCount": 31,
           "preview": "code",
-          "accent": "green"
+          "accent": "amber"
         },
         {
           "title": "빅데이터분석기사 필기",
@@ -289,7 +329,7 @@
           "href": "/자격증/빅데이터분석기사_필기/01_exam-overview",
           "documentCount": 32,
           "preview": "chart",
-          "accent": "amber"
+          "accent": "red"
         }
       ]
     }

@@ -1,0 +1,451 @@
+---
+title: '22. 모의문제: 컬렉션·스레드·I/O·UML'
+description: '컬렉션 프레임워크 선택과 성능, 스레드와 동기화, 입출력 스트림, UML 클래스·시퀀스 다이어그램을 종합한 모의 문제 24문항'
+---
+
+<Callout type="warning">
+  **재구성 출제 고지:** 이 문제집은 국가평생교육진흥원 독학학위제 3단계 객체지향프로그래밍 출제기준(컬렉션, 스레드, 입출력, UML 등 평가영역)의 범위와 문항 유형을 분석해 새로 구성한 재구성 문항입니다. 실제 기출 문항을 그대로 옮긴 것이 아닙니다. 회차별 정확한 문항 수·시험 시간은 시행처 공고를 확인해야 하며, 여기서는 24문항을 표준 분량으로 구성했습니다.
+</Callout>
+
+## 출제 범위와 문항 배분
+
+| 영역 | 문항 수 | 문항 번호 | 관련 편 |
+| --- | --- | --- | --- |
+| 컬렉션 프레임워크 개관과 구현체 특성 | 7 | 1–7 | 15, 16 |
+| 입출력(I/O) 기초 | 2 | 8–9 | 17 |
+| 스레드와 동기화 | 7 | 10–16 | 18, 19 |
+| UML 클래스·시퀀스 다이어그램 | 4 | 17–20 | 20 |
+| 종합 응용 | 4 | 21–24 | 15–20 |
+
+컬렉션 문제는 자료구조의 특성(순서 유지 여부, 중복 허용 여부, 정렬 여부, 검색 속도)을 기준으로 구현체를 고르는 유형이 반복되고, 스레드 문제는 동기화를 빠뜨렸을 때 어떤 문제가 생기는지를 묻는 유형이 반복됩니다. 각 문제를 풀 때 코드가 있다면 실행 순서를 먼저 따라가 보세요.
+
+## 컬렉션 프레임워크 개관과 구현체 특성 (1–7)
+
+### 문제 1
+
+<Quiz
+  questionNumber={1}
+  question="다음 중 Collection 인터페이스를 직접 상속하지 않는 것은?"
+  options={['① Map', '② List', '③ Set', '④ Queue']}
+  correctAnswer={1}
+  explanation="자바 컬렉션 프레임워크에서 List, Set, Queue는 모두 Collection 인터페이스를 직접 또는 간접으로 상속한다. 반면 Map은 키와 값을 한 쌍으로 다루는 별도의 인터페이스 계층으로 설계되어 있어 Collection을 상속하지 않는다."
+  optionExplanations={['Map은 Collection 계층과 별도로 설계된 키-값 쌍 저장 구조이므로 정답이다.', 'List는 Collection을 상속하는 순서가 있는 컬렉션이다.', 'Set은 Collection을 상속하는 중복을 허용하지 않는 컬렉션이다.', 'Queue는 Collection을 상속하는 대기열 형태의 컬렉션이다.']}
+/>
+
+### 문제 2
+
+```java
+import java.util.ArrayList;
+import java.util.List;
+
+public class Main {
+    public static void main(String[] args) {
+        List<String> list = new ArrayList<>();
+        list.add("사과");
+        list.add("바나나");
+        list.add("사과");
+        System.out.println(list.size());
+        System.out.println(list);
+    }
+}
+```
+
+<Quiz
+  questionNumber={2}
+  question="위 코드를 실행했을 때 출력되는 결과로 옳은 것은?"
+  options={['① 3 다음 [사과, 바나나, 사과]', '② 2 다음 [사과, 바나나]', '③ 3 다음 [바나나, 사과, 사과]', '④ 컴파일 오류가 발생한다']}
+  correctAnswer={1}
+  explanation="ArrayList는 List 인터페이스를 구현하므로 중복된 값도 그대로 저장하고, 추가한 순서를 그대로 유지한다. 사과, 바나나, 사과 순서로 추가했으므로 크기는 3이고, 출력 순서도 추가한 순서 그대로 사과, 바나나, 사과가 된다."
+  optionExplanations={['List는 중복을 허용하고 삽입 순서를 유지하므로 정답이다.', 'ArrayList는 중복 값을 걸러내지 않으므로 두 번째 사과도 그대로 저장된다.', 'ArrayList는 삽입 순서를 그대로 유지하므로 순서가 뒤바뀌지 않는다.', '문법적으로 아무 문제가 없는 정상적인 컬렉션 사용 코드다.']}
+/>
+
+### 문제 3
+
+```java
+import java.util.HashSet;
+import java.util.Set;
+
+public class Main {
+    public static void main(String[] args) {
+        Set<Integer> set = new HashSet<>();
+        set.add(10);
+        set.add(20);
+        set.add(10);
+        set.add(30);
+        System.out.println(set.size());
+        System.out.println(set.contains(20));
+    }
+}
+```
+
+<Quiz
+  questionNumber={3}
+  question="위 코드를 실행했을 때 출력되는 결과로 옳은 것은?"
+  options={['① 3 다음 true', '② 4 다음 true', '③ 3 다음 false', '④ 2 다음 true']}
+  correctAnswer={1}
+  explanation="HashSet은 Set 인터페이스를 구현하므로 중복된 값을 저장하지 않는다. 10이 두 번 추가되지만 두 번째 10은 무시되므로 실제로 저장된 값은 10, 20, 30 세 개이며 크기는 3이다. contains(20)은 20이 실제로 저장되어 있으므로 true를 반환한다."
+  optionExplanations={['중복 10이 한 번만 저장되어 크기가 3이 되고 20도 저장되어 있으므로 정답이다.', 'HashSet은 중복을 걸러내므로 네 번 추가했다고 해서 크기가 4가 되지 않는다.', '20은 실제로 저장되어 있으므로 contains(20)은 true를 반환한다.', '중복 제거 후에도 서로 다른 값은 10, 20, 30 세 개이므로 크기는 2가 아니라 3이다.']}
+/>
+
+### 문제 4
+
+```java
+import java.util.TreeSet;
+import java.util.Set;
+
+public class Main {
+    public static void main(String[] args) {
+        Set<Integer> set = new TreeSet<>();
+        set.add(30);
+        set.add(10);
+        set.add(20);
+        System.out.println(set);
+    }
+}
+```
+
+<Quiz
+  questionNumber={4}
+  question="위 코드를 실행했을 때 출력되는 결과로 옳은 것은?"
+  options={['① [10, 20, 30]', '② [30, 10, 20]', '③ [30, 20, 10]', '④ 컴파일 오류가 발생한다']}
+  correctAnswer={1}
+  explanation="TreeSet은 저장된 값을 자동으로 정렬된 순서로 유지하는 구현체다. 30, 10, 20 순서로 추가했더라도 내부적으로 오름차순으로 정렬되어 저장되므로, 출력할 때는 항상 10, 20, 30처럼 작은 값부터 큰 값 순서로 나온다."
+  optionExplanations={['TreeSet은 값을 오름차순으로 자동 정렬해 저장하므로 정답이다.', '삽입한 순서 그대로 유지된다고 착각했을 때 나오는 값으로, TreeSet은 삽입 순서가 아니라 정렬 순서를 유지한다.', '내림차순으로 착각했을 때 나오는 값으로, TreeSet의 기본 정렬은 오름차순이다.', 'TreeSet에 정수를 저장하는 것은 정상적인 사용이므로 컴파일 오류가 없다.']}
+/>
+
+### 문제 5
+
+```java
+import java.util.HashMap;
+import java.util.Map;
+
+public class Main {
+    public static void main(String[] args) {
+        Map<String, Integer> scores = new HashMap<>();
+        scores.put("철수", 90);
+        scores.put("영희", 85);
+        scores.put("철수", 95);
+        System.out.println(scores.get("철수"));
+        System.out.println(scores.size());
+    }
+}
+```
+
+<Quiz
+  questionNumber={5}
+  question="위 코드를 실행했을 때 출력되는 결과로 옳은 것은?"
+  options={['① 95 다음 2', '② 90 다음 2', '③ 95 다음 3', '④ 90 다음 3']}
+  correctAnswer={1}
+  explanation="HashMap은 같은 키로 다시 put을 호출하면 기존 값을 새 값으로 덮어쓴다. 철수라는 키에 90을 넣은 뒤 다시 95를 넣었으므로 최종적으로 철수의 값은 95가 되고, 저장된 서로 다른 키는 철수와 영희 두 개뿐이므로 크기는 2다."
+  optionExplanations={['같은 키에 대한 값 덮어쓰기와 서로 다른 키의 개수를 정확히 반영하므로 정답이다.', '철수 키에 마지막으로 넣은 값은 95이므로 90이 아니라 95가 반환된다.', '같은 키를 다시 넣어도 새로운 항목이 추가되는 것이 아니라 값이 덮어써지므로 키의 개수는 늘지 않는다.', '철수 키의 최종 값은 95이고 키의 개수도 2이므로 90과 3 둘 다 옳지 않다.']}
+/>
+
+### 문제 6
+
+<Quiz
+  questionNumber={6}
+  question="ArrayList와 LinkedList의 특성 비교로 옳지 않은 것은?"
+  options={['① ArrayList는 인덱스를 이용한 임의 접근 속도가 LinkedList보다 빠르다', '② LinkedList는 리스트 중간에 노드를 추가·삭제하는 비용이 ArrayList보다 일반적으로 낮다', '③ ArrayList는 내부적으로 배열을 사용하므로 용량이 가득 차면 더 큰 배열로 복사하는 과정이 필요할 수 있다', '④ LinkedList는 인덱스로 특정 위치의 요소에 접근할 때도 ArrayList와 동일한 속도를 낸다']}
+  correctAnswer={4}
+  explanation="LinkedList는 각 노드가 다음 노드를 가리키는 연결 구조이므로, 특정 인덱스의 요소에 접근하려면 처음(또는 끝)부터 노드를 하나씩 따라가야 한다. 반면 ArrayList는 배열 기반이라 인덱스로 바로 위치를 계산해 접근할 수 있다. 따라서 인덱스 접근 속도는 두 구현체가 결코 동일하지 않으며, ArrayList가 훨씬 빠르다."
+  optionExplanations={['배열 기반인 ArrayList가 인덱스 계산만으로 바로 접근할 수 있어 실제로 더 빠르므로 옳은 설명이다.', '연결 구조인 LinkedList는 위치를 찾은 뒤 앞뒤 연결만 바꾸면 되므로 중간 삽입·삭제에서 일반적으로 유리해 옳은 설명이다.', 'ArrayList는 배열 기반이라 용량 초과 시 더 큰 배열로 재할당하는 과정이 필요할 수 있으므로 옳은 설명이다.', 'LinkedList는 인덱스 접근을 위해 노드를 순차적으로 따라가야 해 ArrayList보다 느리므로 옳지 않은 설명이며 이것이 정답이다.']}
+/>
+
+### 문제 7
+
+<Quiz
+  questionNumber={7}
+  question="List와 Set 인터페이스의 차이에 대한 설명으로 옳지 않은 것은?"
+  options={['① List는 중복 요소를 허용하지만 Set은 중복 요소를 허용하지 않는다', '② List는 인덱스를 이용해 특정 위치의 요소에 접근할 수 있다', '③ HashSet은 저장 순서를 그대로 보장하여 항상 추가한 순서대로 요소를 순회한다', '④ List와 Set은 모두 Collection 인터페이스를 상속한다']}
+  correctAnswer={3}
+  explanation="HashSet은 해시 값을 기준으로 요소를 저장하기 때문에 순회 순서가 추가한 순서와 일치한다는 보장이 없다. 삽입 순서를 유지하고 싶다면 HashSet이 아니라 LinkedHashSet을 사용해야 한다."
+  optionExplanations={['List와 Set의 중복 허용 여부 차이를 정확히 설명하므로 옳은 설명이다.', 'List는 인덱스 기반 접근을 지원하는 순서가 있는 컬렉션이므로 옳은 설명이다.', 'HashSet은 삽입 순서를 보장하지 않으므로 옳지 않은 설명이며 이것이 정답이다.', 'List와 Set은 모두 Collection 인터페이스 계층에 속하므로 옳은 설명이다.']}
+/>
+
+## 입출력(I/O) 기초 (8–9)
+
+### 문제 8
+
+<Quiz
+  questionNumber={8}
+  question="문자 스트림과 바이트 스트림에 대한 설명으로 옳은 것은?"
+  options={['① FileReader, BufferedReader 등은 문자 단위로 데이터를 다루는 문자 스트림 클래스이다', '② FileInputStream은 문자 스트림 클래스로 텍스트 파일 전용이다', '③ 문자 스트림과 바이트 스트림은 처리하는 데이터 단위에 차이가 없다', '④ 바이트 스트림은 유니코드 문자를 다루기 위해 특별히 설계된 클래스이다']}
+  correctAnswer={1}
+  explanation="자바 입출력 클래스는 크게 문자 단위로 다루는 문자 스트림과, 바이트 단위로 다루는 바이트 스트림으로 나뉜다. FileReader와 BufferedReader는 문자 스트림 계열에 속해 텍스트 데이터를 문자 단위로 읽고 쓰기에 적합하다."
+  optionExplanations={['FileReader와 BufferedReader가 문자 단위로 동작하는 문자 스트림 클래스라는 설명이 정확하므로 정답이다.', 'FileInputStream은 바이트 단위로 동작하는 바이트 스트림 클래스이며 텍스트 전용이 아니다.', '문자 스트림은 문자 단위, 바이트 스트림은 바이트 단위로 동작해 처리 단위가 서로 다르다.', '유니코드 문자를 다루기 위해 설계된 것은 바이트 스트림이 아니라 문자 스트림이다.']}
+/>
+
+### 문제 9
+
+```java
+import java.io.FileReader;
+
+public class Main {
+    public static void main(String[] args) {
+        FileReader reader = new FileReader("data.txt");
+    }
+}
+```
+
+<Quiz
+  questionNumber={9}
+  question="위 코드를 컴파일했을 때 결과로 옳은 것은?"
+  options={['① FileReader 생성자가 던질 수 있는 checked 예외를 main이 처리하거나 선언하지 않아 컴파일 오류가 발생한다', '② 정상적으로 컴파일되고 실행 시 예외가 발생한다', '③ 파일이 없을 때 발생하는 예외는 unchecked 예외이므로 문제 없다', '④ 파일이 없어도 컴파일과 실행 모두 정상적으로 끝난다']}
+  correctAnswer={1}
+  explanation="FileReader의 생성자는 지정한 파일을 열 수 없을 때 checked 예외인 FileNotFoundException을 던질 수 있도록 선언되어 있다. checked 예외이므로 이를 호출하는 코드는 try-catch로 처리하거나 자신의 선언부에 throws로 명시해야 하는데, 이 main 메서드는 둘 다 하지 않았으므로 컴파일 오류가 발생한다."
+  optionExplanations={['checked 예외를 처리하지도 선언하지도 않은 상태를 정확히 짚었으므로 정답이다.', '컴파일 자체가 되지 않으므로 실행 시점의 결과를 논할 수 없다.', 'FileNotFoundException은 IOException의 하위 클래스로 checked 예외이다.', '이 코드는 컴파일 시점에 checked 예외 처리 누락으로 오류가 발생한다.']}
+/>
+
+## 스레드와 동기화 (10–16)
+
+### 문제 10
+
+<Quiz
+  questionNumber={10}
+  question="자바에서 스레드를 생성하는 방법에 대한 설명으로 옳지 않은 것은?"
+  options={['① Thread 클래스를 상속받아 run 메서드를 재정의하는 방법이 있다', '② Runnable 인터페이스를 구현해 Thread 객체의 생성자에 전달하는 방법이 있다', '③ 스레드를 시작하려면 run 메서드를 직접 호출해야 하며, start 메서드를 호출하면 컴파일 오류가 발생한다', '④ Runnable을 구현하는 방식은 이미 다른 클래스를 상속받은 클래스에서도 스레드 기능을 추가할 수 있게 해준다']}
+  correctAnswer={3}
+  explanation="스레드를 실제로 새로 시작하려면 반드시 start 메서드를 호출해야 한다. start는 새로운 실행 흐름을 만들어 그 흐름 위에서 run을 실행시켜 주는 역할을 하며, 문법적으로 정상적인 메서드이므로 호출해도 컴파일 오류가 나지 않는다. run을 직접 호출하면 새 스레드 없이 현재 스레드에서 그냥 보통의 메서드처럼 순차 실행될 뿐이다."
+  optionExplanations={['Thread를 상속해 run을 재정의하는 것은 스레드를 만드는 정상적인 방법이므로 옳은 설명이다.', 'Runnable을 구현해 Thread 생성자에 전달하는 것도 정상적인 방법이므로 옳은 설명이다.', 'start 메서드는 정상적으로 새 스레드를 시작시키는 메서드이며 호출해도 컴파일 오류가 나지 않으므로 옳지 않은 설명이며 이것이 정답이다.', '자바는 클래스 다중 상속을 지원하지 않으므로, 이미 다른 클래스를 상속한 경우 인터페이스인 Runnable을 구현하는 방식이 유용하며 이는 옳은 설명이다.']}
+/>
+
+### 문제 11
+
+```java
+public class Main {
+    public static void main(String[] args) {
+        Thread t = new Thread(() -> {
+            System.out.println("스레드 작업");
+        });
+        t.run();
+        System.out.println("메인 종료");
+    }
+}
+```
+
+<Quiz
+  questionNumber={11}
+  question="위 코드를 실행했을 때 출력 순서로 옳은 것은?"
+  options={['① 스레드 작업 다음 메인 종료 순서로 항상 출력된다', '② 메인 종료 다음 스레드 작업 순서로 항상 출력된다', '③ 두 줄의 출력 순서가 실행할 때마다 달라질 수 있다', '④ 컴파일 오류가 발생한다']}
+  correctAnswer={1}
+  explanation="이 코드는 start가 아니라 run을 직접 호출했다. run을 직접 호출하면 새로운 스레드가 생성되지 않고, 현재 실행 중인 스레드(여기서는 메인 스레드) 위에서 그냥 순서대로 실행되는 일반 메서드 호출과 같아진다. 따라서 스레드 작업이 출력을 마친 뒤에야 다음 문장인 메인 종료가 실행되므로, 순서는 항상 동일하게 보장된다. 만약 run 대신 start를 호출했다면 두 문장의 실행 순서가 보장되지 않는다는 점이 이 문제의 핵심 대조 포인트다."
+  optionExplanations={['run을 직접 호출하면 새 스레드 없이 순차 실행되므로 순서가 항상 보장된다는 점을 정확히 반영하므로 정답이다.', 'run 호출문이 println보다 먼저 작성되어 있고 순차 실행되므로 순서가 뒤바뀔 수 없다.', '순서가 비결정적으로 달라지는 것은 start로 실제 새 스레드를 만들었을 때의 이야기이며, 이 코드는 run을 직접 호출했으므로 순서가 항상 같다.', '람다식으로 Runnable을 구현해 Thread 생성자에 전달하고 run을 호출하는 것은 문법적으로 정상이다.']}
+/>
+
+### 문제 12
+
+<Quiz
+  questionNumber={12}
+  question="여러 스레드가 하나의 공유 변수를 동시에 수정할 때 synchronized 키워드를 사용하는 목적으로 가장 적절한 것은?"
+  options={['① 한 시점에 하나의 스레드만 임계 영역에 진입하도록 제한해 데이터의 일관성을 보장한다', '② 여러 스레드가 동시에 같은 코드를 실행하는 속도를 높인다', '③ 스레드의 개수를 자동으로 늘려준다', '④ 예외가 발생해도 프로그램이 항상 종료되지 않게 한다']}
+  correctAnswer={1}
+  explanation="synchronized는 특정 코드 블록이나 메서드를 임계 영역으로 지정해, 한 시점에 오직 하나의 스레드만 그 영역에 진입할 수 있게 제한한다. 이를 통해 여러 스레드가 동시에 공유 자원을 수정하면서 발생할 수 있는 데이터 불일치 문제를 막는다."
+  optionExplanations={['임계 영역 진입을 한 스레드로 제한해 일관성을 보장한다는 목적이 정확하므로 정답이다.', 'synchronized는 오히려 동시 접근을 제한하므로 실행 속도를 높이는 목적이 아니다.', 'synchronized는 스레드 개수와 관련이 없는 동기화 도구다.', 'synchronized는 예외 처리 메커니즘이 아니라 동시 접근 제어 메커니즘이다.']}
+/>
+
+### 문제 13
+
+<Quiz
+  questionNumber={13}
+  question="교착 상태(deadlock)가 발생하는 상황에 대한 설명으로 가장 적절한 것은?"
+  options={['① 두 개 이상의 스레드가 서로 상대방이 가진 락이 풀리기를 기다리며 무한히 대기하는 상황이다', '② 한 스레드가 락을 얻지 못해 프로그램이 즉시 종료되는 상황이다', '③ synchronized를 사용하지 않은 스레드가 예외를 던지는 상황이다', '④ 두 스레드가 동시에 서로 다른 객체의 락을 얻어 정상적으로 작업을 마치는 상황이다']}
+  correctAnswer={1}
+  explanation="교착 상태는 두 개 이상의 스레드가 각각 다른 스레드가 가진 락을 기다리면서, 서로 양보하지 않아 어느 쪽도 더 이상 진행하지 못하고 영원히 멈춰 버리는 상황을 말한다."
+  optionExplanations={['서로 상대방의 락을 기다리며 무한 대기한다는 정의가 교착 상태의 핵심이므로 정답이다.', '교착 상태는 프로그램이 종료되는 것이 아니라 멈춘 채로 계속 대기하는 상황이다.', '교착 상태는 예외 발생과 직접적인 관련이 없는 락 대기 문제다.', '서로 다른 락을 얻어 정상적으로 작업을 마치는 것은 교착 상태가 아니라 정상적인 동시 실행이다.']}
+/>
+
+### 문제 14
+
+<Quiz
+  questionNumber={14}
+  question="자바의 synchronized 인스턴스 메서드에 대한 설명으로 옳은 것은?"
+  options={['① 해당 메서드가 속한 객체 자신을 모니터 락으로 사용한다', '② synchronized 메서드는 여러 스레드가 동시에 같은 객체에 대해 실행할 수 있다', '③ synchronized는 정적 메서드에는 사용할 수 없다', '④ synchronized 메서드 안에서는 예외가 발생할 수 없다']}
+  correctAnswer={1}
+  explanation="인스턴스 메서드에 synchronized를 붙이면, 그 메서드가 호출된 객체 자신(this)이 모니터 락으로 사용된다. 한 스레드가 그 객체에 대한 synchronized 메서드를 실행하고 있으면, 다른 스레드는 같은 객체의 다른 synchronized 메서드에도 동시에 진입할 수 없다."
+  optionExplanations={['synchronized 인스턴스 메서드가 자기 자신을 락으로 사용한다는 설명이 정확하므로 정답이다.', '같은 객체에 대해서는 한 시점에 하나의 스레드만 synchronized 메서드에 진입할 수 있으므로 동시 실행이 불가능하다.', 'static 메서드에도 synchronized를 붙일 수 있으며, 이때는 클래스 자체가 락으로 사용된다.', 'synchronized는 동시 접근만 제어할 뿐 예외 발생 자체를 막지는 못한다.']}
+/>
+
+### 문제 15
+
+<Quiz
+  questionNumber={15}
+  question="스레드의 생명주기 상태에 대한 설명으로 옳지 않은 것은?"
+  options={['① start 메서드를 호출하기 전의 스레드는 NEW 상태이다', '② 실행 가능 상태(RUNNABLE)의 스레드는 그 순간 반드시 CPU를 점유해 실제로 실행되고 있다', '③ run 메서드 실행이 끝나면 스레드는 TERMINATED 상태가 된다', '④ synchronized 블록에 진입하려고 락을 기다리는 스레드는 BLOCKED 상태가 될 수 있다']}
+  correctAnswer={2}
+  explanation="RUNNABLE 상태는 스레드가 실행될 준비가 되어 스케줄러의 선택을 기다리고 있거나 실제로 실행 중인 상태를 통틀어 말한다. RUNNABLE이라고 해서 그 순간에 반드시 CPU를 점유하고 있는 것은 아니며, 실제 실행 여부는 운영체제 스케줄러가 결정한다."
+  optionExplanations={['start 호출 전의 스레드 객체는 아직 실행 흐름이 시작되지 않은 NEW 상태이므로 옳은 설명이다.', 'RUNNABLE은 실행 가능한 상태를 뜻할 뿐 그 순간 실제로 CPU를 점유하고 있음을 보장하지 않으므로 옳지 않은 설명이며 이것이 정답이다.', 'run이 끝나면 스레드의 생명주기가 끝나 TERMINATED 상태가 되므로 옳은 설명이다.', '락을 얻지 못해 대기하는 스레드는 BLOCKED 상태가 될 수 있으므로 옳은 설명이다.']}
+/>
+
+### 문제 16
+
+```java
+class Counter {
+    int count = 0;
+
+    void increment() {
+        count++;
+    }
+}
+
+public class Main {
+    public static void main(String[] args) throws InterruptedException {
+        Counter counter = new Counter();
+        Runnable task = () -> {
+            for (int i = 0; i < 1000; i++) {
+                counter.increment();
+            }
+        };
+        Thread t1 = new Thread(task);
+        Thread t2 = new Thread(task);
+        t1.start();
+        t2.start();
+        t1.join();
+        t2.join();
+        System.out.println(counter.count);
+    }
+}
+```
+
+<Quiz
+  questionNumber={16}
+  question="위 코드를 실행했을 때 결과에 대한 설명으로 가장 적절한 것은?"
+  options={['① count++ 연산이 원자적이지 않아 두 스레드가 동시에 값을 읽고 쓰면서 결과가 2000보다 작게 나올 수 있다', '② increment에 synchronized가 없어도 항상 정확히 2000이 출력된다', '③ 컴파일 오류가 발생한다', '④ count 변수가 스레드마다 별도로 존재하여 각각 1000씩 출력된다']}
+  correctAnswer={1}
+  explanation="count++는 값을 읽고, 1을 더하고, 다시 저장하는 세 단계로 이루어져 하나의 원자적인 연산이 아니다. 두 스레드가 increment를 동기화 없이 동시에 호출하면, 한 스레드가 읽은 값을 다른 스레드가 아직 반영하기 전에 또 읽어 갱신 결과를 덮어써 버리는 경합 조건이 발생할 수 있다. 그 결과 최종 count 값이 이론상 최댓값인 2000보다 작게 나올 수 있다."
+  optionExplanations={['count++의 비원자성과 경합 조건으로 결과가 2000보다 작아질 수 있다는 설명이 정확하므로 정답이다.', '동기화가 없으면 경합 조건 때문에 항상 정확히 2000이 나온다고 보장할 수 없다.', 'Runnable을 람다로 구현해 두 스레드에 전달하는 것은 문법적으로 정상이다.', 'counter 객체는 두 스레드가 공유하는 하나의 객체이며 count 필드도 하나만 존재한다.']}
+/>
+
+## UML 클래스·시퀀스 다이어그램 (17–20)
+
+### 문제 17
+
+<Quiz
+  questionNumber={17}
+  question="UML 클래스 다이어그램에서 실선과 속이 빈 삼각형 화살표가 상위 클래스를 향하는 표기가 나타내는 관계는?"
+  options={['① 상속 관계', '② 연관 관계', '③ 집합 관계', '④ 구현 관계']}
+  correctAnswer={1}
+  explanation="실선에 속이 빈 삼각형 화살표를 결합한 표기는 일반화, 즉 클래스 사이의 상속 관계를 나타낸다. 화살표는 하위 클래스에서 상위 클래스를 향하며, 속이 빈 삼각형은 상속임을 구분하는 표시다."
+  optionExplanations={['실선과 속이 빈 삼각형의 조합이 상속(일반화) 관계의 표준 표기이므로 정답이다.', '연관 관계는 보통 단순한 실선이나 화살표로 표현하며 속이 빈 삼각형을 사용하지 않는다.', '집합 관계는 속이 빈 마름모로 표현하며 삼각형과는 다른 표기다.', '구현 관계는 점선과 속이 빈 삼각형을 함께 사용해 상속과 구분한다.']}
+/>
+
+### 문제 18
+
+<Quiz
+  questionNumber={18}
+  question="UML에서 속이 빈 마름모와 속이 채워진 마름모의 차이에 대한 설명으로 옳은 것은?"
+  options={['① 속이 빈 마름모는 집합 관계로 부분 객체가 전체 객체와 독립적으로 존재할 수 있음을, 채워진 마름모는 합성 관계로 전체가 사라지면 부분도 함께 사라짐을 나타낸다', '② 두 표기는 완전히 동일한 의미이다', '③ 속이 빈 마름모는 상속 관계를 나타낸다', '④ 채워진 마름모는 인터페이스 구현 관계를 나타낸다']}
+  correctAnswer={1}
+  explanation="집합(aggregation)과 합성(composition)은 모두 전체-부분 관계를 나타내지만, 부분의 생명주기가 전체에 종속되는 정도가 다르다. 속이 빈 마름모로 표현하는 집합은 부분이 전체 없이도 독립적으로 존재할 수 있는 느슨한 관계이고, 속이 채워진 마름모로 표현하는 합성은 전체가 소멸하면 부분도 함께 소멸하는 강한 관계다."
+  optionExplanations={['집합과 합성의 생명주기 종속 차이를 정확히 설명하므로 정답이다.', '두 표기는 부분 객체의 독립성 정도가 다른 서로 다른 관계를 나타낸다.', '상속 관계는 마름모가 아니라 속이 빈 삼각형으로 표현한다.', '인터페이스 구현 관계는 마름모가 아니라 점선과 속이 빈 삼각형으로 표현한다.']}
+/>
+
+### 문제 19
+
+<Quiz
+  questionNumber={19}
+  question="Library 클래스와 Book 클래스가 실선과 채워진 마름모로 연결되어 있고, 마름모가 Library 쪽에 있는 UML 다이어그램에 대응하는 자바 구현으로 가장 적절한 것은?"
+  options={['① Library 클래스가 내부적으로 Book 객체들을 필드로 가지고 있으며, Library 객체가 소멸되면 그 안의 Book 객체들도 함께 소멸되도록 설계한다', '② Book 클래스가 Library 클래스를 상속받아 구현한다', '③ Library와 Book이 서로 아무 관계도 갖지 않도록 구현한다', '④ Book 클래스가 Library 인터페이스를 구현한다']}
+  correctAnswer={1}
+  explanation="채워진 마름모가 Library 쪽에 있다는 것은 Library가 전체, Book이 부분인 합성 관계임을 뜻한다. 합성 관계에서는 전체 객체가 부분 객체를 직접 생성하고 관리하며, 전체 객체가 사라지면 부분 객체도 함께 사라지도록 강하게 결합해 구현하는 것이 일반적이다."
+  optionExplanations={['Library가 Book들을 필드로 소유하고 생명주기를 함께한다는 설명이 합성 관계의 구현과 정확히 일치하므로 정답이다.', '마름모 표기는 상속이 아니라 전체-부분 관계를 나타내므로 상속 구현은 적절하지 않다.', '마름모로 연결된 두 클래스는 명확한 관계를 맺고 있으므로 아무 관계도 없다는 설명은 옳지 않다.', '마름모는 인터페이스 구현 관계가 아니라 집합·합성 관계를 나타내는 표기다.']}
+/>
+
+### 문제 20
+
+<Quiz
+  questionNumber={20}
+  question="UML 시퀀스 다이어그램에 대한 설명으로 옳은 것은?"
+  options={['① 객체 사이에 주고받는 메시지를 시간 순서에 따라 세로 흐름으로 표현한다', '② 클래스 사이의 상속 계층 구조만을 표현하기 위한 다이어그램이다', '③ 데이터베이스 테이블의 스키마 구조를 표현하는 다이어그램이다', '④ 변수의 자료형 목록을 나열하는 다이어그램이다']}
+  correctAnswer={1}
+  explanation="시퀀스 다이어그램은 여러 객체가 메서드를 호출하고 응답하는 과정을 시간의 흐름에 따라 세로 방향으로 배치해, 어떤 순서로 어떤 메시지가 오가는지를 시각적으로 보여 주는 다이어그램이다."
+  optionExplanations={['시간 순서에 따른 메시지 흐름을 표현한다는 것이 시퀀스 다이어그램의 정확한 정의이므로 정답이다.', '상속 계층 구조는 클래스 다이어그램의 역할이며 시퀀스 다이어그램의 목적이 아니다.', '테이블 스키마 표현은 UML 클래스 다이어그램이나 별도의 ER 다이어그램의 영역이다.', '자료형 목록 나열은 시퀀스 다이어그램의 목적이 아니다.']}
+/>
+
+## 종합 응용 (21–24)
+
+### 문제 21
+
+```java
+import java.util.LinkedList;
+import java.util.Queue;
+
+public class Main {
+    public static void main(String[] args) {
+        Queue<String> queue = new LinkedList<>();
+        queue.offer("A");
+        queue.offer("B");
+        queue.offer("C");
+        System.out.println(queue.poll());
+        System.out.println(queue.peek());
+        System.out.println(queue.size());
+    }
+}
+```
+
+<Quiz
+  questionNumber={21}
+  question="위 코드를 실행했을 때 출력되는 세 줄의 결과로 옳은 것은?"
+  options={['① A 다음 B 다음 2', '② A 다음 A 다음 3', '③ C 다음 B 다음 2', '④ A 다음 B 다음 3']}
+  correctAnswer={1}
+  explanation="offer로 A, B, C를 순서대로 큐에 넣으면 먼저 들어간 A가 맨 앞에 있다. poll은 맨 앞 요소를 꺼내면서 제거하므로 A를 반환하고, 이제 맨 앞은 B가 된다. peek은 제거하지 않고 맨 앞 요소만 확인하므로 B를 반환한다. poll로 하나가 빠졌으므로 남은 요소는 B, C 두 개라 size는 2다."
+  optionExplanations={['poll이 A를 꺼내고, peek이 그 다음 요소인 B를 확인하며, 남은 요소 수가 2라는 계산이 모두 정확하므로 정답이다.', 'poll은 요소를 꺼내면서 제거하므로 peek을 다시 호출해도 같은 A가 나오지 않는다.', '큐는 먼저 들어간 요소가 먼저 나오는 구조이므로 poll이 맨 뒤의 C를 반환하지 않는다.', 'poll로 하나를 꺼냈으므로 남은 요소는 3개가 아니라 2개다.']}
+/>
+
+### 문제 22
+
+```java
+import java.util.ArrayList;
+import java.util.List;
+
+public class Main {
+    public static void main(String[] args) {
+        List<String> list = new ArrayList<>();
+        list.add("A");
+        list.add("B");
+        list.add("C");
+        for (String s : list) {
+            if (s.equals("B")) {
+                list.remove(s);
+            }
+        }
+        System.out.println(list);
+    }
+}
+```
+
+<Quiz
+  questionNumber={22}
+  question="위 코드를 실행했을 때 나타나는 현상으로 가장 적절한 것은?"
+  options={['① 실행 중 ConcurrentModificationException이 발생한다', '② [A, C]가 정상적으로 출력된다', '③ 컴파일 오류가 발생한다', '④ [A, B, C]가 그대로 출력된다']}
+  correctAnswer={1}
+  explanation="향상된 for문은 내부적으로 Iterator를 사용해 리스트를 순회한다. 이때 Iterator의 remove 메서드가 아니라 리스트 자체의 remove 메서드로 구조를 변경하면, 다음 반복에서 Iterator가 구조 변경을 감지해 ConcurrentModificationException을 던진다. 이는 컬렉션을 순회하면서 직접 수정할 때 자주 발생하는 대표적인 함정이다."
+  optionExplanations={['순회 중 리스트 자체를 직접 수정해 구조 변경 예외가 발생한다는 설명이 정확하므로 정답이다.', 'B를 제거한 결과가 정상적으로 출력되려면 Iterator의 remove를 사용해야 하며, 이 코드는 예외로 중단된다.', '이 코드는 문법적으로는 올바르게 컴파일되며 실행 중에 예외가 발생하는 경우다.', '리스트를 수정하려는 시도 자체가 예외를 유발하므로 원래 리스트가 그대로 출력되지 않는다.']}
+/>
+
+### 문제 23
+
+<Quiz
+  questionNumber={23}
+  question="try-with-resources 구문에 대한 설명으로 옳은 것은?"
+  options={['① 괄호 안에 선언한 자원은 try 블록이 끝나면 close 메서드가 자동으로 호출되어 자원이 해제된다', '② try-with-resources를 사용하면 finally 블록을 따로 작성할 수 없다', '③ close 메서드를 명시적으로 호출해야만 자원이 해제된다', '④ AutoCloseable을 구현하지 않은 클래스도 자원으로 사용할 수 있다']}
+  correctAnswer={1}
+  explanation="try-with-resources는 소괄호 안에 선언한 자원에 대해, try 블록을 벗어날 때(정상 종료든 예외 발생이든) 자동으로 close 메서드를 호출해 자원을 정리해 준다. 이를 통해 자원 해제를 깜빡하는 실수를 줄일 수 있다."
+  optionExplanations={['자원을 자동으로 정리해 준다는 try-with-resources의 핵심 목적을 정확히 설명하므로 정답이다.', 'try-with-resources를 사용하더라도 필요하다면 별도의 finally 블록을 추가로 작성할 수 있다.', 'try-with-resources의 핵심은 close를 명시적으로 호출하지 않아도 자동으로 처리해 준다는 점이다.', 'try-with-resources의 괄호 안에는 AutoCloseable을 구현한 타입만 사용할 수 있다.']}
+/>
+
+### 문제 24
+
+<Quiz
+  questionNumber={24}
+  question="여러 스레드가 동시에 접근할 가능성이 있는 상황에서 ArrayList 사용에 대한 설명으로 옳지 않은 것은?"
+  options={['① ArrayList는 기본적으로 스레드에 안전하도록 설계되어 있어 별도의 동기화가 필요 없다', '② Collections.synchronizedList로 감싸서 사용하면 동기화된 리스트를 얻을 수 있다', '③ 여러 스레드가 동시에 add 메서드를 호출하면 데이터가 손상되거나 예외가 발생할 수 있다', '④ CopyOnWriteArrayList와 같은 동시성 컬렉션을 대안으로 사용할 수 있다']}
+  correctAnswer={1}
+  explanation="ArrayList는 동기화를 고려하지 않고 설계된 컬렉션으로, 여러 스레드가 동시에 구조를 변경하면 데이터가 손상되거나 예외가 발생할 수 있다. 여러 스레드에서 안전하게 사용하려면 Collections.synchronizedList로 감싸거나 CopyOnWriteArrayList 같은 별도의 동시성 컬렉션을 사용해야 한다."
+  optionExplanations={['ArrayList가 기본적으로 스레드에 안전하다는 설명은 사실과 반대이므로 옳지 않은 설명이며 이것이 정답이다.', 'Collections.synchronizedList는 실제로 동기화된 래퍼 리스트를 만들어 주는 정상적인 방법이므로 옳은 설명이다.', 'ArrayList는 동기화되어 있지 않아 동시 수정 시 데이터 손상이나 예외가 발생할 수 있으므로 옳은 설명이다.', 'CopyOnWriteArrayList는 여러 스레드 환경을 위해 설계된 동시성 컬렉션이므로 대안으로 사용할 수 있어 옳은 설명이다.']}
+/>
+
+## 참고 자료
+
+- Oracle Java Tutorials - Collections Framework: [https://docs.oracle.com/javase/tutorial/collections/index.html](https://docs.oracle.com/javase/tutorial/collections/index.html)
+- Oracle Java Tutorials - Concurrency (Threads): [https://docs.oracle.com/javase/tutorial/essential/concurrency/index.html](https://docs.oracle.com/javase/tutorial/essential/concurrency/index.html)
+- 국가평생교육진흥원 독학학위제 - 시험안내: [https://bdes.nile.or.kr/nile/exam/nExam2_1.do](https://bdes.nile.or.kr/nile/exam/nExam2_1.do)

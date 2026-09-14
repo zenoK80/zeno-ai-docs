@@ -1,0 +1,26 @@
+const meta = {
+  '01_software-engineering-overview': '01. 소프트웨어공학을 읽는 기본 관점',
+  '02_software-development-life-cycle-basics': '02. 개발 생명주기와 단계 구분',
+  '03_software-engineering-vocabulary-map': '03. 요구·설계·테스트·유지보수 용어 지도',
+  '04_software-engineering-process-reading': '04. 프로세스 모델과 시험형 비교표 읽기',
+  '05_software-engineering-introduction': '05. 소프트웨어공학 개요와 프로세스 모델',
+  '06_requirements-elicitation-analysis': '06. 요구공학 1: 도출·분석·협상',
+  '07_requirements-specification-validation': '07. 요구공학 2: 명세·검증·관리',
+  '08_structured-analysis-modeling': '08. 구조적 분석과 모델링',
+  '09_object-oriented-analysis-design': '09. 객체지향 분석·설계',
+  '10_uml-diagrams-and-notation': '10. UML 다이어그램과 표기법',
+  '11_software-design-principles-architecture': '11. 설계 원리와 아키텍처 개요',
+  '12_software-construction-coding-standards': '12. 구현과 코딩 표준',
+  '13_software-testing-fundamentals': '13. 테스팅의 기초와 검증·확인',
+  '14_testing-levels-techniques': '14. 테스트 수준과 기법',
+  '15_test-management-and-coverage': '15. 테스트 관리와 커버리지',
+  '16_maintenance-and-reengineering': '16. 유지보수와 재공학',
+  '17_configuration-management': '17. 형상관리와 변경 통제',
+  '18_quality-assurance-and-metrics': '18. 품질보증과 메트릭',
+  '19_software-project-management': '19. 소프트웨어 프로젝트 관리',
+  '20_risk-estimation-and-scheduling': '20. 위험·추정·일정관리',
+  '21_reuse-component-process-review': '21. 재사용·컴포넌트·과목 종합 기출 1',
+  '22_final-mock-and-past-papers': '22. 독학사 3단계 소프트웨어공학 예상기출문제',
+}
+
+export default meta

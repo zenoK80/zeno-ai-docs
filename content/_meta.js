@@ -161,9 +161,29 @@ const meta = {
         title: '2단계 머신러닝',
         href: '/독학사/2단계_머신러닝/01_ml-basics',
       },
+      '3단계_프로그래밍언어론': {
+        title: '3단계 프로그래밍언어론',
+        href: '/독학사/3단계_프로그래밍언어론/01_programming-language-vs-implementation',
+      },
+      '3단계_소프트웨어공학': {
+        title: '3단계 소프트웨어공학',
+        href: '/독학사/3단계_소프트웨어공학/01_software-engineering-overview',
+      },
+      '3단계_객체지향프로그래밍': {
+        title: '3단계 객체지향프로그래밍',
+        href: '/독학사/3단계_객체지향프로그래밍/01_exam-structure',
+      },
+      '3단계_컴퓨터그래픽스': {
+        title: '3단계 컴퓨터그래픽스',
+        href: '/독학사/3단계_컴퓨터그래픽스/01_graphics-overview',
+      },
       '3단계_컴퓨터네트워크': {
         title: '3단계 컴퓨터네트워크',
         href: '/독학사/3단계_컴퓨터네트워크/01_network-basics',
+      },
+      '3단계_임베디드시스템': {
+        title: '3단계 임베디드시스템',
+        href: '/독학사/3단계_임베디드시스템/01_embedded-prerequisites',
       },
       '3단계_정보보호': {
         title: '3단계 정보보호',

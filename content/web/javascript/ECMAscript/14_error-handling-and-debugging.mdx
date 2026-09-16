@@ -1,0 +1,319 @@
+---
+title: '14. 에러 처리와 디버깅'
+description: '커스텀 에러 클래스와 try/catch로 사용자용 에러 메시지를 만들고, node --inspect로 중단점을 확인합니다.'
+---
+
+<Callout type="info">
+  **이번 편의 결과물:** 잘못된 명령이나 존재하지 않는 id를 입력하면 스택 트레이스 대신 읽을 수 있는 에러 메시지가 출력됩니다. `node --inspect`로 중단점도 확인합니다. · **다루는 개념:** 에러 객체 계층, 커스텀 에러 클래스, `console`/`--inspect` 디버깅
+</Callout>
+
+## 이 편에서 만드는 파일
+
+```
+todo-cli/
+└── src/
+    ├── errors.js         (+)
+    ├── index.js          (~)
+    ├── models/
+    │   └── TodoStore.js  (~)
+    └── commands/
+        ├── done.js       (+)
+        └── remove.js     (+)
+```
+
+## 개념 정리
+
+### 에러 객체 계층
+
+JavaScript의 모든 에러는 `Error`를 상속합니다. 내장 서브클래스는 원인별로 나뉩니다.
+
+| 클래스 | 발생 상황 |
+|--------|-----------|
+| `Error` | 기본 에러, 직접 만드는 커스텀 에러의 부모 |
+| `TypeError` | 값의 타입이 예상과 다름(`undefined.length`) |
+| `RangeError` | 값이 허용 범위를 벗어남(배열 길이에 음수) |
+| `SyntaxError` | `JSON.parse`에 잘못된 문자열을 넘김 |
+
+`error.name`, `error.message`, `error.stack` 세 속성은 모든 에러 인스턴스에 공통으로 있습니다. `error.cause`(ES2022)는 에러를 감쌀 때 원래 원인을 함께 담습니다.
+
+### 커스텀 에러 클래스
+
+`Error`를 상속해 todo-cli 전용 에러를 만들면, `instanceof`로 종류를 구분해 각기 다른 메시지를 보여줄 수 있습니다.
+
+```js
+class TodoNotFoundError extends Error {
+  constructor(id) {
+    super(`id ${id}인 할 일을 찾을 수 없습니다.`);
+    this.name = 'TodoNotFoundError';
+    this.id = id;
+  }
+}
+```
+
+`super(message)`가 `Error`의 생성자를 호출해 `message`와 `stack`을 채웁니다. `this.name`을 지정하지 않으면 `console.error`에 `Error: ...`로만 찍혀 어떤 종류인지 구분하기 어렵습니다.
+
+### try/catch/finally와 에러 구분
+
+| 절 | 실행 시점 |
+|----|-----------|
+| `try` | 정상 흐름을 시도 |
+| `catch (error)` | `try` 블록에서 에러가 던져졌을 때만 |
+| `finally` | 에러 발생 여부와 무관하게 항상(자원 정리용) |
+
+`catch` 안에서 `error instanceof TodoNotFoundError`처럼 종류를 나눠 사용자 메시지를 다르게 보여줍니다. 알 수 없는 에러는 원래 스택 트레이스를 그대로 보여줘 디버깅에 활용합니다.
+
+## 실습
+
+<Steps>
+
+### 1. src/errors.js 만들기
+
+todo-cli 전용 에러 세 가지를 정의합니다.
+
+### 2. 코드 작성
+
+```js
+// src/errors.js
+export class TodoNotFoundError extends Error {
+  constructor(id) {
+    super(`id ${id}인 할 일을 찾을 수 없습니다.`);
+    this.name = 'TodoNotFoundError';
+    this.id = id;
+  }
+}
+
+export class InvalidArgumentError extends Error {
+  constructor(message) {
+    super(message);
+    this.name = 'InvalidArgumentError';
+  }
+}
+
+export class StorageError extends Error {
+  constructor(message, { cause } = {}) {
+    super(message, { cause });
+    this.name = 'StorageError';
+  }
+}
+```
+
+`StorageError`는 파일 읽기/쓰기 실패를 감쌀 때 씁니다. `{ cause }`로 원래 파일시스템 에러(`ENOENT` 등)를 보존해, 디버깅할 때는 `error.cause`로 원인을 추적할 수 있습니다.
+
+### 3. TodoStore에 remove 메서드 추가
+
+`done`·`remove` 명령은 `findById`(09편)에 더해 항목을 지우는 기능이 필요합니다.
+
+```js
+// src/models/TodoStore.js (remove 메서드만 발췌)
+// ...기존 fromArray/toArray/add/list/findById/tagCounts/replace/Symbol.iterator 유지
+
+remove(id) {
+  const index = this.#todos.findIndex((todo) => todo.id === id);
+  if (index === -1) return false;
+  this.#todos.splice(index, 1);
+  return true;
+}
+```
+
+### 4. commands/done.js, remove.js에서 에러 던지기
+
+```js
+// src/commands/done.js
+import { TodoNotFoundError } from '../errors.js';
+
+export function runDone(store, positional) {
+  const id = Number(positional[0]);
+  const todo = store.findById(id);
+  if (!todo) {
+    throw new TodoNotFoundError(id);
+  }
+  todo.done = true;
+  console.log(`완료 처리됨: #${todo.id} ${todo.title}`);
+}
+```
+
+```js
+// src/commands/remove.js
+import { TodoNotFoundError } from '../errors.js';
+
+export function runRemove(store, positional) {
+  const id = Number(positional[0]);
+  const removed = store.remove(id);
+  if (!removed) {
+    throw new TodoNotFoundError(id);
+  }
+  console.log(`삭제됨: #${id}`);
+}
+```
+
+### 5. src/index.js에서 에러 구분해 출력하고 done·remove 명령 연결
+
+```js
+// src/index.js (전체 구조: 기존 if/else if 체인을 async 함수와 try/catch로 감싼다)
+import { parseArgs } from './cli/parseArgs.js';
+import { TodoStore } from './models/TodoStore.js';
+import { loadTodos, saveTodos } from './storage/fileStore.js';
+import { runAdd } from './commands/add.js';
+import { runList } from './commands/list.js';
+import { runDone } from './commands/done.js';
+import { runRemove } from './commands/remove.js';
+import { runTags } from './commands/tags.js';
+import { runSearch } from './commands/search.js';
+import { runStats } from './commands/stats.js';
+import { runExport } from './commands/export.js';
+import { runImport } from './commands/import.js';
+import { TodoNotFoundError, InvalidArgumentError, StorageError } from './errors.js';
+
+async function main() {
+  const argv = process.argv.slice(2);
+  const { command, positional, flags } = parseArgs(argv);
+  const rawTodos = await loadTodos();
+  const store = TodoStore.fromArray(rawTodos);
+
+  try {
+    if (command === 'add') {
+      await runAdd(store, positional, flags);
+      await saveTodos(store.toArray().map((todo) => todo.toJSON()));
+    } else if (command === 'list') {
+      runList(store, flags);
+    } else if (command === 'tags') {
+      runTags(store);
+    } else if (command === 'search') {
+      runSearch(store, positional);
+    } else if (command === 'stats') {
+      runStats(store);
+    } else if (command === 'export') {
+      await runExport(store, positional);
+    } else if (command === 'import') {
+      await runImport(store, positional);
+      await saveTodos(store.toArray().map((todo) => todo.toJSON()));
+    } else if (command === 'done') {
+      runDone(store, positional);
+      await saveTodos(store.toArray().map((todo) => todo.toJSON()));
+    } else if (command === 'remove') {
+      runRemove(store, positional);
+      await saveTodos(store.toArray().map((todo) => todo.toJSON()));
+    } else {
+      console.log('알 수 없는 명령입니다:', command);
+    }
+  } catch (error) {
+    if (error instanceof TodoNotFoundError || error instanceof InvalidArgumentError) {
+      console.error(`오류: ${error.message}`);
+      process.exitCode = 1;
+      return;
+    }
+    if (error instanceof StorageError) {
+      console.error(`저장소 오류: ${error.message}`);
+      if (error.cause) console.error(`원인: ${error.cause.message}`);
+      process.exitCode = 1;
+      return;
+    }
+    console.error('예상하지 못한 오류가 발생했습니다.');
+    console.error(error.stack);
+    process.exitCode = 1;
+  }
+}
+
+main();
+```
+
+기존 if/else if 체인은 그대로 두고 `done`·`remove` 분기만 추가한 뒤, 전체를 `async function main()`과 `try`/`catch`로 감쌌습니다. 사용자 실수(`TodoNotFoundError`, `InvalidArgumentError`)와 저장소 문제(`StorageError`)는 짧은 한 줄 메시지만 보여주고, 그 외 예상 못 한 에러만 `error.stack`을 그대로 노출합니다. 이렇게 하면 사용자는 스택 트레이스에 겁먹지 않고, 개발자는 진짜 버그일 때만 스택을 봅니다.
+
+### 5. 실행(정상 에러 처리 확인)
+
+```text
+node src/index.js done 999
+```
+
+### 6. node --inspect로 중단점 확인
+
+```text
+node --inspect-brk src/index.js done 1
+```
+
+</Steps>
+
+## 확인
+
+- `done 999`(존재하지 않는 id) 실행 결과:
+
+```text
+오류: id 999인 할 일을 찾을 수 없습니다.
+```
+
+- 종료 코드가 `1`인지 `echo $?`(macOS/Linux) 또는 `echo $LASTEXITCODE`(PowerShell)로 확인합니다.
+- `node --inspect-brk`로 실행하면 터미널에 `Debugger listening on ws://...` 메시지가 나오고, Chrome 주소창에 `chrome://inspect`를 열어 "Open dedicated DevTools for Node"를 누르면 `runDone` 첫 줄에서 실행이 멈춥니다.
+
+## 직접 해보기
+
+1. `add` 명령에 제목 없이 실행하면(`node src/index.js add`) 어떤 에러가 나는지 확인하고, `InvalidArgumentError`로 감싸 "할 일 제목이 필요합니다."라는 메시지가 나오게 고쳐봅니다.
+2. `error.cause`를 이용해 `StorageError`를 만들 때, 원래 `fs` 에러의 `code`(`'ENOENT'` 등)까지 함께 출력하도록 `index.js`의 catch 블록을 수정해봅니다.
+
+<details>
+<summary>정답 보기(1번)</summary>
+
+```js
+// src/commands/add.js (일부)
+import { InvalidArgumentError } from '../errors.js';
+
+export async function runAdd(store, positional, flags) {
+  const [title] = positional;
+  if (!title) {
+    throw new InvalidArgumentError('할 일 제목이 필요합니다: todo add "제목"');
+  }
+  // ...기존 로직 유지
+}
+```
+
+</details>
+
+## 자주 하는 실수
+
+| 증상 | 원인 | 고치는 법 |
+|------|------|-----------|
+| 커스텀 에러인데 `Error: ...`로만 찍힘 | `this.name`을 지정하지 않음 | 생성자에서 `this.name = '클래스이름'` 지정 |
+| `catch`에서 모든 에러가 같은 메시지로 처리됨 | `instanceof` 분기 없이 하나로 처리 | 에러 종류별로 `instanceof` 분기 추가 |
+| `--inspect`를 켰는데 바로 끝까지 실행됨 | `--inspect`만 쓰면 중단 없이 연결만 대기 | 시작하자마자 멈추려면 `--inspect-brk` 사용 |
+
+## 확인 문제
+
+<Quiz
+  questionNumber={1}
+  question="커스텀 에러 클래스를 만들 때 super(message)가 하는 일은?"
+  options={['새 클래스의 모든 메서드를 자동 생성한다', 'Error의 생성자를 호출해 message와 stack을 채운다', '에러를 콘솔에 출력한다', '프로그램을 즉시 종료한다']}
+  correctAnswer={2}
+  explanation="super(message)는 부모 클래스인 Error의 생성자를 호출해 message 속성과 stack 속성을 표준 방식으로 채워줍니다."
+  optionExplanations={['메서드 자동 생성 기능이 아닙니다', '정답입니다', '출력은 super 호출과 무관합니다', '종료 기능이 아닙니다']}
+/>
+
+<Quiz
+  questionNumber={2}
+  question="try/catch/finally 중 에러 발생 여부와 무관하게 항상 실행되는 절은?"
+  options={['try', 'catch', 'finally', '셋 다 조건부로만 실행된다']}
+  correctAnswer={3}
+  explanation="finally 블록은 try에서 에러가 나든 안 나든, catch에서 다시 에러를 던지든 항상 실행됩니다."
+  optionExplanations={['try는 항상 시도되지만 질문의 의도는 무조건 실행 여부입니다', 'catch는 에러가 있을 때만 실행됩니다', '정답입니다', 'finally는 무조건 실행됩니다']}
+/>
+
+<Quiz
+  questionNumber={3}
+  question="error instanceof TodoNotFoundError로 에러 종류를 구분하는 이유는?"
+  options={['성능을 높이기 위해서다', '에러 종류별로 사용자에게 다른 메시지·처리를 제공하기 위해서다', 'JSON으로 변환하기 위해서다', 'catch 블록을 생략하기 위해서다']}
+  correctAnswer={2}
+  explanation="instanceof로 에러 종류를 나누면 사용자 실수, 저장소 오류, 예상 못 한 버그를 각각 다르게 처리할 수 있습니다."
+  optionExplanations={['성능 목적이 아닙니다', '정답입니다', '직렬화와는 무관합니다', 'catch는 여전히 필요합니다']}
+/>
+
+<Quiz
+  questionNumber={4}
+  question="node --inspect-brk와 node --inspect의 차이는?"
+  options={['차이가 없다', '--inspect-brk는 코드 실행 전 첫 줄에서 멈추고, --inspect는 멈추지 않고 연결만 연다', '--inspect-brk가 더 빠르다', '--inspect는 테스트 전용 옵션이다']}
+  correctAnswer={2}
+  explanation="--inspect-brk는 디버거가 연결될 때까지 첫 줄에서 실행을 멈추고 대기하지만, --inspect는 멈추지 않고 바로 실행을 진행합니다."
+  optionExplanations={['동작이 다릅니다', '정답입니다', '속도 차이가 목적이 아닙니다', '테스트 전용 옵션이 아닙니다']}
+/>
+
+## 참고 자료
+
+- [MDN - Control flow and error handling](https://developer.mozilla.org/en-US/docs/Web/JavaScript/Guide/Control_flow_and_error_handling)
+- [Node.js Docs - Debugging Node.js Apps](https://nodejs.org/en/learn/getting-started/debugging)

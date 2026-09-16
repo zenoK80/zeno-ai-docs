@@ -1,0 +1,216 @@
+---
+title: '13. 미디어 쿼리와 모바일 내비게이션'
+description: '미디어 쿼리 문법을 배우고, 화면 폭에 따라 내비게이션이 가로 메뉴와 햄버거 버튼 사이를 오가도록 만듭니다.'
+---
+
+<Callout type="info">
+  **이번 편의 결과물:** 화면 폭이 1024px 아래로 내려가면 내비게이션이 숨고 햄버거 버튼이 나타나며, 버튼을 누르면 모바일 메뉴가 열립니다. **다루는 개념:** `@media` 문법, `min-width`/`max-width`, 모바일 우선 설계, 모바일 메뉴 스타일링
+</Callout>
+
+## 이 편에서 만드는 파일
+
+```
+web-practice/portfolio/
+└── css/
+    └── styles.css   ~ (.site-nav, .menu-toggle, #mobile-menu 규칙 추가)
+```
+
+`index.html`·`projects.html`·`contact.html`은 `modern_html`에서 이미 헤더에 햄버거 버튼(`<button class="menu-toggle" popovertarget="mobile-menu" popovertargetaction="toggle">`)과 popover 메뉴(`<nav id="mobile-menu" popover>`, 내부는 `<a>` 3개가 바로 들어 있고 `<ul>`은 없습니다)를 넣어 두었습니다. 이 편은 마크업을 건드리지 않고 CSS만 추가합니다.
+
+## 개념 정리
+
+`@media` 규칙은 조건을 만족할 때만 안의 스타일을 적용합니다.
+
+```css
+@media (min-width: 768px) {
+  .project-grid {
+    grid-template-columns: repeat(2, 1fr);
+  }
+}
+```
+
+| 문법 | 뜻 |
+|------|-----|
+| `min-width: 768px` | 화면 폭이 768px **이상**일 때 적용 |
+| `max-width: 767px` | 화면 폭이 767px **이하**일 때 적용 |
+| `(min-width: 768px) and (max-width: 1023px)` | 두 조건을 모두 만족할 때만 적용(태블릿 구간) |
+
+**모바일 우선(mobile-first)** 설계는 기본 스타일을 모바일 화면 기준으로 작성하고, `min-width` 미디어 쿼리로 화면이 넓어질 때 스타일을 추가하는 방식입니다. 반대로 **데스크톱 우선**은 기본을 데스크톱으로 두고 `max-width`로 좁은 화면에서 스타일을 덮어씁니다. 이 사이트는 모바일 우선을 씁니다 — 기본 CSS가 곧 모바일 화면이라 미디어 쿼리 수가 적고, 큰 화면에서 필요한 것만 추가하면 됩니다.
+
+이 사이트의 브레이크포인트는 두 개입니다.
+
+| 구간 | 조건 | 카드 열 | 내비게이션 |
+|------|------|---------|-----------|
+| 모바일 | 기본(조건 없음) | 1열 | 숨김, 햄버거 버튼 노출 |
+| 태블릿 | `min-width: 768px` | 2열 | 여전히 숨김 |
+| 데스크톱 | `min-width: 1024px` | 3열 | 가로로 노출, 햄버거 버튼 숨김 |
+
+흔한 오해: 미디어 쿼리 조건은 **CSS 커스텀 속성(`var()`)을 쓸 수 없습니다.** `@media (min-width: var(--bp))`는 동작하지 않으므로 숫자를 그대로 씁니다.
+
+## 실습
+
+<Steps>
+
+### 1. 파일 열기
+
+`web-practice/portfolio/css/styles.css`를 엽니다. 지금까지 08~10편에서 만든 `.site-header`, `.logo`, `.site-nav` 규칙 아래에 이어서 씁니다.
+
+### 2. 코드 작성
+
+기존 `.site-nav` 규칙을 모바일 기준으로 바꾸고, 햄버거 버튼과 팝오버 메뉴 스타일을 추가합니다.
+
+```css
+/* web-practice/portfolio/css/styles.css */
+
+/* ...기존 리셋·토큰·타이포·헤더 레이아웃 규칙 유지... */
+
+.site-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  height: var(--header-height);
+  padding-inline: var(--space-6);
+  background: var(--color-bg);
+  border-bottom: 1px solid var(--color-border);
+}
+
+/* 모바일 기본: 가로 메뉴 숨김 */
+.site-nav {
+  display: none;
+}
+
+/* 햄버거 버튼: 모바일 기본은 보임 */
+.menu-toggle {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 2.5rem;
+  height: 2.5rem;
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius);
+  background: var(--color-bg);
+  cursor: pointer;
+}
+
+/* 팝오버로 열리는 모바일 메뉴: <nav id="mobile-menu" popover>에 <a> 3개가 바로 들어 있다 */
+#mobile-menu {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-4);
+  position: fixed;
+  inset: var(--header-height) var(--space-4) auto var(--space-4);
+  margin: 0;
+  padding: var(--space-4);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius);
+  background: var(--color-bg);
+  box-shadow: var(--shadow);
+}
+
+#mobile-menu a {
+  display: block;
+  font-size: var(--text-lg);
+  color: var(--color-text);
+  text-decoration: none;
+}
+
+#mobile-menu a[aria-current='page'] {
+  color: var(--color-primary);
+  font-weight: 700;
+}
+
+/* 데스크톱: 가로 메뉴 노출, 버튼 숨김 */
+@media (min-width: 1024px) {
+  .site-nav {
+    display: flex;
+    gap: var(--space-6);
+  }
+
+  .menu-toggle {
+    display: none;
+  }
+}
+```
+
+`#mobile-menu`는 `popover` 속성이 붙은 요소라 열려 있을 때 브라우저가 자동으로 최상위 레이어에 띄웁니다. `position: fixed`와 `inset`만 지정하면 위치가 잡힙니다.
+
+### 3. 실행
+
+VS Code Live Server 또는 `npx serve web-practice/portfolio`로 세 페이지를 모두 엽니다.
+
+### 4. 확인
+
+- 브라우저 폭을 1024px 이상으로 넓히면 헤더 오른쪽에 가로 메뉴 3개가 보이고 햄버거 버튼은 사라집니다.
+- 폭을 1024px 아래로 줄이면 메뉴가 사라지고 햄버거 버튼만 남습니다.
+- 버튼을 클릭하면 헤더 아래에 메뉴 목록이 뜨고, 현재 페이지 링크가 강조색으로 표시됩니다.
+- 메뉴 바깥을 클릭하거나 `Esc`를 누르면 팝오버가 닫힙니다(네이티브 popover 동작).
+
+</Steps>
+
+## 직접 해보기
+
+1. 브레이크포인트를 1024px에서 900px로 바꿔 보고, 어느 화면 크기에서 메뉴 전환이 일어나는지 DevTools의 반응형 모드로 확인합니다.
+2. 태블릿 구간(768px 이상 1024px 미만)에서만 햄버거 버튼 배경색을 `--color-surface`로 바꿔 봅니다. `and` 조건을 쓴 미디어 쿼리가 필요합니다.
+
+<details>
+<summary>풀이 보기</summary>
+
+```css
+@media (min-width: 768px) and (max-width: 1023px) {
+  .menu-toggle {
+    background: var(--color-surface);
+  }
+}
+```
+
+</details>
+
+## 자주 하는 실수
+
+| 증상 | 원인 | 고치는 법 |
+|------|------|-----------|
+| 데스크톱에서도 메뉴가 안 보임 | `.site-nav`의 `display: none`이 미디어 쿼리보다 아래(나중)에 와서 덮어씀 | 미디어 쿼리 규칙을 기본 규칙보다 **뒤에** 배치(캐스케이드 순서) |
+| 팝오버가 화면 밖으로 나감 | `inset` 값이 뷰포트 기준으로 계산되지 않음 | `position: fixed` 확인, `inset`에 `var(--header-height)` 등 실제 값이 들어갔는지 확인 |
+| 미디어 쿼리가 전혀 동작하지 않음 | `<meta name="viewport">`가 없어 모바일 브라우저가 데스크톱 폭으로 렌더링 | `modern_html`에서 추가한 viewport 메타 태그가 `<head>`에 있는지 확인 |
+
+## 확인 문제
+
+<Quiz
+  questionNumber={1}
+  question="min-width: 768px 조건의 뜻으로 옳은 것은?"
+  options={['화면 폭이 768px 이하일 때 적용된다', '화면 폭이 768px 이상일 때 적용된다', '요소의 최소 너비를 768px로 고정한다', '뷰포트와 무관하게 항상 적용된다']}
+  correctAnswer={2}
+  explanation="min-width는 화면 폭이 지정값 이상일 때 안의 스타일을 적용하는 조건입니다."
+  optionExplanations={['이하 조건은 max-width입니다', '정답입니다', '이는 요소 자체의 min-width 속성과 혼동한 설명입니다', '조건이 있으므로 뷰포트 폭에 따라 달라집니다']}
+/>
+
+<Quiz
+  questionNumber={2}
+  question="모바일 우선 설계에서 기본 CSS는 어떤 화면을 기준으로 작성하는가?"
+  options={['가장 넓은 데스크톱 화면', '가장 좁은 모바일 화면', '태블릿 화면', '화면 폭과 무관하게 임의로 정한다']}
+  correctAnswer={2}
+  explanation="모바일 우선은 기본 스타일을 모바일 기준으로 두고 min-width 미디어 쿼리로 넓은 화면 스타일을 추가하는 방식입니다."
+  optionExplanations={['데스크톱 우선 방식의 설명입니다', '정답입니다', '태블릿은 중간 단계로 별도 조건이 필요합니다', '브레이크포인트는 실제 콘텐츠 폭을 기준으로 정합니다']}
+/>
+
+<Quiz
+  questionNumber={3}
+  question="이 사이트에서 데스크톱 내비게이션이 가로로 노출되는 최소 화면 폭은?"
+  options={['480px', '768px', '1024px', '1280px']}
+  correctAnswer={3}
+  explanation="design-spec 4절에 따라 min-width: 1024px에서 내비게이션이 가로로 노출됩니다."
+  optionExplanations={['이 값은 사이트 스펙에 없습니다', '768px는 카드 2열이 시작되는 태블릿 기준입니다', '정답입니다', '이 값은 사이트 스펙에 정의되어 있지 않습니다']}
+/>
+
+<Quiz
+  questionNumber={4}
+  question="CSS 커스텀 속성(--변수)에 대한 설명 중 옳은 것은?"
+  options={['미디어 쿼리 조건 안에서 그대로 사용할 수 있다', '선언 블록 안 값으로만 사용할 수 있고 미디어 쿼리 조건에는 쓸 수 없다', 'JavaScript에서는 읽을 수 없다', '한 문서에 하나만 정의할 수 있다']}
+  correctAnswer={2}
+  explanation="var()는 속성 값 자리에서만 쓸 수 있고, @media (min-width: ...) 같은 조건식 안에는 숫자를 직접 써야 합니다."
+  optionExplanations={['조건식에는 사용할 수 없습니다', '정답입니다', 'getComputedStyle 등으로 JavaScript에서도 읽을 수 있습니다', '여러 개를 자유롭게 정의할 수 있습니다']}
+/>
+
+## 참고 자료
+
+- [MDN — CSS media queries](https://developer.mozilla.org/en-US/docs/Web/CSS/Guides/Media_queries)

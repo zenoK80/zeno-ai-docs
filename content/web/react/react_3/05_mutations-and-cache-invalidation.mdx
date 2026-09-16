@@ -1,0 +1,322 @@
+---
+title: '05. 뮤테이션과 캐시 무효화로 CRUD 연결'
+description: '책 추가·삭제를 json-server mock API에 반영하고 성공 시 목록을 자동으로 다시 조회합니다'
+---
+
+<Callout type="info">
+  **이번 편의 결과물:** 책 추가·삭제가 mock 서버에 반영되고, 성공하면 목록이 자동으로 다시 조회됩니다. · **다루는 개념:** `useMutation`, 성공/실패 핸들러, `invalidateQueries`, 삭제·추가 흐름
+</Callout>
+
+04편에서 `BookListPage`는 `useQuery`로 `json-server` mock 목록을 조회하는 상태까지 왔습니다. 조회만 되고 쓰기는 아직 없습니다. 이 편에서는 책 추가·삭제를 서버에 반영하고, 반영이 끝나면 목록을 자동으로 갱신합니다.
+
+## 이 편에서 만드는 파일
+
+```
+bookshelf/src/
+├── api/
+│   └── books.js                ~ (createBook, deleteBook 함수 추가)
+├── hooks/
+│   └── useBookMutations.js     + (useCreateBook, useDeleteBook — 이후 편이 계속 재사용)
+├── pages/
+│   ├── BookListPage.jsx        ~ (삭제 버튼 연결)
+│   └── NewBookPage.jsx         ~ (등록 폼을 서버 저장으로 전환)
+└── components/
+    └── BookList.jsx            ~ (onDelete prop 추가)
+```
+
+## 개념 정리
+
+`useQuery`는 읽기 전용입니다. 서버 상태를 바꾸는 요청(추가·삭제·수정)은 `useMutation`으로 다룹니다.
+
+| 개념 | 역할 |
+|------|------|
+| `mutationFn` | 실제 요청을 보내는 비동기 함수 |
+| `onSuccess` | 요청이 성공했을 때 실행(캐시 무효화·화면 이동 등) |
+| `onError` | 요청이 실패했을 때 실행(에러 표시) |
+| `invalidateQueries` | 지정한 `queryKey`를 "오래됨"으로 표시해 다음 조회 시 다시 가져오게 함 |
+
+`useMutation`은 `useQuery`와 다르게 **호출 시점에 자동으로 실행되지 않습니다.** 컴포넌트가 반환한 `mutate` 함수를 이벤트 핸들러 안에서 직접 불러야 합니다. 성공 후 화면을 최신 상태로 만드는 표준 방법은 `invalidateQueries`로 관련 `queryKey`를 무효화하는 것입니다. TanStack Query가 알아서 다시 조회합니다.
+
+`useMutation` 설정(어떤 API 함수를 부를지, 성공·실패 시 무엇을 할지)은 컴포넌트마다 새로 쓰지 않고 `hooks/useBookMutations.js` 한 파일에 모읍니다. 여러 컴포넌트가 같은 뮤테이션을 쓰거나, 06편처럼 낙관적 업데이트로 로직이 복잡해질 때 한 곳만 고치면 되게 하기 위해서입니다. 이 편에서 `useCreateBook`, `useDeleteBook`을 만들고, 12편에서 `useUpdateBook`을 추가합니다.
+
+## 실습
+
+<Steps>
+
+### 1. API 함수에 쓰기 요청 추가
+
+`json-server`는 `POST /books`, `DELETE /books/:id`를 REST 규약대로 처리합니다. `api/books.js`에 두 함수를 추가합니다.
+
+```js
+// bookshelf/src/api/books.js
+const API_BASE = 'http://localhost:3001'
+
+export async function getBooks() {
+  const response = await fetch(`${API_BASE}/books`)
+  if (!response.ok) {
+    throw new Error(`책 목록을 가져오지 못했습니다 (상태 코드: ${response.status})`)
+  }
+  return response.json()
+}
+
+export async function createBook(book) {
+  const response = await fetch(`${API_BASE}/books`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(book),
+  })
+  if (!response.ok) {
+    throw new Error('책을 추가하지 못했습니다')
+  }
+  return response.json()
+}
+
+export async function deleteBook(id) {
+  const response = await fetch(`${API_BASE}/books/${id}`, { method: 'DELETE' })
+  if (!response.ok) {
+    throw new Error('책을 삭제하지 못했습니다')
+  }
+  return response.json()
+}
+```
+
+`json-server`는 `POST` 요청 본문에 `id`가 없으면 기존 항목 중 가장 큰 숫자 `id`에 1을 더해 자동으로 채웁니다.
+
+### 2. 뮤테이션 훅 모음 작성
+
+```js
+// bookshelf/src/hooks/useBookMutations.js
+import { useMutation, useQueryClient } from '@tanstack/react-query'
+import { createBook, deleteBook } from '../api/books.js'
+
+export function useCreateBook() {
+  const queryClient = useQueryClient()
+  return useMutation({
+    mutationFn: createBook,
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['books'] })
+    },
+  })
+}
+
+export function useDeleteBook() {
+  const queryClient = useQueryClient()
+  return useMutation({
+    mutationFn: deleteBook,
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['books'] })
+    },
+  })
+}
+```
+
+컴포넌트는 `useMutation`을 직접 부르지 않고 이 두 훅만 가져다 씁니다. 06편에서 `useDeleteBook` 내부만 낙관적 업데이트로 바꿔도, 이 훅을 쓰는 컴포넌트 코드는 그대로입니다.
+
+### 3. 목록 화면에 삭제 버튼 연결
+
+```jsx
+// bookshelf/src/pages/BookListPage.jsx
+import { Link } from 'react-router'
+import { useBooks } from '../hooks/useBooks.js'
+import { useDeleteBook } from '../hooks/useBookMutations.js'
+import BookList from '../components/BookList.jsx'
+
+export default function BookListPage() {
+  const { data: books, isLoading, isError, error } = useBooks()
+  const deleteMutation = useDeleteBook()
+
+  if (isLoading) {
+    return <p role="status">책 목록을 불러오는 중입니다...</p>
+  }
+
+  if (isError) {
+    return <p role="alert">목록을 불러오지 못했습니다: {error.message}</p>
+  }
+
+  return (
+    <section>
+      <header>
+        <h1>내 서재</h1>
+        <Link to="/books/new">새 책 등록</Link>
+      </header>
+      <BookList books={books} onDelete={(id) => deleteMutation.mutate(id)} />
+    </section>
+  )
+}
+```
+
+`BookList`가 `onDelete`를 받아 각 항목에 삭제 버튼을 그리도록 고칩니다.
+
+```jsx
+// bookshelf/src/components/BookList.jsx
+import BookCard from './BookCard.jsx'
+
+export default function BookList({ books, onDelete }) {
+  if (books.length === 0) {
+    return <p>등록된 책이 없습니다.</p>
+  }
+
+  return (
+    <ul className="book-list">
+      {books.map((book) => (
+        <li key={book.id}>
+          <BookCard book={book} />
+          <button type="button" onClick={() => onDelete(book.id)}>
+            삭제
+          </button>
+        </li>
+      ))}
+    </ul>
+  )
+}
+```
+
+### 4. 등록 폼을 서버 저장으로 전환
+
+`react_2`의 `NewBookPage`는 로컬 배열에 직접 `push`하던 방식이었습니다. `useCreateBook`으로 바꿉니다.
+
+```jsx
+// bookshelf/src/pages/NewBookPage.jsx
+import { useState } from 'react'
+import { useNavigate } from 'react-router'
+import { useCreateBook } from '../hooks/useBookMutations.js'
+
+export default function NewBookPage() {
+  const navigate = useNavigate()
+  const [title, setTitle] = useState('')
+  const [author, setAuthor] = useState('')
+  const [pages, setPages] = useState('')
+
+  const createMutation = useCreateBook()
+
+  function handleSubmit(event) {
+    event.preventDefault()
+    createMutation.mutate(
+      {
+        title,
+        author,
+        pages: Number(pages),
+        status: 'wish',
+        rating: 0,
+        coverColor: '#2563eb',
+        startedAt: null,
+        finishedAt: null,
+        memo: '',
+      },
+      { onSuccess: () => navigate('/') },
+    )
+  }
+
+  return (
+    <form onSubmit={handleSubmit}>
+      <h1>책 등록</h1>
+      <label htmlFor="title">제목</label>
+      <input id="title" value={title} onChange={(e) => setTitle(e.target.value)} required />
+
+      <label htmlFor="author">저자</label>
+      <input id="author" value={author} onChange={(e) => setAuthor(e.target.value)} required />
+
+      <label htmlFor="pages">쪽수</label>
+      <input id="pages" type="number" value={pages} onChange={(e) => setPages(e.target.value)} required />
+
+      <button type="submit" disabled={createMutation.isPending}>
+        {createMutation.isPending ? '저장 중...' : '저장'}
+      </button>
+
+      {createMutation.isError && <p role="alert">{createMutation.error.message}</p>}
+    </form>
+  )
+}
+```
+
+`useCreateBook`의 `onSuccess`(훅 안)는 캐시 무효화를 맡고, `mutate`의 두 번째 인자로 넘긴 `onSuccess`(호출부)는 화면 이동만 맡습니다. TanStack Query는 두 `onSuccess`를 모두 실행합니다.
+
+### 5. 실행과 확인
+
+```text
+npx json-server db.json --port 3001
+npm run dev
+```
+
+- `/` 화면에서 책 목록이 보인다.
+- "새 책 등록" 클릭 → 폼 작성 → 저장하면 `/`로 돌아오고 새 책이 목록에 나타난다.
+- 아무 책이나 "삭제" 클릭하면 목록에서 사라진다.
+- `bookshelf/db.json` 파일을 열어보면 방금 추가·삭제한 내용이 실제로 저장돼 있다.
+
+</Steps>
+
+## 직접 해보기
+
+1. `addMutation`에 `onError` 핸들러를 추가해 등록 실패 시에도 에러 메시지가 뜨게 만들어 보세요.
+2. 삭제 버튼을 두 번 빠르게 누르면 어떤 일이 벌어지는지 확인하고, `deleteMutation.isPending`으로 중복 클릭을 막아보세요.
+
+<details>
+<summary>정답 보기</summary>
+
+```jsx
+// hooks/useBookMutations.js의 useDeleteBook은 그대로 두고, 사용하는 쪽만 변경
+const deleteMutation = useDeleteBook()
+
+// 버튼 쪽
+<button
+  type="button"
+  disabled={deleteMutation.isPending}
+  onClick={() => onDelete(book.id)}
+>
+  삭제
+</button>
+```
+
+`isPending`은 현재 진행 중인 뮤테이션이 있을 때 `true`가 됩니다. 어떤 항목을 삭제 중인지까지 구분하려면 `deleteMutation.variables`(현재 요청에 전달된 `id`)와 비교합니다.
+
+</details>
+
+## 자주 하는 실수
+
+| 증상 | 원인 | 고치는 법 |
+|------|------|-----------|
+| 삭제해도 목록이 그대로 | `onSuccess`에서 `invalidateQueries` 호출을 빠뜨림 | `queryKey`를 정확히 맞춰 무효화한다 |
+| 등록 후 화면 이동이 안 됨 | `navigate`를 `onSuccess` 밖에서 호출 | 서버 응답을 받은 뒤 `onSuccess` 안에서 이동한다 |
+| 콘솔에 `Failed to fetch` | `json-server`를 안 켜거나 포트가 다름 | 3001 포트로 `json-server`가 떠 있는지 확인한다 |
+
+## 확인 문제
+
+<Quiz
+  questionNumber={1}
+  question="useMutation과 useQuery의 가장 큰 차이는 무엇인가"
+  options={['useMutation은 컴포넌트가 렌더될 때 자동으로 실행된다', 'useMutation은 mutate 함수를 호출해야 요청이 실행된다', 'useQuery는 쓰기 요청 전용이다', '둘 다 캐시를 사용하지 않는다']}
+  correctAnswer={2}
+  explanation="useQuery는 마운트 시 자동 실행되지만 useMutation은 mutate 호출 시점에만 실행됩니다."
+  optionExplanations={['자동 실행은 useQuery의 특징입니다', '정답입니다', 'useQuery는 읽기 전용입니다', 'useQuery는 결과를 캐시에 저장합니다']}
+/>
+
+<Quiz
+  questionNumber={2}
+  question="삭제에 성공한 뒤 목록을 최신 상태로 만드는 가장 표준적인 방법은"
+  options={['페이지를 새로고침한다', 'invalidateQueries로 관련 queryKey를 무효화한다', 'useState로 별도 배열을 관리한다', '5초마다 폴링한다']}
+  correctAnswer={2}
+  explanation="invalidateQueries는 해당 쿼리를 오래된 것으로 표시해 다음 렌더에서 다시 조회하게 만듭니다."
+  optionExplanations={['새로고침은 사용자 경험을 해칩니다', '정답입니다', '서버 상태를 별도 관리하면 정합성 문제가 재발합니다', '폴링은 이 상황에 과합니다']}
+/>
+
+<Quiz
+  questionNumber={3}
+  question="json-server가 POST 요청에서 id를 자동으로 채우는 방식은"
+  options={['항상 0으로 고정한다', '기존 항목 중 가장 큰 숫자 id에 1을 더한다', '요청마다 랜덤 문자열을 생성한다', 'id를 채우지 않아 항상 null이 된다']}
+  correctAnswer={2}
+  explanation="json-server는 본문에 id가 없으면 기존 숫자 id 중 최댓값에 1을 더해 자동으로 채웁니다."
+  optionExplanations={['0 고정이 아닙니다', '정답입니다', '랜덤 문자열이 아니라 숫자 증가입니다', 'id는 채워집니다']}
+/>
+
+<Quiz
+  questionNumber={4}
+  question="NewBookPage에서 addMutation.isPending을 버튼의 disabled에 연결하는 이유는"
+  options={['버튼 색을 바꾸기 위해서', '요청이 진행 중일 때 중복 제출을 막기 위해서', 'CSS 애니메이션을 트리거하기 위해서', 'React 경고를 없애기 위해서']}
+  correctAnswer={2}
+  explanation="요청이 끝나기 전에 다시 클릭하면 같은 책이 중복 등록될 수 있어 isPending으로 막습니다."
+  optionExplanations={['색 변경은 부수 효과일 뿐입니다', '정답입니다', '애니메이션과 무관합니다', '경고 제거가 목적이 아닙니다']}
+/>
+
+## 참고 자료
+
+- [TanStack Query — Mutations 가이드](https://tanstack.com/query/latest/docs/framework/react/guides/mutations)

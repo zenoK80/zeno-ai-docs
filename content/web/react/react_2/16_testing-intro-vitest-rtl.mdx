@@ -1,0 +1,326 @@
+---
+title: '16. 테스트 입문: Vitest+RTL로 컴포넌트 테스트'
+description: 'Vitest와 React Testing Library로 BookForm의 검증 로직을 테스트합니다'
+---
+
+<Callout type="info">
+  **이번 편의 결과물:** `BookForm` 컴포넌트에 대한 테스트 파일이 생기고 `npm run test`가 통과합니다. · **다루는 개념:** Vitest 설정, React Testing Library 쿼리, 사용자 이벤트 시뮬레이션
+</Callout>
+
+## 이 편에서 만드는 파일
+
+```
+bookshelf/
+├── package.json                       ~ (devDependencies·scripts.test 추가)
+├── vite.config.js                     ~ (test 설정 추가)
+└── src/
+    ├── test/
+    │   └── setup.js                   + (jest-dom matcher 등록)
+    ├── utils/
+    │   └── validateBookForm.js        + (검증 로직을 컴포넌트 밖으로 분리)
+    └── components/
+        ├── BookForm.jsx               ~ (분리된 검증 함수 사용, role="alert" 추가)
+        └── BookForm.test.jsx          + (Vitest + RTL 테스트)
+```
+
+## 개념 정리
+
+테스트를 작성하기 전에 검증 로직을 컴포넌트 밖으로 뺍니다. 로직이 컴포넌트 안에 있으면 렌더링까지 거쳐야만 테스트할 수 있지만, 순수 함수로 분리하면 입력과 출력만으로 검증할 수 있습니다. 이 원칙은 08편의 폼 검증에도 이미 적용할 수 있었던 내용이지만, 테스트를 실제로 붙여보는 이 편에서 그 효과가 분명해집니다.
+
+React Testing Library는 DOM 구조가 아니라 **사용자가 화면을 보는 방식**으로 요소를 찾습니다. 쿼리 우선순위는 다음과 같습니다.
+
+| 우선순위 | 쿼리 | 찾는 기준 | 예 |
+|---|---|---|---|
+| 1 | `getByRole` | 접근성 역할과 이름 | `getByRole('button', { name: '저장' })` |
+| 2 | `getByLabelText` | `label`과 연결된 입력 | `getByLabelText('제목')` |
+| 3 | `getByText` | 화면에 보이는 텍스트 | `getByText('제목을 입력하세요')` |
+| 최후 수단 | `getByTestId` | `data-testid` 속성 | 위 방법으로 구분이 안 될 때만 |
+
+`getByRole`을 우선 쓰는 이유는 이 쿼리가 통과해야 스크린 리더 사용자도 같은 방식으로 요소를 찾을 수 있다는 뜻이기 때문입니다. 테스트가 접근성 확인을 겸합니다.
+
+Vitest는 Vite 설정을 그대로 재사용하는 테스트 러너입니다. 브라우저 API(`document`, `window`)가 필요하므로 `environment: 'jsdom'`을 지정합니다.
+
+## 실습
+
+<Steps>
+
+### 1. 파일 만들기 / 열기
+
+`npm install -D vitest @testing-library/react @testing-library/jest-dom @testing-library/user-event jsdom`을 실행한 뒤, `src/test/setup.js`, `src/utils/validateBookForm.js`, `src/components/BookForm.test.jsx`를 새로 만들고 `vite.config.js`, `src/components/BookForm.jsx`를 엽니다.
+
+### 2. 코드 작성
+
+`package.json`에 다음을 추가합니다(기존 필드는 유지).
+
+```
+"scripts": {
+  "test": "vitest run"
+},
+"devDependencies": {
+  "vitest": "^2.0.0",
+  "@testing-library/react": "^16.0.0",
+  "@testing-library/jest-dom": "^6.0.0",
+  "@testing-library/user-event": "^14.0.0",
+  "jsdom": "^25.0.0"
+}
+```
+
+```js
+// vite.config.js
+import { defineConfig } from 'vite';
+import react from '@vitejs/plugin-react';
+
+export default defineConfig({
+  plugins: [react()],
+  test: {
+    environment: 'jsdom',
+    setupFiles: './src/test/setup.js',
+  },
+});
+```
+
+```js
+// src/test/setup.js
+import '@testing-library/jest-dom/vitest';
+```
+
+```js
+// src/utils/validateBookForm.js
+export function validateBookForm(values) {
+  const errors = {};
+  if (!values.title || !values.title.trim()) {
+    errors.title = '제목을 입력하세요';
+  }
+  if (!values.author || !values.author.trim()) {
+    errors.author = '저자를 입력하세요';
+  }
+  return errors;
+}
+```
+
+```jsx
+// src/components/BookForm.jsx
+// 08편에서 만든 제출 상태 표시(useActionState)는 상위 페이지(NewBookPage)가 담당한다.
+// BookForm 자신은 onSubmit·pending만 props로 받는 형태로 단순화해 테스트 대상을 좁힌다.
+import { useState } from 'react';
+import { validateBookForm } from '../utils/validateBookForm';
+
+export default function BookForm({ onSubmit, pending }) {
+  const [values, setValues] = useState({ title: '', author: '' });
+  const [errors, setErrors] = useState({});
+
+  function handleChange(event) {
+    const { name, value } = event.target;
+    setValues((prev) => ({ ...prev, [name]: value }));
+  }
+
+  function handleSubmit(event) {
+    event.preventDefault();
+    const nextErrors = validateBookForm(values);
+    setErrors(nextErrors);
+    if (Object.keys(nextErrors).length === 0) {
+      onSubmit(values);
+    }
+  }
+
+  return (
+    <form onSubmit={handleSubmit} noValidate>
+      <div>
+        <label htmlFor="title">제목</label>
+        <input
+          id="title"
+          name="title"
+          value={values.title}
+          onChange={handleChange}
+          aria-invalid={Boolean(errors.title)}
+          aria-describedby={errors.title ? 'title-error' : undefined}
+        />
+        {errors.title && (
+          <p id="title-error" role="alert">
+            {errors.title}
+          </p>
+        )}
+      </div>
+      <div>
+        <label htmlFor="author">저자</label>
+        <input
+          id="author"
+          name="author"
+          value={values.author}
+          onChange={handleChange}
+          aria-invalid={Boolean(errors.author)}
+          aria-describedby={errors.author ? 'author-error' : undefined}
+        />
+        {errors.author && (
+          <p id="author-error" role="alert">
+            {errors.author}
+          </p>
+        )}
+      </div>
+      <button type="submit" disabled={pending}>
+        {pending ? '저장 중...' : '저장'}
+      </button>
+    </form>
+  );
+}
+```
+
+```jsx
+// src/components/BookForm.test.jsx
+import { describe, it, expect, vi } from 'vitest';
+import { render, screen } from '@testing-library/react';
+import userEvent from '@testing-library/user-event';
+import BookForm from './BookForm';
+
+describe('BookForm', () => {
+  it('제목과 저자를 비운 채 제출하면 에러 메시지를 보여준다', async () => {
+    const user = userEvent.setup();
+    const handleSubmit = vi.fn();
+    render(<BookForm onSubmit={handleSubmit} pending={false} />);
+
+    await user.click(screen.getByRole('button', { name: '저장' }));
+
+    expect(screen.getByRole('alert', { name: '제목을 입력하세요' })).toBeInTheDocument();
+    expect(handleSubmit).not.toHaveBeenCalled();
+  });
+
+  it('제목과 저자를 채우면 onSubmit이 입력값과 함께 호출된다', async () => {
+    const user = userEvent.setup();
+    const handleSubmit = vi.fn();
+    render(<BookForm onSubmit={handleSubmit} pending={false} />);
+
+    await user.type(screen.getByLabelText('제목'), '이펙티브 자바');
+    await user.type(screen.getByLabelText('저자'), '조슈아 블로크');
+    await user.click(screen.getByRole('button', { name: '저장' }));
+
+    expect(handleSubmit).toHaveBeenCalledWith({ title: '이펙티브 자바', author: '조슈아 블로크' });
+  });
+});
+```
+
+### 3. 실행
+
+```
+npm run test
+```
+
+### 4. 확인
+
+```text
+✓ src/components/BookForm.test.jsx (2)
+  ✓ BookForm > 제목과 저자를 비운 채 제출하면 에러 메시지를 보여준다
+  ✓ BookForm > 제목과 저자를 채우면 onSubmit이 입력값과 함께 호출된다
+
+Test Files  1 passed (1)
+     Tests  2 passed (2)
+```
+
+- 터미널에 위와 같이 두 테스트가 모두 통과로 표시됩니다.
+- 일부러 `validateBookForm`의 에러 메시지 문구를 바꿔보면 첫 번째 테스트가 실패로 바뀌는지 확인합니다(테스트가 실제로 그 문구를 검사하고 있다는 뜻입니다).
+
+</Steps>
+
+## 직접 해보기
+
+1. 저자만 입력하고 제목은 비운 채 제출하는 테스트를 추가해보세요. 제목 에러만 나타나고 저자 에러는 없어야 합니다.
+
+<details>
+<summary>답 보기</summary>
+
+```jsx
+it('저자만 입력하면 제목 에러만 표시된다', async () => {
+  const user = userEvent.setup();
+  render(<BookForm onSubmit={vi.fn()} pending={false} />);
+
+  await user.type(screen.getByLabelText('저자'), '마틴 파울러');
+  await user.click(screen.getByRole('button', { name: '저장' }));
+
+  expect(screen.getByRole('alert', { name: '제목을 입력하세요' })).toBeInTheDocument();
+  expect(screen.queryByText('저자를 입력하세요')).not.toBeInTheDocument();
+});
+```
+
+</details>
+
+2. `validateBookForm` 함수만 따로 unit 테스트를 작성해보세요. 컴포넌트 렌더링 없이 입력값과 반환값만 확인합니다.
+
+## 자주 하는 실수
+
+| 증상 | 원인 | 고치는 법 |
+|---|---|---|
+| `document is not defined` 오류 | `vite.config.js`에 `environment: 'jsdom'`이 없음 | test 설정에 `environment: 'jsdom'` 추가 |
+| `toBeInTheDocument is not a function` | jest-dom matcher가 등록되지 않음 | `setupFiles`에 `src/test/setup.js` 연결, 그 안에서 `@testing-library/jest-dom/vitest` import |
+| 클릭 후 상태 변화가 반영되지 않음 | `user.click`을 `await` 없이 호출 | user-event의 모든 상호작용 메서드는 비동기이므로 `await` 필수 |
+| `getByRole('alert')`가 여러 개 찾음 | 제목·저자 에러가 동시에 존재하는데 이름 없이 조회 | `{ name: '...' }`로 좁히거나 `getAllByRole` 사용 |
+
+## 확인 문제
+
+<Quiz
+  questionNumber={1}
+  question="React Testing Library에서 가장 먼저 시도해야 할 쿼리 방식은?"
+  options={['getByTestId', 'getByRole', 'querySelector', 'getByClassName']}
+  correctAnswer={2}
+  explanation="getByRole은 접근성 역할과 이름으로 요소를 찾으므로, 이 쿼리가 통과하면 스크린 리더 사용자도 같은 방식으로 요소를 인식할 수 있다는 뜻입니다."
+  optionExplanations={['다른 방법으로 구분이 안 될 때만 쓰는 최후 수단입니다', '정답입니다', 'Testing Library가 권장하는 API가 아닙니다', 'Testing Library에 존재하지 않는 함수입니다']}
+/>
+
+<Quiz
+  questionNumber={2}
+  question="검증 로직을 컴포넌트 밖의 순수 함수로 뺐을 때 테스트에서 얻는 이점은?"
+  options={['렌더링 없이 입력과 출력만으로 검증할 수 있다', 'React를 import하지 않아도 컴포넌트가 동작한다', '테스트 코드 없이도 버그가 사라진다', 'CSS Modules와 자동으로 연동된다']}
+  correctAnswer={1}
+  explanation="validateBookForm처럼 순수 함수로 분리하면 컴포넌트 렌더링 과정 없이 함수만 호출해 결과를 확인할 수 있어 테스트가 단순해집니다."
+  optionExplanations={['정답입니다', '컴포넌트는 여전히 React를 사용합니다', '테스트는 버그를 없애는 것이 아니라 발견하는 도구입니다', 'CSS Modules와는 관련이 없습니다']}
+/>
+
+<Quiz
+  questionNumber={3}
+  question="user.click(button) 호출 앞에 await를 붙이지 않으면 생기는 문제는?"
+  options={['빌드가 실패한다', '클릭 이후의 상태 변화가 테스트 검증 시점에 반영되지 않을 수 있다', 'React가 클릭 이벤트를 무시한다', 'Vitest가 테스트 파일을 찾지 못한다']}
+  correctAnswer={2}
+  explanation="user-event의 상호작용 메서드는 비동기입니다. await 없이 다음 expect로 넘어가면 상태 갱신이 끝나기 전에 값을 확인해 테스트가 불안정해집니다."
+  optionExplanations={['빌드와는 관련이 없습니다', '정답입니다', 'React는 클릭 이벤트를 정상 처리합니다', '테스트 파일 탐색과는 무관합니다']}
+/>
+
+<Quiz
+  questionNumber={4}
+  question="vite.config.js의 test.environment를 jsdom으로 지정하는 이유는?"
+  options={['테스트 실행 속도를 높이기 위해', '컴포넌트가 document, window 같은 브라우저 API를 사용하기 때문에', 'TypeScript 타입 검사를 위해', 'CSS Modules를 해석하기 위해']}
+  correctAnswer={2}
+  explanation="Vitest는 기본적으로 Node.js 환경에서 실행되어 브라우저 API가 없습니다. jsdom 환경을 지정해야 컴포넌트가 document를 사용하는 렌더링 테스트를 실행할 수 있습니다."
+  optionExplanations={['속도보다 브라우저 API 제공이 목적입니다', '정답입니다', '타입 검사와는 관련이 없습니다', 'CSS Modules 해석은 Vite 빌드 설정이 이미 처리합니다']}
+/>
+
+## react_3 출발점: react_2 종료 시점 src/ 구조
+
+`react_3`는 아래 상태에서 시작합니다. 서버 상태 라이브러리(TanStack Query)·인증·`api/`·`store/`·`i18n/`·`mocks/`는 아직 없고, `react_3` 1편에서 추가합니다.
+
+```
+bookshelf/src/
+├── main.jsx
+├── App.jsx              // 라우터 렌더 + 레이아웃(Header, Outlet)
+├── App.css              // 레이아웃 골격만
+├── index.css            // 전역 리셋·CSS 변수
+├── router.jsx           // createBrowserRouter, lazy+Suspense, 에러 경계
+├── data/books.seed.json
+├── components/
+│   ├── BookCard.jsx     // compound: Cover/Title/Status/DeleteButton
+│   ├── BookCard.module.css
+│   ├── BookForm.jsx
+│   ├── Header.jsx
+│   ├── Header.module.css
+│   └── Modal.jsx         // createPortal + 포커스 트랩(12편)
+├── context/ThemeContext.jsx
+├── reducers/booksReducer.js   // 정규화 { byId, allIds }
+├── utils/
+│   ├── booksStorage.js  // loader와 공유하는 저장소 함수
+│   └── validateBookForm.js
+├── hooks/{useLocalStorage,useDebounce,useBooks}.js
+├── pages/{BookListPage,BookDetailPage,NewBookPage}.jsx
+└── test/setup.js
+```
+
+## 참고 자료
+
+- [Vitest 공식 문서 - Getting Started](https://vitest.dev/guide/)
+- [React Testing Library 공식 문서](https://testing-library.com/docs/react-testing-library/intro/)

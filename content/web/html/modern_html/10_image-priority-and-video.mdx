@@ -1,0 +1,193 @@
+---
+title: '10. 이미지 우선순위와 자막 있는 소개 영상'
+description: 'fetchpriority로 대표 이미지를 먼저 받고, video·track으로 자막 있는 소개 영상을 붙입니다'
+---
+
+<Callout type="info">
+  **이번 편의 결과물:** `index.html`의 프로필 이미지에 `fetchpriority="high"`가 적용되고, 자막이 붙은 소개 영상이 재생됩니다. **다루는 개념:** `fetchpriority`로 대표 이미지 우선순위 조정, `<video>`/`<audio>` 기본 속성과 자동재생 정책, `<track kind="subtitles">`로 자막 연결
+</Callout>
+
+## 이 편에서 만드는 파일
+
+```
+web-practice/portfolio/
+├─ index.html          ~ (프로필 이미지에 fetchpriority, About 아래 video 추가)
+└─ captions/
+   └─ intro-ko.vtt      + (소개 영상 한국어 자막)
+```
+
+## 개념 정리
+
+### fetchpriority
+
+브라우저는 이미지·스크립트 같은 자원을 받을 때 나름의 우선순위를 매깁니다. 대부분은 정확하지만, 화면에서 가장 먼저 눈에 띄는 이미지(흔히 LCP, Largest Contentful Paint 후보)를 브라우저가 낮은 우선순위로 잘못 판단할 때가 있습니다. `fetchpriority="high"`는 이 판단을 개발자가 직접 정정하는 힌트입니다.
+
+| 값 | 의미 |
+|----|------|
+| `high` | 다른 자원보다 먼저 받도록 힌트 |
+| `low` | 나중에 받아도 되는 자원(광고 배너 등)에 사용 |
+| `auto` | 브라우저 판단에 맡김(기본값) |
+
+`fetchpriority`는 힌트일 뿐 강제가 아닙니다. 남용하면(모든 이미지에 `high`를 붙이면) 우선순위 자체가 의미 없어지므로, 페이지에서 가장 먼저 봐야 할 자원 하나 정도에만 씁니다. 우리 포트폴리오에서는 `index.html`의 프로필 사진이 그 대상입니다.
+
+### video/audio 기본 속성
+
+| 속성 | 역할 |
+|------|------|
+| `controls` | 재생·음량 등 기본 UI 표시 |
+| `poster` | 재생 전 미리보기 이미지 |
+| `preload` | `metadata`(길이 정보만 미리) / `auto`(전체 미리 받기) / `none` |
+| `muted autoplay playsinline` | 음소거 자동재생(정책상 `muted` 없이는 대부분 브라우저가 자동재생을 막음) |
+
+이번 실습은 사용자가 직접 재생 버튼을 눌러 보는 소개 영상이라 자동재생을 쓰지 않고 `controls`만 둡니다.
+
+### track으로 자막 연결
+
+`<track>`은 영상 안에 자막·설명 트랙을 붙입니다. `kind` 값으로 종류를 구분합니다.
+
+| kind | 용도 |
+|------|------|
+| `subtitles` | 대사 번역·자막(청각 정보는 이미 들린다고 가정) |
+| `captions` | 대사 + 소리 상황 설명(청각 장애 사용자 대상) |
+| `descriptions` | 화면 안 시각 정보를 음성으로 설명 |
+| `chapters` | 재생 구간 이동용 챕터 표시 |
+
+자막 파일은 WebVTT(`.vtt`) 형식입니다. `00:00:00.000 --> 00:00:03.000` 같은 타임코드 아래 자막 텍스트를 씁니다.
+
+## 실습
+
+<Steps>
+
+### 1. 파일 만들기
+
+`web-practice/portfolio/captions/intro-ko.vtt`를 새로 만듭니다.
+
+### 2. 코드 작성
+
+자막 파일부터 작성합니다.
+
+```
+WEBVTT
+
+00:00:00.000 --> 00:00:03.000
+안녕하세요, 프론트엔드 개발자 Zeno Kim입니다.
+
+00:00:03.000 --> 00:00:07.000
+누구나 쓸 수 있는 화면을 만드는 것을 목표로 합니다.
+
+00:00:07.000 --> 00:00:11.000
+포트폴리오에서 제가 만든 프로젝트를 확인해 보세요.
+```
+
+`index.html`의 프로필 이미지와 About 섹션을 수정합니다.
+
+수정 전:
+
+```html
+<section class="about">
+  <img src="images/profile.svg" width="400" height="400" alt="Zeno Kim 프로필 사진" />
+  <p>저는 3년째 프론트엔드를 공부하고 만들고 있습니다. ...</p>
+</section>
+```
+
+수정 후:
+
+```html
+<!-- web-practice/portfolio/index.html의 About 섹션 -->
+<section class="about">
+  <img
+    src="images/profile.svg"
+    width="400"
+    height="400"
+    fetchpriority="high"
+    alt="Zeno Kim 프로필 사진" />
+  <p>
+    저는 3년째 프론트엔드를 공부하고 만들고 있습니다. 화면이 예뻐 보이는 것보다 <strong>누가 봐도 쓸 수 있는가</strong>를 먼저 생각합니다.
+  </p>
+  <p>처음에는 디자인 툴로 화면을 그리다가, 직접 만들어 보고 싶어서 HTML과 CSS를 배웠습니다. 지금은 React로 서비스 화면을 만들고 있습니다.</p>
+  <p>접근성과 웹 표준을 좋아합니다. 스크린 리더로 제 사이트를 읽어 보는 일이 습관이 됐습니다.</p>
+
+  <video controls width="640" height="360" poster="images/og-image.svg" preload="metadata">
+    <source src="videos/intro.mp4" type="video/mp4" />
+    <track kind="subtitles" src="captions/intro-ko.vtt" srclang="ko" label="한국어" default />
+    영상을 재생할 수 없습니다. 브라우저가 video 태그를 지원하지 않습니다.
+  </video>
+</section>
+```
+
+`<video>` 안의 마지막 텍스트("영상을 재생할 수 없습니다...")는 `<video>`를 지원하지 않는 아주 오래된 브라우저에서만 보이는 대체 콘텐츠입니다. 실제 `videos/intro.mp4` 파일은 이번 실습 범위 밖이라 준비하지 않습니다. 로컬에서 직접 확인하려면 짧은 mp4 파일을 같은 경로에 넣으면 됩니다.
+
+### 3. 실행
+
+VS Code Live Server로 `index.html`을 엽니다.
+
+### 4. 확인
+
+- Network 탭에서 새로고침 직후 요청 순서를 확인합니다. `profile.svg`가 다른 이미지보다 먼저(또는 높은 우선순위로 표시) 요청되는지 봅니다. 크롬 개발자 도구는 각 요청의 `Priority` 열에서 `High`/`Low` 값을 보여줍니다.
+- `videos/intro.mp4`를 실제로 넣었다면 재생 버튼을 눌러 영상이 재생되는지 확인합니다.
+- 재생 중 자막 버튼(CC)을 켜면 `intro-ko.vtt`의 문장이 화면 아래 순서대로 나타나는지 확인합니다.
+
+</Steps>
+
+## 직접 해보기
+
+1. `index.html`의 히어로 버튼 옆에 있는 장식용 아이콘 이미지에도 `fetchpriority="high"`를 붙이면 어떤 문제가 생길지 생각해 보세요.
+
+<details>
+<summary>답 보기</summary>
+
+`fetchpriority="high"`를 여러 이미지에 붙이면 브라우저 입장에서는 "모두 가장 먼저 받아야 할 자원"이 되어 정작 진짜 중요한 프로필 이미지가 다른 `high` 자원과 대역폭을 나눠 갖게 됩니다. 힌트는 한 페이지에서 정말 필요한 한두 곳에만 씁니다.
+
+</details>
+
+2. 자막을 영어로도 준비해 `intro-en.vtt`를 추가하고, 사용자가 두 자막 중 고를 수 있게 만들어 보세요.
+
+<details>
+<summary>답 보기</summary>
+
+`<track>`을 하나 더 추가하고 `srclang="en"`, `label="English"`로 지정합니다. 기본으로 보여줄 자막에만 `default` 속성을 남기고 다른 트랙에서는 뺍니다. 재생 컨트롤의 자막 메뉴에 두 언어가 나타납니다.
+
+</details>
+
+## 자주 하는 실수
+
+| 증상 | 원인 | 고치는 법 |
+|------|------|-----------|
+| fetchpriority가 안 먹히는 느낌 | 여러 이미지에 남발해서 우선순위 구분이 사라짐 | 페이지에서 가장 중요한 한 이미지에만 사용 |
+| 영상이 자동재생되지 않음(정상) | `autoplay`만 붙이고 `muted`를 빼서 브라우저 정책에 막힘 | 자동재생이 꼭 필요하면 `muted autoplay playsinline` 셋을 함께 사용 |
+| 자막 버튼(CC)이 아예 안 보임 | `<track>` 없이 `<video>`만 있음 | `kind="subtitles"`와 `srclang`을 갖춘 `<track>` 추가 |
+| 자막이 한 줄도 안 나옴 | vtt 첫 줄이 `WEBVTT`가 아니거나 타임코드 형식 오류 | 첫 줄 `WEBVTT` 확인, `시:분:초.밀리초 --> 시:분:초.밀리초` 형식 확인 |
+
+## 확인 문제
+
+<Quiz
+  questionNumber={1}
+  question="fetchpriority=high를 페이지의 모든 이미지에 붙였을 때 생기는 문제는"
+  options={['이미지가 아예 로드되지 않는다', '우선순위 구분이 사라져 힌트가 의미를 잃는다', 'alt 속성이 무시된다', '브라우저가 오류를 표시하고 페이지를 멈춘다']}
+  correctAnswer={2}
+  explanation="fetchpriority는 상대적인 힌트입니다. 모든 자원이 high면 브라우저가 정말 중요한 자원을 구분할 기준이 없어집니다."
+  optionExplanations={['로드 자체는 정상적으로 진행됩니다', '정답입니다', 'alt와는 무관한 속성입니다', '문법 오류가 아니라 힌트의 효과만 사라집니다']}
+/>
+
+<Quiz
+  questionNumber={2}
+  question="영상을 자동재생하면서 브라우저 정책에 막히지 않으려면 반드시 함께 붙여야 하는 속성은"
+  options={['controls', 'muted', 'poster', 'preload']}
+  correctAnswer={2}
+  explanation="대부분의 브라우저는 소리가 나는 자동재생을 차단합니다. muted를 함께 지정해야 autoplay가 실제로 동작합니다."
+  optionExplanations={['재생 UI 표시일 뿐 자동재생 허용과는 무관합니다', '정답입니다', '미리보기 이미지일 뿐입니다', '리소스를 미리 받는 정도만 결정합니다']}
+/>
+
+<Quiz
+  questionNumber={3}
+  question="영상 속 대사를 번역해 화면에 보여주는 용도에 맞는 track의 kind 값은"
+  options={['chapters', 'descriptions', 'subtitles', 'metadata']}
+  correctAnswer={3}
+  explanation="subtitles는 청각 정보는 들린다고 가정하고 대사를 번역해 보여주는 용도입니다. 소리까지 설명하는 captions과 구분됩니다."
+  optionExplanations={['재생 구간 이동용입니다', '화면의 시각 정보를 음성으로 설명하는 용도입니다', '정답입니다', '자막 표시용 표준 kind 값이 아닙니다']}
+/>
+
+## 참고 자료
+
+- [MDN — fetchpriority 속성](https://developer.mozilla.org/en-US/docs/Web/HTML/Reference/Attributes/fetchpriority)
+- [MDN — track](https://developer.mozilla.org/en-US/docs/Web/HTML/Reference/Elements/track)

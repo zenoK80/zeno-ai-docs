@@ -1,0 +1,210 @@
+---
+title: '09. 렌더 측정 후 memo/useMemo/useCallback 적용'
+description: 'React DevTools Profiler로 리렌더 원인을 먼저 확인하고, 필요한 자리에만 메모이제이션을 넣는다'
+---
+
+<Callout type="info">
+  **이번 편의 결과물:** 목록 페이지에서 필터·검색 시 불필요하게 다시 렌더되던 `BookCard`들이 `memo`/`useMemo`/`useCallback` 적용 후 필요한 카드만 렌더됩니다. 측정 전/후 콘솔 로그가 주석으로 남습니다. **다루는 개념:** React DevTools Profiler, `React.memo`, `useMemo`, `useCallback`
+</Callout>
+
+## 이 편에서 만드는 파일
+
+```
+bookshelf/src/
+├── pages/
+│   └── BookListPage.jsx    ~ useMemo·useCallback 적용
+└── components/
+    └── BookCard.jsx        ~ memo 적용
+```
+
+## 개념 정리
+
+부모 컴포넌트가 리렌더되면 자식 컴포넌트도 기본적으로 함께 리렌더됩니다. props가 그대로여도 그렇습니다. 목록이 길어질수록 이 비용이 커집니다. 하지만 최적화를 먼저 넣지 않습니다. **측정 → 원인 확인 → 적용** 순서를 지킵니다.
+
+| 도구/훅 | 역할 | 주의할 점 |
+|---------|------|-----------|
+| React DevTools Profiler | 어떤 컴포넌트가 왜 리렌더됐는지 기록 | "Record why each component rendered"를 켜야 원인이 보임 |
+| `React.memo(Component)` | props가 얕게 같으면 리렌더 건너뜀 | 객체·함수 props가 매번 새로 생성되면 무의미함 |
+| `useMemo(fn, deps)` | 계산 결과를 deps가 바뀔 때만 재계산 | 계산이 가벼우면 캐싱 비용이 더 클 수 있음 |
+| `useCallback(fn, deps)` | 함수 참조를 deps가 바뀔 때만 새로 생성 | `memo` 자식에 넘기지 않으면 이득이 없음 |
+
+`useCallback`은 그 자체로는 아무것도 빠르게 만들지 않습니다. 함수를 받는 자식이 `memo`로 감싸져 있을 때만 "참조가 그대로라 리렌더를 건너뛴다"는 효과가 생깁니다. `memo` 없이 `useCallback`만 붙이는 것은 흔한 오해입니다.
+
+## 실습
+
+<Steps>
+
+### 1. 측정 전 상태 확인
+
+`BookCard.jsx` 함수 맨 위에 `console.log('BookCard 렌더:', book.title)`를 임시로 추가합니다. 브라우저에서 검색창에 한 글자씩 입력하며 콘솔을 관찰합니다.
+
+```text
+BookCard 렌더: 클린 코드
+BookCard 렌더: 리팩터링 2판
+BookCard 렌더: 모던 자바스크립트 Deep Dive
+BookCard 렌더: 함께 자라기
+BookCard 렌더: HTTP 완벽 가이드
+BookCard 렌더: 누구나 자료 구조와 알고리즘
+```
+
+글자 하나를 입력할 때마다 검색 결과와 무관한 카드까지 전부 다시 로그가 찍힙니다. `BookListPage`가 리렌더될 때 `BookCard` 전체가 같이 리렌더된다는 뜻입니다. React DevTools의 Profiler 탭에서 녹화 버튼을 누르고 같은 입력을 반복하면, 플레임그래프에서 모든 `BookCard` 막대가 회색이 아닌 색으로 채워진 것을 볼 수 있습니다.
+
+### 2. 코드 작성
+
+`BookCard`를 `memo`로 감쌉니다.
+
+```jsx
+// src/components/BookCard.jsx
+import { memo } from 'react';
+
+function BookCard({ book, onToggle, onDelete }) {
+  return (
+    <li className="book-card" style={{ borderColor: book.coverColor }}>
+      <h3>{book.title}</h3>
+      <p>{book.author}</p>
+      <p>상태: {book.status}</p>
+      <button type="button" onClick={() => onToggle(book.id)}>
+        상태 변경
+      </button>
+      <button type="button" onClick={() => onDelete(book.id)}>
+        삭제
+      </button>
+    </li>
+  );
+}
+
+// props가 얕게 같으면 리렌더를 건너뜁니다.
+// onToggle·onDelete가 매 렌더마다 새 함수면 이 memo는 무의미해집니다.
+export default memo(BookCard);
+```
+
+`BookListPage`는 06편에서 `useLocalStorage('bookshelf-books', [])`로 `books` 배열을 직접 관리하도록 바뀌었습니다. 검색어(`keyword`)는 `useDebounce`로 디바운스하고, 필터링 결과는 `useMemo`로 캐싱하고, 자식에 넘기는 함수는 `useCallback`으로 감쌉니다. 기존 헤더(`<h1>내 책장</h1>`, `ThemeToggle`)는 07편까지와 동일하게 그대로 남아 있습니다. 아래 코드는 이번 편에서 바뀐 부분만 보여줍니다.
+
+```jsx
+// src/pages/BookListPage.jsx (일부 — 헤더 부분은 07편과 동일하게 유지)
+import { useMemo, useCallback, useState } from 'react';
+import { Link } from 'react-router';
+import BookCard from '../components/BookCard.jsx';
+import { useLocalStorage } from '../hooks/useLocalStorage.js';
+import { useDebounce } from '../hooks/useDebounce.js';
+import { booksReducer } from '../reducers/booksReducer.js';
+
+function BookListPage() {
+  const [books, setBooks] = useLocalStorage('bookshelf-books', []);
+  const [keyword, setKeyword] = useState('');
+  const debouncedKeyword = useDebounce(keyword, 300);
+
+  // 검색어가 그대로면 filteredBooks 배열을 재생성하지 않습니다.
+  // 배열이 새로 생기면 아래에서 감싼 memo도 무력화되므로 필수입니다.
+  const filteredBooks = useMemo(() => {
+    const term = debouncedKeyword.trim().toLowerCase();
+    if (!term) return books;
+    return books.filter((book) => book.title.toLowerCase().includes(term));
+  }, [books, debouncedKeyword]);
+
+  // BookCard가 memo로 감싸져 있으므로, 함수 참조가 유지돼야 리렌더를 건너뜁니다.
+  const handleToggle = useCallback((id) => {
+    setBooks((prevBooks) => booksReducer(prevBooks, { type: 'toggled', payload: { id } }));
+  }, [setBooks]);
+
+  const handleDelete = useCallback((id) => {
+    setBooks((prevBooks) => booksReducer(prevBooks, { type: 'deleted', payload: { id } }));
+  }, [setBooks]);
+
+  return (
+    <section>
+      {/* ...기존 page-header(h1, ThemeToggle) 유지 */}
+      <input
+        type="search"
+        value={keyword}
+        onChange={(e) => setKeyword(e.target.value)}
+        placeholder="제목 검색"
+        aria-label="책 검색"
+      />
+      <ul className="book-list">
+        {filteredBooks.map((book) => (
+          <BookCard key={book.id} book={book} onToggle={handleToggle} onDelete={handleDelete} />
+        ))}
+      </ul>
+      <Link to="/books/new">책 추가</Link>
+    </section>
+  );
+}
+
+export default BookListPage;
+```
+
+`setBooks`는 `useLocalStorage`가 반환하는 갱신 함수라 컴포넌트 생애 동안 참조가 바뀌지 않습니다. `useCallback` 의존성 배열에 넣어도 리렌더를 일으키지 않습니다. 이번 편에서 바뀐 부분은 `useMemo`로 감싼 `filteredBooks`와 `useCallback`으로 감싼 두 핸들러, `BookCard`의 `memo`뿐입니다.
+
+### 3. 실행
+
+```
+npm run dev
+```
+
+### 4. 확인
+
+- 검색창에 입력할 때 검색어와 무관한 `BookCard` 콘솔 로그가 더 이상 찍히지 않습니다.
+- 책 상태를 토글하거나 삭제해도 나머지 카드는 로그가 찍히지 않습니다.
+- React DevTools Profiler로 같은 입력을 다시 녹화하면, 변경되지 않은 카드의 막대가 회색(렌더 건너뜀)으로 보입니다.
+- 임시로 추가한 `console.log`를 지웁니다.
+
+</Steps>
+
+## 직접 해보기
+
+1. `handleToggle`의 `useCallback` 의존성 배열에 `books`를 추가해 보세요. 검색 시 `BookCard` 로그가 다시 찍히는지 확인하고 이유를 설명해 보세요.
+2. `filteredBooks`를 `useMemo` 없이 매 렌더마다 새로 계산하도록 되돌리고, Profiler에서 렌더 시간 차이를 비교해 보세요.
+
+<details>
+<summary>풀이 보기</summary>
+
+의존성 배열에 `books`를 추가하면 `books`가 바뀔 때마다(다른 책의 상태를 바꿔도) `handleToggle`이 새 함수가 됩니다. 새 함수는 `BookCard`의 `onToggle` prop을 바꾸므로 `memo`의 얕은 비교에서 다르다고 판단되어 모든 카드가 다시 렌더됩니다. `setBooks`만 의존성에 두면 참조가 고정되어 이런 문제가 없습니다.
+
+`useMemo` 없이 계산하면 목록이 짧을 때는 체감 차이가 거의 없습니다. 항목 수가 늘어날수록(10편에서 다룸) 차이가 커집니다.
+
+</details>
+
+## 자주 하는 실수
+
+| 증상 | 원인 | 고치는 법 |
+|------|------|-----------|
+| `memo`를 붙였는데도 계속 리렌더됨 | 부모가 매번 새 객체·함수를 props로 넘김 | 객체는 `useMemo`, 함수는 `useCallback`으로 참조 고정 |
+| `useCallback`을 붙였는데 효과가 없음 | 자식 컴포넌트가 `memo`로 감싸져 있지 않음 | 자식에도 `memo` 적용 |
+| `useMemo` 의존성 배열에 실제로 쓰는 값을 빠뜨림 | 필터 조건이 바뀌어도 이전 결과가 그대로 나옴 | 계산에 사용한 모든 변수를 deps에 포함 |
+| 모든 컴포넌트에 `memo`를 습관적으로 붙임 | 측정 없이 미리 최적화함 | Profiler로 실제 리렌더 비용을 먼저 확인 |
+
+## 확인 문제
+
+<Quiz
+  questionNumber={1}
+  question="useCallback만 적용하고 자식 컴포넌트에 memo를 적용하지 않으면 어떤 일이 일어나는가"
+  options={['함수 생성 비용이 사라져 항상 빨라진다', '자식이 여전히 매 렌더마다 다시 그려져 효과가 없다', '앱이 즉시 에러를 낸다', 'React가 자동으로 memo를 적용해 준다']}
+  correctAnswer={2}
+  explanation="useCallback은 함수 참조를 고정할 뿐입니다. 자식이 memo로 얕은 비교를 하지 않으면 참조가 고정돼도 리렌더를 건너뛰지 않습니다."
+  optionExplanations={['함수 생성 비용 자체는 미미해 체감 차이가 거의 없습니다', '정답입니다', 'useCallback은 에러를 일으키지 않습니다', 'memo는 명시적으로 적용해야 합니다']}
+/>
+
+<Quiz
+  questionNumber={2}
+  question="React.memo가 리렌더를 건너뛰는 기준은 무엇인가"
+  options={['컴포넌트 이름이 같은가', 'props가 얕은 비교로 같은가', 'state가 존재하는가', '부모 컴포넌트의 파일 경로가 같은가']}
+  correctAnswer={2}
+  explanation="memo는 이전 props와 새 props를 얕은 비교(Object.is 기반)로 비교해 같으면 렌더를 건너뜁니다."
+  optionExplanations={['이름은 비교 기준이 아닙니다', '정답입니다', 'state는 memo 비교와 무관합니다', '파일 경로는 런타임 비교와 무관합니다']}
+/>
+
+<Quiz
+  questionNumber={3}
+  question="이번 편에서 최적화를 적용하기 전에 React DevTools Profiler를 먼저 사용한 이유는 무엇인가"
+  options={['Profiler 없이는 코드가 실행되지 않아서', '근거 없이 메모이제이션을 넣으면 오히려 코드가 복잡해지기만 할 수 있어서', 'Profiler가 자동으로 memo를 붙여줘서', 'useMemo가 Profiler 없이는 동작하지 않아서']}
+  correctAnswer={2}
+  explanation="측정 없이 넣는 메모이제이션은 실제 병목과 무관한 곳에 복잡성만 더할 수 있습니다. 측정으로 원인을 확인한 뒤 필요한 자리에만 적용합니다."
+  optionExplanations={['Profiler는 실행 여부와 무관합니다', '정답입니다', 'Profiler는 측정 도구일 뿐 코드를 바꾸지 않습니다', 'useMemo는 Profiler와 독립적으로 동작합니다']}
+/>
+
+## 참고 자료
+
+- [React 공식 문서 - memo API 레퍼런스](https://react.dev/reference/react/memo)
+- [React 공식 문서 - useMemo API 레퍼런스](https://react.dev/reference/react/useMemo)
+- [React 공식 문서 - useCallback API 레퍼런스](https://react.dev/reference/react/useCallback)

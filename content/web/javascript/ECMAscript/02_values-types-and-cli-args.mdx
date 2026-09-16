@@ -1,0 +1,199 @@
+---
+title: '02. 값과 타입, 명령 인자 파싱'
+description: 'process.argv와 typeof로 명령행 인자를 구조화된 객체로 파싱합니다.'
+---
+
+<Callout type="info">
+  **이번 편의 결과물:** `node src/index.js add "할일 내용" --tag study --due 2026-09-20`을 실행하면 인자가 파싱되어 콘솔에 구조화된 형태로 출력됩니다. · **다루는 개념:** 원시값과 타입, `typeof`, `process.argv`, 문자열 파싱과 타입 변환
+</Callout>
+
+## 이 편에서 만드는 파일
+
+```
+todo-cli/
+└── src/
+    ├── index.js         (~)
+    └── cli/
+        └── parseArgs.js (+)
+```
+
+## 개념 정리
+
+### 원시 타입 7종
+
+JavaScript의 값은 원시(primitive) 타입 7종과 객체(object) 타입으로 나뉩니다. `typeof` 연산자로 확인합니다.
+
+| 값 예시 | typeof 결과 |
+|---------|-------------|
+| `'study'` | `string` |
+| `42` | `number` |
+| `true` | `boolean` |
+| `undefined` | `undefined` |
+| `null` | `object` (역사적 버그로 남은 예외) |
+| `10n` | `bigint` |
+| `Symbol('id')` | `symbol` |
+
+`null`의 `typeof`가 `object`로 나오는 것은 JavaScript 초기 구현의 버그가 표준으로 굳어진 결과입니다. 값이 없음을 표현할 때 `null`인지 `undefined`인지는 나중에 저장 로직(08편)에서 구분해 씁니다.
+
+### process.argv
+
+Node.js는 터미널에서 받은 명령행 인자를 `process.argv` 배열로 제공합니다.
+
+```text
+node src/index.js add "할일 내용" --tag study
+```
+
+| 인덱스 | 값 | 설명 |
+|--------|-----|------|
+| `0` | node 실행 파일 경로 | 보통 사용하지 않음 |
+| `1` | 실행 중인 스크립트 경로 | 보통 사용하지 않음 |
+| `2` | `add` | 실제 명령 |
+| `3` | `할일 내용` | 첫 번째 인자 |
+| `4` | `--tag` | 플래그 이름 |
+| `5` | `study` | 플래그 값 |
+
+앞의 두 항목은 항상 실행 정보라서 `process.argv.slice(2)`로 잘라내고 실제 인자만 다룹니다.
+
+### 값은 모두 문자열이다
+
+`process.argv`의 모든 원소는 **문자열**입니다. `--due 2026-09-20`을 받아도 값은 숫자가 아니라 문자열 `'2026-09-20'`입니다. 숫자로 써야 할 때는 `Number()`나 `parseInt()`로 직접 변환해야 합니다. 이 편에서는 값을 그대로 문자열로 저장하고, 실제 날짜 계산은 12편(Date·Intl)에서 다룹니다.
+
+### 타입 변환 방법 비교
+
+| 방법 | 예시 | 결과 | 특이사항 |
+|------|------|------|----------|
+| `Number(값)` | `Number('42')` | `42` | 변환 실패 시 `NaN` |
+| `parseInt(값, 10)` | `parseInt('42px', 10)` | `42` | 앞부분 숫자만 읽고 나머지 무시 |
+| `String(값)` | `String(42)` | `'42'` | 숫자를 문자열로 되돌릴 때 사용 |
+
+`typeof NaN`은 `'number'`입니다. `NaN`도 숫자 타입의 값이며, `Number.isNaN()`으로 확인해야 합니다.
+
+## 실습
+
+<Steps>
+
+### 1. 인자 파서 파일 만들기
+
+`src/cli/` 폴더를 만들고 `parseArgs.js` 파일을 추가합니다.
+
+### 2. 코드 작성
+
+```js
+// src/cli/parseArgs.js
+export function parseArgs(argv) {
+  const [command, ...rest] = argv;
+  const positional = [];
+  const flags = {};
+
+  for (let i = 0; i < rest.length; i += 1) {
+    const token = rest[i];
+    if (token.startsWith('--')) {
+      const key = token.slice(2);
+      const value = rest[i + 1];
+      flags[key] = value;
+      i += 1;
+    } else {
+      positional.push(token);
+    }
+  }
+
+  return { command, positional, flags };
+}
+```
+
+`--`로 시작하는 토큰은 플래그 이름으로, 그다음 토큰은 플래그 값으로 취급합니다. 그 외 토큰은 위치 인자(`positional`)로 모읍니다.
+
+```js
+// src/index.js
+import { parseArgs } from './cli/parseArgs.js';
+
+const argv = process.argv.slice(2);
+const parsed = parseArgs(argv);
+
+console.log('명령:', parsed.command, typeof parsed.command);
+console.log('위치 인자:', parsed.positional);
+console.log('플래그:', parsed.flags);
+```
+
+### 3. 실행
+
+```text
+node src/index.js add "할일 내용" --tag study --due 2026-09-20
+```
+
+### 4. 확인
+
+</Steps>
+
+- 아래처럼 출력되면 성공입니다.
+
+```text
+명령: add string
+위치 인자: [ '할일 내용' ]
+플래그: { tag: 'study', due: '2026-09-20' }
+```
+
+- `node src/index.js`를 인자 없이 실행하면 `명령: undefined undefined`가 출력됩니다. `typeof undefined`가 문자열 `"undefined"`임을 확인합니다.
+
+## 직접 해보기
+
+1. `--tag`와 `--due`의 순서를 바꿔 실행해도 같은 결과가 나오는지 확인합니다.
+2. `node src/index.js list --page 2`를 실행해 `positional`이 빈 배열이고 `flags.page`가 문자열 `'2'`(숫자 아님)임을 확인합니다.
+
+<details>
+<summary>정답 보기</summary>
+
+순서를 바꿔도 각 토큰을 하나씩 순서대로 검사하므로 결과는 같습니다. `flags.page`는 `parseArgs`가 값을 변환하지 않고 그대로 저장하므로 문자열 `'2'`입니다. `typeof flags.page`로 확인하면 `"string"`이 출력됩니다.
+
+</details>
+
+## 자주 하는 실수
+
+| 증상 | 원인 | 고치는 법 |
+|------|------|-----------|
+| `positional`에 플래그 값까지 섞여 들어감 | 반복문에서 `i += 1`(값 건너뛰기)을 빠뜨림 | 플래그를 만난 다음 루프에서 인덱스를 한 칸 더 건너뛴다 |
+| 숫자 비교가 항상 실패함 | `flags.due`가 문자열인데 숫자와 비교함 | 비교 전에 `Number()`로 변환하거나 문자열끼리 비교한다 |
+| 따옴표 없는 여러 단어 인자가 쪼개짐 | `add 할일 내용`처럼 따옴표 없이 입력 | 공백이 있는 인자는 반드시 큰따옴표로 감싼다 |
+
+## 확인 문제
+
+<Quiz
+  questionNumber={1}
+  question="process.argv.slice(2)를 쓰는 이유는?"
+  options={['배열을 역순으로 뒤집기 위해', 'node 실행 파일 경로와 스크립트 경로를 제외하기 위해', '문자열을 숫자로 바꾸기 위해', '플래그만 남기기 위해']}
+  correctAnswer={2}
+  explanation="process.argv의 앞 두 항목은 항상 node 실행 파일 경로와 스크립트 경로이므로 실제 인자만 다루려면 잘라내야 합니다."
+  optionExplanations={['slice는 뒤집기가 아니라 잘라내기입니다', '정답입니다', '타입 변환과는 무관합니다', '위치 인자도 함께 남습니다']}
+/>
+
+<Quiz
+  questionNumber={2}
+  question="typeof null의 결과는?"
+  options={['null', 'undefined', 'object', 'boolean']}
+  correctAnswer={3}
+  explanation="null의 typeof는 object입니다. 초기 JavaScript 구현의 버그가 표준으로 굳어진 결과입니다."
+  optionExplanations={['typeof는 항상 문자열을 반환하며 null이라는 문자열은 없습니다', 'undefined와 null은 다른 값입니다', '정답입니다', 'boolean이 아닙니다']}
+/>
+
+<Quiz
+  questionNumber={3}
+  question="node src/index.js add --tag study 실행 시 process.argv.slice(2)의 결과로 옳은 것은?"
+  options={["['add', '--tag', 'study']", "['node', 'add', '--tag', 'study']", "['src/index.js', 'add']", "['--tag', 'study']"]}
+  correctAnswer={1}
+  explanation="slice(2)는 node 실행 파일 경로와 스크립트 경로를 제외한 나머지 인자만 남기므로 add, --tag, study가 남습니다."
+  optionExplanations={['정답입니다', 'node 경로는 slice(2)로 이미 제거된 상태입니다', '스크립트 경로도 slice(2)로 제거됩니다', 'add 명령이 빠져 있습니다']}
+/>
+
+<Quiz
+  questionNumber={4}
+  question="명령행 인자로 받은 --due 2026-09-20 값의 실제 타입은?"
+  options={['Date 객체', 'number', 'string', 'undefined']}
+  correctAnswer={3}
+  explanation="process.argv를 통해 들어오는 모든 값은 문자열이며, 필요하면 직접 변환해야 합니다."
+  optionExplanations={['Date로 바꾸려면 직접 변환해야 합니다', '숫자로 바꾸려면 Number() 같은 변환이 필요합니다', '정답입니다', '값이 전달되었으므로 undefined가 아닙니다']}
+/>
+
+## 참고 자료
+
+- [Node.js Docs - process.argv](https://nodejs.org/api/process.html#processargv)
+- [MDN - typeof](https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Operators/typeof)

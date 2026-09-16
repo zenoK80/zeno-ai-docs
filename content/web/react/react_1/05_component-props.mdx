@@ -1,0 +1,257 @@
+---
+title: '05. 컴포넌트 분리와 props'
+description: 'BookCard 컴포넌트를 분리하고 props로 책 데이터를 전달합니다.'
+---
+
+<Callout type="info">
+  **이번 편의 결과물:** `BookCard` 컴포넌트가 분리되고, `App`에서 세 권의 책 데이터를 props로 넘겨 카드 3장이 각기 다른 내용으로 보입니다. · **다루는 개념:** 컴포넌트로 UI 쪼개기, props로 데이터 전달, 구조 분해 할당, props 불변성
+</Callout>
+
+## 이 편에서 만드는 파일
+
+```
+bookshelf/src/
+├── data/
+│   └── books.seed.json   (+)
+├── components/
+│   └── BookCard.jsx      (+)
+└── App.jsx                (~)
+```
+
+## 개념 정리
+
+04편의 `App.jsx`는 책 한 권의 표지 색·제목·저자를 마크업에 직접 적어 넣은 상태입니다. 책이 여러 권이 되면 같은 마크업을 복사-붙여넣기 해야 하고, 값 하나를 바꾸려면 카드마다 찾아 고쳐야 합니다. 이 문제를 **컴포넌트 분리**와 **props**로 풉니다.
+
+### 컴포넌트로 쪼갠다는 것
+
+반복되는 마크업 덩어리를 함수 하나로 뽑아내고, 그 함수를 호출(JSX 태그로 사용)할 때마다 다른 데이터를 넘겨 다른 결과를 그리게 합니다. `BookCard`는 "책 한 권을 카드로 그리는 방법"만 알고, 어떤 책을 그릴지는 몰라도 됩니다.
+
+### props란 무엇인가
+
+props는 부모 컴포넌트가 자식 컴포넌트에 넘기는 값입니다. 함수의 매개변수와 같은 자리이며, React는 이 값을 객체 하나로 묶어 전달합니다.
+
+| 부모 쪽 문법 | 자식 쪽 문법 | 의미 |
+|--------------|--------------|------|
+| `<BookCard title="클린 코드" />` | `function BookCard(props)` | `props.title`이 `'클린 코드'` |
+| `<BookCard title={title} />` | `function BookCard({ title })` | 구조 분해로 바로 `title` 사용 |
+| `<BookCard {...book} />` | `function BookCard({ title, author })` | `book` 객체의 속성을 한 번에 펼쳐 전달 |
+
+구조 분해 매개변수(`{ title, author, coverColor }`)를 쓰면 `props.title`처럼 매번 `props.`를 붙이지 않아도 됩니다. 이 과목의 컴포넌트는 모두 이 방식을 씁니다.
+
+### props는 읽기 전용이다
+
+자식 컴포넌트는 전달받은 props를 직접 바꿀 수 없습니다. `props.title = '다른 제목'`처럼 대입하면 React가 오류를 던지지는 않지만 화면에 반영되지 않고, 다음 렌더링에서 부모가 다시 원래 값을 내려보내 덮어씁니다. 값을 바꾸고 싶다면 그 값을 **소유한 컴포넌트의 state**를 바꿔야 합니다. state는 08편에서 다룹니다.
+
+## 실습
+
+<Steps>
+
+### 1. 시드 데이터 파일 만들기
+
+`src/data/books.seed.json`을 만들고 아래 내용을 그대로 붙여넣습니다. 이 배열은 앞으로 모든 편에서 책 목록의 출발점으로 씁니다.
+
+### 2. 코드 작성
+
+```json
+// src/data/books.seed.json
+[
+  {
+    "id": 1,
+    "title": "클린 코드",
+    "author": "로버트 C. 마틴",
+    "status": "done",
+    "rating": 5,
+    "pages": 584,
+    "coverColor": "#2563eb",
+    "startedAt": "2026-07-01",
+    "finishedAt": "2026-07-20",
+    "memo": "함수는 한 가지 일만."
+  },
+  {
+    "id": 2,
+    "title": "리팩터링 2판",
+    "author": "마틴 파울러",
+    "status": "reading",
+    "rating": 4,
+    "pages": 550,
+    "coverColor": "#16a34a",
+    "startedAt": "2026-08-10",
+    "finishedAt": null,
+    "memo": ""
+  },
+  {
+    "id": 3,
+    "title": "모던 자바스크립트 Deep Dive",
+    "author": "이웅모",
+    "status": "done",
+    "rating": 5,
+    "pages": 956,
+    "coverColor": "#f59e0b",
+    "startedAt": "2026-05-01",
+    "finishedAt": "2026-06-15",
+    "memo": "클로저 장이 특히 좋았다."
+  },
+  {
+    "id": 4,
+    "title": "함께 자라기",
+    "author": "김창준",
+    "status": "wish",
+    "rating": 0,
+    "pages": 224,
+    "coverColor": "#db2777",
+    "startedAt": null,
+    "finishedAt": null,
+    "memo": ""
+  },
+  {
+    "id": 5,
+    "title": "HTTP 완벽 가이드",
+    "author": "데이빗 고울리 외",
+    "status": "reading",
+    "rating": 3,
+    "pages": 760,
+    "coverColor": "#7c3aed",
+    "startedAt": "2026-09-01",
+    "finishedAt": null,
+    "memo": ""
+  },
+  {
+    "id": 6,
+    "title": "누구나 자료 구조와 알고리즘",
+    "author": "제이 웬그로우",
+    "status": "done",
+    "rating": 4,
+    "pages": 384,
+    "coverColor": "#0891b2",
+    "startedAt": "2026-03-02",
+    "finishedAt": "2026-03-30",
+    "memo": ""
+  }
+]
+```
+
+```jsx
+// src/components/BookCard.jsx
+function BookCard({ title, author, coverColor, pages }) {
+  return (
+    <article className="book-card" style={{ borderTop: `6px solid ${coverColor}` }}>
+      <h2>{title}</h2>
+      <p>{author}</p>
+      <p className="book-pages">{pages}쪽</p>
+    </article>
+  );
+}
+
+export default BookCard;
+```
+
+```jsx
+// src/App.jsx
+import BookCard from './components/BookCard.jsx';
+import books from './data/books.seed.json';
+
+function App() {
+  const [first, second, third] = books;
+
+  return (
+    <div className="app">
+      <h1>내 책장</h1>
+      <div className="book-grid">
+        <BookCard
+          title={first.title}
+          author={first.author}
+          coverColor={first.coverColor}
+          pages={first.pages}
+        />
+        <BookCard {...second} />
+        <BookCard {...third} />
+      </div>
+    </div>
+  );
+}
+
+export default App;
+```
+
+`first`, `second`, `third`는 배열 구조 분해로 꺼낸 값입니다. `first`는 각 props를 하나씩 나열했고, `second`·`third`는 스프레드(`{...second}`)로 객체의 모든 속성을 한 번에 넘겼습니다. `BookCard`는 필요한 속성(`title`, `author`, `coverColor`, `pages`)만 구조 분해로 꺼내 쓰므로, `status`나 `rating` 같은 나머지 속성이 함께 전달되어도 무시됩니다.
+
+### 3. 실행
+
+```text
+npm run dev
+```
+
+### 4. 확인
+
+- 브라우저에서 카드 3장이 보입니다. 각 카드의 제목·저자·쪽수가 다르고, 카드 위쪽 테두리 색이 `coverColor` 값대로 다릅니다.
+- `first` 방식과 `{...second}` 방식으로 만든 카드가 겉보기에 똑같이 렌더링됩니다(전달 방식만 다를 뿐 결과는 같습니다).
+- React DevTools의 Components 탭을 열면(설치는 16편) `BookCard`가 세 번 나타나고, 각각의 props에 서로 다른 `title` 값이 보입니다.
+
+</Steps>
+
+## 직접 해보기
+
+1. `App.jsx`에서 네 번째 카드로 `<BookCard {...books[3]} />`를 추가해봅니다.
+2. `BookCard` 안에서 `title = '변경됨'`처럼 매개변수에 직접 대입해보고 어떤 일이 일어나는지 관찰해봅니다(구조 분해로 만든 지역 변수라 오류는 나지만, 왜 이런 시도가 애초에 잘못된 접근인지 "props는 읽기 전용" 절을 다시 읽고 설명해봅니다).
+
+<details>
+<summary>정답 보기</summary>
+
+```jsx
+<BookCard {...books[3]} />
+```
+
+`title`은 구조 분해로 만들어진 지역 상수라 `const`로 선언된 것과 같습니다. 재대입을 시도하면 `Assignment to constant variable` 오류가 납니다. 설령 오류가 나지 않는 형태로 바꾸더라도, 그 값은 다음 렌더링에서 부모가 다시 원래 `books[3].title`을 내려보내며 덮어써집니다. 화면에 보이는 제목을 바꾸려면 `books` 배열 자체(또는 그 값을 담은 state)를 바꿔야 합니다.
+
+</details>
+
+## 자주 하는 실수
+
+| 증상 | 원인 | 고치는 법 |
+|------|------|-----------|
+| 카드에 `undefined`가 표시됨 | props 이름과 구조 분해 이름이 다름(`coverColor` vs `color`) | `<BookCard>`에 넘긴 이름과 `BookCard({ ... })` 안 이름을 맞춘다 |
+| 카드 테두리 색이 전혀 안 보임 | `style` 객체를 문자열로 넘김(`style="border-top: ..."`) | JSX의 `style`은 반드시 객체(`\{\{ borderTop: ... \}\}`)여야 한다 |
+| `{...second}`를 썼는데 특정 값만 다르게 주고 싶음 | 스프레드 뒤에 개별 prop을 안 겹쳐 씀 | `<BookCard {...second} title="다른 제목" />`처럼 스프레드 뒤에 쓰면 뒤의 값이 우선한다 |
+
+## 확인 문제
+
+<Quiz
+  questionNumber={1}
+  question="컴포넌트를 분리하는 가장 큰 이유로 알맞은 것은?"
+  options={['파일 개수를 늘리기 위해', '반복되는 마크업을 함수 하나로 묶어 데이터만 바꿔가며 재사용하기 위해', 'CSS 파일을 나누기 위해', '브라우저 성능을 높이기 위해']}
+  correctAnswer={2}
+  explanation="반복되는 UI를 컴포넌트로 뽑아내면 마크업은 한 번만 작성하고 데이터(props)만 바꿔 여러 번 재사용할 수 있습니다."
+  optionExplanations={['파일 개수 자체가 목적은 아닙니다', '정답입니다', 'CSS 분리는 별도 관심사입니다', '컴포넌트 분리 자체가 성능을 보장하지는 않습니다']}
+/>
+
+<Quiz
+  questionNumber={2}
+  question="function BookCard({ title, author }) 형태의 매개변수 문법에 대한 설명으로 옳은 것은?"
+  options={['title과 author라는 이름의 컴포넌트를 두 개 만든다', 'props 객체에서 title, author 속성을 구조 분해로 꺼내 지역 변수로 만든다', 'title과 author를 항상 문자열로 강제 변환한다', 'props 객체 전체를 title로 이름 바꾼다']}
+  correctAnswer={2}
+  explanation="객체 구조 분해 매개변수는 전달받은 props 객체에서 지정한 속성만 꺼내 지역 변수로 만듭니다."
+  optionExplanations={['컴포넌트를 새로 만드는 문법이 아닙니다', '정답입니다', '타입 변환과는 무관합니다', 'props 객체 자체의 이름을 바꾸는 문법이 아닙니다']}
+/>
+
+<Quiz
+  questionNumber={3}
+  question="BookCard에 스프레드로 book을 펼친 뒤 title을 다른 제목으로 다시 지정해 렌더링하면 title 값은?"
+  options={['book.title 값이 사용된다', '다른 제목이 사용된다', '오류가 발생해 렌더링되지 않는다', 'undefined가 된다']}
+  correctAnswer={2}
+  explanation="스프레드 뒤에 오는 개별 prop이 스프레드로 펼쳐진 값을 덮어쓰므로 다른 제목이 최종 값이 됩니다."
+  optionExplanations={['스프레드 뒤에 나온 값이 우선하므로 book.title은 덮어써집니다', '정답입니다', '유효한 JSX 문법이라 오류가 나지 않습니다', '명시적으로 값을 지정했으므로 undefined가 아닙니다']}
+/>
+
+<Quiz
+  questionNumber={4}
+  question="자식 컴포넌트 안에서 전달받은 props 값을 직접 재대입하면 어떻게 되는가?"
+  options={['부모의 원본 데이터가 즉시 바뀐다', '화면에 즉시 반영되고 계속 유지된다', '다음 렌더링에서 부모가 내려보내는 값으로 다시 덮어써진다', 'React가 해당 컴포넌트를 화면에서 제거한다']}
+  correctAnswer={3}
+  explanation="props는 부모가 소유한 값이므로, 자식이 지역적으로 바꿔도 다음 렌더링 때 부모가 다시 원래 값을 내려보내 덮어씁니다. 값을 바꾸려면 그 값을 소유한 컴포넌트의 state를 바꿔야 합니다."
+  optionExplanations={['부모의 원본 데이터는 바뀌지 않습니다', '일시적으로 보일 수 있어도 다음 렌더링에서 되돌아갑니다', '정답입니다', 'props 재대입이 컴포넌트를 제거하지는 않습니다']}
+/>
+
+## 참고 자료
+
+- [React 공식 - Your First Component](https://react.dev/learn/your-first-component)
+- [React 공식 - Passing Props to a Component](https://react.dev/learn/passing-props-to-a-component)

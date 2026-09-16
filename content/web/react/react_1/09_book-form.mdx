@@ -1,0 +1,234 @@
+---
+title: '09. 폼으로 책 추가하기'
+description: '제어 컴포넌트로 책 제목·저자·쪽수를 입력받아 콘솔에 새 책 객체를 찍는다'
+---
+
+<Callout type="info">
+  **이번 편의 결과물:** `BookForm`에 제목·저자·쪽수를 입력하고 제출하면 콘솔에 새 책 객체가 찍힙니다(목록에는 아직 반영되지 않습니다). **다루는 개념:** 제어 컴포넌트(controlled input), `onChange` 상태 동기화, `onSubmit`과 `preventDefault`
+</Callout>
+
+## 이 편에서 만드는 파일
+
+```
+bookshelf/src/
+├── App.jsx                    ~ BookForm 렌더링 추가
+└── components/
+    ├── BookForm.jsx           + 신규
+    ├── BookCard.jsx             (08편 상태 유지)
+    ├── BookList.jsx             (06편 상태 유지)
+    └── StatusBadge.jsx          (07편 상태 유지)
+```
+
+## 개념 정리
+
+지금까지는 `books` 배열을 코드에 직접 적어 뒀습니다. 새 책을 추가하려면 사용자가 입력한 값을 폼으로 받아야 합니다. React에서 폼 입력을 다루는 표준 방식은 **제어 컴포넌트**입니다. input의 값을 state로 관리하고, state가 바뀔 때마다 input에 그 값을 다시 그려 줍니다.
+
+| 요소 | 역할 |
+|------|------|
+| `value={title}` | input에 보여줄 값을 state에서 가져옴 |
+| `onChange={e => setTitle(e.target.value)}` | 사용자가 입력할 때마다 state 갱신 |
+| `onSubmit={handleSubmit}` | 제출 버튼을 눌렀을 때 실행할 함수 |
+| `e.preventDefault()` | 폼의 기본 동작(페이지 새로고침)을 막음 |
+
+`value`와 `onChange`를 함께 쓰지 않으면 input은 **비제어 컴포넌트**가 되어 브라우저가 값을 관리합니다. React 상태와 화면이 어긋날 수 있어 이 과목에서는 항상 제어 컴포넌트로 씁니다.
+
+`<form>`의 `onSubmit`은 제출 버튼 클릭뿐 아니라 입력창에서 Enter를 눌렀을 때도 실행됩니다. 버튼에 `onClick`을 다는 것보다 `<form onSubmit>`을 쓰는 이유입니다. 기본 동작을 막지 않으면 브라우저가 폼을 서버로 전송하려 시도하며 페이지가 새로고침됩니다. `e.preventDefault()`로 이를 막습니다.
+
+## 실습
+
+<Steps>
+
+### 1. 파일 만들기
+
+`bookshelf/src/components/BookForm.jsx` 파일을 새로 만듭니다.
+
+### 2. 코드 작성
+
+```jsx
+// src/components/BookForm.jsx
+import { useState } from 'react';
+
+const COVER_COLORS = ['#2563eb', '#16a34a', '#f59e0b', '#db2777', '#7c3aed', '#0891b2'];
+
+function BookForm() {
+  const [title, setTitle] = useState('');
+  const [author, setAuthor] = useState('');
+  const [pages, setPages] = useState('');
+  const [memo, setMemo] = useState('');
+
+  function handleSubmit(e) {
+    e.preventDefault();
+
+    if (title.trim() === '' || author.trim() === '') {
+      return;
+    }
+
+    const newBook = {
+      id: crypto.randomUUID(),
+      title: title.trim(),
+      author: author.trim(),
+      status: 'wish',
+      rating: 0,
+      pages: pages === '' ? 0 : Number(pages),
+      coverColor: COVER_COLORS[Math.floor(Math.random() * COVER_COLORS.length)],
+      startedAt: null,
+      finishedAt: null,
+      memo: memo.trim(),
+    };
+
+    console.log('새 책:', newBook);
+
+    setTitle('');
+    setAuthor('');
+    setPages('');
+    setMemo('');
+  }
+
+  return (
+    <form className="book-form" onSubmit={handleSubmit}>
+      <h2>책 추가</h2>
+
+      <label htmlFor="book-title">제목</label>
+      <input
+        id="book-title"
+        type="text"
+        value={title}
+        onChange={(e) => setTitle(e.target.value)}
+        placeholder="예: 클린 코드"
+      />
+
+      <label htmlFor="book-author">저자</label>
+      <input
+        id="book-author"
+        type="text"
+        value={author}
+        onChange={(e) => setAuthor(e.target.value)}
+        placeholder="예: 로버트 C. 마틴"
+      />
+
+      <label htmlFor="book-pages">쪽수</label>
+      <input
+        id="book-pages"
+        type="number"
+        min="0"
+        value={pages}
+        onChange={(e) => setPages(e.target.value)}
+        placeholder="예: 584"
+      />
+
+      <label htmlFor="book-memo">메모</label>
+      <textarea
+        id="book-memo"
+        value={memo}
+        onChange={(e) => setMemo(e.target.value)}
+        placeholder="선택 입력"
+      />
+
+      <button type="submit">추가</button>
+    </form>
+  );
+}
+
+export default BookForm;
+```
+
+`App.jsx`에서 `BookList` 아래에 렌더링만 추가합니다. 아직 `books` 배열과 연결하지는 않습니다.
+
+```jsx
+// src/App.jsx (일부)
+import BookForm from './components/BookForm.jsx';
+// ...기존 import 유지
+
+function App() {
+  // ...기존 books, BookList 렌더링 코드 유지
+
+  return (
+    <div className="app">
+      {/* ...기존 헤더·BookList 유지 */}
+      <BookForm />
+    </div>
+  );
+}
+
+export default App;
+```
+
+### 3. 실행
+
+```
+npm run dev
+```
+
+### 4. 확인
+
+- 브라우저에서 제목·저자·쪽수·메모를 입력하면 각 입력창에 타이핑한 값이 그대로 보입니다.
+- 제출을 누르면 페이지가 새로고침되지 않고, 개발자 도구 콘솔에 `새 책: {...}` 객체가 찍힙니다.
+- 제출 후 입력창이 모두 비워집니다.
+- 제목이나 저자를 비운 채 제출하면 아무 일도 일어나지 않습니다(콘솔에 안 찍힘).
+
+</Steps>
+
+## 직접 해보기
+
+1. `status`를 고르는 `<select>`를 추가해 `wish`/`reading`/`done` 중 하나를 선택할 수 있게 만들어 보세요. 기본값은 `wish`로 둡니다.
+2. 제목 입력창에 공백만 입력했을 때도 제출이 막히는지 확인하고, 막히지 않는다면 `trim()` 검사를 어디에 추가해야 하는지 생각해 보세요.
+
+<details>
+<summary>풀이 보기</summary>
+
+```jsx
+const [status, setStatus] = useState('wish');
+
+// JSX 안
+<select id="book-status" value={status} onChange={(e) => setStatus(e.target.value)}>
+  <option value="wish">읽고 싶어요</option>
+  <option value="reading">읽는 중</option>
+  <option value="done">다 읽음</option>
+</select>
+```
+
+`newBook`을 만들 때 `status: 'wish'` 대신 `status`를 넣고, 제출 뒤 `setStatus('wish')`로 초기화합니다. 공백 검사는 `handleSubmit` 맨 위 `if` 문에서 이미 `title.trim()`으로 처리하고 있으므로, 공백만 입력해도 `trim()` 결과가 빈 문자열이라 제출이 막힙니다.
+
+</details>
+
+## 자주 하는 실수
+
+| 증상 | 원인 | 고치는 법 |
+|------|------|-----------|
+| input에 아무것도 입력이 안 됨 | `value`만 있고 `onChange`가 없음 | `onChange`에서 반드시 해당 state를 갱신 |
+| 제출 시 페이지가 깜빡이며 새로고침됨 | `e.preventDefault()` 누락 | `handleSubmit` 첫 줄에 추가 |
+| 제출해도 콘솔에 아무것도 안 찍힘 | 제목·저자 중 하나가 공백 | 값을 채우고 다시 시도, 필요하면 `console.log`로 값 확인 |
+| 쪽수에 문자를 입력해도 막히지 않음 | `type="number"`는 브라우저 UI 힌트일 뿐 값 검증은 아님 | 저장 전 `Number(pages)` 결과가 `NaN`인지 확인 |
+
+## 확인 문제
+
+<Quiz
+  questionNumber={1}
+  question="제어 컴포넌트에서 input의 값을 결정하는 것은 무엇인가"
+  options={['브라우저의 기본 DOM 상태', 'React state', 'CSS 스타일', 'HTML의 value 속성 기본값']}
+  correctAnswer={2}
+  explanation="제어 컴포넌트는 value를 state에서 가져오므로 화면에 보이는 값은 항상 React state와 일치합니다."
+  optionExplanations={['비제어 컴포넌트에 대한 설명입니다', '정답입니다. value와 onChange가 state를 통해 값을 관리합니다', 'CSS는 값 자체와 무관합니다', 'value 속성만 있고 onChange가 없으면 입력이 막힙니다']}
+/>
+
+<Quiz
+  questionNumber={2}
+  question="form의 onSubmit에서 e.preventDefault()를 호출하지 않으면 어떤 일이 일어나는가"
+  options={['아무 일도 일어나지 않는다', '콘솔에 에러가 출력된다', '브라우저가 폼을 전송하며 페이지가 새로고침된다', 'onChange가 실행되지 않는다']}
+  correctAnswer={3}
+  explanation="브라우저의 기본 동작은 폼 데이터를 서버로 전송하고 페이지를 다시 불러오는 것입니다. React 앱에서는 이 동작이 필요 없으므로 막습니다."
+  optionExplanations={['기본 동작이 실행되어 새로고침이 일어납니다', '에러가 아니라 정상적인 브라우저 기본 동작입니다', '정답입니다', 'onChange와는 관련이 없습니다']}
+/>
+
+<Quiz
+  questionNumber={3}
+  question="이번 편에서 제출한 책 데이터가 화면의 BookList에 즉시 반영되지 않는 이유는 무엇인가"
+  options={['BookForm에 버그가 있어서', 'BookForm의 상태와 App의 books 배열이 아직 연결되지 않아서', 'useState를 쓰지 않아서', 'onSubmit이 호출되지 않아서']}
+  correctAnswer={2}
+  explanation="BookForm은 자기 자신의 입력값만 state로 관리합니다. 새 책 객체를 books 배열에 넣으려면 부모 컴포넌트와 상태를 공유해야 하며, 이는 10편의 상태 끌어올리기에서 다룹니다."
+  optionExplanations={['버그가 아니라 아직 연결을 안 만든 것입니다', '정답입니다', 'useState는 이미 쓰고 있습니다', 'onSubmit은 정상 호출되어 콘솔에 로그가 찍힙니다']}
+/>
+
+## 참고 자료
+
+- [React 공식 - useState 레퍼런스](https://react.dev/reference/react/useState)

@@ -1,0 +1,213 @@
+---
+title: '05. :has()로 상태에 반응하는 스타일 만들기'
+description: '폼 유효성과 빈 그리드 상태를 :has()로 스타일에 반영합니다'
+---
+
+<Callout type="info">
+  **이번 편의 결과물:** contact.html 폼이 `form:has(:invalid)`로 제출 버튼을 비활성 색으로 바꾸고, projects.html 카드 그리드가 카드가 없을 때 안내 문구를 보여줍니다. **다루는 개념:** `:has()` 문법, 폼 유효성 상태 스타일링, 형제 요소 반응, 선택자 비용 주의
+</Callout>
+
+## 이 편에서 만드는 파일
+
+```text
+web-practice/portfolio/
+├─ contact.html                          ~ (연락처 폼에 aria 속성 점검)
+├─ projects.html                         ~ (빈 상태 안내 요소 추가)
+└─ css/styles.css                        ~ (components 레이어에 :has() 규칙 추가)
+web-practice/lessons/modern-css/
+└─ 05_has-state-styling/                 + (이번 편 스냅샷)
+   └─ notes.md
+```
+
+## 개념 정리
+
+`:has()`는 괄호 안 선택자와 일치하는 후손·형제가 있는 요소를 고릅니다. 자바스크립트 없이 "안의 상태를 보고 바깥을 바꾸는" 스타일이 가능해집니다.
+
+| 문법 | 뜻 |
+|------|-----|
+| `form:has(:invalid)` | 유효하지 않은 입력이 하나라도 있는 `form` |
+| `.project-grid:has(.project-card)` | 카드가 한 개 이상 있는 그리드 |
+| `.project-grid:not(:has(.project-card))` | 카드가 하나도 없는 그리드 |
+| `li:has(+ li.active)` | 바로 다음 형제가 `.active`인 `li` |
+
+`:has()`는 관계 선택자라서 셀렉터가 일치하는지 확인하려고 **자손·형제 트리를 훑습니다.** 문서 전체(`html:has(...)`)나 깊은 트리에 남발하면 렌더링 비용이 늘어납니다. 이 편에서는 `form`·`.project-grid`처럼 **범위를 좁힌 조상**에만 씁니다.
+
+**흔한 오해**: `:has()`가 자식 요소를 선택한다고 착각하기 쉽지만, 실제로 스타일이 적용되는 대상은 **괄호 밖의 조상**입니다. `form:has(:invalid) button`은 `button`을 고르는 것이지 `:invalid` 입력을 고르는 게 아닙니다.
+
+## 실습
+
+<Steps>
+
+### 1. contact.html 폼에 필수 표시 확인하기
+
+`contact.html`의 `.contact-form`에 이미 있는 `required` 속성을 확인합니다. `:invalid`는 `required` 필드가 비어 있거나 `type="email"` 값이 형식에 안 맞을 때 자동으로 붙는 의사 클래스라 마크업을 새로 바꿀 필요는 없습니다.
+
+```html
+<!-- portfolio/contact.html -->
+<form class="contact-form" novalidate>
+  <div class="field">
+    <label for="name">이름</label>
+    <input id="name" name="name" type="text" required />
+  </div>
+  <div class="field">
+    <label for="email">이메일</label>
+    <input id="email" name="email" type="email" required />
+    <p class="help">답장을 받을 주소를 적어 주세요.</p>
+  </div>
+  <div class="field">
+    <label for="topic">문의 유형</label>
+    <select id="topic" name="topic">
+      <option value="collab">협업 제안</option>
+      <option value="hire">채용 제안</option>
+      <option value="etc">기타</option>
+    </select>
+  </div>
+  <div class="field">
+    <label for="message">메시지</label>
+    <textarea id="message" name="message" minlength="10" required></textarea>
+    <p class="help">프로젝트 내용이나 일정을 간단히 적어 주세요.</p>
+  </div>
+  <div class="field field-checkbox">
+    <input id="agree" name="agree" type="checkbox" required />
+    <label for="agree">개인정보 수집·이용에 동의합니다.</label>
+  </div>
+  <button type="submit">보내기</button>
+</form>
+```
+
+`novalidate`는 브라우저 기본 팝업 대신 우리가 만든 스타일로 오류를 보여주기 위해 붙입니다. 제출 자체는 자바스크립트 없이 CSS로 상태만 표시합니다.
+
+### 2. styles.css components 레이어에 :has() 규칙 추가하기
+
+```css
+/* portfolio/css/styles.css */
+@layer components {
+  /* ...기존 코드 유지 (.site-header, .hero, .about 등) */
+
+  .contact-form {
+    /* .field, .field-checkbox, .help는 04편에서 정리한 중첩 규칙 그대로 유지 */
+
+    & input:invalid:not(:placeholder-shown),
+    & textarea:invalid:not(:placeholder-shown) {
+      border-color: var(--color-accent);
+    }
+
+    /* 유효하지 않은 필드가 하나라도 있으면 제출 버튼을 비활성 톤으로 */
+    &:has(:invalid) button[type='submit'] {
+      background: var(--color-text-muted);
+      cursor: not-allowed;
+    }
+
+    /* 모든 필드가 유효하면(=하나도 :invalid가 없으면) 원래 색 유지 */
+    &:not(:has(:invalid)) button[type='submit'] {
+      background: var(--color-primary);
+    }
+  }
+
+  .project-grid {
+    display: grid;
+    gap: var(--space-6);
+
+    /* ...기존 그리드 트랙 규칙 유지 */
+
+    &:has(.project-card) .project-grid__empty {
+      display: none;
+    }
+  }
+
+  .project-grid__empty {
+    padding: var(--space-12);
+    text-align: center;
+    color: var(--color-text-muted);
+  }
+}
+```
+
+`&:has(:invalid)`는 04편에서 정리한 중첩 문법과 그대로 결합됩니다. `.contact-form` 자신을 가리키는 `&` 뒤에 `:has()`를 붙이면 "이 폼 안에 유효하지 않은 입력이 있을 때"라는 뜻이 됩니다.
+
+### 3. projects.html에 빈 상태 안내 문구 추가하기
+
+```html
+<!-- portfolio/projects.html -->
+<div class="project-grid">
+  <p class="project-grid__empty">아직 등록된 프로젝트가 없습니다.</p>
+  <!-- 카드 6개가 이 자리에 이어집니다 -->
+  <article class="project-card">
+    <!-- ...기존 카드 마크업 유지 -->
+  </article>
+</div>
+```
+
+`.project-grid__empty`는 항상 마크업에 존재하지만, `:has(.project-card)`가 참이면 `display: none`으로 숨습니다. 카드가 하나도 없는 상태(관리 화면에서 전부 지운 상황 등)를 가정한 실습이라 지금 페이지에서는 숨겨진 채로 있는 게 정상입니다.
+
+### 4. 확인
+
+- 브라우저에서 `contact.html`을 열고 이름 칸을 비운 채 다른 칸을 채운 뒤 포커스를 옮기면, 제출 버튼(`button[type='submit']`)이 회색으로 바뀝니다.
+- 모든 필드를 올바르게 채우면 버튼이 다시 파란색(`--color-primary`)으로 돌아옵니다.
+- 개발자 도구에서 `.project-grid__empty` 요소를 삭제해 보면(임시 확인용) 카드 그리드만 남습니다. 다시 새로고침하면 숨김 상태로 돌아옵니다.
+
+</Steps>
+
+## 직접 해보기
+
+1. `.contact-form`에 `:has(:invalid)` 대신 `:has(input:placeholder-shown)`을 추가로 걸어, 아직 아무것도 입력하지 않은 초기 상태에서는 버튼이 회색이 아니라 기본 파란색으로 보이게 만들어 보세요.
+2. `.project-grid:has(.project-card:hover)`를 만들어, 카드 중 하나에 마우스를 올리면 그리드 전체 배경이 살짝 어두워지게(`--color-surface`보다 진한 톤) 해보세요.
+
+<details>
+<summary>풀이 보기</summary>
+
+```css
+.contact-form:has(input:placeholder-shown):not(:has(:invalid)) button[type='submit'] {
+  background: var(--color-primary);
+}
+
+.project-grid:has(.project-card:hover) {
+  background: color-mix(in oklch, var(--color-surface) 80%, black 8%);
+}
+```
+
+두 번째 풀이는 12편에서 다루는 `color-mix()`를 미리 써 봤습니다. 아직 안 배웠다면 `background: var(--color-border);`로 대체해도 됩니다.
+
+</details>
+
+## 자주 하는 실수
+
+| 증상 | 원인 | 고치는 법 |
+|------|------|-----------|
+| `:has()` 규칙이 아예 안 먹힘 | 구형 Firefox(121 미만)에서 테스트 | Chrome·Edge 최신판으로 확인. 실무에서는 `@supports selector(:has(a))`로 감쌀 수 있다 |
+| 버튼 색이 항상 회색 | `novalidate` 없이 브라우저 기본 검증 팝업이 먼저 뜸 | `novalidate`가 폼 태그에 있는지 확인 |
+| 페이지가 눈에 띄게 느려짐 | `html:has(.project-card:hover)`처럼 범위를 문서 전체로 잡음 | 스타일이 바뀔 요소와 가까운 조상으로 범위를 좁힌다 |
+| `:has()` 안에 `:has()`를 또 넣어 셀렉터가 길어짐 | 조건을 한 셀렉터에 다 담으려 함 | 클래스를 추가하거나 규칙을 나눠 가독성을 우선한다 |
+
+## 확인 문제
+
+<Quiz
+  questionNumber={1}
+  question="form:has(:invalid) button 선택자가 실제로 스타일을 적용하는 대상은 무엇인가"
+  options={['form 안의 invalid 입력', 'form 태그 자신', 'button 요소', 'invalid 속성이 있는 모든 요소']}
+  correctAnswer={3}
+  explanation="괄호 밖에 오는 마지막 선택자(button)가 스타일 대상이다. :has() 괄호 안은 조건일 뿐 스타일 대상이 아니다."
+  optionExplanations={['invalid 입력은 조건을 판단하는 대상일 뿐 스타일 대상이 아니다', 'form이 아니라 form의 후손인 button이 대상이다', '정답. 괄호 밖 마지막 선택자가 스타일 대상이다', 'invalid 속성이라는 것은 존재하지 않으며 :invalid 의사 클래스와 다르다']}
+/>
+
+<Quiz
+  questionNumber={2}
+  question=".project-grid:not(:has(.project-card)) 가 참이 되는 경우는"
+  options={['.project-grid 안에 .project-card가 하나 이상 있을 때', '.project-grid 안에 .project-card가 하나도 없을 때', '.project-card에 hover가 걸렸을 때', '.project-grid 자체가 화면에 없을 때']}
+  correctAnswer={2}
+  explanation=":not(:has(...))는 조건의 부정이므로, 카드가 하나도 없을 때 참이 된다."
+  optionExplanations={['그 경우는 :has(.project-card)가 참이 되는 경우다', '정답. not으로 감쌌으므로 카드가 없을 때 참이다', 'hover 여부는 이 셀렉터와 관계없다', '요소 존재 여부는 CSS 선택자만으로 판단할 수 없는 별개 문제다']}
+/>
+
+<Quiz
+  questionNumber={3}
+  question=":has()를 쓸 때 선택자 비용을 줄이는 방법으로 알맞은 것은"
+  options={['항상 html 태그를 조상으로 사용한다', '범위를 좁힌 가까운 조상에만 :has()를 건다', 'has() 안에 최대한 많은 조건을 몰아넣는다', 'has()는 비용이 없으므로 신경 쓸 필요가 없다']}
+  correctAnswer={2}
+  explanation=":has()는 트리를 훑어 조건을 판단하므로 범위를 좁힌 조상에 걸수록 비용이 줄어든다."
+  optionExplanations={['html 조상은 문서 전체를 훑게 해 비용이 가장 크다', '정답. 가까운 조상으로 범위를 좁히는 것이 표준 권장 방법이다', '조건을 몰아넣을수록 계산 비용이 커진다', ':has()는 관계를 계산해야 하므로 비용이 있다']}
+/>
+
+## 참고 자료
+
+- [MDN — :has()](https://developer.mozilla.org/en-US/docs/Web/CSS/:has)

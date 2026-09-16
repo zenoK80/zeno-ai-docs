@@ -1,0 +1,225 @@
+---
+title: '17. 전환(transition)으로 상호작용 다듬기'
+description: '버튼과 프로젝트 카드에 transition을 적용해 hover 시 색·위치 변화가 부드럽게 이어지도록 만듭니다.'
+---
+
+<Callout type="info">
+  **이번 편의 결과물:** 버튼에 마우스를 올리면 배경색이, 프로젝트 카드에 마우스를 올리면 그림자와 위치가 부드럽게 바뀝니다. **다루는 개념:** `transition-property`/`duration`/`timing-function`, 버튼·카드 hover에 전환 적용
+</Callout>
+
+## 이 편에서 만드는 파일
+
+```
+web-practice/portfolio/
+└── css/
+    └── styles.css   ~ (.button, .contact-form button, .contact-form input에 transition 추가, .project-card:hover 신규)
+```
+
+16편까지 `.contact-form button:hover`는 배경색만 바뀌고, `.project-card`는 아직 hover 스타일이 없는 상태입니다. 이 편은 히어로 버튼(`.button`)과 카드에 `transition`을 추가해 변화가 순간적으로 튀지 않고 부드럽게 이어지게 만듭니다.
+
+## 개념 정리
+
+`transition`은 속성 값이 바뀔 때(`:hover`, `:focus`, 클래스 토글 등) 그 변화를 순간이 아니라 일정 시간에 걸쳐 보여주는 속성입니다.
+
+| 하위 속성 | 역할 | 예시 값 |
+|-----------|------|---------|
+| `transition-property` | 전환을 적용할 속성 이름 | `background-color`, `transform`, `box-shadow` |
+| `transition-duration` | 전환에 걸리는 시간 | `200ms`, `0.2s` |
+| `transition-timing-function` | 속도 곡선 | `ease`(기본), `ease-out`, `linear` |
+| `transition-delay` | 시작을 늦추는 시간 | `0ms`(생략 가능) |
+
+네 속성은 보통 `transition: 속성 시간 곡선;` 형태의 단축 속성으로 한 줄에 씁니다. 속성을 여러 개 전환하려면 쉼표로 나열합니다.
+
+```css
+.button {
+  transition: background-color 200ms ease, transform 100ms ease;
+}
+```
+
+흔한 오해는 `transition: all 200ms;`처럼 `all`을 습관적으로 쓰는 것입니다. 실제로 바뀌는 속성만 나열하면 브라우저가 계산할 대상이 줄어들고, 의도치 않은 속성(예: `width` 변화까지)이 함께 전환되는 부작용도 막을 수 있습니다.
+
+## 실습
+
+<Steps>
+
+### 1. 파일 열기
+
+`web-practice/portfolio/css/styles.css`를 엽니다. 06편에서 만든 `.button`, `.button-secondary`, 15~16편에서 만든 `.contact-form button`, `.contact-form input` 규칙을 찾습니다.
+
+### 2. 버튼에 전환 추가
+
+`.button` 규칙에 `transition`을 추가합니다. 색상과 눌림 효과 두 가지를 전환 대상으로 지정합니다.
+
+```css
+/* web-practice/portfolio/css/styles.css */
+/* ...기존 리셋·토큰·레이아웃·헤더 규칙 유지... */
+
+.button {
+  display: inline-block;
+  border-radius: var(--radius);
+  padding: var(--space-2) var(--space-6);
+  font-weight: 700;
+  background-color: var(--color-primary);
+  color: #ffffff;
+  border: 1px solid transparent;
+  transition: background-color 200ms ease, border-color 200ms ease, transform 100ms ease;
+}
+
+.button:hover {
+  background-color: var(--color-primary-hover);
+}
+
+.button-secondary {
+  background-color: transparent;
+  border-color: var(--color-border);
+  color: var(--color-text);
+}
+
+.button-secondary:hover {
+  background-color: transparent;
+  border-color: var(--color-primary);
+  color: var(--color-primary);
+}
+
+.button:active {
+  transform: translateY(1px);
+}
+
+.contact-form button {
+  transition: background-color 200ms ease, transform 100ms ease;
+}
+
+.contact-form button:active {
+  transform: translateY(1px);
+}
+```
+
+연락 폼 제출 버튼(`.contact-form button`)은 히어로 버튼과 클래스를 공유하지 않으므로 같은 `transition` 값을 별도로 지정합니다.
+
+`.button-secondary:hover`가 `color`도 바꾸지만 `transition-property`에 `color`를 넣지 않았습니다. 브라우저마다 차이는 있지만, 시안에서 강조하는 변화는 테두리색이므로 여기서는 `border-color`만 전환 대상으로 남겨 목록을 짧게 유지합니다. `<a class="button button-secondary">`는 두 클래스가 함께 붙으므로 `.button:hover`의 배경색 전환이 `.button-secondary:hover`에서 다시 `transparent`로 덮여도 어색하지 않도록 명시적으로 되돌려 둡니다.
+
+### 3. 프로젝트 카드에 hover 전환 신규 추가
+
+`.project-card` 규칙 아래에 `:hover` 상태를 새로 추가합니다.
+
+```css
+.project-card {
+  display: flex;
+  flex-direction: column;
+  background-color: var(--color-surface);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius);
+  overflow: hidden;
+  transition: transform 200ms ease, box-shadow 200ms ease;
+}
+
+.project-card:hover {
+  transform: translateY(-2px);
+  box-shadow: var(--shadow);
+}
+```
+
+design-spec 4절의 카드 스펙(`hover 시 --shadow + translateY(-2px) 전환 200ms`)을 그대로 옮긴 값입니다. `transform`은 `top`이나 `margin`으로 위치를 옮기는 것보다 유리합니다. 레이아웃 재계산 없이 화면 합성 단계에서만 처리되어 더 매끄럽습니다.
+
+### 4. 폼 입력 포커스에도 전환 추가
+
+16편에서 만든 `.contact-form input`의 포커스 스타일에 전환을 넣습니다.
+
+```css
+.contact-form input,
+.contact-form select,
+.contact-form textarea {
+  width: 100%;
+  padding: var(--space-3);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius);
+  transition: border-color 150ms ease, box-shadow 150ms ease;
+}
+
+.contact-form input:focus,
+.contact-form select:focus,
+.contact-form textarea:focus {
+  outline: none;
+  border-color: var(--color-primary);
+  box-shadow: 0 0 0 2px rgb(9 105 218 / 0.2);
+}
+```
+
+`outline: none`으로 브라우저 기본 포커스 표시를 지우는 대신, `box-shadow`로 만든 포커스 링을 넣었습니다. 포커스 표시 자체를 지우기만 하면 키보드 사용자가 현재 위치를 알 수 없으므로, 대체 표시는 반드시 함께 넣습니다.
+
+### 5. 실행
+
+파일을 저장하고 VS Code Live Server(또는 `npx serve web-practice/portfolio`)로 세 페이지를 엽니다.
+
+### 6. 확인
+
+- `index.html` 히어로의 두 버튼에 마우스를 올리면 배경색·테두리색이 약 0.2초에 걸쳐 바뀝니다.
+- `projects.html`의 카드에 마우스를 올리면 카드가 살짝 위로 뜨면서 그림자가 생깁니다. 마우스를 떼면 원래 자리로 부드럽게 돌아갑니다.
+- `contact.html`의 입력 필드를 클릭(포커스)하면 테두리색과 포커스 링이 즉시가 아니라 짧게 번지듯 나타납니다.
+- 개발자 도구 Elements 패널에서 `.project-card`를 선택하고 Styles 탭의 `transition` 값을 확인합니다.
+
+</Steps>
+
+## 직접 해보기
+
+1. `.project-card:hover`의 `transition-duration`을 `600ms`로 늘려서 느린 움직임을 확인해 보세요. 원래 값(`200ms`)으로 되돌리는 것도 잊지 마세요.
+2. `.button`의 `transition-timing-function`을 `ease`에서 `linear`로 바꾸고 차이를 관찰해 보세요.
+
+<details>
+<summary>정답 확인</summary>
+
+1. `duration`을 늘리면 카드가 뜨는 속도가 눈에 띄게 느려집니다. 시안이 요구하는 값(200ms)은 "느껴지지만 거슬리지 않는" 정도의 빠른 전환입니다.
+2. `linear`는 처음부터 끝까지 같은 속도로 움직여 기계적으로 느껴지고, `ease`는 시작과 끝이 느리고 중간이 빨라 더 자연스럽게 느껴집니다.
+
+</details>
+
+## 자주 하는 실수
+
+| 증상 | 원인 | 고치는 법 |
+|------|------|-----------|
+| hover를 떼도 원래대로 안 돌아온다 | `transition`을 `:hover` 규칙 안에만 넣었다 | `transition`은 기본 상태(`.button`, `.project-card`) 규칙에 넣어야 양방향으로 적용된다 |
+| 전환이 전혀 안 보인다 | `transition-property`에 실제로 바뀌는 속성 이름을 안 넣었다 | hover에서 바뀌는 속성과 `transition-property` 목록이 일치하는지 확인 |
+| 카드가 흔들리듯 튄다 | `transform`과 `margin`을 동시에 바꿔 레이아웃과 합성이 같이 움직인다 | 위치 변화는 `transform`만 사용하고 `margin`/`top`은 건드리지 않는다 |
+| `transition: all`을 남발한다 | 어떤 속성이 바뀌는지 확인하지 않고 습관적으로 작성했다 | 실제로 바뀌는 속성만 쉼표로 나열해 성능과 예측 가능성을 높인다 |
+
+## 확인 문제
+
+<Quiz
+  questionNumber={1}
+  question="transition-property에 all 대신 실제 속성 이름을 나열하는 것이 좋은 이유는?"
+  options={['CSS 파일 용량이 줄어들어서', '의도한 속성만 전환되어 예측 가능하고 계산 부담이 줄어서', 'all은 문법 오류이기 때문에', '브라우저가 all 값을 지원하지 않아서']}
+  correctAnswer={2}
+  explanation="all은 모든 속성 변화를 감시해야 하므로 의도치 않은 전환이 생기고 계산 비용도 늘어납니다. 실제로 바뀌는 속성만 나열하는 편이 안전합니다."
+  optionExplanations={['파일 용량과는 거의 무관합니다', '정답입니다', 'all은 유효한 값입니다', '대부분의 브라우저가 all을 지원합니다']}
+/>
+
+<Quiz
+  questionNumber={2}
+  question="transition을 :hover 규칙이 아니라 기본 상태 규칙에 넣어야 하는 이유는?"
+  options={['그래야 문법 오류가 나지 않는다', '기본 상태에 넣어야 hover가 풀릴 때도 전환이 적용된다', ':hover 안에 넣으면 아예 동작하지 않는다', '성능상 차이가 없어 아무 곳에 넣어도 된다']}
+  correctAnswer={2}
+  explanation="transition은 값이 바뀌는 두 상태 중 어느 쪽에 있어도 동작하지만, 기본 상태에 둬야 hover 진입과 해제 양쪽 모두 전환이 걸립니다. :hover에만 넣으면 진입은 되어도 해제는 순간적으로 바뀝니다."
+  optionExplanations={['둘 다 문법적으로는 유효합니다', '정답입니다', ':hover 안에서도 진입 시에는 동작합니다', '해제 시 동작 여부에 차이가 있습니다']}
+/>
+
+<Quiz
+  questionNumber={3}
+  question="이 포트폴리오의 프로젝트 카드 hover 전환 시간으로 design-spec이 지정한 값은?"
+  options={['100ms', '200ms', '400ms', '600ms']}
+  correctAnswer={2}
+  explanation="design-spec 4절은 프로젝트 카드 hover에 translateY(-2px)와 함께 200ms 전환을 지정합니다."
+  optionExplanations={['이 값은 스펙에 없습니다', '정답입니다', '이 값은 스펙에 없습니다', '이 값은 스펙에 없습니다']}
+/>
+
+<Quiz
+  questionNumber={4}
+  question="포커스 링을 만들 때 outline: none만 쓰고 대체 표시를 넣지 않으면 생기는 문제는?"
+  options={['페이지 로딩 속도가 느려진다', '키보드로 이동하는 사용자가 현재 초점 위치를 알 수 없다', 'CSS 유효성 검사에서 오류가 난다', '마우스 클릭이 동작하지 않는다']}
+  correctAnswer={2}
+  explanation="outline은 키보드 사용자에게 현재 초점 위치를 알려주는 핵심 표시입니다. 지우기만 하고 대체 표시(box-shadow 등)를 넣지 않으면 접근성이 크게 나빠집니다."
+  optionExplanations={['로딩 속도와는 무관합니다', '정답입니다', 'outline: none은 유효한 문법입니다', '마우스 동작과는 무관합니다']}
+/>
+
+## 참고 자료
+
+- [MDN — Using CSS transitions](https://developer.mozilla.org/en-US/docs/Web/CSS/Guides/Transitions/Using)

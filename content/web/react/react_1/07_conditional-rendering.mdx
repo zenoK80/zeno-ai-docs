@@ -1,0 +1,211 @@
+---
+title: '07. 조건부 렌더링으로 읽기 상태 표시'
+description: 'StatusBadge 컴포넌트로 책의 읽기 상태를 조건에 따라 다르게 표시합니다.'
+---
+
+<Callout type="info">
+  **이번 편의 결과물:** 각 책 카드에 읽음/읽는 중/읽고 싶음 배지(`StatusBadge`)가 상태값에 따라 다르게 표시됩니다. · **다루는 개념:** `if`/삼항/`&&`로 조건부 렌더링, 상태값에 따라 다른 UI 렌더링, 빈 목록 상태 처리
+</Callout>
+
+## 이 편에서 만드는 파일
+
+```
+bookshelf/src/
+├── components/
+│   ├── StatusBadge.jsx   (+)
+│   └── BookCard.jsx      (~)
+└── App.jsx                 (변경 없음)
+```
+
+## 개념 정리
+
+`books.seed.json`의 각 책은 `status` 필드로 `'wish'`, `'reading'`, `'done'` 중 하나를 가집니다. 지금까지 `BookCard`는 이 값을 화면에 전혀 쓰지 않았습니다. 이 편에서는 `status` 값에 따라 다른 배지를 그리는 조건부 렌더링을 추가합니다.
+
+### 조건부 렌더링 세 가지 방법
+
+| 방법 | 형태 | 언제 쓰나 |
+|------|------|-----------|
+| `if`/`else` | 함수 본문에서 다른 JSX를 `return` | 반환할 마크업 구조 자체가 크게 다를 때 |
+| 삼항 연산자 | `조건 ? A : B` | JSX 안에서 두 가지 중 하나를 표현식으로 골라야 할 때 |
+| `&&` 연산자 | `조건 && A` | 조건이 참일 때만 보여주고, 거짓이면 아무것도 안 보여줄 때 |
+
+세 방법 모두 최종적으로는 "이 렌더링에서 어떤 JSX를 반환할지"를 고르는 것입니다. React는 조건에 따라 컴포넌트를 껐다 켰다 하는 것이 아니라, 매 렌더링마다 계산된 JSX(또는 `null`)를 그릴 뿐입니다.
+
+### && 연산자를 쓸 때 흔한 함정
+
+`조건 && <span>내용</span>`에서 `조건`이 `0`이면 화면에 `0`이 그대로 찍힙니다. `0`은 falsy 값이지만 `&&`는 첫 피연산자가 falsy이면 **그 값 자체**를 반환하기 때문입니다. `books.length && <BookList ... />`처럼 숫자를 조건으로 쓸 때는 `books.length > 0 && ...`처럼 명시적으로 boolean으로 만듭니다.
+
+```jsx
+{count && <span>{count}개</span>}       // count가 0이면 화면에 "0"이 찍힘
+{count > 0 && <span>{count}개</span>}   // count가 0이면 아무것도 안 그려짐
+```
+
+### status 값과 배지 매핑
+
+| status 값 | 배지 문구 | 배지 색 |
+|-----------|-----------|---------|
+| `'wish'` | 읽고 싶음 | 회색 |
+| `'reading'` | 읽는 중 | 파랑 |
+| `'done'` | 읽음 | 초록 |
+
+세 가지 이상의 값을 분기할 때는 `if`/`else if` 사슬이나 객체 조회(lookup)가 삼항 연산자를 여러 번 중첩하는 것보다 읽기 쉽습니다. 이번 편은 객체 조회 방식을 씁니다.
+
+## 실습
+
+<Steps>
+
+### 1. StatusBadge.jsx 만들기
+
+`src/components/StatusBadge.jsx`를 새로 만듭니다.
+
+### 2. 코드 작성
+
+```jsx
+// src/components/StatusBadge.jsx
+const STATUS_LABEL = {
+  wish: '읽고 싶음',
+  reading: '읽는 중',
+  done: '읽음',
+};
+
+const STATUS_COLOR = {
+  wish: '#6b7280',
+  reading: '#2563eb',
+  done: '#16a34a',
+};
+
+function StatusBadge({ status }) {
+  const label = STATUS_LABEL[status] ?? '알 수 없음';
+  const color = STATUS_COLOR[status] ?? '#9ca3af';
+
+  return (
+    <span className="status-badge" style={{ backgroundColor: color }}>
+      {label}
+    </span>
+  );
+}
+
+export default StatusBadge;
+```
+
+```jsx
+// src/components/BookCard.jsx
+import StatusBadge from './StatusBadge.jsx';
+
+function BookCard({ title, author, coverColor, pages, status }) {
+  return (
+    <article className="book-card" style={{ borderTop: `6px solid ${coverColor}` }}>
+      <StatusBadge status={status} />
+      <h2>{title}</h2>
+      <p>{author}</p>
+      <p className="book-pages">{pages}쪽</p>
+    </article>
+  );
+}
+
+export default BookCard;
+```
+
+`STATUS_LABEL`과 `STATUS_COLOR`는 `status` 문자열을 화면에 보여줄 값으로 바꾸는 조회 객체입니다. `STATUS_LABEL[status]`가 `undefined`가 되는 경우(예상 못 한 값이 들어온 경우)에 대비해 `??` 연산자로 기본값을 둡니다. `BookCard`는 `status`를 그대로 `StatusBadge`에 전달하기만 하고, 문구·색을 어떻게 정할지는 전혀 몰라도 됩니다. 이렇게 판단 로직을 자식 컴포넌트에 가두면 나중에 상태 종류가 늘어나도 `StatusBadge` 하나만 고치면 됩니다.
+
+### 3. 실행
+
+```text
+npm run dev
+```
+
+### 4. 확인
+
+- 카드마다 제목 위에 배지가 보입니다. `클린 코드`(status: `done`)는 초록 "읽음", `리팩터링 2판`(status: `reading`)은 파랑 "읽는 중", `함께 자라기`(status: `wish`)는 회색 "읽고 싶음"으로 보입니다.
+- `books.seed.json`에서 아무 책의 `status`를 오타(`"raeding"`)로 바꿔 저장하면 배지가 "알 수 없음"·회색으로 나오는지 확인한 뒤 원래 값으로 되돌립니다.
+
+</Steps>
+
+## 직접 해보기
+
+1. `BookList.jsx`에서 `books.length === 0`일 때 보여주는 안내 문구를, `&&` 연산자를 써서 `books.length === 0 && <p>...</p>`형태로 바꿔봅니다(현재는 `if`로 조기 반환하는 방식입니다). 두 방식의 결과가 같은지 확인합니다.
+2. `StatusBadge`에 `pages`가 300쪽을 넘으면 배지 옆에 "장편" 문구를 추가로 보여주는 조건부 렌더링을 삼항 연산자로 추가해봅니다.
+
+<details>
+<summary>정답 보기</summary>
+
+```jsx
+// BookList.jsx 안, return 이전의 조기 반환 대신
+return (
+  <div className="book-grid">
+    {books.length === 0 && <p className="empty-state">아직 등록된 책이 없습니다.</p>}
+    {books.map((book) => (
+      <BookCard key={book.id} {...book} />
+    ))}
+  </div>
+);
+```
+
+```jsx
+// StatusBadge.jsx, pages를 props로 받는다고 가정
+function StatusBadge({ status, pages }) {
+  const label = STATUS_LABEL[status] ?? '알 수 없음';
+  const color = STATUS_COLOR[status] ?? '#9ca3af';
+
+  return (
+    <span className="status-badge" style={{ backgroundColor: color }}>
+      {label}
+      {pages > 300 ? ' · 장편' : ''}
+    </span>
+  );
+}
+```
+
+첫 번째 방법은 조건이 거짓일 때 빈 배열 자리에 아무것도 안 그려지는 원리를 그대로 이용합니다. 다만 이 경우처럼 "조건에 따라 아예 다른 마크업 구조"를 반환할 때는 `if`로 조기 반환하는 편이 더 읽기 쉬워, 이 과목은 `BookList`에서 `if` 방식을 유지합니다.
+
+</details>
+
+## 자주 하는 실수
+
+| 증상 | 원인 | 고치는 법 |
+|------|------|-----------|
+| 목록이 비었을 때 화면에 `0`이 찍힘 | `books.length && <p>...</p>` 처럼 숫자를 조건으로 그대로 씀 | `books.length === 0 && ...`처럼 boolean 비교로 바꾼다 |
+| 배지에 "알 수 없음"만 계속 보임 | `status` 값과 조회 객체의 키 철자가 다름(`'Reading'` vs `'reading'`) | 데이터의 실제 값과 조회 객체 키의 대소문자·철자를 맞춘다 |
+| 삼항 연산자가 여러 줄로 중첩되어 읽기 어려움 | 분기가 3개 이상인데 삼항을 계속 중첩함 | 분기가 3개 이상이면 조회 객체나 `if`/`else if` 사슬을 쓴다 |
+
+## 확인 문제
+
+<Quiz
+  questionNumber={1}
+  question="count && (count개 문구를 보여주는 엘리먼트) 형태로 조건부 렌더링할 때, count가 0이면 화면에 나타나는 것은?"
+  options={['아무것도 나타나지 않는다', '숫자 0이 그대로 찍힌다', '항상 span 태그가 그려진다', '오류가 발생한다']}
+  correctAnswer={2}
+  explanation="&&는 첫 피연산자가 falsy이면 그 값 자체를 반환합니다. 0은 falsy이면서 동시에 화면에 표시 가능한 값이라 그대로 찍힙니다."
+  optionExplanations={['0이라는 값 자체가 렌더링되므로 아무것도 안 보이는 것이 아닙니다', '정답입니다', '조건이 falsy이면 두 번째 피연산자는 평가되지 않습니다', '유효한 문법이라 오류는 나지 않습니다']}
+/>
+
+<Quiz
+  questionNumber={2}
+  question="count가 0일 때 아무것도 렌더링하지 않으려면 어떻게 고쳐야 하는가?"
+  options={['count && <span>...</span>를 그대로 둔다', 'count > 0 && <span>...</span>처럼 명시적 boolean 비교로 바꾼다', 'count를 문자열로 바꾼다', 'span 태그를 삭제한다']}
+  correctAnswer={2}
+  explanation="비교 연산자로 명시적인 boolean 값을 만들면 조건이 거짓일 때 false가 반환되어 화면에 아무것도 그려지지 않습니다."
+  optionExplanations={['0이 그대로 찍히는 문제가 남습니다', '정답입니다', '문자열로 바꿔도 falsy 값 자체가 찍히는 문제는 남습니다', '조건부 렌더링 자체를 없애는 것은 해결책이 아닙니다']}
+/>
+
+<Quiz
+  questionNumber={3}
+  question="세 가지 이상의 값을 분기할 때 삼항 연산자를 여러 번 중첩하는 대신 권장되는 방법은?"
+  options={['모든 분기를 하나의 긴 삼항 연산자로 합친다', '객체 조회(lookup)나 if/else if 사슬을 사용한다', 'CSS로만 분기를 처리한다', '분기를 아예 없앤다']}
+  correctAnswer={2}
+  explanation="분기가 많아질수록 중첩된 삼항 연산자는 읽기 어려워지므로, 값과 결과를 매핑한 객체 조회나 if/else if 사슬이 더 명확합니다."
+  optionExplanations={['중첩이 깊어질수록 가독성이 떨어집니다', '정답입니다', 'CSS는 값에 따른 문구 변경 자체를 대신할 수 없습니다', '조건에 따라 다른 UI를 보여줘야 하는 요구사항 자체는 남아있습니다']}
+/>
+
+<Quiz
+  questionNumber={4}
+  question="StatusBadge가 STATUS_LABEL[status] ?? '알 수 없음' 을 쓰는 이유는?"
+  options={['성능을 높이기 위해', '예상하지 못한 status 값이 들어와도 화면에 안전한 기본 문구를 보여주기 위해', 'status를 항상 소문자로 바꾸기 위해', 'JSON 파싱 오류를 막기 위해']}
+  correctAnswer={2}
+  explanation="조회 객체에 없는 키를 참조하면 undefined가 되므로, ?? 연산자로 기본값을 지정해 예상 밖의 값에도 안전하게 대응합니다."
+  optionExplanations={['성능 목적이 아니라 안전한 기본값 목적입니다', '정답입니다', '대소문자 변환과는 무관합니다', 'JSON 파싱과는 무관한 렌더링 단계입니다']}
+/>
+
+## 참고 자료
+
+- [React 공식 - Conditional Rendering](https://react.dev/learn/conditional-rendering)

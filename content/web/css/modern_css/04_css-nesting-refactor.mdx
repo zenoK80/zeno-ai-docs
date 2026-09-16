@@ -1,0 +1,294 @@
+---
+title: '04. CSS 네이티브 중첩으로 선택자 정리하기'
+description: 'components 레이어의 네브바·카드·폼 선택자를 네이티브 & 중첩 문법으로 재작성한다'
+---
+
+<Callout type="info">
+  **이번 편의 결과물:** `components` 레이어의 네브바·카드·폼 선택자가 중첩 문법으로 재작성된다 · **다루는 개념:** `&` 중첩 문법, Sass 중첩과의 자동 삽입 규칙 차이, 중첩된 선택자의 명시도 계산
+</Callout>
+
+## 이 편에서 만드는 파일
+
+```text
+web-practice/
+├── portfolio/
+│   └── css/
+│       └── styles.css     ~ (components 레이어의 네브바·카드·폼을 & 중첩으로 재작성)
+└── lessons/modern-css/
+    └── 04_css-nesting-refactor/    +
+        └── nesting-vs-sass.css
+```
+
+## 개념 정리
+
+CSS 네이티브 중첩은 부모 선택자 안에 자식 선택자를 그대로 적어 넣는 문법이다. Sass를 써 본 적이 있다면 익숙하지만, 자동으로 처리해 주던 부분이 다르다.
+
+| 상황 | 규칙 | 예시 |
+|------|------|------|
+| 클래스·타입 선택자로 시작하는 자식 | `&` 없이 그대로 적으면 후손(descendant) 선택자로 해석된다 | `.card { .title { } }` → `.card .title` |
+| 가상 클래스·가상 요소로 시작하는 자식 | 반드시 `&`를 붙인다 | `.card { &:hover { } }` (그냥 `:hover { }`라고 적으면 안 된다) |
+| 결합자(`>`, `+`, `~`)로 시작하는 자식 | 결합자 앞에 `&`를 붙인다 | `.list { & > li { } }` |
+| 속성 선택자를 조합할 때 | 부모 바로 뒤에 `&`를 붙여 이어 쓴다 | `.nav-link { &[aria-current='page'] { } }` |
+
+가장 조심할 차이는 **BEM 접미사 문법**이다. Sass는 `&__title`을 문자열로 이어 붙여 `.card__title`을 만들어 주지만, 네이티브 `&`는 문자열 연결 연산자가 아니다. `&__title`은 `&`와 `__title`을 이어 붙인 잘못된 선택자로 해석되어 **아무 요소에도 매치되지 않는다.** 클래스 이름 자체를 이어 붙이고 싶다면 처음부터 별도 클래스로 두고 중첩 안에서 완전한 이름으로 적어야 한다.
+
+명시도 계산은 중첩 여부와 무관하다. `.card { & .title { } }`는 컴파일된 결과인 `.card .title`과 똑같은 명시도(클래스 2개)를 갖는다. 중첩은 **쓰는 방식만 바꿀 뿐 캐스케이드 규칙 자체는 그대로**다.
+
+## 실습
+
+<Steps>
+
+### 1. 네브바 선택자 중첩
+
+`portfolio/css/styles.css`의 `components` 레이어 안에서 `.site-header`, `.logo`, `.site-nav` 세 선택자를 하나로 묶는다.
+
+```css
+/* portfolio/css/styles.css — components 레이어 안, 네브바 부분 */
+.site-header {
+  position: sticky;
+  top: 0;
+  height: var(--header-height);
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding-inline: var(--space-6);
+  background: var(--color-bg);
+  border-bottom: 1px solid var(--color-border);
+
+  & .logo {
+    font-size: var(--text-lg);
+    font-weight: 700;
+  }
+}
+
+/* <nav class="site-nav">/<nav id="mobile-menu" popover> 안에는 ul·li 없이 <a> 3개가 바로 들어 있다 */
+.site-nav {
+  display: none;
+  gap: var(--space-6);
+
+  & a[aria-current='page'] {
+    color: var(--color-primary);
+    font-weight: 700;
+  }
+}
+
+@media (min-width: 1024px) {
+  .site-nav {
+    display: flex;
+  }
+}
+```
+
+`.logo`는 클래스로 시작하므로 `&` 없이 적어도 되지만, 부모 블록 안에 있다는 것을 한눈에 보이게 하려고 이 프로젝트에서는 **자식 선택자 앞에 항상 `&`를 붙이는 스타일**을 규칙으로 정한다. `a[aria-current='page']`는 타입 선택자로 시작하지만 `.site-nav` 바로 아래 결합자 없이 이어지는 후손이라 `& a[aria-current='page']`로 적는다.
+
+### 2. 프로젝트 카드 선택자 중첩
+
+```css
+/* portfolio/css/styles.css — components 레이어 안, 카드 부분 */
+.project-card {
+  display: flex;
+  flex-direction: column;
+  background: var(--color-surface);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius);
+  overflow: hidden;
+  transition: transform 200ms ease, box-shadow 200ms ease;
+
+  &:hover {
+    transform: translateY(-2px);
+    box-shadow: var(--shadow);
+  }
+
+  & img {
+    aspect-ratio: 3 / 2;
+    object-fit: cover;
+  }
+
+  & h2 {
+    font-size: var(--text-lg);
+    padding-inline: var(--space-4);
+    margin-top: var(--space-4);
+  }
+
+  & p {
+    padding-inline: var(--space-4);
+    color: var(--color-text-muted);
+    font-size: var(--text-sm);
+  }
+
+  & .tags {
+    display: flex;
+    gap: var(--space-2);
+    flex-wrap: wrap;
+    padding-inline: var(--space-4);
+
+    & li {
+      padding: var(--space-1) var(--space-3);
+      background: var(--color-bg);
+      border: 1px solid var(--color-border);
+      border-radius: 999px;
+      font-size: var(--text-xs);
+    }
+  }
+
+  & button[data-open-project] {
+    margin: var(--space-4);
+    margin-top: auto;
+  }
+}
+```
+
+`&:hover`는 가상 클래스라 `&` 생략이 안 된다. `& img`는 타입 선택자로 시작하는 후손이라 `&`를 붙여야 후손 선택자로 확실히 해석된다(붙이지 않고 `img { }`만 적으면 `.project-card` 안이 아니라 **전역** `img` 규칙이 되어 버려서, 아까 `base` 레이어에 이미 있는 `img { max-width: 100%; }`와 충돌할 수 있다).
+
+### 3. 연락 폼 선택자 중첩
+
+```css
+/* portfolio/css/styles.css — components 레이어 안, 폼 부분 */
+.contact-form {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-6);
+  max-width: 32rem;
+
+  & button[type='submit'] {
+    height: 2.75rem;
+    padding-inline: var(--space-6);
+    border-radius: var(--radius);
+    font-weight: 700;
+    background: var(--color-primary);
+    color: #ffffff;
+    border: 1px solid transparent;
+  }
+}
+
+.field {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+
+  & label {
+    font-size: var(--text-sm);
+    font-weight: 700;
+  }
+
+  & input,
+  & select,
+  & textarea {
+    width: 100%;
+    padding: var(--space-3);
+    border: 1px solid var(--color-border);
+    border-radius: var(--radius);
+    font: inherit;
+
+    &:focus {
+      outline: none;
+      border-color: var(--color-primary);
+      box-shadow: 0 0 0 2px rgb(9 105 218 / 0.2);
+    }
+
+    &:invalid:not(:placeholder-shown) {
+      border-color: var(--color-accent);
+    }
+  }
+
+  & .help {
+    font-size: var(--text-xs);
+    color: var(--color-text-muted);
+  }
+}
+
+.field-checkbox {
+  flex-direction: row;
+  align-items: center;
+  gap: var(--space-2);
+}
+```
+
+`&:focus`와 `&:invalid:not(:placeholder-shown)`을 `input`, `select`, `textarea` 공통 블록 안에 넣어, 필드 래퍼 `.field` 하나에 같은 스타일이 적용되는 것을 한 곳에서 관리한다. 체크박스 줄만 가로로 배치하는 `.field-checkbox`, 도움말 문구 `.help`는 `.field`의 형제 규칙으로 남긴다.
+
+### 4. 실행 및 확인
+
+브라우저에서 `index.html`, `projects.html`, `contact.html`을 새로고침한다.
+
+- 헤더·네브바·프로젝트 카드·연락 폼의 모양과 동작이 03편과 완전히 같다(중첩은 선언 방식만 바꾼 것이라 화면 변화가 없어야 한다).
+- 개발자 도구에서 `.project-card`를 선택하면 `Styles` 패널에 `.project-card:hover`, `.project-card img` 같은 컴파일된 선택자가 그대로 보인다.
+- `input`에 포커스를 주면 파란 아웃라인이 여전히 나타난다.
+
+</Steps>
+
+## 직접 해보기
+
+1. `.career table`, `.career th`, `.career td` 세 선택자를 `.career` 부모 아래 중첩으로 합쳐 본다.
+2. Sass에서 흔히 쓰는 `&__body`(BEM 접미사) 문법을 `.project-card` 안에 그대로 써 보고, 브라우저 개발자 도구에서 어떤 선택자로 해석되는지(또는 매치되는 요소가 없는지) 확인해 본다.
+
+<details>
+<summary>정답 예시</summary>
+
+1. 아래처럼 중첩한다.
+
+```css
+.career {
+  & table {
+    width: 100%;
+    border-collapse: collapse;
+  }
+
+  & th,
+  & td {
+    padding: var(--space-3);
+    border-bottom: 1px solid var(--color-border);
+    text-align: left;
+  }
+
+  & th {
+    background: var(--color-surface);
+  }
+}
+```
+
+2. `.project-card { &__body { padding: 1rem; } }`을 넣으면 개발자 도구의 `Styles` 패널에는 `.project-card__body`가 아니라 잘못된 선택자로 표시되거나 규칙 자체가 무시된다. 네이티브 `&`는 이름을 이어 붙이지 않기 때문에 BEM 접미사에는 쓸 수 없고, 클래스 이름 전체(`.project-card-body`)를 직접 적어야 한다.
+
+</details>
+
+## 자주 하는 실수
+
+| 증상 | 원인 | 고치는 법 |
+|------|------|-----------|
+| `&__title` 같은 BEM 접미사가 전혀 매치되지 않는다 | 네이티브 `&`는 문자열을 이어 붙이는 연산자가 아니다 | 클래스 이름 전체를 그대로 적거나(`.card-title`), BEM 대신 후손 선택자로 바꾼다 |
+| 타입 선택자를 그냥 적었더니 전역 스타일이 깨졌다 | `img { }`처럼 `&` 없이 적으면 후손이 아니라 전역 규칙으로 오인하기 쉽다(실제로는 브라우저가 후손으로 해석하지만, 의도를 분명히 하려면 `& img`로 적는 습관이 안전하다) | 프로젝트 규칙으로 자식 선택자 앞에 항상 `&`를 붙인다 |
+| `&:hover`를 빼먹고 `:hover { }`만 적었다 | 가상 클래스는 `&` 없이는 별도 최상위 규칙이 되어 아무 데도 적용되지 않는다 | 가상 클래스·가상 요소는 반드시 `&`로 시작한다 |
+| 중첩하면 명시도가 낮아진다고 착각했다 | 중첩은 문법일 뿐 컴파일 결과 선택자와 명시도가 동일하다 | `.a { & .b { } }`와 `.a .b { }`는 완전히 같은 규칙이다 |
+
+## 확인 문제
+
+<Quiz
+  questionNumber={1}
+  question="네이티브 CSS 중첩에서 &__title 같은 Sass 스타일 BEM 접미사를 쓰면 어떻게 되는가?"
+  options={['& 는 문자열을 이어 붙이지 않으므로 의도한 클래스에 매치되지 않는다', 'Sass와 동일하게 자동으로 클래스 이름이 이어 붙는다', '빌드 에러가 발생해 스타일시트 전체가 무효화된다', '&__title은 항상 부모 요소 자신을 가리킨다']}
+  correctAnswer={1}
+  explanation="네이티브 &는 선택자 결합 기호일 뿐 문자열 연결 연산자가 아니다. Sass처럼 &__title이 .card__title로 합쳐지지 않는다."
+  optionExplanations={['정답', 'Sass의 문자열 연결 기능은 네이티브 중첩에 없다', '해당 규칙만 무시되거나 매치되지 않을 뿐 스타일시트 전체가 무효화되지는 않는다', '자기 자신을 가리키는 것이 아니라 잘못된 선택자로 해석된다']}
+/>
+
+<Quiz
+  questionNumber={2}
+  question="가상 클래스를 부모 선택자 안에 중첩할 때 올바른 문법은?"
+  options={['&:hover { }처럼 & 를 붙인다', ':hover { }처럼 그냥 적는다', '@nest :hover { }처럼 별도 at-rule을 쓴다', '가상 클래스는 중첩할 수 없다']}
+  correctAnswer={1}
+  explanation="가상 클래스·가상 요소로 시작하는 중첩 규칙은 반드시 & 를 붙여야 부모에 대한 규칙으로 해석된다."
+  optionExplanations={['정답', '& 없이 적으면 별도의 전역 규칙이 되어 적용되지 않는다', '@nest는 초안 단계에서 쓰이다 폐기된 문법이다', '& 를 붙이면 정상적으로 중첩할 수 있다']}
+/>
+
+<Quiz
+  questionNumber={3}
+  question=".card { & .title { color: red; } } 와 .card .title { color: red; } 의 명시도 차이는?"
+  options={['차이가 없다, 컴파일 결과가 같은 선택자다', '중첩 쪽이 명시도가 더 높다', '중첩 쪽이 명시도가 더 낮다', '중첩은 명시도를 계산하지 않는다']}
+  correctAnswer={1}
+  explanation="중첩은 작성 방식일 뿐 최종적으로 만들어지는 선택자와 명시도는 후손 선택자를 직접 쓴 것과 동일하다."
+  optionExplanations={['정답', '더 높지 않다, 동일하다', '더 낮지 않다, 동일하다', '명시도는 여전히 계산되며 두 클래스 선택자의 합이다']}
+/>
+
+## 참고 자료
+
+- [MDN — CSS nesting](https://developer.mozilla.org/en-US/docs/Web/CSS/CSS_nesting) — 네이티브 `&` 중첩 문법과 Sass 중첩과의 자동 삽입 규칙 차이
+- [MDN — Using CSS nesting](https://developer.mozilla.org/en-US/docs/Web/CSS/CSS_nesting/Using_CSS_nesting) — 타입 선택자·결합자 중첩 시 `&`가 필요한 경우 정리

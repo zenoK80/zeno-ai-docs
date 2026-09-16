@@ -1,0 +1,288 @@
+---
+title: '13. light-dark()로 다크모드 토글 만들기'
+description: 'color-scheme과 light-dark()로 색 토큰에 라이트·다크 두 값을 한 번에 넣고, 토글 버튼으로 전환한다'
+---
+
+<Callout type="info">
+  **이번 편의 결과물:** 헤더 우측에 라이트/다크 토글 버튼이 생기고, `tokens.css`의 모든 색 토큰이 `light-dark()`로 두 모드 값을 함께 가진다 · **다루는 개념:** `color-scheme` 속성, `light-dark()` 함수, 토글 버튼과 `prefers-color-scheme` 초기값 연동
+</Callout>
+
+## 이 편에서 만드는 파일
+
+```
+portfolio/
+├── index.html          ~ 헤더에 토글 버튼 추가
+├── projects.html        ~ 헤더에 토글 버튼 추가
+├── contact.html          ~ 헤더에 토글 버튼 추가
+├── css/
+│   ├── tokens.css       ~ 색 토큰을 light-dark()로 재작성
+│   └── styles.css        ~ 토글 버튼 스타일 추가
+└── js/
+    └── main.js           ~ 토글 클릭·저장 로직 추가
+```
+
+## 개념 정리
+
+지금까지 `tokens.css`의 색 토큰은 라이트 모드 값 하나만 가지고 있습니다(`--color-bg: oklch(100% 0 0)` 같은 형태로, 12편에서 `oklch()`로 정리했습니다). 다크모드를 넣으려면 같은 토큰에 두 번째 값을 얹어야 합니다.
+
+### `color-scheme` 속성
+
+브라우저에게 "이 요소는 라이트·다크 중 어떤 색 구성을 지원하는지" 알려주는 속성입니다. 값을 `light dark`로 주면 폼 컨트롤·스크롤바 같은 브라우저 기본 UI도 현재 모드에 맞춰 렌더링됩니다.
+
+| 값 | 의미 |
+|---|---|
+| `normal` | 색 구성을 지정하지 않음(기본값) |
+| `light` | 이 요소는 라이트 모드로만 렌더링 |
+| `dark` | 이 요소는 다크 모드로만 렌더링 |
+| `light dark` | 두 모드를 모두 지원. 실제 선택은 `prefers-color-scheme`와 아래 `light-dark()`가 결정 |
+
+### `light-dark()` 함수
+
+`light-dark(라이트값, 다크값)` 형태로 두 색을 한 선언에 담습니다. 어느 값이 실제로 적용될지는 그 요소(또는 조상)에 걸린 `color-scheme`을 따릅니다. `color-scheme: light dark`가 걸린 상태에서 `light-dark()`를 쓰면 사용자의 `prefers-color-scheme` 선호를 그대로 반영합니다.
+
+```css
+:root {
+  color-scheme: light dark;
+  --color-bg: light-dark(oklch(100% 0 0), oklch(21% 0.014 254));
+  --color-text: light-dark(oklch(21% 0.014 254), oklch(93% 0.005 254));
+}
+```
+
+이 상태만으로도 OS 설정에 따라 다크모드가 이미 동작합니다. 여기에 **사이트 자체 토글 버튼**을 얹으려면 `color-scheme`을 요소 단위로 강제 지정할 수 있어야 합니다. `:root`에 `data-theme="dark"`가 붙으면 `color-scheme: dark`로 덮어써서, OS 설정과 무관하게 `light-dark()`가 다크 값을 고르게 만듭니다.
+
+```css
+:root[data-theme='light'] { color-scheme: light; }
+:root[data-theme='dark'] { color-scheme: dark; }
+```
+
+### 색 토큰 전환표
+
+| 토큰 | 라이트 | 다크 |
+|---|---|---|
+| `--color-bg` | `oklch(100% 0 0)` | `oklch(21% 0.014 254)` |
+| `--color-surface` | `oklch(97.3% 0.004 247)` | `oklch(26% 0.014 254)` |
+| `--color-text` | `oklch(21% 0.014 254)` | `oklch(93% 0.005 254)` |
+| `--color-text-muted` | `oklch(48% 0.014 254)` | `oklch(70% 0.01 254)` |
+| `--color-border` | `oklch(87% 0.01 254)` | `oklch(37% 0.014 254)` |
+| `--color-primary` | `oklch(55% 0.18 254)` | `oklch(70% 0.15 254)` |
+
+값 자체는 원래 시안(design-spec.md)의 다크 색 hex를 `oklch()`로 옮긴 근사치입니다. 정확한 좌표가 필요하면 브라우저 개발자 도구의 색상 선택기로 다시 확인합니다.
+
+## 실습
+
+<Steps>
+
+### 1. tokens.css에 color-scheme과 light-dark() 적용
+
+`css/tokens.css`를 엽니다. `@layer tokens` 안 `:root` 블록을 전체 교체합니다.
+
+```css
+/* portfolio/css/tokens.css */
+@layer tokens {
+  :root {
+    color-scheme: light dark;
+
+    /* 색 */
+    --color-bg: light-dark(oklch(100% 0 0), oklch(21% 0.014 254));
+    --color-surface: light-dark(oklch(97.3% 0.004 247), oklch(26% 0.014 254));
+    --color-text: light-dark(oklch(21% 0.014 254), oklch(93% 0.005 254));
+    --color-text-muted: light-dark(oklch(48% 0.014 254), oklch(70% 0.01 254));
+    --color-primary: light-dark(oklch(55% 0.18 254), oklch(70% 0.15 254));
+    --color-primary-hover: color-mix(in oklch, var(--color-primary) 85%, black);
+    --color-border: light-dark(oklch(87% 0.01 254), oklch(37% 0.014 254));
+    --color-accent: light-dark(oklch(52% 0.19 350), oklch(68% 0.17 350));
+
+    /* 타이포·간격·레이아웃 토큰은 10~12편과 동일하게 유지 */
+    --font-sans: 'Pretendard', 'Noto Sans KR', system-ui, sans-serif;
+    --space-6: 1.5rem;
+    --radius: 0.5rem;
+    --shadow: 0 1px 3px rgb(0 0 0 / 0.1), 0 4px 12px rgb(0 0 0 / 0.06);
+    --header-height: 4rem;
+  }
+
+  :root[data-theme='light'] {
+    color-scheme: light;
+  }
+
+  :root[data-theme='dark'] {
+    color-scheme: dark;
+  }
+}
+```
+
+`color-scheme: light dark`를 `:root`에 걸어 두면 사용자가 아직 토글을 누르지 않았을 때는 OS의 `prefers-color-scheme`을 그대로 따릅니다. `data-theme` 속성이 붙으면 그 값으로 강제됩니다.
+
+### 2. 헤더에 토글 버튼 추가
+
+세 페이지의 `<header>` 안, `<nav>` 뒤에 버튼을 추가합니다(`index.html` 기준, `projects.html`·`contact.html`도 동일하게).
+
+```html
+<!-- portfolio/index.html -->
+<header class="site-header">
+  <a href="index.html" class="logo">Zeno Kim</a>
+  <button type="button" class="menu-toggle" popovertarget="mobile-menu" popovertargetaction="toggle" aria-label="메뉴 열기">
+    메뉴
+  </button>
+  <nav id="mobile-menu" class="site-nav" popover aria-label="주요 메뉴">
+    <a href="index.html" aria-current="page">소개</a>
+    <a href="projects.html">프로젝트</a>
+    <a href="contact.html">연락</a>
+  </nav>
+  <button type="button" id="theme-toggle" aria-label="다크모드 전환" aria-pressed="false">
+    <span aria-hidden="true">🌙</span>
+  </button>
+</header>
+```
+
+`.menu-toggle`·`#mobile-menu` popover는 css_fundamentals에서 이미 있던 구조 그대로다(ul·li 없이 `<a>` 3개가 바로 들어 있다). 이번 편은 그 옆에 `#theme-toggle` 버튼 하나만 새로 추가한다.
+
+### 3. 토글 버튼 스타일
+
+`css/styles.css`의 `components` 레이어에 추가합니다.
+
+```css
+/* portfolio/css/styles.css (@layer components 안) */
+#theme-toggle {
+  margin-inline-start: auto;
+  inline-size: 2.5rem;
+  block-size: 2.5rem;
+  border: 1px solid var(--color-border);
+  border-radius: 999px;
+  background: var(--color-surface);
+  font-size: var(--text-lg);
+  cursor: pointer;
+  transition: background-color 200ms;
+}
+
+#theme-toggle:hover {
+  background: var(--color-border);
+}
+```
+
+### 4. 토글 로직 작성
+
+`js/main.js` 끝에 추가합니다. `localStorage`에 사용자 선택을 저장해 새로고침해도 유지되게 합니다.
+
+```js
+// portfolio/js/main.js
+const THEME_KEY = 'zeno-theme'
+const toggleBtn = document.getElementById('theme-toggle')
+const rootEl = document.documentElement
+
+function applyTheme(theme) {
+  if (theme === 'light' || theme === 'dark') {
+    rootEl.dataset.theme = theme
+  } else {
+    delete rootEl.dataset.theme
+  }
+  const isDark =
+    theme === 'dark' ||
+    (!theme && window.matchMedia('(prefers-color-scheme: dark)').matches)
+  toggleBtn?.setAttribute('aria-pressed', String(isDark))
+}
+
+const saved = localStorage.getItem(THEME_KEY)
+applyTheme(saved)
+
+toggleBtn?.addEventListener('click', () => {
+  const current = rootEl.dataset.theme
+  const next = current === 'dark' ? 'light' : 'dark'
+  localStorage.setItem(THEME_KEY, next)
+  applyTheme(next)
+})
+```
+
+### 5. 실행과 확인
+
+브라우저에서 `portfolio/index.html`을 엽니다(로컬 서버 없이 파일을 직접 열어도 됩니다).
+
+```text
+확인 1. 처음 열면 OS의 다크모드 설정을 그대로 따른다(OS를 다크로 바꾸고 새로고침하면 색이 바뀜)
+확인 2. 우측 상단 버튼을 누르면 배경·글자·테두리 색이 즉시 다크로 바뀐다
+확인 3. 새로고침해도 방금 선택한 모드가 유지된다(localStorage 저장 확인)
+확인 4. 개발자 도구 → Elements에서 <html data-theme="dark">가 붙는지 확인
+확인 5. projects.html, contact.html도 같은 버튼과 색으로 전환된다
+```
+
+</Steps>
+
+## 직접 해보기
+
+1. 버튼을 `aria-pressed` 대신 두 아이콘(🌙/☀️)을 전환하도록 바꿔 봅니다. `toggleBtn.textContent`를 `applyTheme()` 안에서 바꾸면 됩니다.
+2. 시스템 설정을 "따름" 상태로 되돌리는 버튼(길게 누르기 또는 세 번째 클릭)을 추가해 봅니다. `localStorage.removeItem(THEME_KEY)` 후 `applyTheme(null)`을 호출하면 됩니다.
+
+<details>
+<summary>정답 보기</summary>
+
+```js
+// portfolio/js/main.js (toggleBtn 클릭 핸들러 확장)
+toggleBtn?.addEventListener('click', () => {
+  const current = rootEl.dataset.theme
+  if (!current) {
+    localStorage.setItem(THEME_KEY, 'dark')
+    applyTheme('dark')
+  } else if (current === 'dark') {
+    localStorage.setItem(THEME_KEY, 'light')
+    applyTheme('light')
+  } else {
+    localStorage.removeItem(THEME_KEY)
+    applyTheme(null)
+  }
+})
+```
+
+세 단계(시스템 따름 → 다크 → 라이트 → 다시 시스템 따름)를 순환합니다.
+
+</details>
+
+## 자주 하는 실수
+
+| 증상 | 원인 | 고치는 법 |
+|---|---|---|
+| 토글을 눌러도 색이 안 바뀜 | `:root`에 `color-scheme: light dark`가 없어서 `light-dark()`가 항상 라이트 값만 고름 | `color-scheme` 선언 여부와 `data-theme` 선택자 순서를 확인 |
+| 새로고침하면 항상 라이트로 돌아감 | `localStorage` 저장·읽기 코드가 없거나 키 이름이 다름 | `localStorage.getItem` 키와 `setItem` 키가 같은지 확인 |
+| 다크모드에서 테두리가 안 보임 | `--color-border`의 다크 값 명도가 배경과 너무 비슷함 | `oklch()`의 명도(L) 값 차이를 15퍼센트 포인트 이상 벌림 |
+| 버튼이 스크린 리더에서 상태를 안 알려줌 | `aria-pressed`를 갱신하지 않음 | `applyTheme()` 안에서 매번 `aria-pressed`를 다시 계산해 설정 |
+
+## 확인 문제
+
+<Quiz
+  questionNumber={1}
+  question="color-scheme: light dark를 요소에 지정하는 이유로 가장 알맞은 것은?"
+  options={['그 요소 안에서 light-dark() 함수가 실제로 두 값 중 하나를 고를 수 있게 하기 위해서', '요소의 글자 크기를 뷰포트에 맞춰 자동 조정하기 위해서', '요소에 애니메이션을 걸 수 있게 하기 위해서', 'CSS 파일을 여러 개로 분리하기 위해서']}
+  correctAnswer={1}
+  explanation="color-scheme은 그 요소가 어떤 색 구성을 지원하는지 브라우저에 알리며, light-dark()가 어떤 값을 고를지는 이 속성에 달려 있습니다."
+  optionExplanations={['정답입니다. color-scheme 없이는 light-dark()가 항상 첫 번째 값만 반환합니다.', 'color-scheme은 글자 크기와 관련이 없습니다.', '애니메이션 여부와 관련이 없습니다.', '파일 분리와 관련이 없습니다.']}
+/>
+
+<Quiz
+  questionNumber={2}
+  question="root[data-theme=dark] { color-scheme: dark; } 규칙을 추가하는 목적은?"
+  options={['사용자가 사이트 자체 토글로 선택한 모드를 OS 설정보다 우선시키기 위해서', '다크모드에서만 애니메이션을 끄기 위해서', 'CSS 레이어 순서를 바꾸기 위해서', '폰트를 다크모드 전용으로 바꾸기 위해서']}
+  correctAnswer={1}
+  explanation="data-theme 속성으로 color-scheme을 강제하면, OS의 prefers-color-scheme과 무관하게 사용자가 고른 모드가 적용됩니다."
+  optionExplanations={['정답입니다.', '애니메이션 제어와는 관련이 없습니다.', '레이어 순서와는 무관합니다.', '폰트 자체를 바꾸는 규칙이 아닙니다.']}
+/>
+
+<Quiz
+  questionNumber={3}
+  question="토글 상태를 localStorage에 저장하지 않으면 어떤 문제가 생기는가?"
+  options={['새로고침할 때마다 시스템 기본값으로 되돌아간다', '버튼이 클릭되지 않는다', 'color-mix() 계산이 멈춘다', 'oklch() 색상이 잘못 표시된다']}
+  correctAnswer={1}
+  explanation="localStorage에 저장하지 않으면 data-theme 속성이 페이지를 새로 열 때마다 초기화되어, 사용자가 매번 다시 토글을 눌러야 합니다."
+  optionExplanations={['정답입니다.', '저장 여부는 클릭 자체와는 무관합니다.', 'color-mix() 계산과는 무관합니다.', 'oklch() 표시 자체와는 무관합니다.']}
+/>
+
+<Quiz
+  questionNumber={4}
+  question="color-scheme을 지정했을 때 브라우저 기본 UI(스크롤바, 폼 컨트롤)에 일어나는 변화는?"
+  options={['현재 모드에 맞춰 브라우저 기본 UI 색상도 함께 바뀐다', '아무 변화도 없다', '폼 컨트롤이 모두 비활성화된다', '스크롤바가 사라진다']}
+  correctAnswer={1}
+  explanation="color-scheme은 웹 페이지의 커스텀 스타일뿐 아니라 브라우저가 그리는 기본 UI에도 반영됩니다."
+  optionExplanations={['정답입니다.', 'color-scheme 자체가 색 구성을 바꾸는 속성이라 변화가 있습니다.', '비활성화와는 관련이 없습니다.', '스크롤바가 사라지지 않고 색만 바뀝니다.']}
+/>
+
+## 참고 자료
+
+- [MDN — light-dark()](https://developer.mozilla.org/en-US/docs/Web/CSS/color_value/light-dark)
+- [MDN — color-scheme](https://developer.mozilla.org/en-US/docs/Web/CSS/color-scheme)

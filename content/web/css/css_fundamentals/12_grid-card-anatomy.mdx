@@ -1,0 +1,198 @@
+---
+title: '12. 카드 내부 배치 다듬기'
+description: '이미지·제목·설명·태그·버튼을 카드 안에서 시안대로 정렬한다'
+---
+
+<Callout type="info">
+  **이번 편의 결과물:** 프로젝트 카드 내부의 이미지·제목·설명·태그·버튼이 시안대로 세로로 정돈되어 배치됩니다. · **다루는 개념:** 카드 내부 요소 정렬, 중첩 Flexbox, 이미지 비율 맞추기
+</Callout>
+
+## 이 편에서 만드는 파일
+
+```text
+web-practice/portfolio/
+└ css/
+  └ styles.css   ~ (.project-card 내부 요소 규칙 추가)
+```
+
+## 개념 정리
+
+11편에서 `.project-grid`로 카드 6장을 3열로 배열했지만, 카드 하나(`.project-card`) 안의 이미지·제목·설명·태그·버튼은 아직 기본 스타일 그대로입니다. 이번 편은 카드 **하나** 내부의 정렬을 다듬습니다.
+
+카드 내부처럼 위에서 아래로 쌓이는 배치는 `grid-template-areas`(2차원 배치)보다 **중첩 Flexbox**(`flex-direction: column`)가 더 간단합니다. 이미지 → 제목 → 설명 → 태그 → 버튼 순서가 마크업 순서와 그대로 일치해, 영역 이름을 따로 정의할 필요가 없기 때문입니다.
+
+| 상황 | 알맞은 선택 |
+|------|------|
+| 자식 순서와 화면 순서가 같은 세로 나열 | 중첩 Flexbox(`flex-direction: column`) |
+| 화면 순서를 마크업 순서와 다르게 재배치해야 함 | `grid-template-areas` |
+
+카드를 `display: flex; flex-direction: column`으로 만들면, 버튼을 카드 맨 아래에 고정하는 것도 쉬워집니다. 버튼 앞의 여백을 `margin-top: auto`로 주면, 카드 높이가 서로 달라도(설명 줄 수 차이 등) 버튼이 항상 카드 맨 아래에 붙습니다. 09편에서 헤더의 로고와 내비를 벌릴 때 쓴 것과 같은 원리(자동 마진)를 세로 방향에 적용한 것입니다.
+
+이미지 비율은 `width: 100%`와 `height`를 함께 지정하고 `object-fit: cover`를 더해 맞춥니다. `object-fit: cover`는 원본 비율을 유지하면서 지정한 박스를 꽉 채우고, 넘치는 부분은 잘라냅니다. `aspect-ratio` 속성으로 더 정확하게 비율을 고정하는 방법도 있지만, 이 과목의 범위 밖이라 여기서는 고정 `height` 값으로 충분히 갈음합니다.
+
+**자주 하는 오해:** 태그 목록(`<ul>`)에 `display: flex`만 주면 끝이 아닙니다. 목록 기본 스타일(`list-style`, `padding`)이 남아 있으면 태그 앞에 불릿과 들여쓰기가 그대로 보입니다.
+
+## 실습
+
+<Steps>
+
+### 1. 기존 마크업 확인하기
+
+카드 내부 요소는 `modern_html`이 만든 그대로이고, 별도의 BEM 클래스는 붙어 있지 않습니다. 마크업은 고치지 않고 태그와 `.tags` 하나만으로 선택자를 만듭니다.
+
+```html
+<!-- projects.html 카드 1개 (수정하지 않음, 구조만 참고) -->
+<article class="project-card" data-tags="JavaScript,PWA">
+  <img src="images/project-01.svg" alt="오늘의 날씨 프로젝트 화면" width="1200" height="800" loading="lazy" decoding="async" />
+  <h2>오늘의 날씨</h2>
+  <p>위치 기반 날씨를 카드로 보여주는 웹앱입니다.</p>
+  <p hidden="until-found" data-more>오프라인에서도 마지막으로 받은 데이터를 보여줍니다.</p>
+  <ul class="tags">
+    <li>JavaScript</li>
+    <li>PWA</li>
+  </ul>
+  <a href="https://example.com/weather" target="_blank" rel="noopener noreferrer">사이트 열기</a>
+  <button type="button" data-open-project="weather">자세히</button>
+</article>
+```
+
+### 2. css/styles.css에 카드 내부 규칙 작성하기
+
+```css
+/* css/styles.css (일부) */
+.project-card {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+  background: var(--color-surface);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius);
+  padding: var(--space-4);
+}
+
+.project-card img {
+  width: 100%;
+  height: 12rem;
+  object-fit: cover;
+  border-radius: var(--radius);
+}
+
+.project-card h2 {
+  font-size: var(--text-lg);
+  margin: 0;
+}
+
+.project-card p {
+  color: var(--color-text-muted);
+  margin: 0;
+}
+
+.project-card .tags {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-2);
+  list-style: none;
+  padding: 0;
+  margin: 0;
+}
+
+.project-card .tags li {
+  font-size: var(--text-xs);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius);
+  padding: var(--space-1) var(--space-2);
+}
+
+.project-card button[data-open-project] {
+  align-self: flex-start;
+  margin-top: auto;
+  padding: var(--space-2) var(--space-4);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius);
+  background: var(--color-bg);
+  color: var(--color-text);
+  cursor: pointer;
+}
+```
+
+`[data-more]`(오프라인 안내 문단)와 카드의 사이트 링크(`<a>`)는 이 편에서 별도 스타일을 주지 않고 상속된 기본값을 그대로 씁니다.
+
+카드 hover 시 그림자와 살짝 떠오르는 효과는 시안에 정의되어 있지만, 부드러운 전환(`transition`)은 아직 배우지 않았습니다. 17편에서 `.project-card:hover`에 `box-shadow`·`transform`·`transition`을 함께 추가합니다.
+
+### 3. 실행
+
+`projects.html`을 새로고침합니다.
+
+### 4. 확인
+
+- 카드마다 이미지 → 제목 → 설명 → 태그 → 버튼 순서로 세로 정렬되어 있습니다.
+- 이미지가 카드 폭에 꽉 차면서 비율이 깨지지 않고 잘려 채워집니다.
+- 태그가 여러 개일 때 한 줄에 다 안 들어가면 다음 줄로 자연스럽게 넘어갑니다.
+- 설명 길이가 카드마다 달라도 "자세히" 버튼은 항상 카드 맨 아래 같은 높이에 붙어 있습니다.
+
+</Steps>
+
+## 직접 해보기
+
+1. `.project-card button[data-open-project]`의 `margin-top: auto`를 지우고 어떤 문제가 생기는지 확인한 뒤 되돌립니다(설명 줄 수가 다른 카드끼리 버튼 위치가 어긋납니다).
+2. `.project-card img`의 `object-fit`을 `contain`으로 바꿔 `cover`와 어떻게 다르게 보이는지 비교합니다.
+
+<details>
+<summary>답 보기</summary>
+
+`margin-top: auto`를 지우면 버튼이 설명 바로 아래에 붙어, 설명이 짧은 카드와 긴 카드의 버튼 높이가 서로 달라집니다.
+
+`object-fit: contain`은 이미지 비율을 유지하되 박스 안에 전체가 다 보이도록 줄이므로, 박스와 이미지 비율이 다르면 여백(레터박스)이 생깁니다. `cover`는 여백 없이 박스를 꽉 채우는 대신 이미지 일부가 잘립니다.
+
+</details>
+
+## 자주 하는 실수
+
+| 증상 | 원인 | 고치는 법 |
+|------|------|-----------|
+| 태그 앞에 불릿(점)이 보인다 | `ul` 기본 스타일이 남아 있음 | `.project-card .tags`에 `list-style: none` 확인 |
+| 버튼이 카드마다 다른 높이에 있다 | `margin-top: auto`를 빠뜨림 | `.project-card`가 `flex-direction: column`인지, 버튼에 `margin-top: auto`가 있는지 확인 |
+| 이미지가 찌그러져 보인다 | `object-fit` 없이 `width`·`height`만 지정 | `object-fit: cover` 추가 |
+| 카드마다 안쪽 여백이 다르다 | `.project-card`에 `padding`을 안 줌 | `padding: var(--space-4)` 확인 |
+
+## 확인 문제
+
+<Quiz
+  questionNumber={1}
+  question="카드 내부처럼 이미지-제목-설명-태그-버튼이 마크업 순서 그대로 세로로 쌓일 때 더 간단한 방법은"
+  options={['grid-template-areas로 각 영역 이름을 정의한다', 'flex-direction: column을 준 중첩 Flexbox를 쓴다', 'position: absolute로 하나씩 좌표를 지정한다', 'float으로 각 요소를 왼쪽으로 띄운다']}
+  correctAnswer={2}
+  explanation="마크업 순서와 화면 순서가 같은 세로 나열은 flex-direction: column을 준 Flexbox만으로 충분합니다. grid-template-areas는 순서를 재배치해야 할 때 유리합니다."
+  optionExplanations={['영역 이름 정의는 순서를 바꿔야 할 때 필요한 수고입니다.', '정답입니다.', 'absolute 좌표 지정은 이런 단순 세로 나열에 과합니다.', 'float 기반 레이아웃은 이 과목 범위 밖입니다.']}
+/>
+
+<Quiz
+  questionNumber={2}
+  question="버튼을 카드 맨 아래에 항상 고정하기 위해 쓴 속성은"
+  options={['position: sticky', 'margin-top: auto', 'align-items: stretch', 'gap: var(--space-2)']}
+  correctAnswer={2}
+  explanation="flex-direction: column인 컨테이너에서 마지막 아이템에 margin-top: auto를 주면 그 위 남는 공간을 전부 차지해 아이템을 맨 아래로 밀어냅니다."
+  optionExplanations={['sticky는 스크롤 고정용 속성으로 카드 내부 정렬과는 다릅니다.', '정답입니다.', 'align-items는 교차축(가로) 정렬을 담당합니다.', 'gap은 아이템 사이 간격일 뿐 특정 위치 고정과는 다릅니다.']}
+/>
+
+<Quiz
+  questionNumber={3}
+  question="object-fit: cover의 동작으로 옳은 것은"
+  options={['이미지 비율을 무시하고 박스에 맞춰 늘린다', '이미지 비율을 유지하며 박스를 꽉 채우고 넘치는 부분은 잘라낸다', '이미지 크기를 원본 그대로 유지한다', '이미지를 반복해서 채운다']}
+  correctAnswer={2}
+  explanation="cover는 원본 비율을 유지한 채 박스를 빈틈없이 채우며, 박스 비율과 다른 부분은 잘라냅니다."
+  optionExplanations={['비율을 무시하고 늘리는 것은 object-fit: fill입니다.', '정답입니다.', '원본 크기 그대로 유지하는 것은 object-fit: none입니다.', '반복 채우기는 background-repeat의 동작입니다.']}
+/>
+
+<Quiz
+  questionNumber={4}
+  question="태그 목록(ul)에서 불릿과 들여쓰기를 없애기 위해 필요한 스타일은"
+  options={['display: grid만 지정한다', 'list-style: none과 padding: 0을 함께 지정한다', 'color: transparent를 지정한다', 'overflow: hidden을 지정한다']}
+  correctAnswer={2}
+  explanation="불릿은 list-style로, 들여쓰기는 기본 padding으로 생기므로 두 가지를 함께 제거해야 완전히 없어집니다."
+  optionExplanations={['display만으로는 불릿이 사라지지 않습니다.', '정답입니다.', 'color는 글자색일 뿐 불릿 제거와 무관합니다.', 'overflow는 넘치는 콘텐츠 처리 방식이라 불릿과 무관합니다.']}
+/>
+
+## 참고 자료
+
+- [MDN — Basic concepts of grid layout](https://developer.mozilla.org/en-US/docs/Web/CSS/Guides/Grid_layout/Basic_concepts)

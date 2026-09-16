@@ -1,0 +1,295 @@
+---
+title: '10. react-hook-form + Zod로 책 등록/수정 폼 재작성'
+description: '수동 검증 코드를 zod 스키마로 옮기고, 서버가 거부한 필드에 에러를 표시한다'
+---
+
+<Callout type="info">
+  **이번 편의 결과물:** 책 등록/수정 폼이 zod 스키마로 검증되고, 서버가 요청을 거부하면 해당 필드 아래 에러 메시지가 뜹니다. · **다루는 개념:** `useForm`/`register`, zod 스키마 검증, 서버 검증 에러를 필드 에러로 매핑
+</Callout>
+
+## 이 편에서 만드는 파일
+
+```
+bookshelf/src/
+├── schemas/
+│   └── bookSchema.js           + 신규
+├── components/
+│   └── BookForm.jsx            ~ 전면 재작성 (수동 검증 → RHF + zod)
+├── api/
+│   └── books.js                ~ 수정 (createBook이 중복 제목을 필드 에러로 거부)
+└── pages/
+    └── NewBookPage.jsx         ~ 수정 (서버 에러를 필드 에러로 매핑)
+```
+
+## 개념 정리
+
+지금까지 `BookForm`은 `useState`로 필드마다 값을 들고, `handleSubmit` 안에서 `title.trim() === ''`처럼 조건문을 직접 나열해 검증했습니다. 필드가 늘어날수록 이 조건문도 늘어나고, "제목은 몇 자 이상이어야 하는가" 같은 규칙이 코드 여기저기 흩어집니다.
+
+**react-hook-form**(RHF)은 각 input을 `register`로 등록해 값·검증·리렌더를 관리하는 라이브러리입니다. **zod**는 값의 모양을 선언적으로 정의하고 검사하는 스키마 라이브러리입니다. 둘을 합치면 "무엇이 유효한 값인가"는 zod 스키마 하나에, "폼을 어떻게 그릴 것인가"는 컴포넌트에 남습니다.
+
+| 조각 | 역할 |
+|---|---|
+| `z.object({...})` | 필드별 타입·제약을 선언한 스키마 |
+| `useForm({ resolver: zodResolver(schema) })` | 제출 시 스키마로 자동 검증 |
+| `register('title')` | input을 폼에 등록. `value`·`onChange`를 대신 연결 |
+| `formState.errors` | 필드별 검증 실패 메시지 모음 |
+| `handleSubmit(onValid)` | 검증 통과 시에만 `onValid` 호출, 실패 시 `errors`만 채움 |
+
+RHF는 대부분의 input을 **비제어(uncontrolled)** 방식으로 다뤄 타이핑마다 리렌더하지 않습니다. `register`가 반환하는 `{ name, onChange, onBlur, ref }` 객체를 input에 그대로 펼치면 됩니다.
+
+zod 스키마는 필드 하나에도 여러 규칙을 이어 쓸 수 있습니다.
+
+| 표현 | 의미 |
+|---|---|
+| `z.string().min(1, 메시지)` | 빈 문자열 금지 |
+| `z.string().max(100, 메시지)` | 최대 길이 제한 |
+| `z.number().int().min(0)` | 0 이상 정수 |
+| `z.enum(['wish', 'reading', 'done'])` | 정해진 값 중 하나만 허용 |
+
+클라이언트 검증을 통과해도 서버가 거부할 수 있습니다(예: 같은 제목의 책이 이미 있음). 이때는 서버 응답의 에러를 RHF의 `setError(필드명, { message })`로 옮겨 같은 에러 UI를 재사용합니다.
+
+## 실습
+
+<Steps>
+
+### 1. 라이브러리 설치
+
+```text
+npm install react-hook-form zod @hookform/resolvers
+```
+
+### 2. zod 스키마 작성
+
+```js
+// src/schemas/bookSchema.js
+import { z } from 'zod';
+
+export const bookSchema = z.object({
+  title: z.string().min(1, '제목을 입력하세요').max(100, '제목은 100자 이하로 입력하세요'),
+  author: z.string().min(1, '저자를 입력하세요'),
+  pages: z.coerce.number().int('정수로 입력하세요').min(0, '0 이상이어야 합니다'),
+  status: z.enum(['wish', 'reading', 'done']),
+  memo: z.string().max(500, '메모는 500자 이하로 입력하세요').optional(),
+});
+```
+
+`pages` input의 값은 문자열로 들어오므로 `z.coerce.number()`로 숫자로 변환한 뒤 검사합니다. `memo`는 `.optional()`이라 비워도 통과합니다.
+
+### 3. BookForm을 RHF + zod로 재작성
+
+```jsx
+// src/components/BookForm.jsx
+import { useForm } from 'react-hook-form';
+import { zodResolver } from '@hookform/resolvers/zod';
+import { bookSchema } from '../schemas/bookSchema';
+
+const COVER_COLORS = ['#2563eb', '#16a34a', '#f59e0b', '#db2777', '#7c3aed', '#0891b2'];
+
+function BookForm({ defaultValues, onSubmitBook, submitLabel = '저장' }) {
+  const {
+    register,
+    handleSubmit,
+    setError,
+    formState: { errors, isSubmitting },
+  } = useForm({
+    resolver: zodResolver(bookSchema),
+    defaultValues: defaultValues ?? { title: '', author: '', pages: 0, status: 'wish', memo: '' },
+  });
+
+  async function onValid(values) {
+    const coverColor = COVER_COLORS[Math.floor(Math.random() * COVER_COLORS.length)];
+    try {
+      await onSubmitBook({ ...values, coverColor }, { setError });
+    } catch {
+      // onSubmitBook 쪽에서 setError로 이미 처리한다
+    }
+  }
+
+  return (
+    <form className="book-form" onSubmit={handleSubmit(onValid)} noValidate>
+      <label htmlFor="book-title">제목</label>
+      <input id="book-title" type="text" {...register('title')} />
+      {errors.title && <p className="field-error">{errors.title.message}</p>}
+
+      <label htmlFor="book-author">저자</label>
+      <input id="book-author" type="text" {...register('author')} />
+      {errors.author && <p className="field-error">{errors.author.message}</p>}
+
+      <label htmlFor="book-pages">쪽수</label>
+      <input id="book-pages" type="number" {...register('pages')} />
+      {errors.pages && <p className="field-error">{errors.pages.message}</p>}
+
+      <label htmlFor="book-status">상태</label>
+      <select id="book-status" {...register('status')}>
+        <option value="wish">읽고 싶어요</option>
+        <option value="reading">읽는 중</option>
+        <option value="done">다 읽음</option>
+      </select>
+
+      <label htmlFor="book-memo">메모</label>
+      <textarea id="book-memo" {...register('memo')} />
+      {errors.memo && <p className="field-error">{errors.memo.message}</p>}
+
+      <button type="submit" disabled={isSubmitting}>
+        {isSubmitting ? '저장 중...' : submitLabel}
+      </button>
+    </form>
+  );
+}
+
+export default BookForm;
+```
+
+`register('title')`이 반환하는 객체를 `{...register('title')}`로 펼치면 `name`, `onChange`, `onBlur`, `ref`가 한 번에 연결됩니다. `errors.title`은 zod가 그 필드에서 실패했을 때만 존재합니다.
+
+### 4. createBook이 중복 제목을 필드 에러로 거부하도록 수정
+
+`json-server`는 요청 내용을 검사하지 않고 그대로 저장하므로, 서버가 거부하는 상황이 저절로 생기지 않습니다. 이 편은 `createBook`이 저장 전에 같은 제목이 있는지 직접 조회해, 있으면 실제 서버 검증처럼 필드 에러를 던지도록 만듭니다.
+
+```js
+// src/api/books.js (createBook만 발췌 — 나머지 함수는 05~08편 코드 유지)
+export async function createBook(book) {
+  const existing = await fetch(
+    `${API_BASE}/books?title=${encodeURIComponent(book.title)}`,
+  ).then((res) => res.json());
+
+  if (existing.length > 0) {
+    throw Object.assign(new Error('책 등록에 실패했습니다'), {
+      fieldErrors: { title: '이미 등록된 제목입니다' },
+    });
+  }
+
+  const response = await fetch(`${API_BASE}/books`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(book),
+  });
+  if (!response.ok) throw new Error('책 등록에 실패했습니다');
+  return response.json();
+}
+```
+
+### 5. NewBookPage에서 서버 에러 매핑
+
+```jsx
+// src/pages/NewBookPage.jsx
+import { useNavigate } from 'react-router';
+import BookForm from '../components/BookForm';
+import { useCreateBook } from '../hooks/useBookMutations.js';
+
+function NewBookPage() {
+  const navigate = useNavigate();
+  const createBook = useCreateBook();
+
+  async function handleSubmitBook(values, { setError }) {
+    try {
+      await createBook.mutateAsync(values);
+      navigate('/books');
+    } catch (error) {
+      const fieldErrors = error.fieldErrors ?? {};
+      const fields = Object.keys(fieldErrors);
+      if (fields.length === 0) {
+        setError('root', { message: '저장에 실패했습니다. 잠시 후 다시 시도하세요.' });
+        return;
+      }
+      fields.forEach((field) => {
+        setError(field, { type: 'server', message: fieldErrors[field] });
+      });
+    }
+  }
+
+  return (
+    <section>
+      <h2>책 등록</h2>
+      <BookForm onSubmitBook={handleSubmitBook} submitLabel="등록" />
+    </section>
+  );
+}
+
+export default NewBookPage;
+```
+
+`error.fieldErrors`는 방금 고친 `createBook`이 중복 제목일 때 던지는 값입니다. 필드별 에러가 없으면 `root`라는 특수 이름으로 폼 전체 에러를 표시합니다.
+
+### 6. 실행
+
+```text
+npm run dev
+```
+
+### 7. 확인
+
+- 제목이나 저자를 비운 채 제출하면 브라우저 새로고침 없이 해당 입력창 아래 빨간 글씨 에러가 뜹니다.
+- 쪽수에 `-5`처럼 음수를 입력하면 "0 이상이어야 합니다" 에러가 뜹니다.
+- db.json에 이미 있는 제목(예: "클린 코드")으로 등록을 시도하면 제목 입력창 아래에 "이미 등록된 제목입니다"가 표시됩니다.
+- 정상 값으로 제출하면 `/books`로 이동하고 목록에 새 책이 보입니다.
+
+</Steps>
+
+## 직접 해보기
+
+1. `bookSchema`에 `rating: z.coerce.number().int().min(0).max(5)` 필드를 추가하고, `BookForm`에 별점 입력을 위한 `<input type="number" min="0" max="5">`를 추가해 보세요.
+2. `formState.errors.root`가 있을 때 폼 상단에 공통 에러 배너를 렌더링해 보세요.
+
+<details>
+<summary>정답 보기</summary>
+
+```jsx
+// src/components/BookForm.jsx (배너 추가 — return 안 최상단)
+{errors.root && <p className="form-error-banner">{errors.root.message}</p>}
+```
+
+`rating` 필드는 `bookSchema`에 한 줄 추가하고, `defaultValues`의 기본값에도 `rating: 0`을 넣어야 초기 렌더에서 `undefined` 경고가 나지 않습니다.
+
+</details>
+
+## 자주 하는 실수
+
+| 증상 | 원인 | 고치는 법 |
+|---|---|---|
+| 제출해도 검증이 전혀 안 됨 | `useForm`에 `resolver: zodResolver(schema)`를 안 넘김 | `resolver` 옵션 확인 |
+| 숫자 필드인데 항상 문자열 검증 에러가 남 | HTML input 값은 항상 문자열이라 `z.number()`가 즉시 실패 | `z.coerce.number()`로 변환 후 검사 |
+| 서버 에러가 필드 아래 안 뜨고 콘솔에만 찍힘 | `setError`를 호출하지 않고 `catch`에서 로그만 남김 | 응답의 필드별 에러를 순회하며 `setError(field, {...})` 호출 |
+| 제출 버튼을 연타하면 요청이 여러 번 나감 | `isSubmitting` 상태를 버튼에 연결하지 않음 | `disabled={isSubmitting}` 적용 |
+
+## 확인 문제
+
+<Quiz
+  questionNumber={1}
+  question="react-hook-form에서 register('title')이 하는 일은?"
+  options={['title 필드를 서버에 미리 등록한다', 'input에 name·onChange·onBlur·ref를 연결해 폼에 등록한다', 'zod 스키마에 title 필드를 추가한다', 'title 값을 전역 상태에 저장한다']}
+  correctAnswer={2}
+  explanation="register는 input을 폼 인스턴스에 등록해 값 추적과 검증 트리거를 연결하는 함수다."
+  optionExplanations={['서버 등록과는 무관하다', '정답 — input 연결 객체를 반환한다', '스키마 정의는 zod 쪽 코드에서 한다', '전역 상태 저장은 register의 역할이 아니다']}
+/>
+
+<Quiz
+  questionNumber={2}
+  question="쪽수처럼 숫자를 입력받는 필드에 z.coerce.number()를 쓰는 이유는?"
+  options={['HTML input 값이 항상 문자열로 들어오기 때문에 숫자로 변환한 뒤 검사하려고', 'coerce가 없으면 zod가 아예 동작하지 않기 때문에', '문자열 검증이 숫자 검증보다 느리기 때문에', 'coerce를 쓰면 자동으로 음수를 막아주기 때문에']}
+  correctAnswer={1}
+  explanation="input 값은 문자열이므로 z.number()만 쓰면 타입 불일치로 항상 실패한다. z.coerce.number()는 검사 전에 숫자로 변환한다."
+  optionExplanations={['정답 — 문자열을 숫자로 변환한 뒤 검사한다', 'coerce 없이도 zod는 동작하지만 타입이 안 맞아 실패한다', '속도 차이가 이유가 아니다', '음수 제한은 별도로 .min(0)을 붙여야 한다']}
+/>
+
+<Quiz
+  questionNumber={3}
+  question="서버가 거부한 필드 에러를 화면에 표시하는 올바른 방법은?"
+  options={['서버 응답을 alert로 띄운다', 'setError(필드명, { message })로 RHF의 errors 상태에 채워 넣는다', '페이지를 새로고침해 서버 에러 페이지를 보여준다', 'console.error로만 남기고 UI는 그대로 둔다']}
+  correctAnswer={2}
+  explanation="setError를 호출하면 클라이언트 검증 실패와 동일한 방식으로 해당 필드 아래 에러 메시지가 표시된다."
+  optionExplanations={['alert는 접근성과 흐름을 해친다', '정답 — 클라이언트 에러와 같은 경로로 표시된다', '새로고침은 폼 상태를 모두 잃는다', '콘솔 로그만으로는 사용자가 원인을 알 수 없다']}
+/>
+
+<Quiz
+  questionNumber={4}
+  question="isSubmitting을 제출 버튼의 disabled에 연결하는 이유는?"
+  options={['타이핑 중 리렌더를 막기 위해', '요청이 진행 중일 때 중복 제출을 막기 위해', 'zod 검증을 건너뛰기 위해', '서버 에러를 자동으로 지우기 위해']}
+  correctAnswer={2}
+  explanation="isSubmitting은 handleSubmit이 진행 중인 동안 true가 되며, 버튼을 비활성화해 중복 제출을 방지하는 용도로 쓴다."
+  optionExplanations={['리렌더 억제와는 무관하다', '정답 — 중복 제출 방지가 목적이다', '검증 여부와는 무관하다', '에러 초기화와는 무관하다']}
+/>
+
+## 참고 자료
+
+- [react-hook-form — Get Started](https://react-hook-form.com/get-started)

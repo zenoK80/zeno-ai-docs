@@ -1,0 +1,191 @@
+---
+title: '09. 반응형 프로젝트 썸네일'
+description: '밀도·너비 서술자와 sizes로 프로젝트 썸네일을 뷰포트에 맞게 로드합니다'
+---
+
+<Callout type="info">
+  **이번 편의 결과물:** `projects.html`의 프로젝트 썸네일이 뷰포트 크기에 맞는 이미지 후보 중 하나로 로드됩니다(개발자 도구 Network 탭으로 확인). **다루는 개념:** 밀도 서술자(`1x`/`2x`)와 너비 서술자(`w`), `sizes`, `<picture>`가 필요한 경우, `loading`/`decoding`
+</Callout>
+
+## 이 편에서 만드는 파일
+
+```
+web-practice/portfolio/
+└─ projects.html   ~ (프로젝트 카드 썸네일 img → srcset/sizes 적용)
+```
+
+## 개념 정리
+
+`<img>` 하나에 파일 하나만 연결하면 브라우저는 화면 크기와 상관없이 같은 이미지를 받습니다. 모바일에서도 데스크톱용 큰 이미지를 그대로 받으면 데이터와 시간을 낭비합니다. `srcset`은 후보 이미지 여러 장을 나열하고, 브라우저가 뷰포트와 화면 밀도를 보고 그중 하나를 고르게 합니다.
+
+| 서술자 | 의미 | 쓰는 경우 |
+|--------|------|-----------|
+| `1x`, `2x` (밀도) | 같은 화면 크기에서 픽셀 밀도만 다른 버전 | 이미지가 항상 같은 CSS 크기로 표시될 때 |
+| `480w`, `960w` (너비) | 이미지 실제 픽셀 너비 | 레이아웃에 따라 표시 크기가 달라질 때(반응형 그리드) |
+
+너비 서술자를 쓸 때는 `sizes`도 함께 적습니다. `sizes`는 "이 이미지가 화면에서 얼마나 크게 보일지"를 미디어 쿼리로 알려주는 값입니다. 브라우저는 `sizes`로 실제 표시 폭을 계산하고, 그 폭과 화면 밀도를 곱한 값에 가장 가까운 후보를 `srcset`에서 고릅니다.
+
+```html
+<img
+  srcset="p.svg?w=480 480w, p.svg?w=960 960w, p.svg?w=1200 1200w"
+  sizes="(min-width: 1024px) 33vw, (min-width: 768px) 50vw, 100vw"
+  src="p.svg"
+  alt="..." />
+```
+
+`sizes`를 읽는 방법: 화면이 1024px 이상이면 이미지는 뷰포트의 약 3분의 1(3열 그리드), 768px 이상이면 절반(2열), 그보다 작으면 전체 폭(1열)으로 보인다는 뜻입니다. 이 값은 실제 CSS 그리드 열 수와 일치해야 정확합니다.
+
+`<picture>`는 `srcset`만으로 부족할 때, 즉 **포맷을 바꾸거나(AVIF/WebP → 대체 포맷) 화면 크기별로 완전히 다르게 잘라 보여줄 때(아트 디렉션)** 씁니다.
+
+```html
+<picture>
+  <source srcset="hero.avif" type="image/avif" />
+  <source srcset="hero.webp" type="image/webp" />
+  <img src="hero.jpg" alt="..." />
+</picture>
+```
+
+브라우저는 위에서부터 `type`을 지원하는 첫 `<source>`를 고르고, 지원하는 게 없으면 마지막 `<img>`로 내려갑니다. 다만 고른 `<source>`의 파일이 실제로 없거나 깨져 있으면 다음 후보로 자동으로 넘어가지 **않습니다.** 우리 프로젝트 썸네일은 SVG(벡터)라 포맷 전환이 필요 없어서 이번 실습에서는 `srcset`/`sizes`만 적용합니다.
+
+`loading="lazy"`는 화면 밖 이미지를 스크롤해서 가까워질 때 요청하게 미룹니다. `decoding="async"`는 이미지 디코딩이 다른 렌더링 작업을 막지 않게 합니다. 첫 화면에 바로 보이는 이미지에는 `loading="lazy"`를 붙이면 오히려 늦게 뜨니 붙이지 않습니다.
+
+## 실습
+
+<Steps>
+
+### 1. 파일 열기
+
+`web-practice/portfolio/projects.html`을 엽니다. 프로젝트 카드 6개(`project-01`~`06`)의 `<img>`를 찾습니다.
+
+### 2. 코드 작성
+
+카드 이미지에 `srcset`/`sizes`/`loading`/`decoding`을 추가합니다. 실제 서비스라면 빌드 스텝이나 이미지 CDN으로 폭마다 진짜 다른 파일을 만들지만, 이번 실습은 같은 SVG 파일에 `?w=` 쿼리스트링만 붙여 후보를 구분합니다. 파일 내용은 같아도 브라우저가 어떤 URL을 고르는지는 Network 탭에서 그대로 관찰할 수 있습니다.
+
+수정 전(카드 1 — 06편까지 만든 상태):
+
+```html
+<article class="project-card">
+  <img src="images/project-01.svg" alt="오늘의 날씨 프로젝트 화면" width="1200" height="800" />
+  <h3>오늘의 날씨</h3>
+  <p>위치 기반 날씨를 카드로 보여주는 웹앱입니다. 오프라인에서도 마지막 데이터를 보여줍니다.</p>
+  <ul class="tags">
+    <li>
+      <button type="button" class="tag" popovertarget="tip-weather-js">JavaScript</button>
+      <div id="tip-weather-js" class="tooltip" popover role="tooltip">순수 자바스크립트로 위치 조회와 화면 갱신을 구현했습니다.</div>
+    </li>
+    <li>
+      <button type="button" class="tag" popovertarget="tip-weather-pwa">PWA</button>
+      <div id="tip-weather-pwa" class="tooltip" popover role="tooltip">Service Worker로 오프라인에서도 마지막 데이터를 보여줍니다.</div>
+    </li>
+  </ul>
+  <button type="button" class="btn-detail" data-project-id="weather">자세히</button>
+</article>
+```
+
+수정 후(카드 1, `<img>`에만 반응형 속성을 추가합니다. 나머지 마크업은 그대로 둡니다):
+
+```html
+<!-- web-practice/portfolio/projects.html의 project-grid 안, 카드 1 -->
+<article class="project-card">
+  <img
+    srcset="images/project-01.svg?w=480 480w, images/project-01.svg?w=960 960w, images/project-01.svg?w=1200 1200w"
+    sizes="(min-width: 1024px) 33vw, (min-width: 768px) 50vw, 100vw"
+    src="images/project-01.svg"
+    width="1200"
+    height="800"
+    loading="lazy"
+    decoding="async"
+    alt="오늘의 날씨 프로젝트 화면" />
+  <h3>오늘의 날씨</h3>
+  <p>위치 기반 날씨를 카드로 보여주는 웹앱입니다. 오프라인에서도 마지막 데이터를 보여줍니다.</p>
+  <ul class="tags">
+    <li>
+      <button type="button" class="tag" popovertarget="tip-weather-js">JavaScript</button>
+      <div id="tip-weather-js" class="tooltip" popover role="tooltip">순수 자바스크립트로 위치 조회와 화면 갱신을 구현했습니다.</div>
+    </li>
+    <li>
+      <button type="button" class="tag" popovertarget="tip-weather-pwa">PWA</button>
+      <div id="tip-weather-pwa" class="tooltip" popover role="tooltip">Service Worker로 오프라인에서도 마지막 데이터를 보여줍니다.</div>
+    </li>
+  </ul>
+  <button type="button" class="btn-detail" data-project-id="weather">자세히</button>
+</article>
+```
+
+나머지 5개 카드는 `srcset`/`src`/`alt`의 `project-01`을 각각 `project-02`~`project-06`으로 바꾸고, `<ul class="tags">`·`btn-detail` 버튼은 06편에서 만든 그대로 둡니다. `<head>`, `<header>`, `<search>`, `<dialog id="project-dialog">`, `<footer>`, `<script>`도 이전 편에서 만든 그대로 유지합니다.
+
+`width`/`height`를 항상 함께 적습니다. 브라우저가 이미지를 받기 전에 자리를 미리 계산해 레이아웃이 밀리지 않게 합니다.
+
+### 3. 실행
+
+VS Code Live Server(또는 원하는 정적 서버)로 `projects.html`을 엽니다.
+
+### 4. 확인
+
+- 개발자 도구 Network 탭을 열고 뷰포트를 좁혔다 넓혔다 하며 새로고침합니다. `project-01.svg?w=480`처럼 폭 값이 붙은 URL이 화면 크기에 따라 바뀌어 요청되는지 확인합니다.
+- Elements 탭에서 이미지 하나를 선택하면 우측 패널에 "Currently displayed"로 실제 선택된 자원이 표시됩니다.
+- 화면을 아래로 스크롤할 때 Network 탭에 아래쪽 카드 요청이 스크롤 시점에 맞춰 나타나면 `loading="lazy"`가 동작하는 것입니다.
+
+</Steps>
+
+## 직접 해보기
+
+1. `sizes` 값을 3열 그리드 기준(`33vw`)이 아니라 실수로 `100vw`로 고정하면 어떤 문제가 생길지 Network 탭으로 직접 확인해 보세요.
+
+<details>
+<summary>답 보기</summary>
+
+`sizes`를 `100vw`로 고정하면 브라우저는 화면이 3열이라도 "이미지가 뷰포트 전체 폭으로 보인다"고 오해해 실제보다 훨씬 큰 후보(`1200w`)를 고릅니다. 화면에는 작게 나오지만 파일은 크게 받으므로 대역폭을 낭비합니다.
+
+</details>
+
+2. 프로젝트 카드가 6개에서 9개로 늘어나 데스크톱 그리드가 4열이 됐다고 가정하고 `sizes` 값을 새로 계산해 보세요.
+
+<details>
+<summary>답 보기</summary>
+
+4열이면 이미지 하나가 뷰포트의 약 4분의 1을 차지하므로 데스크톱 조건의 값을 `25vw`로 바꿉니다. 태블릿·모바일 조건은 열 수가 그대로면 유지합니다.
+
+</details>
+
+## 자주 하는 실수
+
+| 증상 | 원인 | 고치는 법 |
+|------|------|-----------|
+| `srcset`만 쓰고 화질 개선이 안 됨 | `sizes`를 안 써서 브라우저가 기본값(`100vw`)으로 계산 | 실제 그리드 열 수에 맞는 `sizes` 추가 |
+| 이미지가 로드는 됐는데 레이아웃이 계속 흔들림 | `width`/`height`(또는 `aspect-ratio`)를 생략 | `<img>`에 실제 비율의 `width`/`height` 지정 |
+| 첫 화면 이미지가 늦게 나타남 | 뷰포트 안에 있는 이미지에도 `loading="lazy"`를 붙임 | 첫 화면(above the fold) 이미지는 `loading` 속성을 생략(기본값 `eager`) |
+| `<picture>`의 `<source>` 이미지가 안 뜸 | 파일 경로 오타·파일 미존재 | 각 `<source>`가 가리키는 파일이 실제로 있는지 확인(자동 폴백 없음) |
+
+## 확인 문제
+
+<Quiz
+  questionNumber={1}
+  question="너비 서술자(w)를 srcset에 쓸 때 함께 지정해야 하는 속성은 무엇인가"
+  options={['alt', 'sizes', 'loading', 'decoding']}
+  correctAnswer={2}
+  explanation="너비 서술자는 sizes로 계산한 실제 표시 폭과 화면 밀도를 곱해 후보를 고릅니다. sizes가 없으면 브라우저가 정확한 표시 폭을 알 수 없습니다."
+  optionExplanations={['대체 텍스트로 이미지 선택과 무관합니다', '정답입니다', '지연 로딩 여부만 결정합니다', '디코딩 방식만 결정합니다']}
+/>
+
+<Quiz
+  questionNumber={2}
+  question="picture의 source가 가리키는 파일이 존재하지 않을 때 브라우저의 동작은"
+  options={['자동으로 다음 source로 넘어간다', '자동으로 img 태그의 src로 넘어간다', '해당 자원 로드에 실패하고 다음 후보로 넘어가지 않는다', '전체 페이지 로딩을 중단한다']}
+  correctAnswer={3}
+  explanation="picture는 type/media 조건으로 source를 고른 뒤 그 자원을 그대로 요청합니다. 조건 판단은 파일 존재 여부를 검사하지 않으므로 404가 나도 다음 후보로 넘어가지 않습니다."
+  optionExplanations={['조건 판단 이후에는 재평가가 없습니다', '동일한 이유로 틀립니다', '정답입니다', '해당 이미지만 깨질 뿐 페이지는 계속 로드됩니다']}
+/>
+
+<Quiz
+  questionNumber={3}
+  question="첫 화면에 바로 보이는 대표 이미지에 loading=lazy를 붙였을 때 생기는 문제는"
+  options={['이미지 화질이 낮아진다', '이미지 요청이 불필요하게 지연된다', 'alt 텍스트가 무시된다', 'srcset이 동작하지 않는다']}
+  correctAnswer={2}
+  explanation="loading=lazy는 화면 밖 이미지를 스크롤로 가까워질 때 요청하도록 미룹니다. 이미 화면 안에 있는 이미지에 붙이면 브라우저가 요청을 미뤘다가 뒤늦게 시작해 표시가 늦어집니다."
+  optionExplanations={['화질과는 무관한 속성입니다', '정답입니다', 'alt는 항상 그대로 적용됩니다', 'srcset과 loading은 독립적으로 동작합니다']}
+/>
+
+## 참고 자료
+
+- [MDN — Using responsive images in HTML](https://developer.mozilla.org/en-US/docs/Web/HTML/Guides/Responsive_images)

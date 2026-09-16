@@ -1,0 +1,146 @@
+---
+title: '10. position과 고정 헤더'
+description: 'position: sticky로 스크롤해도 사라지지 않는 헤더를 만든다'
+---
+
+<Callout type="info">
+  **이번 편의 결과물:** 페이지를 스크롤해도 헤더가 화면 상단에 계속 보입니다. · **다루는 개념:** `position`의 5가지 값, `sticky`의 동작 조건, 최소한의 `z-index`
+</Callout>
+
+## 이 편에서 만드는 파일
+
+```text
+web-practice/portfolio/
+└ css/
+  └ styles.css   ~ (.site-header에 position: sticky 추가)
+```
+
+## 개념 정리
+
+`position` 속성은 요소를 문서의 기본 흐름에서 어떻게 빼낼지 결정합니다.
+
+| 값 | 동작 |
+|------|------|
+| `static` (기본값) | 문서 흐름을 그대로 따른다. `top`/`left` 등이 적용되지 않는다 |
+| `relative` | 흐름은 그대로 차지하되, 원래 자리를 기준으로 `top`/`left`만큼 시각적으로 이동한다 |
+| `absolute` | 흐름에서 완전히 빠져나와 가장 가까운 `relative`/`absolute`/`fixed` 조상(containing block) 기준으로 위치를 잡는다 |
+| `fixed` | 뷰포트(화면) 기준으로 고정되어 스크롤해도 움직이지 않는다 |
+| `sticky` | 평소엔 `relative`처럼 흐름을 따르다가, 지정한 임계값(`top` 등)에 닿으면 `fixed`처럼 고정된다 |
+
+지금 헤더는 `position`을 지정하지 않아 기본값 `static`입니다. 페이지를 스크롤하면 헤더도 본문과 함께 위로 밀려 사라집니다. `sticky`로 바꾸면 스크롤이 헤더의 원래 위치를 지날 때까지는 `relative`처럼 흐르다가, 그 지점부터는 `top: 0`에 붙어 고정됩니다.
+
+`sticky`가 작동하려면 두 조건이 필요합니다.
+
+1. `top`(또는 `bottom`/`left`/`right`) 중 최소 하나에 구체적인 값을 지정해야 합니다. 값이 없으면 언제 고정할지 브라우저가 판단할 기준이 없습니다.
+2. 조상 요소 중 어느 하나라도 `overflow: hidden`(또는 `auto`/`scroll`)이 걸려 있으면 그 조상 안에서만 sticky가 작동하거나, 아예 동작을 멈춥니다.
+
+헤더가 고정된 뒤에는 본문 콘텐츠가 스크롤을 통해 헤더 위로 올라올 수 있습니다. 헤더가 항상 맨 위에 보이도록 `z-index`로 쌓임 순서를 지정합니다. `z-index`는 값이 클수록 위에 쌓이며, 지금은 헤더 하나만 고려하므로 작은 양수(예: `10`) 정도면 충분합니다.
+
+**자주 하는 오해:** `sticky`를 `fixed`와 혼동하기 쉽지만, `fixed`는 처음부터 항상 화면에 고정되어 스크롤 위치와 무관하게 같은 자리에 있습니다. 반면 `sticky`는 원래 자리를 지나야 고정되기 시작합니다. 지금 헤더는 페이지 맨 위에 있으므로 두 값의 차이가 잘 안 보이지만, 페이지 중간에 있는 요소라면 확실히 다르게 동작합니다.
+
+## 실습
+
+<Steps>
+
+### 1. 지금 상태 확인하기
+
+`index.html`을 브라우저에서 열고 아래로 스크롤합니다. 헤더가 본문과 함께 위로 사라지는 것을 확인합니다(`position`이 `static`이기 때문입니다).
+
+### 2. css/styles.css의 .site-header에 sticky 추가하기
+
+09편에서 만든 `.site-header` 규칙에 아래 세 줄을 추가합니다.
+
+```css
+/* css/styles.css (.site-header 규칙에 추가) */
+.site-header {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  padding: var(--space-4) var(--space-6);
+  height: var(--header-height);
+  position: sticky;
+  top: 0;
+  z-index: 10;
+  background: var(--color-bg);
+  border-bottom: 1px solid var(--color-border);
+}
+```
+
+`background`와 `border-bottom`을 함께 넣는 이유는, 헤더가 고정된 상태에서 아래 콘텐츠가 스크롤되어 헤더 뒤로 지나갈 때 배경이 없으면 글자가 겹쳐 보이기 때문입니다.
+
+### 3. 실행
+
+파일을 저장하고 `index.html`을 새로고침합니다.
+
+### 4. 확인
+
+- 페이지를 아래로 스크롤해도 헤더가 화면 맨 위에 계속 보입니다.
+- 헤더 아래로 지나가는 본문 텍스트가 헤더 뒤에 비치지 않고 헤더 배경에 가려집니다.
+- `projects.html`·`contact.html`에서도 같은 결과가 나옵니다(같은 `css/styles.css`를 공유하기 때문).
+
+</Steps>
+
+## 직접 해보기
+
+1. `top: 0`을 지워 보고 헤더가 더 이상 고정되지 않는지 확인한 뒤 되돌립니다.
+2. `position: sticky`를 `position: fixed`로 잠깐 바꿔 봅니다. 헤더는 여전히 고정되지만 본문 맨 위 내용이 헤더 뒤에 가려 시작되는 문제가 생기는지 확인하고, 그 이유(`fixed`는 흐름에서 완전히 빠져 본문이 그 자리를 대신 차지하기 때문)를 이해한 뒤 `sticky`로 되돌립니다.
+
+<details>
+<summary>답 보기</summary>
+
+`top` 없이 `position: sticky`만 있으면 브라우저가 언제 고정할지 판단할 기준이 없어 `static`과 똑같이 동작합니다.
+
+`position: fixed`로 바꾸면 헤더가 문서 흐름에서 빠져나가므로, 헤더가 있던 자리를 본문의 첫 섹션이 대신 차지해 히어로 제목 윗부분이 헤더에 가려집니다. `sticky`는 흐름을 유지하다 필요할 때만 고정되므로 이런 문제가 없습니다.
+
+</details>
+
+## 자주 하는 실수
+
+| 증상 | 원인 | 고치는 법 |
+|------|------|-----------|
+| sticky를 줘도 스크롤하면 그냥 사라진다 | `top` 값을 지정하지 않음 | `top: 0` 확인 |
+| 헤더는 고정되는데 본문 텍스트가 비쳐 보인다 | `background`를 지정하지 않음 | `.site-header`에 불투명한 `background` 추가 |
+| 헤더가 다른 요소 아래에 깔린다 | `z-index`를 지정하지 않아 쌓임 순서가 뒤짐 | `z-index`에 다른 요소보다 큰 값을 지정 |
+| body 맨 위 내용이 헤더에 가려진다 | `sticky` 대신 `fixed`를 씀 | 흐름을 유지하는 `sticky`로 변경 |
+
+## 확인 문제
+
+<Quiz
+  questionNumber={1}
+  question="position: sticky가 정상적으로 동작하기 위한 최소 조건은"
+  options={['z-index를 반드시 100 이상으로 지정해야 한다', 'top 등 임계값 속성 중 최소 하나에 구체적인 값을 지정해야 한다', '부모 요소에도 position: sticky를 지정해야 한다', 'display: flex와 함께만 쓸 수 있다']}
+  correctAnswer={2}
+  explanation="sticky는 top, bottom, left, right 중 최소 하나에 값이 있어야 브라우저가 언제 고정할지 판단할 수 있습니다."
+  optionExplanations={['z-index 크기는 sticky 동작 여부와 무관합니다.', '정답입니다.', '부모까지 sticky일 필요는 없습니다.', 'display 값과는 무관하게 동작합니다.']}
+/>
+
+<Quiz
+  questionNumber={2}
+  question="position: sticky와 position: fixed의 가장 큰 차이는"
+  options={['sticky는 원래 자리를 지날 때까지 흐름을 따르다가 고정되고, fixed는 처음부터 항상 화면에 고정된다', 'fixed는 모바일에서만 동작한다', 'sticky는 z-index를 쓸 수 없다', '둘은 결과가 항상 동일하다']}
+  correctAnswer={1}
+  explanation="sticky는 relative처럼 흐름을 유지하다가 임계값에 닿으면 고정되고, fixed는 흐름에서 완전히 빠져 처음부터 뷰포트 기준으로 고정됩니다."
+  optionExplanations={['정답입니다.', 'fixed는 데스크톱에서도 동일하게 동작합니다.', 'sticky도 z-index를 쓸 수 있습니다.', '요소 위치에 따라 두 값의 결과는 다르게 나타납니다.']}
+/>
+
+<Quiz
+  questionNumber={3}
+  question="헤더에 z-index를 지정하는 이유는"
+  options={['헤더의 글자 크기를 키우기 위해', '스크롤 시 본문 콘텐츠가 헤더 위로 겹쳐 보이지 않도록 쌓임 순서를 정하기 위해', '헤더의 배경색을 투명하게 만들기 위해', 'position 값을 sticky로 바꾸기 위해']}
+  correctAnswer={2}
+  explanation="z-index는 요소가 겹칠 때 어느 요소가 위에 보일지 결정합니다. 헤더가 항상 위에 보이도록 값을 지정합니다."
+  optionExplanations={['z-index는 글자 크기와 무관합니다.', '정답입니다.', '배경 투명도는 background와 관련된 속성입니다.', 'z-index만으로 position 값이 바뀌지는 않습니다.']}
+/>
+
+<Quiz
+  questionNumber={4}
+  question="조상 요소 중 하나에 overflow: hidden이 걸려 있을 때 자식의 position: sticky에 생기는 일은"
+  options={['아무 영향이 없다', '그 조상 범위 안에서만 sticky가 동작하거나 아예 동작을 멈출 수 있다', '자동으로 fixed로 바뀐다', 'z-index가 무시된다']}
+  correctAnswer={2}
+  explanation="overflow가 hidden/auto/scroll인 조상은 새로운 스크롤 컨테이너가 되어, sticky 동작 범위를 그 조상 안으로 제한하거나 막을 수 있습니다."
+  optionExplanations={['영향이 없다는 것은 sticky의 흔한 실패 원인을 놓친 설명입니다.', '정답입니다.', '자동 변환은 일어나지 않습니다.', 'z-index는 별개로 계속 적용됩니다.']}
+/>
+
+## 참고 자료
+
+- [MDN — position](https://developer.mozilla.org/en-US/docs/Web/CSS/Reference/Properties/position)

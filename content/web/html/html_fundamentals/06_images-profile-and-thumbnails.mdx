@@ -1,0 +1,209 @@
+---
+title: '06. 이미지로 프로필과 프로젝트 썸네일 넣기'
+description: 'img 요소의 필수 속성과 대체 텍스트 판단 기준을 익혀 프로필 사진과 프로젝트 썸네일을 넣는다'
+---
+
+<Callout type="info">
+  **이번 편의 결과물:** `index.html`에 프로필 사진, `projects.html`에 프로젝트 카드 6개(썸네일 포함)가 표시된다 · **다루는 개념:** `img`의 `src`·`alt`·`width`/`height`, 대체 텍스트를 장식용/정보성으로 판단하는 기준
+</Callout>
+
+## 이 편에서 만드는 파일
+
+```text
+web-practice/portfolio/
+├── index.html       ~ (about 섹션에 프로필 사진 추가)
+└── projects.html    ~ (project-grid에 카드 6개 추가)
+```
+
+스타터 zip에 들어 있던 `images/profile.svg`(400×400)와 `images/project-01.svg`~`project-06.svg`(1200×800)를 그대로 씁니다.
+
+## 개념 정리
+
+`img` 요소는 `src`에 적힌 파일을 화면에 보여줍니다. 닫는 태그가 없는 빈 요소입니다.
+
+| 속성 | 역할 |
+|------|------|
+| `src` | 이미지 파일 경로 |
+| `alt` | 이미지를 못 보는 상황(로딩 실패, 스크린 리더)에서 대신 읽히거나 표시되는 텍스트 |
+| `width`/`height` | 이미지의 실제 가로·세로 픽셀 값. 브라우저가 이미지를 받기 전에 자리를 미리 확보해 레이아웃이 밀리는 것을 막는다 |
+
+`alt`를 채울 때는 이미지가 **정보성**인지 **장식용**인지 먼저 구분합니다.
+
+- 정보성 이미지(프로필 사진, 프로젝트 스크린샷)는 그 이미지가 전달하는 내용을 짧은 문장으로 적습니다. "Zeno Kim의 얼굴 사진"보다는 "Zeno Kim의 프로필 사진"처럼 목적을 드러내는 편이 낫습니다.
+- 장식용 이미지(배경 무늬, 아이콘처럼 텍스트 옆을 꾸미기만 하는 그림)는 `alt=""`로 빈 값을 줍니다. 빈 값도 `alt` 자체를 생략하는 것과는 다릅니다. `alt`가 아예 없으면 스크린 리더가 파일명을 그대로 읽어 오히려 방해가 됩니다.
+
+이 포트폴리오의 프로필 사진과 프로젝트 썸네일은 모두 정보성 이미지이므로 내용을 설명하는 `alt`를 채웁니다.
+
+## 실습
+
+<Steps>
+
+### 1. 이미지 파일 확인
+
+`web-practice/portfolio/images/` 폴더에 `profile.svg`, `project-01.svg`부터 `project-06.svg`까지 7개 파일이 있는지 확인합니다.
+
+### 2. 코드 작성
+
+`index.html`의 about 섹션 첫머리에 프로필 사진을 추가합니다.
+
+```html
+<!-- web-practice/portfolio/index.html (about 섹션) -->
+<section class="about" id="about">
+  <h2>소개</h2>
+  <img src="images/profile.svg" alt="Zeno Kim의 프로필 사진" width="400" height="400" />
+  <p>
+    저는 3년째 프론트엔드를 공부하고 만들고 있습니다. 화면이 예뻐 보이는 것보다
+    <strong>누가 봐도 쓸 수 있는가</strong>를 먼저 생각합니다.
+  </p>
+  <p>
+    처음에는 디자인 툴로 화면을 그리다가, 직접 만들어 보고 싶어서 HTML과 CSS를
+    배웠습니다. 지금은 React로 서비스 화면을 만들고 있습니다.
+  </p>
+  <p>접근성과 웹 표준을 좋아합니다. 스크린 리더로 제 사이트를 읽어 보는 일이 습관이 됐습니다.</p>
+</section>
+```
+
+`projects.html`의 main에 프로젝트 카드 6개를 채웁니다. 지금은 썸네일과 제목·짧은 설명·바로가기 링크까지만 넣습니다. 인용구·코드 스니펫은 08편에서 추가합니다.
+
+```html
+<!-- web-practice/portfolio/projects.html -->
+<!doctype html>
+<html lang="ko">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Zeno Kim — 프로젝트</title>
+  </head>
+  <body>
+    <header class="site-header">
+      <a class="logo" href="index.html">Zeno Kim</a>
+      <nav class="site-nav">
+        <ul>
+          <li><a href="index.html">소개</a></li>
+          <li><a href="projects.html" aria-current="page">프로젝트</a></li>
+          <li><a href="contact.html">연락</a></li>
+        </ul>
+      </nav>
+    </header>
+    <main>
+      <h1>프로젝트</h1>
+      <p>직접 만들고 배운 것들을 모았습니다.</p>
+      <div class="project-grid">
+        <article class="project-card">
+          <img src="images/project-01.svg" alt="오늘의 날씨 프로젝트 화면" width="1200" height="800" />
+          <h2>오늘의 날씨</h2>
+          <p>위치 기반 날씨를 카드로 보여주는 웹앱입니다. 오프라인에서도 마지막 데이터를 보여줍니다.</p>
+          <a href="https://example.com/weather" target="_blank" rel="noopener noreferrer">바로가기</a>
+        </article>
+        <article class="project-card">
+          <img src="images/project-02.svg" alt="독서 기록 bookshelf 프로젝트 화면" width="1200" height="800" />
+          <h2>독서 기록 bookshelf</h2>
+          <p>읽은 책과 별점을 기록하고 통계를 보는 React 앱입니다.</p>
+          <a href="https://example.com/bookshelf" target="_blank" rel="noopener noreferrer">바로가기</a>
+        </article>
+        <article class="project-card">
+          <img src="images/project-03.svg" alt="메모 앱 notes 프로젝트 화면" width="1200" height="800" />
+          <h2>메모 앱 notes</h2>
+          <p>브라우저 저장소만으로 동작하는 메모 앱입니다. 검색은 Worker가 담당합니다.</p>
+          <a href="https://example.com/notes" target="_blank" rel="noopener noreferrer">바로가기</a>
+        </article>
+        <article class="project-card">
+          <img src="images/project-04.svg" alt="접근성 체크리스트 프로젝트 화면" width="1200" height="800" />
+          <h2>접근성 체크리스트</h2>
+          <p>WCAG 항목을 하나씩 점검하는 정적 사이트입니다.</p>
+          <a href="https://example.com/a11y" target="_blank" rel="noopener noreferrer">바로가기</a>
+        </article>
+        <article class="project-card">
+          <img src="images/project-05.svg" alt="디자인 토큰 미리보기 프로젝트 화면" width="1200" height="800" />
+          <h2>디자인 토큰 미리보기</h2>
+          <p>CSS 변수로 만든 색·간격 토큰을 한 화면에서 비교합니다.</p>
+          <a href="https://example.com/tokens" target="_blank" rel="noopener noreferrer">바로가기</a>
+        </article>
+        <article class="project-card">
+          <img src="images/project-06.svg" alt="todo-cli 프로젝트 화면" width="1200" height="800" />
+          <h2>todo-cli</h2>
+          <p>터미널에서 쓰는 할 일 관리 도구입니다. 파일에 저장하고 통계를 냅니다.</p>
+          <a href="https://example.com/todo-cli" target="_blank" rel="noopener noreferrer">바로가기</a>
+        </article>
+      </div>
+    </main>
+    <footer class="site-footer">
+      <p>&copy; 2026 Zeno Kim. 이 사이트는 학습용으로 제작되었습니다.</p>
+      <ul>
+        <li><a href="https://github.com/example" target="_blank" rel="noopener noreferrer">GitHub</a></li>
+        <li><a href="https://www.linkedin.com/in/example" target="_blank" rel="noopener noreferrer">LinkedIn</a></li>
+        <li><a href="https://blog.example.com" target="_blank" rel="noopener noreferrer">Blog</a></li>
+      </ul>
+    </footer>
+  </body>
+</html>
+```
+
+### 3. 실행
+
+`web-practice/portfolio/index.html`과 `projects.html`을 브라우저로 엽니다.
+
+### 4. 확인
+
+- `index.html`의 소개 섹션 위쪽에 정사각형 프로필 사진이 보인다
+- `projects.html`에 카드 6개가 나열되고 각 카드에 썸네일·제목·설명·바로가기 링크가 있다
+- 이미지 파일 경로를 일부러 틀려 봤을 때(`profile.svg` → `profile2.svg`) 이미지 대신 대체 텍스트가 화면에 표시된다
+- 개발자 도구에서 이미지를 선택하면 Accessibility 탭에 `alt` 텍스트가 그대로 나타난다
+
+</Steps>
+
+## 직접 해보기
+
+1. `images/project-01.svg`를 일부러 존재하지 않는 파일명(`images/missing.svg`)으로 바꿔 보고, 화면과 개발자 도구(Console)에 어떤 메시지가 뜨는지 확인합니다.
+2. 푸터 옆에 순수 장식용 구분선 이미지를 하나 추가한다고 가정하고, 그 `img` 태그의 `alt` 값을 어떻게 써야 할지 적어 봅니다.
+
+<details>
+<summary>정답 보기</summary>
+
+1번은 화면에 깨진 이미지 아이콘과 `alt` 텍스트가 대신 표시되고, Console에는 `net::ERR_FILE_NOT_FOUND` 같은 로드 실패 메시지가 남습니다.
+
+2번은 `alt=""`입니다. 장식용 이미지는 빈 문자열을 채워 스크린 리더가 아예 건너뛰게 합니다. `alt` 속성 자체를 생략하면 안 됩니다.
+
+</details>
+
+## 자주 하는 실수
+
+| 증상 | 원인 | 고치는 법 |
+|------|------|-----------|
+| 이미지 로딩 전 페이지가 위아래로 덜컹거린다 | `width`/`height`를 안 적어 브라우저가 자리를 못 잡는다 | 이미지의 실제 픽셀 값을 `width`/`height`에 적는다 |
+| 스크린 리더가 파일명을 그대로 읽는다 | `alt` 속성 자체가 없다 | `alt`를 반드시 적는다. 장식용이면 `alt=""` |
+| `alt`에 "이미지"·"사진"이라는 단어만 반복된다 | 이미지가 전달하는 내용을 안 적고 있다 | 이미지가 보여주는 것을 구체적으로 적는다 |
+| 이미지 경로가 대소문자 때문에 안 뜬다 | 파일명 대소문자가 실제 파일과 다르다 | 운영체제에 따라 대소문자를 구분하므로 정확히 맞춘다 |
+
+## 확인 문제
+
+<Quiz
+  questionNumber={1}
+  question="스크린 리더 사용자를 위해 img 요소에 반드시 채워야 하는 속성은?"
+  options={['title', 'alt', 'longdesc', 'aria-hidden']}
+  correctAnswer={2}
+  explanation="alt 속성이 이미지를 못 보는 상황에서 대신 전달되는 텍스트입니다. 정보성 이미지에는 내용을 설명하는 값을, 장식용에는 빈 값을 채웁니다."
+  optionExplanations={['title은 보조 설명 툴팁일 뿐 대체 텍스트 역할을 대신하지 못합니다', '정답입니다', '표준 HTML 속성이 아닙니다', 'aria-hidden은 이미지를 접근성 트리에서 숨기는 속성으로 대체 텍스트와 다릅니다']}
+/>
+
+<Quiz
+  questionNumber={2}
+  question="순수 장식용으로만 쓰이는 이미지의 alt 값으로 알맞은 것은?"
+  options={['alt=장식', 'alt를 아예 쓰지 않는다', 'alt=\'\'(빈 문자열)', 'alt=decoration.svg']}
+  correctAnswer={3}
+  explanation="장식용 이미지는 alt를 빈 문자열로 채워 스크린 리더가 건너뛰게 합니다. alt 자체를 생략하면 파일명이 그대로 읽혀 오히려 방해가 됩니다."
+  optionExplanations={['불필요한 단어가 그대로 읽혀 방해가 됩니다', 'alt가 없으면 파일명이 대신 읽힙니다', '정답입니다. 빈 문자열로 스크린 리더가 건너뛰게 합니다', '파일명을 그대로 넣는 것은 정보 전달에 도움이 되지 않습니다']}
+/>
+
+<Quiz
+  questionNumber={3}
+  question="img 요소에 width와 height를 미리 적어 두는 주된 이유는?"
+  options={['이미지 파일 용량을 줄이기 위해', '이미지가 로드되기 전에 자리를 확보해 레이아웃이 밀리지 않게 하기 위해', '검색 엔진 최적화를 위해', 'alt 속성을 대신하기 위해']}
+  correctAnswer={2}
+  explanation="브라우저는 width/height 값으로 이미지의 자리를 미리 계산해 두어, 이미지가 실제로 다운로드되기 전에도 레이아웃이 밀리지 않게 합니다."
+  optionExplanations={['width/height는 표시 크기를 알려줄 뿐 파일 용량과 무관합니다', '정답입니다', 'SEO는 alt나 다른 메타데이터가 담당합니다', 'width/height와 alt는 서로 다른 목적의 속성입니다']}
+/>
+
+## 참고 자료
+
+- [MDN — Images in HTML](https://developer.mozilla.org/en-US/docs/Learn_web_development/Core/Structuring_content/HTML_images)

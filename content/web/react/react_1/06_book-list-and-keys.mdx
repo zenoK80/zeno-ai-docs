@@ -1,0 +1,179 @@
+---
+title: '06. 리스트와 key로 책 목록 렌더링'
+description: 'BookList 컴포넌트에서 map으로 책 배열 전체를 렌더링하고 key를 붙입니다.'
+---
+
+<Callout type="info">
+  **이번 편의 결과물:** `BookList`가 책 배열 전체를 순회해 `BookCard`를 렌더링합니다. · **다루는 개념:** 배열을 `map`으로 컴포넌트 리스트로 바꾸기, `key`가 필요한 이유, 인덱스를 key로 쓰면 안 되는 경우
+</Callout>
+
+## 이 편에서 만드는 파일
+
+```
+bookshelf/src/
+├── components/
+│   ├── BookList.jsx   (+)
+│   └── BookCard.jsx   (변경 없음)
+└── App.jsx              (~)
+```
+
+## 개념 정리
+
+05편은 책 세 권을 `<BookCard>` 세 개로 하나하나 적었습니다. 책이 6권, 60권이 되면 이 방식은 쓸 수 없습니다. 배열 전체를 순회하며 컴포넌트를 만드는 `map`과, 그렇게 만든 각 항목을 구분하는 `key`가 필요합니다.
+
+### map으로 배열을 JSX 배열로 바꾼다
+
+`map`은 배열의 각 원소를 새 값으로 바꿔 같은 길이의 새 배열을 반환합니다. React는 JSX 안에 배열이 오면 그 배열의 각 원소를 순서대로 렌더링합니다.
+
+```jsx
+books.map((book) => <BookCard key={book.id} {...book} />)
+```
+
+이 표현식의 결과는 `<BookCard>` 엘리먼트로 이루어진 배열입니다. `{ }`로 감싸 JSX 안에 그대로 넣으면 됩니다.
+
+### key가 필요한 이유
+
+React는 리스트가 다시 렌더링될 때 이전 리스트와 새 리스트를 비교해 "무엇이 추가·삭제·순서 변경됐는지" 판단합니다(이 과정을 reconciliation이라 부릅니다). `key`는 각 항목의 **고유하고 안정적인 식별자**로, 이 비교의 기준이 됩니다.
+
+| key 선택 | 안정성 | 이유 |
+|----------|--------|------|
+| `book.id` | 안정적 | 데이터가 가진 고유값. 목록 순서가 바뀌어도 각 항목을 계속 같은 항목으로 인식한다 |
+| 배열 인덱스(`index`) | 불안정 | 항목을 삭제·삽입하면 뒤 항목들의 인덱스가 밀려, 실제로는 안 바뀐 항목도 다른 key로 인식된다 |
+
+인덱스를 key로 쓰면 목록 중간에서 항목을 지웠을 때 엉뚱한 카드가 사라진 것처럼 보이거나, 입력 폼처럼 내부 state를 가진 항목이면 state가 다른 항목으로 옮겨 붙는 문제가 생길 수 있습니다. `books.seed.json`의 각 책은 고유한 `id`를 가지고 있으므로 항상 이 값을 key로 씁니다.
+
+### key는 props가 아니다
+
+`key`는 React가 리스트 관리 목적으로만 사용하는 특별한 속성입니다. `BookCard` 안에서 `props.key`로 읽을 수 없습니다. 카드 안에서 책의 `id`가 필요하면 `id`라는 별도 prop으로 다시 넘겨야 합니다.
+
+## 실습
+
+<Steps>
+
+### 1. BookList.jsx 만들기
+
+`src/components/BookList.jsx`를 새로 만듭니다.
+
+### 2. 코드 작성
+
+```jsx
+// src/components/BookList.jsx
+import BookCard from './BookCard.jsx';
+
+function BookList({ books }) {
+  if (books.length === 0) {
+    return <p className="empty-state">아직 등록된 책이 없습니다.</p>;
+  }
+
+  return (
+    <div className="book-grid">
+      {books.map((book) => (
+        <BookCard key={book.id} {...book} />
+      ))}
+    </div>
+  );
+}
+
+export default BookList;
+```
+
+```jsx
+// src/App.jsx
+import BookList from './components/BookList.jsx';
+import books from './data/books.seed.json';
+
+function App() {
+  return (
+    <div className="app">
+      <h1>내 책장</h1>
+      <BookList books={books} />
+    </div>
+  );
+}
+
+export default App;
+```
+
+`BookList`는 `books` 배열을 통째로 props로 받아 `map`으로 순회합니다. 05편에서 `App.jsx`에 직접 있던 카드 나열 코드가 `BookList` 안으로 옮겨오면서, `App.jsx`는 "무엇을 보여줄지"만 남고 "어떻게 반복해서 그릴지"는 `BookList`가 책임집니다. 빈 배열이 들어오면 `map`이 빈 배열을 반환해 카드가 하나도 안 보이는 대신, `books.length === 0` 조건으로 안내 문구를 먼저 보여줍니다.
+
+### 3. 실행
+
+```text
+npm run dev
+```
+
+### 4. 확인
+
+- 브라우저에 `books.seed.json`의 책 6권이 모두 카드로 보입니다.
+- 브라우저 개발자 도구 콘솔에 `books.map((book) => <BookCard key={book.id} {...book} />)`를 실행할 필요는 없습니다. 대신 React DevTools의 Components 탭에서 `BookList` 아래 `BookCard`가 6개 나열된 것을 확인합니다.
+- `App.jsx`에서 `books`를 `books.slice(0, 2)`로 바꿔 저장하면 카드가 2장만 남는 것을 확인한 뒤 다시 원래대로 되돌립니다.
+
+</Steps>
+
+## 직접 해보기
+
+1. `BookList`에서 `key`를 `book.id` 대신 `index`(map의 두 번째 매개변수)로 바꿔봅니다. 화면은 똑같이 보이지만, 이후 편(10편)에서 목록 중간 항목을 삭제하면 문제가 드러납니다. 지금은 콘솔에 경고가 없는지만 확인하고 다시 `book.id`로 되돌립니다.
+2. `books.seed.json`에 새 책 객체 하나를 직접 추가하고 저장한 뒤, 카드가 7장으로 늘어나는지 확인해봅니다.
+
+<details>
+<summary>정답 보기</summary>
+
+```jsx
+{books.map((book, index) => (
+  <BookCard key={index} {...book} />
+))}
+```
+
+`id`는 데이터 자체의 고유값이라 배열 순서가 바뀌어도 유지되지만, `index`는 배열 안 위치일 뿐이라 항목이 추가·삭제되면 같은 책이라도 다른 인덱스를 받습니다. 지금처럼 목록을 조작하지 않는 화면에서는 차이가 안 보이지만, 이후 항목을 삭제하는 기능(10편)이 생기면 반드시 `id`처럼 안정적인 값을 key로 써야 합니다.
+
+</details>
+
+## 자주 하는 실수
+
+| 증상 | 원인 | 고치는 법 |
+|------|------|-----------|
+| 콘솔에 `Warning: Each child in a list should have a unique key prop` | `map`으로 만든 엘리먼트에 `key`를 안 줌 | 배열을 순회해 만드는 최상위 엘리먼트마다 `key`를 준다 |
+| 항목을 지웠더니 엉뚱한 카드가 사라짐 | key로 배열 인덱스를 씀 | `book.id`처럼 데이터가 가진 고유값을 key로 쓴다 |
+| `BookCard` 안에서 `props.key`가 `undefined` | `key`는 React 내부 전용이라 자식에게 전달되지 않음 | 필요하면 `id`라는 별도 prop으로 다시 넘긴다 |
+
+## 확인 문제
+
+<Quiz
+  questionNumber={1}
+  question="배열을 순회해 컴포넌트 리스트를 만들 때 사용하는 배열 메서드는?"
+  options={['filter', 'map', 'reduce', 'forEach']}
+  correctAnswer={2}
+  explanation="map은 배열의 각 원소를 새 값(여기서는 JSX 엘리먼트)으로 변환한 같은 길이의 새 배열을 반환하므로 리스트 렌더링에 사용합니다."
+  optionExplanations={['filter는 조건에 맞는 원소만 걸러낼 뿐 변환하지 않습니다', '정답입니다', 'reduce는 배열을 하나의 값으로 누적할 때 씁니다', 'forEach는 반환값이 없어 JSX 배열을 만들 수 없습니다']}
+/>
+
+<Quiz
+  questionNumber={2}
+  question="리스트를 렌더링할 때 key가 필요한 이유로 가장 알맞은 것은?"
+  options={['화면 디자인을 예쁘게 하기 위해', 'React가 이전 리스트와 새 리스트를 비교해 무엇이 바뀌었는지 판단하는 기준이 되기 때문에', 'CSS 선택자로 사용하기 위해', '배열을 정렬하기 위해']}
+  correctAnswer={2}
+  explanation="key는 reconciliation 과정에서 각 항목을 식별하는 기준이 되어, 추가·삭제·순서 변경을 정확히 반영하게 합니다."
+  optionExplanations={['디자인과는 무관합니다', '정답입니다', 'key는 CSS에서 사용할 수 없습니다', '정렬은 배열 메서드(sort)의 역할입니다']}
+/>
+
+<Quiz
+  questionNumber={3}
+  question="배열 인덱스를 key로 쓰면 안 되는 대표적인 상황은?"
+  options={['목록이 절대 바뀌지 않을 때', '목록 중간에서 항목을 추가하거나 삭제할 수 있을 때', '목록에 항목이 하나뿐일 때', '목록을 화면에 표시하지 않을 때']}
+  correctAnswer={2}
+  explanation="중간 삭제·삽입이 있으면 뒤 항목들의 인덱스가 밀려, 실제로 안 바뀐 항목도 다른 key로 인식되어 문제가 생깁니다."
+  optionExplanations={['목록이 고정이면 인덱스 key의 문제가 잘 드러나지 않지만 권장되지는 않습니다', '정답입니다', '항목이 하나면 인덱스 문제가 드러나지 않을 뿐 근본적으로 권장되지 않습니다', '표시하지 않으면 애초에 key 논의 대상이 아닙니다']}
+/>
+
+<Quiz
+  questionNumber={4}
+  question="BookCard 컴포넌트 내부에서 props.key로 값을 읽으려 하면 어떻게 되는가?"
+  options={['정상적으로 book.id 값이 읽힌다', 'key는 React 내부 전용 속성이라 자식 컴포넌트의 props로 전달되지 않는다', '항상 0이 반환된다', '컴포넌트가 렌더링되지 않는다']}
+  correctAnswer={2}
+  explanation="key는 React가 리스트 관리를 위해서만 사용하는 특별한 속성으로, 자식 컴포넌트의 props 객체에는 포함되지 않습니다. 필요하면 별도 prop으로 다시 전달해야 합니다."
+  optionExplanations={['key는 props로 전달되지 않아 읽을 수 없습니다', '정답입니다', '값 자체가 없으므로 undefined입니다', '컴포넌트 렌더링과는 무관합니다']}
+/>
+
+## 참고 자료
+
+- [React 공식 - Rendering Lists](https://react.dev/learn/rendering-lists)

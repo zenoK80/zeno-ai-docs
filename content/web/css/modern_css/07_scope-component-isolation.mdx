@@ -1,0 +1,223 @@
+---
+title: '07. @scope로 컴포넌트 스타일 격리하기'
+description: '카드·네브바 스타일이 다른 컴포넌트로 새지 않게 범위를 가둡니다'
+---
+
+<Callout type="info">
+  **이번 편의 결과물:** 카드·네브바 컴포넌트 스타일이 `@scope (.project-card) to (button[data-open-project])` 형태로 격리되어, 자식 컴포넌트(`button[data-open-project]` 안)의 스타일이 새지 않습니다. **다루는 개념:** 스코프 루트·한계(donut scope) 문법, 컴포넌트 스타일이 다른 곳으로 새지 않게 막기
+</Callout>
+
+## 이 편에서 만드는 파일
+
+```text
+web-practice/portfolio/
+└─ css/styles.css                        ~ (components 레이어를 @scope로 재작성)
+web-practice/lessons/modern-css/
+└─ 07_scope-component-isolation/         + (이번 편 스냅샷)
+   └─ notes.md
+```
+
+## 개념 정리
+
+`@layer`(03편)는 "어느 규칙이 이기는가"라는 **우선순위** 문제를 해결합니다. `@scope`는 "이 선택자가 어디까지 적용되는가"라는 **범위** 문제를 해결합니다. 두 문제는 다릅니다 — 레이어를 아무리 잘 나눠도, `h2` 같은 흔한 타입 선택자는 카드 안에서도 다른 섹션 안에서도 똑같이 걸립니다.
+
+| 문법 조각 | 뜻 |
+|-----------|-----|
+| `@scope (.project-card) { ... }` | `.project-card` 자신부터 그 후손까지가 스코프 범위(스코프 루트) |
+| `@scope (.project-card) to (button[data-open-project]) { ... }` | `.project-card`부터 시작하되 `button[data-open-project]` **안쪽은 제외** |
+| `:scope` | 스코프 블록 안에서 스코프 루트 자신을 가리키는 의사 클래스 |
+
+`to (...)` 뒤에 오는 선택자를 **한계**(lower boundary)라고 부릅니다. 스코프 루트와 한계 사이의 "도넛" 모양 범위에만 스타일이 적용된다고 해서 이 구조를 **도넛 스코프**라 부릅니다. 한계 안쪽(`button[data-open-project]`의 후손)은 이 스코프의 영향을 받지 않으므로, 카드의 "자세히" 버튼이 페이지 다른 곳의 `.button`과 똑같은 스타일을 그대로 쓰게 됩니다.
+
+**흔한 오해**: `@scope`가 `:has()`처럼 조건을 판단하는 문법이라고 생각하기 쉽지만, `@scope`는 조건이 아니라 **선택자의 유효 범위를 제한하는 블록 문법**입니다. `@scope` 안의 각 규칙은 평소처럼 명시도 계산을 거칩니다.
+
+## 실습
+
+<Steps>
+
+### 1. 격리 전 문제 상황 재현하기
+
+```css
+/* portfolio/css/styles.css (수정 전) */
+@layer components {
+  h2 {
+    font-weight: 700;
+  }
+
+  .project-card h2 {
+    font-size: var(--text-lg);
+  }
+}
+```
+
+`h2`처럼 흔한 타입 선택자는 카드뿐 아니라 페이지 안의 다른 컴포넌트(예: 각 섹션 제목, 프로젝트 상세 `dialog`의 제목)에도 그대로 걸립니다. `.project-card h2`라는 후손 선택자는 `.project-card` 안이라면 몇 단계 아래에 있든 다 걸려, 카드 내부에 다른 컴포넌트를 중첩하면 의도치 않게 스타일이 섞입니다.
+
+### 2. @scope로 카드 컴포넌트 범위 가두기
+
+```css
+/* portfolio/css/styles.css (수정 후) */
+@layer components {
+  @scope (.project-card) to (button[data-open-project]) {
+    :scope {
+      display: flex;
+      flex-direction: column;
+      background: var(--color-surface);
+      border: 1px solid var(--color-border);
+      border-radius: var(--radius);
+      overflow: hidden;
+    }
+
+    h2 {
+      font-weight: 700;
+      font-size: var(--text-lg);
+      padding-inline: var(--space-4);
+    }
+
+    p {
+      color: var(--color-text-muted);
+      padding-inline: var(--space-4);
+    }
+
+    img {
+      aspect-ratio: 3 / 2;
+      object-fit: cover;
+    }
+  }
+}
+```
+
+`:scope`는 `.project-card` 자신을 가리켜, 카드 바깥 레이아웃 규칙과 카드 내부 규칙을 한 블록 안에 같이 둘 수 있습니다. `h2`·`p`는 이 스코프 안에서만 유효하므로, 나중에 프로젝트 상세 `dialog`에 똑같은 제목 요소를 써도 서로 간섭하지 않습니다.
+
+### 3. button[data-open-project] 안쪽을 한계로 제외하기
+
+```css
+/* portfolio/css/styles.css */
+@layer components {
+  /* button[data-open-project] 자체는 01편부터 정의된 공용 .button 스타일을 그대로 쓴다.
+     카드 스코프가 이 규칙을 덮어쓰지 않도록 한계로 지정한다. */
+
+  /* 프로젝트 상세 dialog는 별도의, 페이지 전체에서 재사용되는 스코프에서 관리 */
+  @scope (#project-dialog) {
+    :scope {
+      display: grid;
+      gap: var(--space-4);
+    }
+
+    .dialog-title {
+      /* 이 제목은 카드 스코프의 h2와 완전히 별개로 계산된다 */
+      font-size: var(--text-xl);
+      font-weight: 700;
+    }
+  }
+}
+```
+
+`button[data-open-project]`가 한계로 지정되어 있어서, 카드의 "자세히" 버튼이 열어 주는 `#project-dialog`가 카드 스코프 밖에 있는 별도 컴포넌트임을 CSS로도 분명히 나눌 수 있습니다. 카드 스코프의 `h2`와 dialog 스코프의 `.dialog-title`은 서로 다른 범위에서 완전히 독립적으로 계산됩니다.
+
+### 4. 네브바에도 같은 방식 적용하기
+
+```css
+/* portfolio/css/styles.css */
+@layer components {
+  @scope (.site-header) {
+    :scope {
+      position: sticky;
+      top: 0;
+      height: var(--header-height);
+      border-block-end: 1px solid var(--color-border);
+      background: var(--color-bg);
+    }
+
+    .logo {
+      font-size: var(--text-lg);
+      font-weight: 700;
+    }
+
+    .site-nav {
+      display: flex;
+      gap: var(--space-6);
+    }
+  }
+}
+```
+
+### 5. 실행 및 확인
+
+```text
+1. 브라우저 개발자 도구에서 .project-card 안의 h2 요소를 선택합니다.
+2. Styles 패널에서 어떤 규칙이 적용되는지 확인합니다 — 카드 스코프의
+   h2(font-size: var(--text-lg))만 보이고, #project-dialog 스코프의
+   .dialog-title 규칙은 목록에 아예 나타나지 않아야 합니다.
+3. .site-header 안의 .logo가 --text-lg 크기로, .project-card 안의
+   h2와 같은 변수를 쓰지만 서로 다른 스코프에서 독립적으로 계산됨을
+   확인합니다.
+```
+
+</Steps>
+
+## 직접 해보기
+
+1. `contact.html`의 `.faq`(아코디언) 영역에 `@scope (.faq)`를 만들어, `summary`를 이 스코프 안에서만 스타일링해 다른 컴포넌트의 `summary`와 섞이지 않게 해보세요.
+2. `@scope` 없이 `.faq summary`로 썼을 때와 비교해, 개발자 도구의 명시도 표시가 어떻게 다른지 확인해 보세요.
+
+<details>
+<summary>풀이 보기</summary>
+
+```css
+@scope (.faq) {
+  :scope {
+    display: grid;
+    gap: var(--space-4);
+  }
+
+  summary {
+    font-weight: 600;
+  }
+}
+```
+
+`@scope` 안의 선택자는 스코프 근접도(proximity)만 추가로 계산에 끼어들 뿐, 기존 명시도 규칙 자체는 그대로 유지됩니다.
+
+</details>
+
+## 자주 하는 실수
+
+| 증상 | 원인 | 고치는 법 |
+|------|------|-----------|
+| `:scope` 규칙이 카드 바깥에도 적용됨 | `@scope (...)` 괄호를 빼고 그냥 `:scope`만 씀 | `@scope (스코프 루트 선택자) { }` 형태를 갖춘다 |
+| 한계 안쪽 요소에도 스타일이 그대로 적용됨 | `to (...)` 부분을 빠뜨림 | 한계로 제외할 선택자를 `to (...)`에 명시한다 |
+| 두 스코프의 같은 클래스가 서로 영향을 줌 | 스코프 블록을 안 쓰고 후손 선택자로만 작성함 | 컴포넌트 단위로 `@scope` 블록을 분리한다 |
+| 오래된 Firefox에서 스타일이 아예 안 먹힘 | `@scope`는 2026-03부터 Baseline이라 그 이전 버전 브라우저에서는 미지원 | `@supports (@scope)` 폴백으로 후손 선택자 버전을 함께 준비하거나, 최신 브라우저로 확인한다 |
+
+## 확인 문제
+
+<Quiz
+  questionNumber={1}
+  question="@scope (.card) to (.card__actions) 에서 .card__actions의 역할은"
+  options={['스코프가 시작되는 지점이다', '스코프에서 제외되는 하한선(한계)이다', '이 셀렉터에만 스타일이 적용된다', '카드 컴포넌트의 이름을 정의한다']}
+  correctAnswer={2}
+  explanation="to() 뒤에 오는 선택자는 스코프의 하한선(한계)이며, 그 안쪽은 스코프 대상에서 제외된다."
+  optionExplanations={['시작 지점은 괄호 안의 .card다', '정답. 한계로 지정되어 그 안쪽이 스코프에서 제외된다', '한계 자체는 스타일 적용 대상이 아니라 범위를 정하는 기준일 뿐이다', '이름 정의는 @scope 문법에 없는 개념이다']}
+/>
+
+<Quiz
+  questionNumber={2}
+  question="@scope 블록 안에서 스코프 루트 자신을 가리키는 의사 클래스는"
+  options={[':root', ':scope', ':has()', ':is()']}
+  correctAnswer={2}
+  explanation=":scope는 @scope() 괄호 안에 지정한 스코프 루트 요소 자신을 가리킨다."
+  optionExplanations={[':root는 문서의 최상위 요소를 가리키는 별개의 의사 클래스다', '정답. :scope가 스코프 루트 자신을 가리킨다', ':has()는 관계 선택자로 스코프와 무관하다', ':is()는 여러 선택자를 묶는 문법으로 스코프와 무관하다']}
+/>
+
+<Quiz
+  questionNumber={3}
+  question="@layer와 @scope의 관계를 올바르게 설명한 것은"
+  options={['@layer는 범위를, @scope는 우선순위를 다룬다', '@layer는 우선순위를, @scope는 범위를 다룬다', '두 기능은 같은 문제를 해결하므로 하나만 쓰면 된다', '@scope는 @layer 안에서 쓸 수 없다']}
+  correctAnswer={2}
+  explanation="@layer는 규칙 사이의 우선순위(어느 것이 이기는가)를, @scope는 선택자가 적용되는 범위(어디까지 적용되는가)를 다루는 서로 다른 문제를 해결한다."
+  optionExplanations={['역할이 반대로 설명되어 있다', '정답. 우선순위는 @layer, 범위는 @scope의 역할이다', '서로 다른 문제를 해결하므로 함께 쓰는 것이 자연스럽다', '이 편의 실습처럼 @layer 안에 @scope 블록을 넣어 함께 쓸 수 있다']}
+/>
+
+## 참고 자료
+
+- [MDN — @scope](https://developer.mozilla.org/en-US/docs/Web/CSS/@scope)

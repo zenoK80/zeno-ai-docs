@@ -1,0 +1,307 @@
+---
+title: '18. 접근성 감사와 보정'
+description: 'Lighthouse 접근성 감사로 문제 지점을 찾고, 로그인 폼·책 등록 폼·테이블을 키보드만으로 조작할 수 있도록 ARIA와 포커스를 보정합니다'
+---
+
+<Callout type="info">
+  **이번 편의 결과물:** 로그인 폼·책 등록 폼·책 테이블·모달을 마우스 없이 키보드만으로 조작할 수 있게 됩니다. Lighthouse 접근성 감사 점수를 개선 전후로 기록합니다. · **다루는 개념:** Lighthouse 접근성 감사, 키보드만으로 폼·테이블·모달 조작, ARIA 라벨·포커스 이동 보정
+</Callout>
+
+## 이 편에서 만드는 파일
+
+```
+bookshelf/src/
+├── components/
+│   ~ Modal.jsx               ← role, aria-modal, 포커스 트랩, Escape 닫기
+│   ~ BookTable.jsx           ← <caption>, scope, aria-sort 추가
+├── pages/
+│   ~ LoginPage.jsx           ← label htmlFor/id 연결, aria-live 에러
+│   ~ NewBookPage.jsx         ← aria-invalid, aria-describedby로 zod 에러 연결
+└── index.css                 ← ~ .sr-only, :focus-visible 스타일 추가
+```
+
+## 개념 정리
+
+### Lighthouse 접근성 감사가 확인하는 것
+
+Lighthouse의 Accessibility 카테고리는 자동화 가능한 접근성 규칙만 검사합니다. 대비 비율, `alt` 속성 존재, 폼 라벨 연결, ARIA 속성 오용 여부 등입니다. 점수가 100이어도 **키보드로 실제 조작 가능한지**는 자동 검사로 완전히 잡히지 않습니다. 그래서 이 편은 Lighthouse 점수와 수동 키보드 점검을 함께 합니다.
+
+### 접근 가능한 이름과 라벨 연결
+
+스크린 리더는 폼 요소를 읽을 때 **접근 가능한 이름**(accessible name)을 사용합니다. `<label>`과 `<input>`을 `htmlFor`/`id`로 연결하지 않으면 스크린 리더 사용자는 입력칸이 무엇을 위한 것인지 알 수 없습니다.
+
+| 방법 | 예시 | 비고 |
+|------|------|------|
+| `htmlFor` + `id` 연결 | `<label htmlFor="email">이메일</label><input id="email" />` | 가장 명시적, 권장 |
+| `<label>`로 감싸기 | `<label>이메일<input /></label>` | id 없이도 연결됨 |
+| `aria-label` | `<input aria-label="이메일" />` | 화면에 보이는 라벨이 없을 때만 |
+
+### 포커스 이동과 트랩
+
+모달처럼 화면 일부를 가리는 요소가 열리면, 포커스가 그 안에 갇혀야 합니다(포커스 트랩, focus trap). 그렇지 않으면 `Tab` 키를 눌렀을 때 포커스가 모달 뒤의 화면 요소로 빠져나가 사용자가 모달이 열려 있다는 사실조차 모른 채 다른 곳을 조작하게 됩니다. 모달이 닫힐 때는 포커스를 **모달을 연 버튼으로 되돌려야** 합니다.
+
+### `aria-live`로 동적 에러 알리기
+
+로그인 실패 메시지처럼 사용자 조작 없이 화면에 나타나는 텍스트는 스크린 리더가 자동으로 읽어주지 않습니다. `aria-live="polite"`를 준 영역에 메시지를 넣으면, 스크린 리더가 현재 읽던 것을 마치고 나서 새 내용을 읽어 줍니다.
+
+## 실습
+
+<Steps>
+
+### 1. Lighthouse로 현재 상태 감사하기
+
+```bash
+npm run build
+npm run preview
+npx lighthouse http://localhost:4173 --view --only-categories=accessibility
+```
+
+리포트에서 실패한 항목을 확인합니다. `bookshelf`에서 자주 나오는 항목은 "Form elements do not have associated labels", "Elements do not have sufficient color contrast", "`[aria-*]` attributes do not match their roles" 세 가지입니다.
+
+### 2. 로그인 폼 라벨과 에러 알림 고치기
+
+```jsx
+// 수정 전 (07편 산출물, 발췌)
+function LoginPage() {
+  const [email, setEmail] = useState('')
+  const [error, setError] = useState(null)
+
+  return (
+    <form onSubmit={handleSubmit}>
+      <input placeholder="이메일" value={email} onChange={(e) => setEmail(e.target.value)} />
+      {error && <p className="error">{error}</p>}
+      <button type="submit">로그인</button>
+    </form>
+  )
+}
+```
+
+```jsx
+// 수정 후
+function LoginPage() {
+  const [email, setEmail] = useState('')
+  const [error, setError] = useState(null)
+
+  return (
+    <form onSubmit={handleSubmit}>
+      <label htmlFor="login-email">이메일</label>
+      <input
+        id="login-email"
+        type="email"
+        value={email}
+        onChange={(e) => setEmail(e.target.value)}
+        aria-invalid={Boolean(error)}
+      />
+      <p role="alert" aria-live="polite">
+        {error}
+      </p>
+      <button type="submit">로그인</button>
+    </form>
+  )
+}
+```
+
+`placeholder`는 라벨을 대신하지 못합니다. 입력을 시작하면 사라져서 어떤 값인지 잊게 만들기 때문입니다. `role="alert"`를 준 문단은 내용이 빈 문자열일 때는 아무것도 읽지 않다가, 에러 텍스트가 들어오는 순간 스크린 리더가 즉시 읽어 줍니다.
+
+### 3. 책 등록 폼 에러를 aria-describedby로 연결하기
+
+10편에서 만든 zod 검증 에러를 시각적으로만 보여주고 있었다면, 스크린 리더 사용자는 어떤 입력칸이 왜 잘못됐는지 알 수 없습니다.
+
+```jsx
+// src/pages/NewBookPage.jsx (발췌, 제목 필드)
+<label htmlFor="book-title">제목</label>
+<input
+  id="book-title"
+  {...register('title')}
+  aria-invalid={Boolean(errors.title)}
+  aria-describedby={errors.title ? 'book-title-error' : undefined}
+/>
+{errors.title && (
+  <p id="book-title-error" role="alert">
+    {errors.title.message}
+  </p>
+)}
+```
+
+`aria-describedby`는 입력칸과 에러 문단을 id로 연결해, 스크린 리더가 입력칸에 포커스될 때 "제목, 필수 입력입니다" 처럼 라벨과 에러를 함께 읽게 합니다. 에러가 없을 때는 `undefined`를 넣어 속성 자체를 없애야 빈 연결이 남지 않습니다.
+
+### 4. 테이블에 caption과 aria-sort 추가하기
+
+```jsx
+// src/components/BookTable.jsx (발췌 — books·onSelectBook props는 17편 코드 유지)
+function BookTable({ books, onSelectBook }) {
+  const sortBy = useUiStore((state) => state.sortBy)
+  const sortOrder = useUiStore((state) => state.sortOrder)
+  const setSort = useUiStore((state) => state.setSort)
+
+  function ariaSortFor(key) {
+    if (sortBy !== key) return 'none'
+    return sortOrder === 'asc' ? 'ascending' : 'descending'
+  }
+
+  return (
+    <table>
+      <caption className="sr-only">책 목록, 열 제목을 눌러 정렬합니다</caption>
+      <thead>
+        <tr>
+          <th scope="col" aria-sort={ariaSortFor('title')}>
+            <button type="button" onClick={() => setSort('title')}>제목</button>
+          </th>
+          <th scope="col" aria-sort={ariaSortFor('author')}>
+            <button type="button" onClick={() => setSort('author')}>저자</button>
+          </th>
+          <th scope="col">쪽수</th>
+          <th scope="col">상태</th>
+        </tr>
+      </thead>
+      {/* ...tbody는 17편 코드(BookRow 매핑) 그대로... */}
+    </table>
+  )
+}
+```
+
+`<caption>`은 화면에는 안 보여도(`.sr-only`) 스크린 리더에게 표의 목적을 알려줍니다. `scope="col"`은 각 셀이 어느 열에 속하는지 명시해, 행을 옮겨 다녀도 열 제목을 다시 읽어 줍니다. 정렬 버튼은 `<th>` 안에 `<div onClick>`이 아니라 실제 `<button>`이어야 `Tab`으로 접근하고 `Enter`로 실행할 수 있습니다. `aria-sort`는 현재 정렬 방향을 스크린 리더에 알립니다.
+
+`.sr-only` 클래스가 아직 없다면 전역 스타일에 추가합니다.
+
+```css
+/* src/index.css (추가) */
+.sr-only {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  margin: -1px;
+  overflow: hidden;
+  clip: rect(0, 0, 0, 0);
+  white-space: nowrap;
+  border: 0;
+}
+
+:focus-visible {
+  outline: 2px solid #2563eb;
+  outline-offset: 2px;
+}
+```
+
+`.sr-only`는 요소를 화면에서만 안 보이게 숨기고 스크린 리더에는 남겨두는 표준 패턴입니다. `:focus-visible`은 키보드로 포커스했을 때만 테두리를 보여줘, 마우스 클릭 시 생기던 불필요한 테두리 없이 키보드 사용자에게 현재 위치를 알려줍니다.
+
+### 5. 모달에 포커스 트랩과 Escape 닫기 추가하기
+
+```jsx
+// src/components/Modal.jsx
+import { useEffect, useRef } from 'react'
+
+export function Modal({ isOpen, onClose, title, children }) {
+  const dialogRef = useRef(null)
+  const previouslyFocused = useRef(null)
+
+  useEffect(() => {
+    if (!isOpen) return
+    previouslyFocused.current = document.activeElement
+    dialogRef.current?.focus()
+
+    function handleKeyDown(event) {
+      if (event.key === 'Escape') {
+        onClose()
+      }
+    }
+
+    document.addEventListener('keydown', handleKeyDown)
+    return () => {
+      document.removeEventListener('keydown', handleKeyDown)
+      previouslyFocused.current?.focus()
+    }
+  }, [isOpen, onClose])
+
+  if (!isOpen) return null
+
+  return (
+    <div className="modal-backdrop" onClick={onClose}>
+      <div
+        ref={dialogRef}
+        role="dialog"
+        aria-modal="true"
+        aria-labelledby="modal-title"
+        tabIndex={-1}
+        onClick={(event) => event.stopPropagation()}
+      >
+        <h2 id="modal-title">{title}</h2>
+        {children}
+        <button type="button" onClick={onClose} aria-label="닫기">
+          닫기
+        </button>
+      </div>
+    </div>
+  )
+}
+```
+
+`role="dialog"`와 `aria-modal="true"`는 스크린 리더에게 이 영역이 화면의 나머지를 가리는 대화 상자임을 알립니다. `tabIndex={-1}`을 준 다음 `dialogRef.current?.focus()`로 모달이 열리자마자 포커스를 안으로 옮기고, `previouslyFocused`에 저장해둔 요소로 닫힐 때 되돌립니다. `Escape` 키 처리는 마우스 없이도 닫을 수 있게 합니다. 완전한 포커스 트랩(Tab 순환)은 "직접 해보기"에서 확장합니다.
+
+### 6. 키보드만으로 전체 흐름 점검하기
+
+마우스를 치우고 `Tab`, `Shift+Tab`, `Enter`, `Escape`만으로 다음을 확인합니다.
+
+- 로그인 폼: 이메일 → 비밀번호 → 로그인 버튼 순서로 포커스가 이동하는가.
+- 책 테이블: 정렬 버튼에 `Tab`으로 도달하고 `Enter`로 정렬이 바뀌는가.
+- 책 등록 모달: 열리면 포커스가 모달 안으로 들어가고, `Escape`로 닫으면 원래 버튼으로 돌아오는가.
+
+Lighthouse를 다시 실행해 점수를 기록합니다.
+
+| 측정 시점 | Accessibility 점수 |
+|-----------|---------------------|
+| 개선 전 | 기록한 값 |
+| 개선 후 | 기록한 값 |
+
+</Steps>
+
+## 직접 해보기
+
+<details>
+<summary>Modal 안에서 Tab 키가 모달 밖 요소로 빠져나가지 않도록, 마지막 포커스 가능 요소에서 Tab을 누르면 첫 요소로 돌아가는 로직을 추가해 보세요.</summary>
+
+`dialogRef.current.querySelectorAll('button, input, a[href]')`로 포커스 가능한 요소 목록을 구하고, `keydown` 핸들러에서 `event.key === 'Tab'`일 때 현재 포커스가 마지막 요소면 `event.preventDefault()` 후 첫 요소로, 첫 요소에서 `Shift+Tab`이면 마지막 요소로 포커스를 옮깁니다.
+</details>
+
+## 자주 하는 실수
+
+| 증상 | 원인 | 고치는 법 |
+|------|------|-----------|
+| 스크린 리더가 입력칸 용도를 안 읽는다 | `placeholder`만 쓰고 `<label>` 연결이 없음 | `htmlFor`/`id`로 라벨 연결 |
+| 에러 메시지가 스크린 리더에 안 읽힌다 | 에러 문단에 `aria-live`·`role="alert"` 없음 | `role="alert"` 추가 |
+| 모달이 열려도 Tab이 뒤 화면 요소로 넘어간다 | 포커스 트랩 미구현 | `dialogRef.focus()`와 Tab 순환 처리 |
+| 정렬 헤더를 키보드로 조작 못한다 | `<div onClick>`으로 구현 | 실제 `<button>` 요소 사용 |
+
+## 확인 문제
+
+<Quiz
+  questionNumber={1}
+  question="입력칸의 placeholder만 쓰고 label을 연결하지 않으면 생기는 접근성 문제는 무엇입니까"
+  options={['입력값이 저장되지 않는다', '스크린 리더가 입력칸의 용도를 사용자에게 전달할 수 없다', '브라우저가 입력을 막는다', 'CSS 스타일이 적용되지 않는다']}
+  correctAnswer={2}
+  explanation="placeholder는 입력을 시작하면 사라지고 접근 가능한 이름으로 취급되지 않는 경우가 많아, label과 명시적으로 연결하지 않으면 스크린 리더 사용자가 입력칸의 목적을 알 수 없습니다."
+  optionExplanations={['저장 로직과는 무관합니다', '정답입니다', '브라우저 동작과는 무관합니다', '스타일과는 무관합니다']}
+/>
+
+<Quiz
+  questionNumber={2}
+  question="모달이 열렸을 때 포커스 트랩이 필요한 이유는 무엇입니까"
+  options={['모달 애니메이션을 부드럽게 하기 위해', 'Tab 키로 포커스가 모달 뒤 화면 요소로 빠져나가는 것을 막기 위해', '모달의 CSS 우선순위를 높이기 위해', '모달을 더 빨리 렌더링하기 위해']}
+  correctAnswer={2}
+  explanation="포커스 트랩이 없으면 키보드 사용자가 Tab을 누를 때 포커스가 모달 뒤 화면으로 빠져나가 모달이 열려 있다는 사실을 인지하지 못한 채 다른 요소를 조작하게 됩니다."
+  optionExplanations={['애니메이션과는 무관합니다', '정답입니다', 'CSS 우선순위와는 무관합니다', '렌더링 속도와는 무관합니다']}
+/>
+
+<Quiz
+  questionNumber={3}
+  question="role=alert가 붙은 요소의 스크린 리더 동작으로 옳은 것은 무엇입니까"
+  options={['페이지 로드 시 항상 읽힌다', '내용이 채워지거나 바뀌는 순간 스크린 리더가 즉시 알린다', '마우스로 클릭해야 읽힌다', '읽지 않고 무시된다']}
+  correctAnswer={2}
+  explanation="role=alert는 암묵적으로 aria-live=assertive에 준하는 동작을 하여, 해당 영역의 내용이 채워지거나 바뀌면 스크린 리더가 사용자 조작 없이 즉시 알립니다."
+  optionExplanations={['로드 시점이 아니라 내용 변경 시점에 읽힙니다', '정답입니다', '클릭과 무관하게 자동으로 읽힙니다', '무시되지 않고 알림 대상이 됩니다']}
+/>
+
+## 참고 자료
+
+- [W3C — WCAG 2.2 Quick Reference](https://www.w3.org/WAI/WCAG22/quickref/)

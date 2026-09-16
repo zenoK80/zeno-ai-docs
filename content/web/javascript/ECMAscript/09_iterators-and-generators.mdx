@@ -1,0 +1,263 @@
+---
+title: '09. 이터레이터·제너레이터로 페이지 출력'
+description: 'TodoStore를 이터러블로 만들고, 제너레이터로 목록을 페이지 단위로 나눠 출력합니다.'
+---
+
+<Callout type="info">
+  **이번 편의 결과물:** `TodoStore`가 이터러블이 되어 `for...of`로 순회할 수 있고, `list --page N`이 제너레이터로 목록을 페이지 단위로 나눠 출력합니다. · **다루는 개념:** 이터러블 프로토콜, `Symbol.iterator`, 제너레이터(`function*`, `yield`)
+</Callout>
+
+## 이 편에서 만드는 파일
+
+```
+todo-cli/
+└── src/
+    ├── models/
+    │   └── TodoStore.js   (~)
+    └── commands/
+        └── list.js        (~)
+```
+
+05편(프로토타입·클래스)에서 `Todo`·`TodoStore` 클래스로 리팩터링하고, 06편(ESM 모듈)에서 `src/models/`, `src/commands/`로 파일을 나눴고, 08편(비동기 파일 저장)에서 `src/storage/fileStore.js`로 `data/todos.json`을 읽고 씁니다. `TodoStore`는 내부적으로 비공개 필드 `#todos` 배열을 들고 있고, `add`·`list`(필터·정렬) 메서드를 제공하는 상태입니다. 이 편에서는 그 배열을 바깥에 그대로 노출하지 않으면서도 `for...of`로 순회할 수 있게 만듭니다.
+
+## 개념 정리
+
+### 이터러블과 이터레이터
+
+이터러블(iterable)은 `Symbol.iterator`라는 이름의 메서드를 가진 객체입니다. 이 메서드를 호출하면 이터레이터(iterator)를 반환하는데, 이터레이터는 `next()`를 호출할 때마다 `{ value, done }` 모양의 객체를 돌려줍니다.
+
+| 용어 | 정체 | 확인 방법 |
+|------|------|-----------|
+| 이터러블 | `Symbol.iterator` 메서드를 가진 객체 | `typeof obj[Symbol.iterator] === 'function'` |
+| 이터레이터 | `next()` 메서드를 가진 객체 | 반환값이 `{ value, done }` |
+| 이터레이션 결과 | `next()`의 반환값 | `done`이 `true`면 순회 종료 |
+
+배열·문자열·`Map`·`Set`은 모두 기본으로 이터러블입니다. `for...of`, 스프레드(`...`), 구조 분해는 내부적으로 이 프로토콜을 사용합니다. 일반 객체(`{}`)는 기본으로 이터러블이 아니라서 `Symbol.iterator`를 직접 구현해야 `for...of`를 쓸 수 있습니다.
+
+### 제너레이터
+
+제너레이터 함수(`function*`)는 호출해도 본문이 바로 실행되지 않고 제너레이터 객체를 반환합니다. `next()`를 호출할 때마다 다음 `yield`까지 실행되고 멈춥니다.
+
+| 문법 | 의미 |
+|------|------|
+| `function* 이름() { ... }` | 제너레이터 함수 선언 |
+| `yield 값` | 값을 하나 내보내고 실행을 멈춤 |
+| `yield*` | 다른 이터러블을 통째로 위임해 순회 |
+
+제너레이터 객체는 그 자체로 이터러블입니다(자기 자신을 반환하는 `Symbol.iterator`를 가짐). 그래서 `for...of`로 바로 순회할 수 있고, 클래스의 `Symbol.iterator` 메서드를 제너레이터 메서드(`*[Symbol.iterator]() { ... }`)로 간단히 구현할 수도 있습니다.
+
+### 왜 필요한가
+
+`todo-cli`의 할 일 개수가 많아지면 한 번에 전부 화면에 뿌리기보다 페이지 단위로 나눠 보여주는 게 편합니다. 배열을 통째로 잘라 새 배열을 여러 개 만드는 대신, 제너레이터로 "필요한 페이지가 나올 때까지만" 계산하게 만들면 불필요한 계산을 줄일 수 있습니다.
+
+## 실습
+
+<Steps>
+
+### 1. src/models/TodoStore.js 열기
+
+`#todos` 배열을 바깥에 그대로 넘겨주지 않고, `TodoStore` 자체를 이터러블로 만듭니다.
+
+### 2. 코드 작성
+
+```js
+// src/models/TodoStore.js
+import { Todo } from './Todo.js';
+
+export class TodoStore {
+  #todos = [];
+  #nextId = 1;
+
+  static fromData(dataList) {
+    const store = new TodoStore();
+    for (const item of dataList) {
+      store.#todos.push(Object.assign(Object.create(Todo.prototype), item));
+    }
+    store.#nextId = store.#todos.reduce((max, todo) => Math.max(max, todo.id), 0) + 1;
+    return store;
+  }
+
+  toData() {
+    return this.#todos.map((todo) => ({ ...todo }));
+  }
+
+  add(title, options) {
+    const todo = new Todo(this.#nextId, title, options);
+    this.#todos.push(todo);
+    this.#nextId += 1;
+    return todo;
+  }
+
+  list({ filter, sort } = {}) {
+    const filterFn = TodoStore.#makeStatusFilter(filter);
+    const compareFn = TodoStore.#makeComparator(sort);
+    return this.#todos.filter(filterFn).sort(compareFn);
+  }
+
+  [Symbol.iterator]() {
+    return this.#todos[Symbol.iterator]();
+  }
+
+  static #makeStatusFilter(status) {
+    if (status === 'done') return (todo) => todo.done;
+    if (status === 'pending') return (todo) => !todo.done;
+    return () => true;
+  }
+
+  static #makeComparator(sortKey) {
+    if (sortKey === 'due') {
+      return (a, b) => {
+        if (a.due === null && b.due === null) return 0;
+        if (a.due === null) return 1;
+        if (b.due === null) return -1;
+        return a.due.localeCompare(b.due);
+      };
+    }
+    return (a, b) => a.createdAt.localeCompare(b.createdAt);
+  }
+}
+```
+
+08편의 `fromData`/`toData`/`add`/`list`는 그대로 두고 `[Symbol.iterator]()`만 추가했습니다. `#todos`가 이미 배열이라 자신의 `Symbol.iterator`를 그대로 돌려주기만 하면, `TodoStore` 인스턴스 자체를 `for (const todo of store)`로 순회할 수 있습니다. `#todos` 필드는 여전히 비공개라서 바깥에서 직접 `store.#todos`에 접근할 수는 없습니다.
+
+이제 `src/commands/list.js`에 페이지 출력 기능을 추가합니다.
+
+```js
+// src/commands/list.js
+const PAGE_SIZE = 2;
+
+export function runList(store, flags) {
+  const result = store.list(flags);
+
+  if (flags.page === undefined) {
+    printList(result);
+    return;
+  }
+
+  const pageNumber = Number(flags.page);
+  let index = 1;
+  for (const page of paginate(result, PAGE_SIZE)) {
+    if (index === pageNumber) {
+      console.log(`--- ${pageNumber}페이지 ---`);
+      printList(page);
+      return;
+    }
+    index += 1;
+  }
+  console.log(`${pageNumber}페이지는 존재하지 않습니다. 전체 ${index - 1}페이지입니다.`);
+}
+
+function* paginate(items, pageSize) {
+  for (let i = 0; i < items.length; i += pageSize) {
+    yield items.slice(i, i + pageSize);
+  }
+}
+
+function printList(list) {
+  list.forEach(({ id, title, done, tags, due }) => {
+    const mark = done ? '[x]' : '[ ]';
+    const tagText = tags.length > 0 ? tags.join(', ') : '없음';
+    const dueText = due ?? '없음';
+    console.log(`${mark} #${id} ${title} (태그: ${tagText}, 마감: ${dueText})`);
+  });
+}
+```
+
+`paginate`는 제너레이터라서 호출해도 즉시 배열 전체를 자르지 않습니다. `for...of`가 `next()`를 한 번씩 호출할 때마다 그 페이지만 계산됩니다. 원하는 페이지 번호를 찾으면 즉시 `return`으로 함수를 끝내므로, 뒤쪽 페이지는 아예 계산되지 않습니다.
+
+### 3. 실행
+
+```text
+node src/index.js list --page 1
+```
+
+```text
+node src/index.js list --page 2
+```
+
+</Steps>
+
+## 확인
+
+- `data/todos.json`에 5개 항목이 있고 `PAGE_SIZE`가 2이므로 전체 3페이지입니다.
+- `--page 1` 결과(1~2번째 항목):
+
+```text
+--- 1페이지 ---
+[x] #1 ECMAScript 03편 실습 끝내기 (태그: study, 마감: 2026-09-18)
+[ ] #2 포트폴리오 프로젝트 카드 6개 채우기 (태그: portfolio, html, 마감: 2026-09-20)
+```
+
+- `--page` 없이 `list`만 실행하면 이전과 동일하게 전체 목록이 출력됩니다.
+- `--page 10`처럼 존재하지 않는 페이지를 요청하면 "10페이지는 존재하지 않습니다. 전체 3페이지입니다."가 출력됩니다.
+
+## 직접 해보기
+
+1. `src/index.js`에서 `for (const todo of store) { console.log(todo.title); }`를 임시로 추가해 `TodoStore`가 실제로 `for...of`로 순회되는지 확인해봅니다.
+2. `paginate` 함수에 `yield*`를 사용해, 마지막 페이지 다음에 빈 배열 하나를 추가로 내보내도록 바꿔봅니다.
+
+<details>
+<summary>정답 보기</summary>
+
+```js
+function* paginate(items, pageSize) {
+  for (let i = 0; i < items.length; i += pageSize) {
+    yield items.slice(i, i + pageSize);
+  }
+  yield* [[]];
+}
+```
+
+`yield*`는 뒤에 오는 이터러블(여기서는 배열 하나를 담은 배열)을 순서대로 풀어서 `yield`합니다. `[[]]`은 빈 배열 하나만 담긴 배열이라 결과적으로 빈 배열 하나를 추가로 내보냅니다.
+
+</details>
+
+## 자주 하는 실수
+
+| 증상 | 원인 | 고치는 법 |
+|------|------|-----------|
+| `for...of`에서 `store is not iterable` 오류 | `Symbol.iterator` 메서드를 구현하지 않음 | 클래스에 `[Symbol.iterator]()` 메서드를 추가한다 |
+| `paginate(...)`를 호출했는데 아무 일도 안 일어남 | 제너레이터 호출은 실행이 아니라 제너레이터 객체 생성 | `for...of`나 `next()` 호출로 실제로 순회해야 본문이 실행된다 |
+| 페이지 번호가 항상 어긋남 | `index`를 0부터 시작해 사람이 세는 "1페이지"와 어긋남 | 반복문 시작값을 `1`로 맞추거나 비교식에서 `+1`을 보정한다 |
+
+## 확인 문제
+
+<Quiz
+  questionNumber={1}
+  question="이터러블 객체가 반드시 가져야 하는 것은?"
+  options={['toString 메서드', 'Symbol.iterator 메서드', 'length 프로퍼티', 'constructor 프로퍼티']}
+  correctAnswer={2}
+  explanation="이터러블은 Symbol.iterator라는 이름의 메서드를 가지고 있어야 하며, 이 메서드가 이터레이터를 반환합니다."
+  optionExplanations={['toString은 이터러블 여부와 무관합니다', '정답입니다', 'length가 없어도 이터러블일 수 있습니다', 'constructor는 모든 객체가 가지고 있습니다']}
+/>
+
+<Quiz
+  questionNumber={2}
+  question="제너레이터 함수 function* 을 호출했을 때 바로 일어나는 일은?"
+  options={['함수 본문이 즉시 끝까지 실행된다', '제너레이터 객체가 반환되고 본문은 아직 실행되지 않는다', '오류가 발생한다', 'yield 값이 배열로 반환된다']}
+  correctAnswer={2}
+  explanation="제너레이터 함수를 호출하면 제너레이터 객체가 반환될 뿐, next()를 호출하기 전까지 본문은 실행되지 않습니다."
+  optionExplanations={['일반 함수와 달리 즉시 실행되지 않습니다', '정답입니다', '정상적으로 동작하는 문법입니다', 'next() 호출 결과가 값을 하나씩 돌려줍니다']}
+/>
+
+<Quiz
+  questionNumber={3}
+  question="paginate 제너레이터에서 원하는 페이지를 찾자마자 return으로 함수를 끝내는 이유는?"
+  options={['문법 오류를 피하기 위해', '뒤쪽 페이지 계산을 하지 않기 위해', 'yield 개수를 맞추기 위해', 'JSON으로 변환하기 위해']}
+  correctAnswer={2}
+  explanation="제너레이터는 필요한 만큼만 값을 계산하므로, 원하는 페이지를 찾은 뒤에는 나머지 반복을 진행할 필요가 없습니다."
+  optionExplanations={['return은 문법 오류와 무관합니다', '정답입니다', 'yield 개수 제한과는 무관합니다', 'JSON 변환과는 관련 없는 코드입니다']}
+/>
+
+<Quiz
+  questionNumber={4}
+  question="TodoStore 클래스에서 [Symbol.iterator]() { return this.#todos[Symbol.iterator](); }의 역할은?"
+  options={['#todos 배열을 바깥에서 직접 수정할 수 있게 한다', 'TodoStore 인스턴스를 for...of로 순회할 수 있게 한다', 'JSON.stringify 결과를 바꾼다', '배열을 정렬한다']}
+  correctAnswer={2}
+  explanation="TodoStore 자체에 이터러블 프로토콜을 구현해, 인스턴스를 for...of로 바로 순회할 수 있게 합니다."
+  optionExplanations={['#todos는 여전히 비공개 필드로 남아있습니다', '정답입니다', 'toJSON과는 다른 메서드입니다', '정렬은 list 메서드가 담당합니다']}
+/>
+
+## 참고 자료
+
+- [MDN - Iterators and generators](https://developer.mozilla.org/en-US/docs/Web/JavaScript/Guide/Iterators_and_generators)

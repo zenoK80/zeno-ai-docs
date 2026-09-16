@@ -1,0 +1,190 @@
+---
+title: '14. 접근성과 문서 아웃라인 다듬기'
+description: '제목 레벨과 랜드마크를 점검해 스크린 리더 탐색을 정리한다'
+---
+
+<Callout type="info">
+  **이번 편의 결과물:** 세 페이지 모두 제목 레벨이 올바른 랭크 구조이고, `nav`가 두 개 이상인 페이지에는 `aria-label`이 붙는다. · **다루는 개념:** 대체 텍스트 재점검, 제목 레벨 구조, 문서 아웃라인 오해 바로잡기, 랜드마크 `aria-label`
+</Callout>
+
+## 이 편에서 만드는 파일
+
+```
+web-practice/portfolio/
+├ index.html        ~ (헤더 nav, 푸터 nav)
+├ projects.html     ~ (헤더 nav, 푸터 nav)
+└ contact.html      ~ (헤더 nav, 푸터 nav)
+```
+
+## 개념 정리
+
+### 대체 텍스트 재점검
+
+06편에서 이미지마다 `alt`를 채웠다. 이번에는 문구의 질을 다시 본다. 좋은 `alt`는 이미지가 안 보이는 상황에서 **같은 정보**를 전달한다.
+
+| 이미지 | 나쁜 예 | 좋은 예 |
+|--------|---------|---------|
+| 프로필 사진 | `alt="이미지"` | `alt="Zeno Kim의 프로필 사진"` |
+| 프로젝트 썸네일 | `alt="프로젝트1.png"` | `alt="오늘의 날씨 웹앱 화면 스크린샷"` |
+
+파일명이나 "이미지"처럼 의미 없는 문구는 스크린 리더 사용자에게 아무 정보도 주지 않는다.
+
+### 제목 레벨 구조
+
+제목은 `h1`부터 랭크 순서대로 쓴다. 규칙은 두 가지다.
+
+- 페이지마다 `h1`은 **하나**만 둔다(페이지의 주제 하나).
+- 랭크를 건너뛰지 않는다(`h2` 다음에 바로 `h4`로 가지 않는다).
+
+이 두 규칙만 지키면 스크린 리더 사용자가 제목 목록만 훑어도 페이지 구조를 파악할 수 있다.
+
+### 문서 아웃라인은 스펙에서 제거됐다
+
+한때 "`section`마다 `h1`을 새로 시작해도 문서 아웃라인 알고리즘이 알아서 랭크를 계산해 준다"는 설명이 퍼졌다. 이 알고리즘은 실제로 어떤 브라우저나 스크린 리더도 구현한 적이 없고, HTML 표준에서도 빠졌다. `h1`–`h6` 문서에서도 "여러 개의 `h1`을 쓰지 말라"고 명시한다.
+
+결론은 단순하다. **섹션 중첩과 무관하게, 눈에 보이는 랭크 숫자 자체가 곧 제목 구조**다. `section` 안이라고 `h1`을 새로 쓸 수 있다고 기대하면 안 된다.
+
+### 랜드마크와 `aria-label`
+
+`header`·`nav`·`main`·`footer` 같은 요소는 스크린 리더에서 랜드마크로 인식되어 사용자가 요소 종류만으로 건너뛸 수 있다. 문제는 **같은 종류의 랜드마크가 한 페이지에 두 개 이상**일 때다. 지금 포트폴리오는 헤더에 페이지 이동 `nav`, 푸터에 SNS 링크 `nav`가 생겨 `nav`가 둘이 된다. 이 상태로는 스크린 리더가 "내비게이션, 내비게이션"이라고만 읽어 구분이 안 된다. `aria-label`로 각 랜드마크에 이름을 붙인다.
+
+## 실습
+
+<Steps>
+
+### 1. 헤더 nav에 aria-label 추가
+
+세 페이지의 헤더 `nav`에 `aria-label`을 추가한다.
+
+```html
+<!-- ...기존 코드 유지 -->
+<header class="site-header">
+  <a class="logo" href="index.html">Zeno Kim</a>
+  <nav class="site-nav" aria-label="주 메뉴">
+    <!-- ...기존 코드 유지 -->
+  </nav>
+</header>
+```
+
+### 2. 푸터 SNS 링크를 nav로 감싸고 aria-label 추가
+
+지금까지 푸터의 SNS 링크는 `ul`만으로 되어 있었다. 랜드마크로 인식되도록 `nav`로 감싸고 헤더 nav와 구분되는 이름을 붙인다.
+
+```html
+<!-- 수정 전 -->
+<footer class="site-footer">
+  <p>&copy; 2026 Zeno Kim. 이 사이트는 학습용으로 제작되었습니다.</p>
+  <ul>
+    <li><a href="https://github.com/example">GitHub</a></li>
+    <li><a href="https://www.linkedin.com/in/example">LinkedIn</a></li>
+    <li><a href="https://blog.example.com">Blog</a></li>
+  </ul>
+</footer>
+```
+
+```html
+<!-- 수정 후 -->
+<footer class="site-footer">
+  <p>&copy; 2026 Zeno Kim. 이 사이트는 학습용으로 제작되었습니다.</p>
+  <nav aria-label="소셜 링크">
+    <ul>
+      <li><a href="https://github.com/example">GitHub</a></li>
+      <li><a href="https://www.linkedin.com/in/example">LinkedIn</a></li>
+      <li><a href="https://blog.example.com">Blog</a></li>
+    </ul>
+  </nav>
+</footer>
+```
+
+세 파일 모두 같은 방식으로 바꾼다.
+
+### 3. 제목 레벨 점검
+
+각 파일의 제목 요소만 순서대로 뽑아 랭크가 끊기지 않는지 확인한다.
+
+```text
+index.html:    h1(히어로) → h2(소개) → h2(기술 스택) → h2(경력)
+projects.html: h1(프로젝트) → h2(카드 제목) × 6
+contact.html:  h1(연락) → h2(연락처 정보)
+```
+
+`h3` 이하로 건너뛰는 곳이 없으면 통과다.
+
+### 4. 확인
+
+- 세 페이지 모두 `h1`이 정확히 하나씩만 있다
+- 브라우저 개발자 도구의 "접근성" 패널(또는 랜드마크 확장 프로그램)에서 각 페이지에 `navigation` 랜드마크가 "주 메뉴"·"소셜 링크" 두 개로 구분되어 표시된다
+- 이미지 `alt` 문구가 파일명이 아니라 내용을 설명한다
+
+</Steps>
+
+## 직접 해보기
+
+`index.html`의 "기술 스택"과 "경력" 두 `h2` 사이에 `h4`로 소제목을 하나 끼워 넣으면 어떤 문제가 생기는지 접근성 패널로 확인해 보자.
+
+<details>
+<summary>정답 보기</summary>
+
+랭크가 `h2` → `h4`로 건너뛴다. 스크린 리더 사용자가 제목 목록을 훑을 때 중간 단계가 비어 있어 구조를 오해하게 된다. 소제목이 꼭 필요하면 `h3`을 쓰고, 굳이 필요 없으면 `p`에 `strong`을 써서 시각적으로만 강조한다.
+
+</details>
+
+## 자주 하는 실수
+
+| 증상 | 원인 | 고치는 법 |
+|------|------|-----------|
+| 스크린 리더가 "내비게이션"을 여러 번 읽어 헷갈린다 | `nav`가 여러 개인데 `aria-label`이 없다 | 각 `nav`에 역할을 설명하는 `aria-label`을 붙인다 |
+| 제목 랭크가 화면 크기 때문에 뒤죽박죽이다 | 폰트 크기를 맞추려고 랭크를 건너뜀 | 시각적 크기는 나중에 CSS가 담당한다. 랭크는 의미 순서로만 정한다 |
+| `section`마다 `h1`을 다시 썼다 | 문서 아웃라인 알고리즘을 신뢰함 | 페이지 전체에서 `h1`은 하나만 남기고 나머지는 `h2` 이하로 낮춘다 |
+
+## 확인 문제
+
+<Quiz
+  questionNumber={1}
+  question="한 페이지에 nav가 두 개 있을 때 접근성을 위해 해야 할 일은?"
+  options={['nav 하나를 div로 바꾼다', '각 nav에 서로 다른 aria-label을 붙인다', 'nav를 모두 삭제하고 링크만 남긴다', 'nav 순서를 알파벳순으로 정렬한다']}
+  correctAnswer={2}
+  explanation="같은 종류의 랜드마크가 여러 개면 aria-label로 구분해야 스크린 리더 사용자가 어떤 내비게이션인지 알 수 있다."
+  optionExplanations={['랜드마크 자체를 없애는 것은 해결책이 아니다', '정답이다', '링크만 남기면 랜드마크 기능을 잃는다', '순서는 접근성과 무관하다']}
+/>
+
+<Quiz
+  questionNumber={2}
+  question="제목 레벨 구조의 올바른 규칙은?"
+  options={['section마다 h1을 새로 시작한다', '페이지당 h1 하나, 랭크를 건너뛰지 않는다', 'h1은 아예 쓰지 않는다', 'h2부터 시작해도 무방하다']}
+  correctAnswer={2}
+  explanation="페이지의 주제를 나타내는 h1은 하나만 두고, 하위 제목은 랭크를 건너뛰지 않고 순서대로 내려간다."
+  optionExplanations={['문서 아웃라인 알고리즘은 실제로 구현된 적이 없다', '정답이다', 'h1은 페이지 주제를 나타내는 최상위 제목이다', '최상위 제목은 h1으로 시작해야 한다']}
+/>
+
+<Quiz
+  questionNumber={3}
+  question="문서 아웃라인 알고리즘에 대한 설명으로 옳은 것은?"
+  options={['모든 최신 브라우저가 구현한 표준 기능이다', '어떤 브라우저·스크린 리더도 구현하지 않아 스펙에서 빠졌다', 'CSS로만 동작하는 기능이다', 'h1을 여러 번 써도 되는 근거로 여전히 유효하다']}
+  correctAnswer={2}
+  explanation="문서 아웃라인 알고리즘은 실제 구현체가 없어 표준에서 제거됐다. 화면에 보이는 랭크 숫자 자체가 곧 제목 구조다."
+  optionExplanations={['실제로는 구현된 적이 없다', '정답이다', 'CSS와는 무관한 개념이다', '더 이상 근거로 쓸 수 없다']}
+/>
+
+<Quiz
+  questionNumber={4}
+  question="alt='이미지'처럼 의미 없는 대체 텍스트의 문제는 무엇인가?"
+  options={['파일 용량이 늘어난다', '검색 엔진 순위가 떨어진다', '스크린 리더 사용자에게 이미지의 실제 내용을 전달하지 못한다', 'Nu HTML Checker에서 문법 오류로 처리된다']}
+  correctAnswer={3}
+  explanation="alt는 이미지가 안 보이는 상황에서 같은 정보를 전달해야 한다. '이미지'라는 문구는 아무 정보도 주지 않는다."
+  optionExplanations={['용량과는 무관하다', '이 편의 범위를 벗어난다', '정답이다', '문법 자체는 유효해 오류로 잡히지 않는다']}
+/>
+
+<Quiz
+  questionNumber={5}
+  question="footer의 SNS 링크를 nav로 감싼 이유는?"
+  options={['CSS 스타일링을 위해서다', '랜드마크로 인식되어 스크린 리더에서 건너뛰기 대상이 되도록 하기 위해서다', 'ul보다 검색 엔진 최적화에 유리해서다', '폼 제출 방식이 바뀌기 때문이다']}
+  correctAnswer={2}
+  explanation="nav로 감싸면 navigation 랜드마크로 인식되어 스크린 리더 사용자가 링크 목록임을 바로 알고 건너뛸 수 있다."
+  optionExplanations={['CSS는 이 편에서 다루지 않는다', '정답이다', 'SEO는 이 편의 범위가 아니다', '폼과는 무관하다']}
+/>
+
+## 참고 자료
+
+- [MDN — h1–h6 HTML section heading elements](https://developer.mozilla.org/en-US/docs/Web/HTML/Reference/Elements/Heading_Elements)
+- [MDN — HTML: A good basis for accessibility](https://developer.mozilla.org/en-US/docs/Learn_web_development/Core/Accessibility/HTML)

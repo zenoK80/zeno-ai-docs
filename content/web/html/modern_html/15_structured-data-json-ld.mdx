@@ -1,0 +1,162 @@
+---
+title: '15. JSON-LD 구조화 데이터 추가하기'
+description: 'schema.org 어휘로 JSON-LD를 작성해 검색 엔진이 페이지를 이해하게 만든다'
+---
+
+<Callout type="info">
+  **이번 편의 결과물:** `index.html`에 구조화 데이터가 삽입되고, Google 리치 결과 테스트 도구에서 유효하게 인식된다. · **다루는 개념:** `script type="application/ld+json"` 문법, schema.org `Person`/`CreativeWork` 어휘, 검색 결과 리치 스니펫과의 관계
+</Callout>
+
+## 이 편에서 만드는 파일
+
+```
+web-practice/portfolio/
+├── index.html          ~ (head에 Person JSON-LD 추가)
+└── projects.html        ~ (head에 CreativeWork 목록 JSON-LD 추가)
+```
+
+## 개념 정리
+
+JSON-LD(JSON for Linked Data)는 페이지 내용을 사람이 읽는 HTML과 별도로, 기계가 읽을 수 있는 데이터 형태로 한 번 더 적어 두는 방법이다. `<script type="application/ld+json">` 안에 순수 JSON을 쓰고, 어휘는 [schema.org](https://schema.org)가 정의한 타입(`Person`, `CreativeWork`, `Organization` 등)을 따른다. 검색 엔진은 이 데이터를 읽어 검색 결과에 별점, 프로필 사진, 목록 같은 리치 스니펫을 붙일 수 있다.
+
+| 필드 | schema.org 타입 | 이 사이트에서의 값 |
+|------|------------------|---------------------|
+| 개인 프로필 | `Person` | 이름, 직업(`jobTitle`), SNS 링크(`sameAs`) |
+| 프로젝트 하나 | `CreativeWork` | 이름, 설명, 태그(`keywords`), 링크(`url`) |
+| 프로젝트 목록 | `ItemList` | `CreativeWork` 여러 개를 순서대로 담는 목록 |
+
+JSON-LD를 넣는다고 검색 결과에 항상 리치 스니펫이 붙는 것은 아니다. 문법이 유효해야 하고, 실제로 그 타입에 맞는 정보를 담아야 하며, 검색 엔진이 최종적으로 채택 여부를 결정한다. "구조화 데이터를 넣으면 무조건 상위 노출된다"는 식으로 단정하지 않는다.
+
+## 실습
+
+<Steps>
+
+### 1. index.html에 Person JSON-LD 넣기
+
+```html
+<!-- index.html -->
+<head>
+  <!-- ...기존 meta·title·stylesheet·OG 태그 유지 -->
+  <script type="application/ld+json">
+    {
+      "@context": "https://schema.org",
+      "@type": "Person",
+      "name": "Zeno Kim",
+      "jobTitle": "프론트엔드 개발자",
+      "description": "HTML·CSS·JavaScript로 누구나 쓸 수 있는 화면을 만드는 개발자입니다.",
+      "url": "https://zenokim.example/index.html",
+      "sameAs": [
+        "https://github.com/example",
+        "https://www.linkedin.com/in/example",
+        "https://blog.example.com"
+      ]
+    }
+  </script>
+</head>
+```
+
+`sameAs`는 같은 인물임을 확인할 수 있는 다른 페이지(SNS, 블로그) 목록이다. `copy.md`의 푸터 SNS 링크와 같은 값을 쓴다.
+
+### 2. projects.html에 프로젝트 목록 JSON-LD 넣기
+
+```html
+<!-- projects.html -->
+<head>
+  <!-- ...기존 meta·title·stylesheet·OG 태그 유지 -->
+  <script type="application/ld+json">
+    {
+      "@context": "https://schema.org",
+      "@type": "ItemList",
+      "itemListElement": [
+        {
+          "@type": "CreativeWork",
+          "position": 1,
+          "name": "오늘의 날씨",
+          "description": "위치 기반 날씨를 카드로 보여주는 웹앱. 오프라인에서도 마지막 데이터를 보여줍니다.",
+          "keywords": "JavaScript, PWA",
+          "url": "https://example.com/weather"
+        },
+        {
+          "@type": "CreativeWork",
+          "position": 2,
+          "name": "독서 기록 bookshelf",
+          "description": "읽은 책과 별점을 기록하고 통계를 보는 React 앱.",
+          "keywords": "React, Vite",
+          "url": "https://example.com/bookshelf"
+        }
+      ]
+    }
+  </script>
+</head>
+```
+
+나머지 4개 프로젝트도 `copy.md`의 표를 그대로 옮겨 `position` 3–6으로 이어 붙인다.
+
+### 3. 실행
+
+```text
+npx serve web-practice/portfolio
+```
+
+### 4. 확인
+
+- 브라우저 개발자 도구 콘솔에서 `JSON.parse` 오류가 없다(JSON 문법이 깨지면 스크립트 태그는 무시되지만 콘솔에는 별도 오류가 안 뜰 수 있으므로, 아래 검증 도구로 다시 확인한다).
+- [Schema Markup Validator](https://validator.schema.org)에 페이지 소스나 URL을 넣으면 `Person`, `ItemList` 타입이 오류 없이 인식된다.
+- Google [리치 결과 테스트](https://search.google.com/test/rich-results)에서 구조화 데이터가 감지된다.
+
+</Steps>
+
+## 직접 해보기
+
+1. `jobTitle` 값에 `"`를 실수로 하나 더 넣어 JSON을 깨뜨려 보고, 검증 도구가 어떤 오류를 보여주는지 확인한다.
+2. `contact.html`에는 `ContactPage`나 `Organization` 타입 중 어떤 것이 더 어울릴지 schema.org 문서에서 찾아본다.
+
+<details>
+<summary>답 확인</summary>
+
+1. 검증 도구는 보통 몇 번째 줄, 몇 번째 글자에서 JSON 파싱이 실패했는지 정확히 알려준다. 브라우저 콘솔은 `script type="application/ld+json"`의 내용을 실행하지 않으므로 문법 오류를 자동으로 알려주지 않는다. 반드시 별도 검증 도구를 써야 한다.
+2. 개인 포트폴리오의 연락 페이지는 `ContactPage`가 더 정확하다. `Organization`은 회사·단체를 나타내는 타입이라 개인 사이트에는 맞지 않는다.
+
+</details>
+
+## 자주 하는 실수
+
+| 증상 | 원인 | 고치는 법 |
+|------|------|-----------|
+| 검증 도구가 파싱 오류를 보고한다 | JSON 안에 후행 쉼표(trailing comma)나 홑따옴표를 썼다 | 표준 JSON 문법(쉼표 없이 마지막 항목, 큰따옴표만)을 지킨다 |
+| 타입이 인식되지 않는다 | `@context`를 빠뜨렸다 | `"@context": "https://schema.org"`를 항상 첫 줄에 넣는다 |
+| 페이지 내용과 JSON-LD 값이 다르다 | 원고를 수정했는데 JSON-LD는 그대로 뒀다 | 원고를 바꿀 때마다 JSON-LD도 함께 수정한다(검색 엔진이 불일치를 스팸 신호로 볼 수 있다) |
+| 리치 스니펫이 바로 안 뜬다 | 구조화 데이터를 넣었다고 즉시 검색 결과가 바뀐다고 생각했다 | 재크롤링·재색인에는 시간이 걸리고, 채택 여부도 검색 엔진이 결정한다는 점을 이해한다 |
+
+## 확인 문제
+
+<Quiz
+  questionNumber={1}
+  question="JSON-LD를 HTML에 넣는 올바른 방법은?"
+  options={['meta 태그의 content 속성 안에 JSON 문자열을 넣는다', 'script type=application/ld+json 태그 안에 순수 JSON을 넣는다', 'HTML 주석 안에 JSON을 넣어 렌더링을 막는다', 'data-json 속성에 JSON을 통째로 넣는다']}
+  correctAnswer={2}
+  explanation="구조화 데이터는 script type=application/ld+json 태그 본문에 순수 JSON을 그대로 쓰는 것이 표준 방식이다. 검색 엔진이 이 태그를 찾아 파싱한다."
+  optionExplanations={['meta content는 이런 용도로 쓰지 않으며 파싱 규칙도 다르다.', '정답이다. application/ld+json 타입의 script 태그가 표준 방식이다.', 'HTML 주석은 검색 엔진이 구조화 데이터로 파싱하지 않는다.', 'data 속성은 임의의 커스텀 데이터용이지 구조화 데이터 표준 위치가 아니다.']}
+/>
+
+<Quiz
+  questionNumber={2}
+  question="schema.org의 Person 타입에서 sameAs 필드가 하는 역할은?"
+  options={['같은 사람이 운영하는 다른 페이지 목록을 알려준다', '페이지의 언어를 지정한다', '이미지의 대체 텍스트를 지정한다', 'CSS 스타일시트 경로를 지정한다']}
+  correctAnswer={1}
+  explanation="sameAs는 이 데이터가 설명하는 대상과 동일한 개체를 가리키는 다른 URL 목록이다. SNS나 블로그처럼 같은 인물임을 확인할 수 있는 링크를 넣는다."
+  optionExplanations={['정답이다. sameAs는 동일 개체를 가리키는 다른 URL 목록이다.', '언어 지정은 lang 속성이 담당한다.', '이미지 대체 텍스트는 img의 alt 속성이 담당한다.', 'CSS 경로는 link rel=stylesheet가 담당한다.']}
+/>
+
+<Quiz
+  questionNumber={3}
+  question="구조화 데이터에 대한 설명으로 옳지 않은 것은?"
+  options={['검색 엔진이 페이지 내용을 더 정확히 이해하도록 돕는다', '문법이 유효해야 검증 도구가 정상으로 인식한다', 'JSON-LD를 넣으면 반드시 검색 결과 상단에 노출된다', 'ItemList로 여러 항목을 순서 있는 목록으로 나타낼 수 있다']}
+  correctAnswer={3}
+  explanation="구조화 데이터는 검색 엔진이 참고하는 정보일 뿐이며, 채택 여부와 노출 순위는 검색 엔진의 다른 여러 기준에 따라 결정된다. 넣었다고 무조건 상위 노출이 보장되지 않는다."
+  optionExplanations={['구조화 데이터의 목적 그대로다.', 'JSON 문법 오류가 있으면 검증 도구가 타입을 인식하지 못한다.', '정답이다. 상위 노출을 보장하지 않는다.', 'ItemList는 순서 있는 항목 목록을 표현하는 schema.org 타입이다.']}
+/>
+
+## 참고 자료
+
+- [schema.org — Person](https://schema.org/Person)

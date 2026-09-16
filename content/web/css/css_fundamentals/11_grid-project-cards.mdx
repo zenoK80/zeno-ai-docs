@@ -1,0 +1,186 @@
+---
+title: '11. Grid로 프로젝트 카드 그리드 만들기'
+description: 'projects.html의 카드 6개를 CSS Grid로 3열 그리드에 배열한다'
+---
+
+<Callout type="info">
+  **이번 편의 결과물:** 프로젝트 페이지의 카드 6개가 데스크톱 폭에서 3열 그리드로 배열됩니다. · **다루는 개념:** grid 컨테이너, `grid-template-columns`와 `fr` 단위, `gap`
+</Callout>
+
+## 이 편에서 만드는 파일
+
+```text
+web-practice/portfolio/
+└ css/
+  └ styles.css   ~ (.project-grid 규칙 추가)
+```
+
+## 개념 정리
+
+지금까지 배운 Flexbox는 한 방향(가로 또는 세로)으로 아이템을 나열하는 1차원 레이아웃입니다. 프로젝트 카드처럼 **가로와 세로를 동시에** 맞춰야 하는 배열에는 2차원 레이아웃인 CSS Grid가 더 알맞습니다.
+
+| 속성 | 역할 |
+|------|------|
+| `display: grid` | 요소를 grid 컨테이너로 만든다. 자식(grid item)이 트랙에 배치된다 |
+| `grid-template-columns` | 열의 개수와 각 열의 너비를 정의한다 |
+| `fr` 단위 | 남는 공간을 비율로 나눠 갖는 단위. `1fr 1fr 1fr`은 셋으로 균등 분배 |
+| `gap` | 행과 열 사이 간격을 한 번에 지정한다(Flexbox의 `gap`과 같은 속성) |
+
+`grid-template-columns: repeat(3, 1fr)`은 `1fr 1fr 1fr`을 줄여 쓴 표현입니다. `repeat(반복 횟수, 트랙 크기)` 형태로, 열 개수가 늘어나도 반복 부분만 고치면 됩니다.
+
+`fr` 단위는 픽셀 같은 고정 단위와 다릅니다. 컨테이너 너비에서 `gap`을 뺀 나머지 공간을 지정한 비율대로 나눕니다. `1fr 1fr 1fr`이면 세 열이 항상 똑같이 나눠 가지므로, 화면 폭이 바뀌어도 매번 값을 다시 계산할 필요가 없습니다.
+
+**자주 하는 오해:** `display: grid`를 잊고 `grid-template-columns`만 쓰면 아무 효과가 없습니다. `grid-template-columns`는 요소가 이미 grid 컨테이너일 때만 의미가 있는 속성입니다.
+
+## 실습
+
+<Steps>
+
+### 1. 기존 마크업 확인하기
+
+`projects.html`의 카드 6개는 `.project-grid` 하나가 감싸고 있습니다. 이 편에서는 마크업을 고치지 않습니다.
+
+```html
+<!-- projects.html (수정하지 않음, 구조만 참고) -->
+<div class="project-grid">
+  <article class="project-card" data-tags="JavaScript,PWA">
+    <img src="images/project-01.svg" alt="오늘의 날씨 카드 썸네일" width="1200" height="800" />
+    <h2>오늘의 날씨</h2>
+    <p>위치 기반 날씨를 카드로 보여주는 웹앱입니다. 오프라인에서도 마지막 데이터를 보여줍니다.</p>
+  </article>
+  <!-- 카드 2~6도 같은 구조 -->
+</div>
+```
+
+지금은 `.project-grid`에 아무 스타일이 없어 카드 6개가 세로로 한 줄씩 쌓여 있습니다(블록 요소의 기본 흐름).
+
+### 2. css/styles.css에 grid 규칙 작성하기
+
+```css
+/* css/styles.css (일부) */
+.project-grid {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: var(--space-6);
+}
+```
+
+### 3. 실행
+
+`projects.html`을 브라우저로 열거나 새로고침합니다.
+
+### 4. 확인
+
+- 카드 6개가 3열 2행으로 배열됩니다.
+- 카드 사이 가로·세로 간격이 `--space-6` 만큼 일정합니다.
+- 브라우저 폭을 줄이면 열 너비는 좁아지지만 아직 열 개수(3열)는 그대로입니다. 화면 폭에 따라 열 개수를 바꾸는 작업은 14편(미디어 쿼리)에서 합니다.
+
+</Steps>
+
+<CodePlayground
+  template="vanilla"
+  activeFile="/styles.css"
+  showConsole={false}
+  label="fr 단위와 고정 px 단위의 차이를 브라우저 폭을 바꿔가며 비교합니다"
+  files={{
+    '/index.html': `<div class="fixed-grid">
+  <div class="box">1</div>
+  <div class="box">2</div>
+  <div class="box">3</div>
+</div>
+<div class="fr-grid">
+  <div class="box">1</div>
+  <div class="box">2</div>
+  <div class="box">3</div>
+</div>`,
+    '/styles.css': `.fixed-grid {
+  display: grid;
+  grid-template-columns: 200px 200px 200px;
+  gap: 8px;
+  margin-bottom: 16px;
+}
+.fr-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr 1fr;
+  gap: 8px;
+}
+.box {
+  background: #dbeafe;
+  padding: 12px;
+  text-align: center;
+}`,
+  }}
+/>
+
+미리보기 창의 폭을 좁혀 보면 `fixed-grid`는 고정 너비를 유지하려다 넘치고, `fr-grid`는 컨테이너 폭에 맞춰 세 열이 계속 균등하게 줄어듭니다.
+
+## 직접 해보기
+
+1. `grid-template-columns`를 `repeat(2, 1fr)`로 바꿔 카드가 2열로 바뀌는지 확인한 뒤 `repeat(3, 1fr)`로 되돌립니다.
+2. `grid-template-columns: repeat(3, 1fr)`을 `1fr 2fr 1fr`로 바꿔 가운데 열만 두 배 넓어지는 것을 확인합니다.
+
+<details>
+<summary>답 보기</summary>
+
+```css
+/* 확인용 임시 실습. 확인 후 repeat(3, 1fr)로 되돌린다 */
+.project-grid {
+  display: grid;
+  grid-template-columns: 1fr 2fr 1fr;
+  gap: var(--space-6);
+}
+```
+
+`1fr 2fr 1fr`은 전체 남는 공간을 1:2:1 비율로 나눕니다. 가운데 열이 양옆 열보다 두 배 넓어집니다.
+
+</details>
+
+## 자주 하는 실수
+
+| 증상 | 원인 | 고치는 법 |
+|------|------|-----------|
+| grid-template-columns를 줘도 카드가 그대로 쌓인다 | `display: grid`를 빠뜨림 | `.project-grid`에 `display: grid` 확인 |
+| 카드 사이 간격이 없다 | `gap`을 지정하지 않음 | `.project-grid`에 `gap: var(--space-6)` 추가 |
+| 화면이 좁을 때 카드가 너무 찌그러진다 | 고정 px 단위로 열을 지정함 | `fr` 단위로 바꿔 비율 기반으로 분배 |
+
+## 확인 문제
+
+<Quiz
+  questionNumber={1}
+  question="grid-template-columns: repeat(3, 1fr)의 의미로 옳은 것은"
+  options={['3열을 만들고 각 열에 1픽셀씩 배정한다', '3열을 만들고 남는 공간을 세 열이 균등하게 나눠 갖는다', '최대 3개의 아이템만 표시한다', '3초마다 열 개수를 반복해서 바꾼다']}
+  correctAnswer={2}
+  explanation="fr은 픽셀이 아니라 비율 단위입니다. repeat(3, 1fr)은 1fr짜리 트랙 3개를 만들어 남는 공간을 균등하게 나눕니다."
+  optionExplanations={['fr은 픽셀 단위가 아닙니다.', '정답입니다.', 'repeat의 숫자는 아이템 개수 제한이 아니라 트랙 개수입니다.', 'repeat와 시간 개념은 무관합니다.']}
+/>
+
+<Quiz
+  questionNumber={2}
+  question="grid-template-columns만 지정하고 display: grid를 빠뜨리면 생기는 일은"
+  options={['그리드가 정상적으로 3열로 배열된다', '아무 효과가 없다. grid-template-columns는 grid 컨테이너에서만 의미가 있다', 'Flexbox로 자동 전환된다', '브라우저가 오류를 표시하며 페이지 렌더링을 멈춘다']}
+  correctAnswer={2}
+  explanation="grid-template-columns는 display: grid로 grid 컨테이너가 된 요소에만 적용됩니다. 빠뜨리면 아무 효과가 없습니다."
+  optionExplanations={['display: grid 없이는 열이 만들어지지 않습니다.', '정답입니다.', 'Flexbox로 자동 전환되지 않습니다.', '렌더링이 멈추는 오류는 아닙니다.']}
+/>
+
+<Quiz
+  questionNumber={3}
+  question="fr 단위와 px 단위의 근본적인 차이는"
+  options={['fr은 색상 값이고 px는 크기 값이다', 'fr은 남는 공간을 비율로 나누고 px는 고정된 절대 크기다', 'fr은 세로 방향에서만 쓸 수 있다', '둘은 완전히 같은 단위다']}
+  correctAnswer={2}
+  explanation="fr은 컨테이너의 남는 공간을 비율로 분배하는 유연한 단위이고, px는 화면 크기와 무관하게 고정되는 절대 단위입니다."
+  optionExplanations={['fr은 색상과 무관한 크기 단위입니다.', '정답입니다.', 'fr은 가로·세로 트랙 모두에 쓸 수 있습니다.', '두 단위는 서로 다른 방식으로 크기를 계산합니다.']}
+/>
+
+<Quiz
+  questionNumber={4}
+  question="Flexbox 대신 CSS Grid를 카드 배열에 선택한 이유로 가장 알맞은 것은"
+  options={['Grid가 더 최신 기술이라 항상 우선해야 하기 때문', '카드 배열이 가로·세로를 동시에 맞춰야 하는 2차원 배치이기 때문', 'Flexbox는 gap 속성을 지원하지 않기 때문', 'Grid만 반응형을 지원하기 때문']}
+  correctAnswer={2}
+  explanation="Flexbox는 1차원(한 방향) 정렬에 알맞고, 카드처럼 행과 열을 동시에 맞춰야 하는 배치에는 2차원 레이아웃인 Grid가 더 적합합니다."
+  optionExplanations={['최신 여부가 선택 기준은 아닙니다.', '정답입니다.', 'Flexbox도 gap을 지원합니다.', '반응형은 Grid와 Flexbox 모두 미디어 쿼리와 함께 구현할 수 있습니다.']}
+/>
+
+## 참고 자료
+
+- [MDN — Basic concepts of grid layout](https://developer.mozilla.org/en-US/docs/Web/CSS/Guides/Grid_layout/Basic_concepts)

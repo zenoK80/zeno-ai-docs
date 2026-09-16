@@ -1,0 +1,227 @@
+---
+title: '12. IntersectionObserver로 무한 스크롤'
+description: '스크롤을 내리면 IndexedDB에 저장된 메모를 20개씩 추가로 불러와 목록에 이어붙입니다.'
+---
+
+<Callout type="info">
+  **이번 편의 결과물:** 메모 목록을 스크롤로 끝까지 내리면 화면 아래 감시 요소가 보이는 순간 다음 20개가 자동으로 이어붙습니다. · **다루는 개념:** `IntersectionObserver` 생성·`observe`, 감시 대상(sentinel) 패턴, 페이지 단위 추가 로드
+</Callout>
+
+## 이 편에서 만드는 파일
+
+```
+notes-app/
+└── src/
+    ├── storage.js   (~)
+    ├── render.js    (~)
+    └── main.js      (~)
+```
+
+## 개념 정리
+
+### 기존 스크롤 이벤트 방식의 문제
+
+무한 스크롤을 `scroll` 이벤트로 구현하면 스크롤할 때마다 `getBoundingClientRect()` 같은 레이아웃 계산을 반복 실행해야 해서 메인 스레드에 부담을 줍니다. `IntersectionObserver`는 브라우저가 렌더링 파이프라인 안에서 교차 여부를 비동기로 계산해 알려주므로, 스크롤마다 직접 위치를 재는 코드가 필요 없습니다.
+
+| 구성 요소 | 역할 |
+|-----------|------|
+| `new IntersectionObserver(callback, options)` | 관찰자를 만든다. `callback`은 교차 상태가 바뀔 때 호출된다 |
+| `observer.observe(element)` | 관찰 대상을 등록한다 |
+| `entry.isIntersecting` | 콜백 인자로 받는 관찰 결과 중, 화면(또는 지정한 루트)과 겹치는지 여부 |
+| `observer.unobserve(element)` | 특정 대상 감시를 멈춘다 |
+
+### 감시 대상(sentinel) 패턴
+
+목록 맨 아래에 눈에 보이지 않는 빈 `<div>`(sentinel)를 두고, 이 요소가 화면에 나타나는 순간을 "사용자가 목록 끝까지 스크롤했다"는 신호로 씁니다. sentinel 자체는 스타일도 내용도 없고, 오직 관찰 대상 역할만 합니다.
+
+## 실습
+
+<Steps>
+
+### 1. src/storage.js에 페이지 단위 조회 추가
+
+11편에서 만든 `getAllNotes`는 전체를 한 번에 가져오므로, 커서(cursor)로 정해진 개수만 순서대로 읽는 함수를 추가합니다.
+
+### 2. 코드 작성
+
+```js
+// src/storage.js (기존 openDatabase, getAllNotes, putNote, deleteNote, migrateFromLocalStorage 유지)
+export async function getNotesPage(offset, limit) {
+  const db = await openDatabase()
+  return new Promise((resolve, reject) => {
+    const tx = db.transaction(STORE_NAME, 'readonly')
+    const store = tx.objectStore(STORE_NAME)
+    const results = []
+    let skipped = 0
+
+    const request = store.openCursor()
+    request.onsuccess = (event) => {
+      const cursor = event.target.result
+      if (!cursor || results.length >= limit) {
+        resolve(results)
+        return
+      }
+      if (skipped < offset) {
+        skipped += 1
+        cursor.continue()
+        return
+      }
+      results.push(cursor.value)
+      cursor.continue()
+    }
+    request.onerror = () => reject(request.error)
+  })
+}
+```
+
+`openCursor()`는 레코드를 하나씩 순회할 수 있는 커서를 반환합니다. `offset`만큼 건너뛴 뒤 `limit`개를 채우면 `cursor.continue()`를 더 호출하지 않고 즉시 `resolve`합니다.
+
+### 3. src/render.js에 이어붙이기 렌더 함수 추가
+
+```js
+// src/render.js (renderList, renderDetail은 그대로 유지)
+export function appendNotes(notes, container) {
+  notes.forEach((note) => {
+    const item = document.createElement('li')
+    item.dataset.id = note.id
+    item.innerHTML = `
+      <a href="/notes/${note.id}" data-link>${note.title}</a>
+      <button type="button" data-action="delete">삭제</button>
+    `
+    container.appendChild(item)
+  })
+}
+```
+
+### 4. src/main.js에 무한 스크롤 로직 추가
+
+```js
+// src/main.js (목록 화면 부분)
+import { getNotesPage } from './storage.js'
+import { appendNotes } from './render.js'
+
+const PAGE_SIZE = 20
+let currentOffset = 0
+let isLoading = false
+let hasMore = true
+
+const listElement = document.querySelector('#note-list')
+const sentinel = document.querySelector('#scroll-sentinel')
+
+async function loadNextPage() {
+  if (isLoading || !hasMore) return
+  isLoading = true
+
+  const notes = await getNotesPage(currentOffset, PAGE_SIZE)
+  appendNotes(notes, listElement)
+  currentOffset += notes.length
+  hasMore = notes.length === PAGE_SIZE
+  isLoading = false
+}
+
+const observer = new IntersectionObserver((entries) => {
+  const [entry] = entries
+  if (entry.isIntersecting) {
+    loadNextPage()
+  }
+})
+
+observer.observe(sentinel)
+loadNextPage()
+```
+
+`isLoading` 플래그는 응답이 오기 전에 sentinel이 다시 감지돼 같은 페이지를 중복 요청하는 것을 막습니다. `hasMore`는 받은 개수가 `PAGE_SIZE`보다 적으면 더 가져올 데이터가 없다고 판단해 이후 요청을 멈춥니다.
+
+### 5. index.html에 sentinel 요소 추가
+
+10편에서 만든 `#note-list`는 그대로 두고, 그 바로 아래에 sentinel 요소만 추가합니다.
+
+```html
+<!-- index.html의 #note-list 아래에 추가 -->
+<div id="scroll-sentinel" style="height: 1px;"></div>
+```
+
+### 6. 실행
+
+```text
+npm run dev
+```
+
+</Steps>
+
+## 확인
+
+- 메모가 20개 이상 저장된 상태에서 목록 화면을 열면 처음에는 20개만 보입니다.
+- 스크롤을 아래로 내려 `#scroll-sentinel`이 화면에 들어오는 순간 다음 20개가 이어붙습니다.
+- 저장된 메모를 모두 불러온 뒤에는 더 스크롤해도 추가 요청이 발생하지 않습니다(개발자 도구 콘솔에 `loadNextPage` 호출 로그를 임시로 찍어 확인 가능).
+- 스크롤을 아주 빠르게 여러 번 내려도 같은 페이지가 중복으로 붙지 않습니다.
+
+## 직접 해보기
+
+1. `IntersectionObserver` 옵션에 `rootMargin: '200px'`를 추가해, sentinel이 화면에 완전히 들어오기 전(스크롤 200px 남았을 때)부터 미리 로드되도록 만들어봅니다.
+2. 목록이 비어 있을 때(`currentOffset === 0`이고 첫 페이지 결과도 없을 때) "저장된 메모가 없습니다" 안내 문구를 보여줘봅니다.
+
+<details>
+<summary>정답 보기</summary>
+
+```js
+const observer = new IntersectionObserver(
+  (entries) => {
+    if (entries[0].isIntersecting) loadNextPage()
+  },
+  { rootMargin: '200px' }
+)
+```
+
+</details>
+
+## 자주 하는 실수
+
+| 증상 | 원인 | 고치는 법 |
+|------|------|-----------|
+| 스크롤 시 같은 메모가 두 번 붙음 | `isLoading` 체크 없이 sentinel 감지마다 `loadNextPage`를 바로 실행 | 요청이 끝나기 전까지 `isLoading`을 `true`로 유지해 중복 호출을 막는다 |
+| 메모가 20개 미만인데도 계속 요청이 발생 | `hasMore`를 갱신하지 않음 | 받은 개수가 `PAGE_SIZE`보다 적으면 `hasMore = false`로 바꿔 관찰을 사실상 멈춘다 |
+| sentinel이 항상 화면에 보여 요청이 한 번에 몰림 | sentinel을 목록 바깥(항상 보이는 위치)에 둠 | sentinel은 반드시 목록 맨 아래, 스크롤해야 보이는 위치에 둔다 |
+
+## 확인 문제
+
+<Quiz
+  questionNumber={1}
+  question="IntersectionObserver를 무한 스크롤에 쓰는 이유로 가장 적절한 것은?"
+  options={['서버 요청 횟수를 늘리기 위해', '스크롤마다 직접 위치를 계산하지 않고 교차 여부를 비동기로 통지받기 위해', 'CSS 애니메이션을 자동 적용하기 위해', 'localStorage 용량을 늘리기 위해']}
+  correctAnswer={2}
+  explanation="IntersectionObserver는 브라우저가 렌더링 과정에서 교차 계산을 대신 해주므로, scroll 이벤트마다 getBoundingClientRect를 호출하는 방식보다 메인 스레드 부담이 적습니다."
+  optionExplanations={['요청 횟수 자체를 늘리는 목적이 아닙니다', '정답입니다', 'CSS 애니메이션과는 무관합니다', '저장 용량과는 무관합니다']}
+/>
+
+<Quiz
+  questionNumber={2}
+  question="sentinel 패턴에서 sentinel 요소의 역할은?"
+  options={['메모 내용을 표시하는 실제 콘텐츠', '화면에 나타나는 순간을 관찰해 다음 페이지 로드 시점을 알리는 감시 대상', '삭제 버튼을 감싸는 컨테이너', 'CSS 애니메이션의 트리거 클래스']}
+  correctAnswer={2}
+  explanation="sentinel은 내용이 없는 감시 전용 요소로, 이 요소가 화면에 들어오는 순간을 다음 데이터 로드 신호로 사용합니다."
+  optionExplanations={['콘텐츠 표시 용도가 아닙니다', '정답입니다', '삭제 버튼과는 무관합니다', 'CSS 클래스 트리거가 아니라 관찰 대상입니다']}
+/>
+
+<Quiz
+  questionNumber={3}
+  question="loadNextPage 함수에서 isLoading 플래그를 두는 목적은?"
+  options={['첫 페이지 로딩 속도를 높이기 위해', '응답이 오기 전에 같은 페이지를 중복 요청하는 것을 막기 위해', 'IndexedDB 트랜잭션을 강제로 종료하기 위해', '메모 정렬 순서를 바꾸기 위해']}
+  correctAnswer={2}
+  explanation="isLoading이 true인 동안 loadNextPage를 다시 호출해도 즉시 반환되도록 해, 응답 지연 중 sentinel이 여러 번 감지돼도 중복 로드를 막습니다."
+  optionExplanations={['속도 향상이 목적이 아닙니다', '정답입니다', '트랜잭션 종료와는 무관합니다', '정렬 순서와는 무관합니다']}
+/>
+
+<Quiz
+  questionNumber={4}
+  question="getNotesPage에서 openCursor 대신 getAll을 쓰지 않는 이유로 가장 타당한 것은?"
+  options={['getAll은 IndexedDB에 존재하지 않는 메서드라서', 'getAll은 스토어 전체를 한 번에 가져와 페이지 단위로 끊어 읽기에 비효율적이라서', 'openCursor만 비동기로 동작해서', 'getAll은 트랜잭션이 필요 없어서']}
+  correctAnswer={2}
+  explanation="getAll은 스토어의 모든 레코드를 한 번에 반환하므로, 정해진 개수만 순서대로 읽어야 하는 페이지네이션에는 커서로 하나씩 건너뛰며 읽는 방식이 더 적합합니다."
+  optionExplanations={['getAll도 실제 존재하는 메서드입니다', '정답입니다', 'getAll도 비동기로 동작합니다', 'getAll도 트랜잭션 안에서 호출해야 합니다']}
+/>
+
+## 참고 자료
+
+- [MDN - IntersectionObserver](https://developer.mozilla.org/en-US/docs/Web/API/IntersectionObserver)
+- [MDN - IDBCursor](https://developer.mozilla.org/en-US/docs/Web/API/IDBCursor)

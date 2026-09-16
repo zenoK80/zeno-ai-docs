@@ -1,0 +1,196 @@
+---
+title: '05. 타이포그래피 시스템 적용'
+description: '포트폴리오 3페이지의 글자를 시안의 폰트·크기·줄간격 스케일로 통일합니다.'
+---
+
+<Callout type="info">
+  **이번 편의 결과물:** `index.html`·`projects.html`·`contact.html`의 모든 텍스트가 시안의 폰트·크기·줄간격 스케일로 바뀝니다. **다루는 개념:** `font-family`/`font-size`/`line-height` 스케일, 제목(h1~h3) 스타일, 텍스트 정렬과 여백
+</Callout>
+
+## 이 편에서 만드는 파일
+
+```
+web-practice/portfolio/
+└── css/
+    └── styles.css   ~ (타이포그래피 규칙 추가)
+```
+
+`css/tokens.css`는 04편에서 이미 `--font-sans`·`--text-*`·`--leading` 변수가 정의된 상태입니다. 이 편은 그 변수를 `styles.css`에서 실제 요소에 연결합니다.
+
+## 개념 정리
+
+`font-family`는 글꼴 우선순위 목록입니다. 첫 글꼴이 시스템에 없으면 다음 글꼴로 넘어갑니다. `font-size`는 글자 크기, `line-height`는 줄 사이 간격을 배수(unitless)로 지정할 때 자식 요소까지 비율로 상속되어 예측하기 쉽습니다.
+
+| 속성 | 역할 | 이 사이트에서 쓰는 값 |
+|------|------|----------------------|
+| `font-family` | 글꼴 우선순위 | `var(--font-sans)` |
+| `font-size` | 글자 크기 | `var(--text-base)` – `var(--text-3xl)` |
+| `line-height` | 줄 간격(배수) | `var(--leading)` (본문), 제목은 `1.2` |
+| `font-weight` | 굵기 | 본문 `400`, 제목·로고 `700` |
+| `text-align` | 정렬 | 기본 `left`, 버튼·배지만 `center` |
+
+제목 스케일은 시안대로 `h1` = `--text-3xl`, `h2` = `--text-2xl`, `h3` = `--text-lg`을 씁니다. 흔한 오해는 `line-height`에 `px` 단위를 고정하는 것입니다. 배수(예: `1.6`)를 쓰면 `font-size`가 바뀌어도 줄 간격 비율이 유지되지만, `px`로 고정하면 글자 크기를 조정할 때마다 값을 다시 계산해야 합니다.
+
+## 실습
+
+<Steps>
+
+### 1. styles.css 열기
+
+`web-practice/portfolio/css/styles.css`를 엽니다. 리셋(03편)과 `@import` 또는 `<link>`로 연결된 `tokens.css`(04편) 아래에 이어서 작성합니다.
+
+### 2. 기본 타이포그래피 규칙 작성
+
+```css
+/* web-practice/portfolio/css/styles.css */
+/* ...03편 리셋 유지... */
+
+body {
+  font-family: var(--font-sans);
+  font-size: var(--text-base);
+  line-height: var(--leading);
+  color: var(--color-text);
+}
+
+h1,
+h2,
+h3 {
+  font-weight: 700;
+  line-height: 1.2;
+  color: var(--color-text);
+}
+
+h1 {
+  font-size: var(--text-3xl);
+}
+
+h2 {
+  font-size: var(--text-2xl);
+  margin-bottom: var(--space-4);
+}
+
+h3 {
+  font-size: var(--text-lg);
+}
+
+p {
+  margin-bottom: var(--space-4);
+}
+
+.logo {
+  font-size: var(--text-lg);
+  font-weight: 700;
+}
+```
+
+### 3. 히어로 제목만 더 크게 조정
+
+시안은 히어로 제목(`.hero h1`)만 본문 제목보다 크게 잡습니다. 모바일에서는 한 단계 낮춥니다.
+
+```css
+.hero h1 {
+  font-size: var(--text-3xl);
+}
+
+.hero p {
+  font-size: var(--text-lg);
+  color: var(--color-text-muted);
+}
+
+@media (max-width: 767px) {
+  .hero h1 {
+    font-size: var(--text-2xl);
+  }
+}
+```
+
+### 4. 다른 페이지 요소에도 스케일 연결
+
+프로젝트 카드 제목과 폼 도움말 문구도 시안의 스케일을 따라야 합니다.
+
+```css
+.project-card h2 {
+  font-size: var(--text-lg);
+}
+
+.contact-form label {
+  font-weight: 700;
+}
+
+.contact-form .help {
+  font-size: var(--text-sm);
+  color: var(--color-text-muted);
+}
+```
+
+카드 제목은 `<h2>`입니다(카드마다 제목 하나뿐이므로 `h3`가 아니라 `h2`를 씁니다). `.project-card h2`는 앞서 정의한 전역 `h2`(`--text-2xl`)보다 작은 값으로 카드 안에서만 덮어씁니다. 도움말 문구는 `modern_html`이 `<p id="email-help" class="help">` 형태로 이미 넣어 둔 요소이므로 `.contact-form .help`로 고릅니다.
+
+### 5. 실행
+
+파일을 저장하고 `index.html`을 브라우저로 엽니다(VS Code Live Server 또는 파일 더블클릭).
+
+### 6. 확인
+
+- 로고 "Zeno Kim"이 `--text-lg` 크기에 굵게 보입니다.
+- 히어로 제목 `웹을 만드는 개발자, Zeno Kim입니다.`가 페이지에서 가장 큰 글자로 보입니다.
+- `projects.html`·`contact.html`의 페이지 제목(`<h1>프로젝트</h1>`, `<h1>연락</h1>`)이 전역 `h1` 크기(`--text-3xl`)로 크게 보입니다.
+- 브라우저 폭을 767px 이하로 줄이면 히어로 제목이 한 단계 작아집니다.
+- 개발자 도구 Elements 패널에서 `body`를 선택해 Computed 탭에 `font-family`가 `var(--font-sans)` 값(Pretendard 등)으로 계산됐는지 확인합니다.
+- `projects.html`의 카드 제목이 `--text-lg` 크기로 보이고, `contact.html`의 폼 도움말 문구(`답장을 받을 주소를 적어 주세요.` 등)가 본문보다 한 단계 작게 보입니다.
+
+</Steps>
+
+## 직접 해보기
+
+1. `.about p`(소개 3문단)에만 `line-height: 1.8`을 추가해 본문보다 조금 더 여유 있는 줄 간격을 줘 보세요. 시안에는 없는 변형이지만 값이 상속되는 범위를 체감하는 연습입니다.
+2. `.career`(경력 표) 안의 `th`에 `font-weight: 700`이 이미 상속되는지, 아니면 브라우저 기본값 때문에 따로 지정해야 하는지 개발자 도구로 확인해 보세요.
+
+<details>
+<summary>정답 확인</summary>
+
+1. `.about p { line-height: 1.8; }`를 `styles.css`에 추가하면 `.about` 안의 `p`에만 적용되고 다른 문단에는 영향이 없습니다. 클래스 선택자가 `body`보다 명시도가 높기 때문입니다.
+2. 대부분의 브라우저는 `th`에 `font-weight: bold`를 기본 스타일로 이미 적용합니다. 하지만 03편에서 모던 리셋을 적용했다면 이 기본값도 제거됐을 수 있으므로, `.career th { font-weight: 700; }`을 명시하는 편이 안전합니다.
+
+</details>
+
+## 자주 하는 실수
+
+| 증상 | 원인 | 고치는 법 |
+|------|------|-----------|
+| 폰트가 시안과 다르게 보인다 | `var(--font-sans)`의 첫 글꼴(Pretendard)이 시스템에 설치돼 있지 않다 | 웹폰트를 `<link>`로 불러오거나, 폴백 글꼴(`system-ui`)로도 큰 차이가 없는지 확인 |
+| 제목 크기가 페이지마다 다르다 | 페이지별로 `h1`·`h2` 순서를 다르게 써서 의미와 크기가 어긋났다 | 크기는 클래스로, 의미(제목 수준)는 태그로 분리해서 지정 |
+| 줄 간격이 페이지 아래로 갈수록 좁아 보인다 | 자식 요소에 `line-height`를 `px`로 덮어써서 상속이 끊겼다 | 배수 값(`1.6`)만 쓰고 `px` 고정을 피한다 |
+| 모바일에서 제목이 줄어들지 않는다 | 미디어 쿼리가 `styles.css`에서 다른 규칙보다 앞에 있어 캐스케이드에서 밀렸다 | 미디어 쿼리는 기본 규칙 **다음**에 두거나 명시도를 확인 |
+
+## 확인 문제
+
+<Quiz
+  questionNumber={1}
+  question="line-height에 배수(예: 1.6)를 쓰는 것이 px 고정값보다 유리한 이유는?"
+  options={['브라우저 호환성이 더 좋아서', 'font-size가 바뀌어도 비율이 유지되어서', '파일 용량이 줄어서', 'CSS 우선순위가 더 높아져서']}
+  correctAnswer={2}
+  explanation="배수 line-height는 font-size에 비례해 계산되므로 글자 크기를 바꿔도 줄 간격 비율이 그대로 유지됩니다."
+  optionExplanations={['호환성과는 무관합니다', '정답입니다', '파일 용량과는 무관합니다', '명시도와는 무관한 값 형식의 문제입니다']}
+/>
+
+<Quiz
+  questionNumber={2}
+  question="이 포트폴리오에서 h1의 font-size로 지정하는 토큰은?"
+  options={['var(--text-base)', 'var(--text-lg)', 'var(--text-2xl)', 'var(--text-3xl)']}
+  correctAnswer={4}
+  explanation="시안은 히어로 제목(h1)에 --text-3xl(48px)을 지정합니다."
+  optionExplanations={['본문 글자 크기입니다', '로고 크기입니다', 'h2 크기입니다', '정답입니다']}
+/>
+
+<Quiz
+  questionNumber={3}
+  question="모바일 폭(767px 이하)에서 히어로 제목 크기를 낮추는 방법으로 옳은 것은?"
+  options={['h1의 font-family를 바꾼다', '미디어 쿼리 안에서 .hero h1의 font-size를 재정의한다', 'body의 line-height를 낮춘다', 'tokens.css의 --text-3xl 값 자체를 삭제한다']}
+  correctAnswer={2}
+  explanation="화면 폭 조건에서만 특정 선택자의 값을 재정의하는 것이 미디어 쿼리의 기본 쓰임입니다."
+  optionExplanations={['글꼴과 크기는 별개입니다', '정답입니다', '줄 간격은 크기와 다른 속성입니다', '토큰을 지우면 다른 곳에서도 --text-3xl을 쓸 수 없게 됩니다']}
+/>
+
+## 참고 자료
+
+- [MDN — Fundamental text and font styling](https://developer.mozilla.org/en-US/docs/Learn_web_development/Core/Text_styling/Fundamentals)

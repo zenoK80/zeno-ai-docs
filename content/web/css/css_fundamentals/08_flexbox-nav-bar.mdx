@@ -1,0 +1,164 @@
+---
+title: '08. Flexbox로 내비게이션 정렬하기'
+description: '헤더 안 내비게이션 메뉴 항목을 Flexbox로 데스크톱 폭에서 가로 정렬합니다.'
+---
+
+<Callout type="info">
+  **이번 편의 결과물:** 내비게이션 메뉴 항목이 데스크톱 폭에서 가로로 정렬됩니다. **다루는 개념:** flex container/item, `justify-content`/`align-items`, `gap`
+</Callout>
+
+## 이 편에서 만드는 파일
+
+```
+web-practice/portfolio/
+└── css/
+    └── styles.css   ~ (.site-nav Flexbox 규칙 추가)
+```
+
+## 개념 정리
+
+Flexbox는 `display: flex`를 지정한 요소(flex container)의 자식들(flex item)을 한 방향(메인 축)으로 배치하는 1차원 레이아웃입니다. `.site-nav`는 `<nav>` 안에 `<a>` 3개(소개·프로젝트·연락)를 직접 담고 있으며, 기본 상태에서는 `<a>`가 인라인 요소라 옆으로 붙어 보이긴 하지만 줄바꿈 없이 정렬되지는 않습니다.
+
+| 속성 | 적용 대상 | 역할 |
+|------|-----------|------|
+| `display: flex` | container(`.site-nav`) | 자식을 flex item으로 전환, 기본 방향은 가로(`row`) |
+| `justify-content` | container | 메인 축(가로) 정렬. `flex-start`/`center`/`space-between` 등 |
+| `align-items` | container | 크로스 축(세로) 정렬. 내비 항목 높이를 맞출 때 사용 |
+| `gap` | container | item 사이 간격. `margin`보다 간단하고 마진 상쇄가 없다 |
+
+흔한 오해는 `justify-content`를 item에 지정하는 것입니다. 정렬 속성은 항상 **container**(부모)에 지정합니다. item에는 `flex-grow`·`flex-shrink`·`align-self`처럼 자기 자신의 크기·정렬을 조정하는 속성만 씁니다.
+
+## 실습
+
+<Steps>
+
+### 1. 마크업 확인
+
+`index.html`(다른 두 페이지도 동일)의 헤더 구조는 다음과 같습니다(마크업은 수정하지 않고 확인만 합니다).
+
+```html
+<!-- web-practice/portfolio/index.html (헤더 부분 발췌, 수정하지 않음) -->
+<header class="site-header">
+  <a class="logo" href="index.html">Zeno Kim</a>
+  <nav class="site-nav">
+    <a href="index.html" aria-current="page">소개</a>
+    <a href="projects.html">프로젝트</a>
+    <a href="contact.html">연락</a>
+  </nav>
+</header>
+```
+
+`<nav class="site-nav">` 안에는 `<ul>`·`<li>` 없이 `<a>` 3개가 바로 들어 있습니다. flex container로 만들 대상은 이 `<a>`들의 직계 부모인 `.site-nav` 자체입니다.
+
+### 2. styles.css 열기
+
+07편 여백 규칙 아래에 이어서 작성합니다.
+
+### 3. .site-nav를 flex container로 전환
+
+```css
+/* web-practice/portfolio/css/styles.css */
+/* ...03~07편 리셋·타이포그래피·색·여백 유지... */
+
+.site-nav {
+  display: flex;
+  gap: var(--space-6);
+}
+
+.site-nav a {
+  color: var(--color-text);
+  font-weight: 500;
+  text-decoration: none;
+}
+
+.site-nav a[aria-current='page'] {
+  color: var(--color-primary);
+  font-weight: 700;
+}
+```
+
+`.site-nav`의 자식이 `<a>`뿐이므로 flex container도 `.site-nav` 자체에 지정합니다(`<ul>`이 없으니 `list-style` 제거는 필요 없습니다). `aria-current="page"`는 마크업에 이미 있는 접근성 속성으로, 현재 페이지 링크를 시각적으로도 구분하는 데 그대로 활용합니다.
+
+### 4. 헤더 전체를 가로 배치로 정리
+
+`.site-header` 자체도 로고와 내비를 양 끝으로 배치해야 합니다.
+
+```css
+.site-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 0 var(--space-6);
+  height: var(--header-height);
+}
+```
+
+`justify-content: space-between`은 첫 item(로고)과 마지막 item(내비)을 양 끝에 붙이고 그 사이 공간을 균등하게 벌립니다. `align-items: center`는 로고와 내비 항목의 세로 중앙을 맞춥니다.
+
+### 5. 실행
+
+파일을 저장하고 세 페이지를 모두 브라우저로 새로고침합니다.
+
+### 6. 확인
+
+- 로고 "Zeno Kim"이 왼쪽, 내비 메뉴 3개(소개·프로젝트·연락)가 오른쪽에 가로로 나란히 보입니다.
+- 메뉴 항목 사이 간격이 `--space-6`(1.5rem)만큼 일정합니다.
+- 현재 열려 있는 페이지의 메뉴 링크만 파란색(`--color-primary`)과 굵은 글씨로 구분됩니다.
+- 개발자 도구에서 `.site-nav`를 선택하면 Layout 탭(Chrome 기준)에 파란 flex 배지가 표시되고, 자식 `<a>` 3개에 노란 flex item 표시가 뜹니다.
+
+</Steps>
+
+## 직접 해보기
+
+1. `.site-nav`의 `gap`을 `var(--space-2)`로 줄여 메뉴 항목이 얼마나 촘촘해지는지 비교해 보세요.
+2. `.site-header`의 `justify-content`를 `space-between`에서 `flex-end`로 바꿔, 로고와 내비가 모두 오른쪽으로 몰리는 모습을 확인해 보세요. 확인 후 `space-between`으로 되돌립니다.
+
+<details>
+<summary>정답 확인</summary>
+
+1. `gap: var(--space-2)`(0.5rem)로 바꾸면 메뉴 항목 사이가 좁아져 세 링크가 서로 가까이 붙습니다. 시안 값인 `--space-6`과 비교하면 답답해 보이므로 원래 값이 왜 선택됐는지 감이 옵니다.
+2. `flex-end`는 모든 item을 메인 축 끝(오른쪽)으로 모읍니다. 로고까지 오른쪽으로 밀려 헤더 왼쪽이 비어 보이므로, 로고와 내비를 양 끝에 고정하려면 `space-between`이 맞는 선택입니다.
+
+</details>
+
+## 자주 하는 실수
+
+| 증상 | 원인 | 고치는 법 |
+|------|------|-----------|
+| 메뉴가 옆으로 안 붙는다 | `display: flex`를 `.site-nav`가 아니라 다른 요소에 줬다 | flex container를 `<a>` 3개의 직계 부모인 `.site-nav`에 지정 |
+| justify-content가 안 먹는다 | container가 아니라 item(`a`)에 지정했다 | 정렬 속성은 항상 부모(container)에 지정 |
+| 메뉴 항목 사이 간격이 짝이 안 맞는다 | `gap` 대신 `margin-right`를 각 항목에 줘서 마지막 항목에도 여백이 남았다 | `gap`을 쓰면 item 사이에만 간격이 생겨 마지막 항목 뒤에는 여백이 남지 않는다 |
+| 헤더 높이가 시안보다 낮다 | `--header-height`를 `padding`에만 의존해 계산했다 | `height: var(--header-height)`를 직접 지정하고 `align-items: center`로 내용만 세로 중앙 정렬 |
+
+## 확인 문제
+
+<Quiz
+  questionNumber={1}
+  question="display: flex는 어디에 지정해야 자식이 flex item이 되는가?"
+  options={['자식 요소 각각', '부모 요소(container)', '가장 바깥 body', 'html 태그']}
+  correctAnswer={2}
+  explanation="display: flex를 지정한 요소가 flex container가 되고, 그 직계 자식들이 flex item이 됩니다."
+  optionExplanations={['자식에 지정해도 그 요소가 컨테이너가 될 뿐 부모의 배치는 바뀌지 않습니다', '정답입니다', 'body 전체를 컨테이너로 만들 필요는 없습니다', '이 사이트 구조와 무관합니다']}
+/>
+
+<Quiz
+  questionNumber={2}
+  question=".site-header에 justify-content: space-between을 쓴 이유는?"
+  options={['모든 item을 왼쪽으로 모으기 위해', '로고와 내비를 양 끝에 배치하고 사이 공간을 벌리기 위해', 'item 크기를 균등하게 늘리기 위해', '세로 정렬을 위해']}
+  correctAnswer={2}
+  explanation="space-between은 첫 item과 마지막 item을 양 끝에 붙이고 그 사이를 균등하게 벌립니다."
+  optionExplanations={['왼쪽으로 모으려면 flex-start를 씁니다', '정답입니다', 'item 크기 조정은 flex-grow의 역할입니다', '세로 정렬은 align-items의 역할입니다']}
+/>
+
+<Quiz
+  questionNumber={3}
+  question=".site-nav에 gap 대신 각 a에 margin-right를 주는 방식의 단점은?"
+  options={['브라우저가 지원하지 않는다', '마지막 항목 뒤에도 불필요한 여백이 남을 수 있다', 'flex item이 되지 않는다', '색상이 적용되지 않는다']}
+  correctAnswer={2}
+  explanation="margin-right를 각 항목에 주면 마지막 항목 뒤에도 여백이 남아 별도로 예외 처리를 해야 합니다. gap은 item 사이에만 적용되어 이 문제가 없습니다."
+  optionExplanations={['margin은 모든 최신 브라우저가 지원합니다', '정답입니다', 'margin 지정 여부와 flex item 여부는 무관합니다', '색상과는 무관한 속성입니다']}
+/>
+
+## 참고 자료
+
+- [MDN — Basic concepts of flexbox](https://developer.mozilla.org/en-US/docs/Web/CSS/Guides/Flexible_box_layout/Basic_concepts)

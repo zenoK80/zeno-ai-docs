@@ -1,0 +1,222 @@
+---
+title: '08. 인용과 코드 요소로 프로젝트 설명 보강'
+description: 'blockquote/q/cite와 pre/code/kbd/samp로 프로젝트 카드에 후기와 코드 스니펫을 넣는다'
+---
+
+<Callout type="info">
+  **이번 편의 결과물:** `projects.html`의 프로젝트 카드마다 인용구(추천사)와 코드 스니펫이 의미에 맞는 요소로 표시된다 · **다루는 개념:** `blockquote`/`q`와 `cite`, `pre`로 공백 보존, `code`/`kbd`/`samp`의 의미 구분
+</Callout>
+
+## 이 편에서 만드는 파일
+
+```text
+web-practice/portfolio/
+└── projects.html   ~ (카드마다 인용구·코드 요소 추가)
+```
+
+## 개념 정리
+
+### 인용
+
+| 요소 | 용도 |
+|------|------|
+| `blockquote` | 여러 줄에 걸친 긴 인용. 보통 `p`를 감싸고, 출처는 `footer`나 `cite`로 덧붙인다 |
+| `q` | 문장 안에 짧게 섞이는 인라인 인용. 브라우저가 자동으로 따옴표를 붙인다 |
+| `cite` 속성 | `blockquote`/`q`에 붙는 속성. 인용한 출처의 URL을 적는다(화면에는 안 보인다) |
+| `cite` 요소 | 책·기사·인물 이름처럼 **저작물이나 출처의 제목**을 감싸는 인라인 요소(화면에 기울임으로 보인다) |
+
+`cite` **속성**과 `cite` **요소**는 이름은 같지만 다른 것입니다. 속성은 URL, 요소는 출처 제목입니다.
+
+### 코드 표시
+
+| 요소 | 용도 |
+|------|------|
+| `code` | 코드 조각(파일명, 함수명, 짧은 코드)을 문장 안에 표시 |
+| `pre` | 줄바꿈과 공백을 그대로 보존. 여러 줄 코드를 그대로 보여줄 때 `code`와 함께 쓴다(`pre><code>`) |
+| `kbd` | 사용자가 직접 입력하는 키·명령어 |
+| `samp` | 프로그램이 출력하는 결과 |
+
+`pre`가 없으면 브라우저는 여러 개의 공백과 줄바꿈을 하나로 합쳐 버립니다. 코드처럼 들여쓰기가 의미 있는 텍스트는 반드시 `pre`로 감쌉니다.
+
+표를 시각적 레이아웃 도구로 쓰던 관행이 있었습니다. CSS가 부실하던 시절, 개발자들은 화면을 칸에 맞춰 배치하려고 `table`을 레이아웃 틀로 썼습니다. 지금은 `table`은 실제 표 데이터에만 쓰고, 레이아웃은 CSS(Flexbox·Grid)가 담당합니다. 이 포트폴리오의 프로젝트 카드도 `table`이 아니라 `article`과 CSS(`css_fundamentals`)로 배치합니다.
+
+## 실습
+
+<Steps>
+
+### 1. 파일 열기
+
+`web-practice/portfolio/projects.html`을 엽니다.
+
+### 2. 코드 작성
+
+카드마다 추천사(`blockquote`)와 관련 코드 한 줄(`code`)을 추가합니다. `오늘의 날씨` 카드에는 여러 줄 코드(`pre`/`code`), `todo-cli` 카드에는 명령어 입력과 출력(`kbd`/`samp`)을 넣습니다.
+
+```html
+<!-- web-practice/portfolio/projects.html (project-grid 내부, 카드 6개) -->
+<div class="project-grid">
+  <article class="project-card">
+    <img src="images/project-01.svg" alt="오늘의 날씨 프로젝트 화면" width="1200" height="800" />
+    <h2>오늘의 날씨</h2>
+    <p>위치 기반 날씨를 카드로 보여주는 웹앱입니다. 오프라인에서도 마지막 데이터를 보여줍니다.</p>
+    <p>핵심 파일은 <code>weather-app/src/geo.js</code>입니다.</p>
+    <pre><code>navigator.geolocation.getCurrentPosition((pos) => {
+  fetchWeather(pos.coords.latitude, pos.coords.longitude);
+});</code></pre>
+    <blockquote cite="https://example.com/reviews/weather">
+      <p>실제 위치 기반 정보가 정확해서 매일 씁니다.</p>
+      <footer>— 박서연, <cite>같은 팀 동료</cite></footer>
+    </blockquote>
+    <a href="https://example.com/weather" target="_blank" rel="noopener noreferrer">바로가기</a>
+  </article>
+
+  <article class="project-card">
+    <img src="images/project-02.svg" alt="독서 기록 bookshelf 프로젝트 화면" width="1200" height="800" />
+    <h2>독서 기록 bookshelf</h2>
+    <p>읽은 책과 별점을 기록하고 통계를 보는 React 앱입니다.</p>
+    <p>통계는 <code>booksReducer.js</code>의 <code>reduce</code> 호출로 계산합니다.</p>
+    <blockquote cite="https://example.com/reviews/bookshelf">
+      <p>다 읽은 책을 한눈에 정리해 주니 독서 습관 관리가 쉬워졌습니다.</p>
+      <footer>— 김도윤, <cite>베타 사용자</cite></footer>
+    </blockquote>
+    <a href="https://example.com/bookshelf" target="_blank" rel="noopener noreferrer">바로가기</a>
+  </article>
+
+  <article class="project-card">
+    <img src="images/project-03.svg" alt="메모 앱 notes 프로젝트 화면" width="1200" height="800" />
+    <h2>메모 앱 notes</h2>
+    <p>브라우저 저장소만으로 동작하는 메모 앱입니다. 검색은 Worker가 담당합니다.</p>
+    <p>검색 로직은 <code>search.worker.js</code>에 있습니다.</p>
+    <blockquote cite="https://example.com/reviews/notes">
+      <p>메모가 몇백 개여도 검색이 즉시 됩니다.</p>
+      <footer>— 이하은, <cite>베타 사용자</cite></footer>
+    </blockquote>
+    <a href="https://example.com/notes" target="_blank" rel="noopener noreferrer">바로가기</a>
+  </article>
+
+  <article class="project-card">
+    <img src="images/project-04.svg" alt="접근성 체크리스트 프로젝트 화면" width="1200" height="800" />
+    <h2>접근성 체크리스트</h2>
+    <p>WCAG 항목을 하나씩 점검하는 정적 사이트입니다.</p>
+    <p>항목마다 <code>role</code>과 <code>aria-*</code> 속성 예시를 보여줍니다.</p>
+    <blockquote cite="https://example.com/reviews/a11y">
+      <p>사내 접근성 교육 자료로 그대로 썼습니다.</p>
+      <footer>— 정민재, <cite>같은 팀 동료</cite></footer>
+    </blockquote>
+    <a href="https://example.com/a11y" target="_blank" rel="noopener noreferrer">바로가기</a>
+  </article>
+
+  <article class="project-card">
+    <img src="images/project-05.svg" alt="디자인 토큰 미리보기 프로젝트 화면" width="1200" height="800" />
+    <h2>디자인 토큰 미리보기</h2>
+    <p>CSS 변수로 만든 색·간격 토큰을 한 화면에서 비교합니다.</p>
+    <p>토큰은 <code>--color-primary</code>처럼 커스텀 속성으로 정의합니다.</p>
+    <blockquote cite="https://example.com/reviews/tokens">
+      <p>디자인 시스템 문서로 참고하기 좋습니다.</p>
+      <footer>— 오지훈, <cite>디자이너</cite></footer>
+    </blockquote>
+    <a href="https://example.com/tokens" target="_blank" rel="noopener noreferrer">바로가기</a>
+  </article>
+
+  <article class="project-card">
+    <img src="images/project-06.svg" alt="todo-cli 프로젝트 화면" width="1200" height="800" />
+    <h2>todo-cli</h2>
+    <p>터미널에서 쓰는 할 일 관리 도구입니다. 파일에 저장하고 통계를 냅니다.</p>
+    <p>
+      터미널에 <kbd>todo add "책 읽기"</kbd>를 입력하면 <samp>할 일이 추가되었습니다</samp>가 출력됩니다.
+    </p>
+    <blockquote cite="https://example.com/reviews/todo-cli">
+      <p>마우스 없이 할 일을 관리하니 더 빠릅니다.</p>
+      <footer>— 최유나, <cite>베타 사용자</cite></footer>
+    </blockquote>
+    <a href="https://example.com/todo-cli" target="_blank" rel="noopener noreferrer">바로가기</a>
+  </article>
+</div>
+```
+
+### 3. 실행
+
+`web-practice/portfolio/projects.html`을 브라우저로 새로고침합니다.
+
+### 4. 확인
+
+- 카드마다 회색 들여쓰기 없이도(CSS 이전 상태) 인용구 문단과 출처가 구분되어 보인다
+- "오늘의 날씨" 카드의 코드가 두 줄 들여쓰기 그대로 보인다(공백이 뭉개지지 않는다)
+- "todo-cli" 카드에서 입력 명령어와 출력 문구가 서로 다른 스타일(브라우저 기본 스타일)로 보인다
+- 개발자 도구에서 인용구 블록이 `blockquote > p + footer > cite` 구조인지 확인한다
+
+</Steps>
+
+## 직접 해보기
+
+1. "메모 앱 notes" 카드의 설명 문단 안에, 검색 결과가 없을 때 뜨는 짧은 문구 "검색 결과가 없습니다"를 `q` 요소로 인용해 넣어 봅니다.
+2. "디자인 토큰 미리보기" 카드에 `pre`/`code`로 2~3줄짜리 CSS 커스텀 속성 정의 코드를 추가해 봅니다.
+
+<details>
+<summary>정답 보기</summary>
+
+```html
+<p>검색 결과가 없을 때는 <q>검색 결과가 없습니다</q>라는 문구가 뜹니다.</p>
+```
+
+```html
+<pre><code>:root {
+  --color-primary: #0969da;
+  --space-4: 1rem;
+}</code></pre>
+```
+
+`q`는 브라우저가 자동으로 따옴표를 그려 주므로 직접 따옴표를 넣지 않습니다.
+
+</details>
+
+## 자주 하는 실수
+
+| 증상 | 원인 | 고치는 법 |
+|------|------|-----------|
+| 인용문에 큰따옴표가 두 번 겹쳐 보인다 | `q` 안에 직접 따옴표 문자를 또 넣었다 | `q` 안에는 문장만 넣고 따옴표는 브라우저가 그리게 둔다 |
+| 코드 블록의 들여쓰기가 한 줄로 뭉개진다 | `pre` 없이 `code`만 썼다 | 여러 줄 코드는 `pre><code>`로 함께 감싼다 |
+| 명령어와 결과가 똑같아 보여 구분이 안 된다 | `kbd`/`samp` 대신 그냥 `code`만 썼다 | 사용자 입력은 `kbd`, 프로그램 출력은 `samp`로 구분한다 |
+| `cite` 속성에 사람 이름을 넣었다 | `cite` 속성(URL)과 `cite` 요소(제목)를 혼동했다 | 속성에는 출처 URL, 요소에는 출처 제목·이름을 넣는다 |
+
+## 확인 문제
+
+<Quiz
+  questionNumber={1}
+  question="여러 줄에 걸친 긴 인용문을 감싸기에 알맞은 요소는?"
+  options={['q', 'blockquote', 'cite', 'pre']}
+  correctAnswer={2}
+  explanation="blockquote는 문단 단위의 긴 인용에 쓰고, q는 문장 안에 짧게 섞이는 인라인 인용에 씁니다."
+  optionExplanations={['짧은 인라인 인용에 적합합니다', '정답입니다', 'cite는 출처 제목을 나타내는 인라인 요소입니다', 'pre는 공백을 보존하는 요소로 인용과 무관합니다']}
+/>
+
+<Quiz
+  questionNumber={2}
+  question="여러 줄 코드의 들여쓰기와 줄바꿈을 그대로 보여주려면 code와 함께 무엇으로 감싸야 하는가?"
+  options={['blockquote', 'pre', 'q', 'kbd']}
+  correctAnswer={2}
+  explanation="pre는 공백과 줄바꿈을 그대로 보존합니다. 여러 줄 코드는 pre로 code를 감싸 표시합니다."
+  optionExplanations={['인용을 위한 요소로 공백 보존과 무관합니다', '정답입니다', '짧은 인라인 인용 요소입니다', '사용자 입력을 나타내는 요소로 공백 보존 기능이 없습니다']}
+/>
+
+<Quiz
+  questionNumber={3}
+  question="사용자가 터미널에 직접 입력하는 명령어를 표시할 때 알맞은 요소는?"
+  options={['samp', 'code', 'kbd', 'var']}
+  correctAnswer={3}
+  explanation="kbd는 사용자가 직접 입력하는 키나 명령어를 나타내고, samp은 프로그램이 출력하는 결과를 나타냅니다."
+  optionExplanations={['프로그램 출력을 나타내는 요소입니다', '코드 조각 전반을 나타내는 일반적인 요소입니다', '정답입니다', '수학이나 프로그램의 변수를 나타내는 요소입니다']}
+/>
+
+<Quiz
+  questionNumber={4}
+  question="blockquote의 cite 속성에 들어가는 값은?"
+  options={['인용한 사람의 이름', '인용문 출처의 URL', '인용문의 언어 코드', '인용문의 글자 수']}
+  correctAnswer={2}
+  explanation="cite 속성은 인용한 출처의 URL을 적는 값이며 화면에는 표시되지 않습니다. 사람 이름이나 출처 제목은 cite 요소로 감싸 화면에 보여줍니다."
+  optionExplanations={['이름은 cite 요소나 footer에 넣습니다', '정답입니다', 'lang 속성이 언어 코드를 담당합니다', '그런 용도의 속성이 아닙니다']}
+/>
+
+## 참고 자료
+
+- [MDN — Quotation, citation, and definition elements](https://developer.mozilla.org/en-US/docs/Web/HTML/Reference/Elements/blockquote)

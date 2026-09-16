@@ -1,0 +1,253 @@
+---
+title: '16. 최신 ECMAScript로 리팩터링(ES2023~2025)'
+description: 'toSorted·findLast·Object.groupBy·Set 집합 메서드로 기존 코드를 최신 문법으로 정리합니다.'
+---
+
+<Callout type="info">
+  **이번 편의 결과물:** 04편의 정렬 로직을 `toSorted`로, 10편의 태그 집계를 `Object.groupBy`/`Set` 집합 메서드로 리팩터링합니다. `using` 지원 여부를 직접 확인한 뒤 범위 내에서 적용합니다. · **다루는 개념:** `toSorted`/`findLast`(ES2023), `Object.groupBy`(ES2024), `Set` 집합 메서드·`using`(ES2025, 지원 상태 확인 후 적용)
+</Callout>
+
+## 이 편에서 만드는 파일
+
+```
+todo-cli/
+└── src/
+    ├── models/
+    │   └── TodoStore.js   (~)
+    └── commands/
+        └── stats.js       (~)
+```
+
+## 개념 정리
+
+### ES2023: 원본을 바꾸지 않는 배열 메서드
+
+`sort`, `reverse`, `splice`는 원본 배열을 직접 변경합니다. ES2023은 같은 결과를 반환하되 원본은 그대로 두는 짝을 추가했습니다.
+
+| 기존(원본 변경) | 새 메서드(원본 유지) |
+|------------------|------------------------|
+| `array.sort(fn)` | `array.toSorted(fn)` |
+| `array.reverse()` | `array.toReversed()` |
+| `array.splice(...)` | `array.toSpliced(...)` |
+| — | `array.findLast(fn)`, `array.findLastIndex(fn)` |
+
+`findLast`는 배열을 뒤에서부터 검색해 조건을 만족하는 첫 항목을 반환합니다. "가장 최근에 완료된 항목"처럼 뒤쪽에서 찾는 게 자연스러운 경우에 유용합니다.
+
+### ES2024: Object.groupBy
+
+`Object.groupBy(items, keyFn)`는 배열을 `keyFn`이 반환하는 값 기준으로 묶어 `null` 프로토타입 객체로 반환합니다. `reduce`로 직접 그룹화 로직을 짜지 않아도 됩니다.
+
+```js
+const byStatus = Object.groupBy(todos, (todo) => (todo.done ? 'done' : 'pending'));
+// { done: [...], pending: [...] }
+```
+
+### ES2025: Set 집합 메서드
+
+`Set`에 수학적 집합 연산 메서드가 추가되었습니다.
+
+| 메서드 | 의미 |
+|--------|------|
+| `a.union(b)` | 합집합 |
+| `a.intersection(b)` | 교집합 |
+| `a.difference(b)` | 차집합(`a`에만 있는 값) |
+| `a.isSubsetOf(b)` | `a`가 `b`의 부분집합인지 |
+
+`reduce`로 `Set`을 하나씩 합치던 코드를 `union`/`intersection` 호출로 줄일 수 있습니다.
+
+### 지원 여부를 코드로 직접 확인하기
+
+새 문법은 실행 환경이 지원해야 동작합니다. 프로젝트에 적용하기 전에 실제 Node 버전에서 되는지 먼저 확인합니다.
+
+```js
+console.log(typeof Array.prototype.toSorted); // 'function'이면 지원
+console.log(typeof Object.groupBy); // 'function'이면 지원
+console.log(typeof Set.prototype.union); // 'function'이면 지원
+console.log(typeof Symbol.asyncDispose); // 'symbol'이면 using/await using 관련 프로토콜 지원
+```
+
+`using`/`await using`(명시적 자원 관리, Explicit Resource Management)은 스코프를 벗어날 때 `[Symbol.dispose]`/`[Symbol.asyncDispose]`를 자동 호출해 파일·소켓 같은 자원을 정리하는 선언입니다. 이 책에서는 `Symbol.asyncDispose`가 있는 실행 환경에서만 적용하고, 없으면 기존 `try`/`finally` 방식을 유지합니다. 실행 환경마다 지원 시점이 다르므로 프로젝트에 적용하기 전 항상 `typeof`로 먼저 확인하는 습관을 들입니다.
+
+## 실습
+
+<Steps>
+
+### 1. src/models/TodoStore.js에서 정렬을 toSorted로 바꾸기
+
+기존 04편 코드는 `[...todos].sort(comparator)`처럼 스프레드로 복사한 뒤 정렬했습니다. `list`는 이미 `filter`로 새 배열을 만들어 반환하므로, 그 뒤에 `sort` 대신 `toSorted`를 쓰면 스프레드 없이도 원본을 건드리지 않고 정렬할 수 있습니다.
+
+### 2. 코드 작성
+
+```js
+// src/models/TodoStore.js (list, findLastDone 메서드만 발췌)
+// ...기존 fromArray/toArray/add/findById/replace/remove/Symbol.iterator 유지
+
+list({ filter, sort } = {}) {
+  const filterFn = TodoStore.#makeStatusFilter(filter);
+  const compareFn = TodoStore.#makeComparator(sort);
+  return this.#todos.filter(filterFn).toSorted(compareFn);
+}
+
+findLastDone() {
+  return this.#todos.findLast((todo) => todo.done);
+}
+
+static #makeComparator(sortKey) {
+  if (sortKey === 'due') {
+    return (a, b) => {
+      if (a.due === null && b.due === null) return 0;
+      if (a.due === null) return 1;
+      if (b.due === null) return -1;
+      return a.due.localeCompare(b.due);
+    };
+  }
+  if (sortKey === 'title') {
+    return (a, b) => a.title.localeCompare(b.title);
+  }
+  return (a, b) => a.createdAt.localeCompare(b.createdAt);
+}
+```
+
+`list`의 메서드 이름과 호출 방식은 그대로 유지하고, 내부에서 `sort` 대신 `toSorted`를 쓰도록만 바꿨습니다. `findLastDone`은 가장 최근에 추가된 완료 항목을 뒤에서부터 찾습니다.
+
+### 3. 태그 집계를 Object.groupBy로 바꾸기
+
+10편에서 `Map`으로 직접 세던 `tagCounts`의 내부 구현을 `Object.groupBy`로 정리합니다. 반환 타입은 그대로 `Map`이라 `commands/tags.js`(10편)는 고치지 않아도 됩니다.
+
+### 4. 코드 작성
+
+```js
+// src/models/TodoStore.js (tagCounts, allTagsUnion 메서드만 발췌)
+tagCounts() {
+  const flattened = this.#todos.flatMap((todo) => todo.tags.map((tag) => ({ tag })));
+  const grouped = Object.groupBy(flattened, (entry) => entry.tag);
+  const counts = new Map();
+  for (const [tag, entries] of Object.entries(grouped)) {
+    counts.set(tag, entries.length);
+  }
+  return counts;
+}
+
+allTagsUnion() {
+  return this.#todos.reduce(
+    (acc, todo) => acc.union(new Set(todo.tags)),
+    new Set(),
+  );
+}
+```
+
+`flatMap`으로 "할 일 하나에 태그 여러 개"를 "태그 하나씩"으로 펼친 뒤 `Object.groupBy`로 태그별로 묶고, 그 개수만 다시 `Map`에 옮겨 담아 기존 반환 타입을 유지합니다. `allTagsUnion`은 각 할 일의 태그 배열을 `Set`으로 바꿔 `union`으로 누적해 전체 태그 집합을 만드는 새 메서드입니다. `reduce`의 콜백이 매번 `acc.union(...)`이 반환한 **새** `Set`을 넘기므로 원본 `Set`들은 바뀌지 않습니다.
+
+### 5. commands/stats.js에서 결과 출력하기
+
+```js
+// src/commands/stats.js
+export function runStats(store) {
+  const all = store.toArray();
+  const total = all.length;
+  const done = all.filter((todo) => todo.done).length;
+  const rate = total === 0 ? 0 : done / total;
+  const percent = new Intl.NumberFormat('ko-KR', { style: 'percent', maximumFractionDigits: 0 }).format(rate);
+  const tagCounts = store.tagCounts();
+  const lastDone = store.findLastDone();
+
+  console.log(`전체 ${total}개 중 완료 ${done}개 (완료율 ${percent})`);
+  console.log('태그별 개수:', Object.fromEntries(tagCounts));
+  console.log('가장 최근 완료:', lastDone ? lastDone.title : '없음');
+}
+```
+
+12편의 완료율 계산 로직은 그대로 두고, `tagCounts()`(10편)와 `findLastDone()`(방금 추가)만 새로 불러와 출력에 추가했습니다.
+
+### 6. 실행
+
+```text
+node src/index.js stats
+```
+
+</Steps>
+
+## 확인
+
+```text
+전체 5개 중 2개 완료 (40%)
+태그별 개수: { study: 2, portfolio: 1, html: 1, node: 1, health: 1 }
+가장 최근 완료: ECMAScript 03편 실습 끝내기
+```
+
+- `list --sort due`, `list --sort title` 결과가 리팩터링 전(04편 방식)과 동일한지 비교합니다. 리팩터링은 겉으로 드러나는 동작을 바꾸지 않아야 합니다.
+- Node REPL에서 `typeof Object.groupBy`, `typeof Set.prototype.union`을 실행해 `'function'`이 나오는지 확인합니다.
+
+## 직접 해보기
+
+1. `todo-cli`의 두 상태(`done`, `pending`) 태그 집합의 교집합(`intersection`)을 구해, 완료된 일과 미완료인 일에 공통으로 등장하는 태그를 출력하는 기능을 추가해봅니다.
+2. `Array.prototype.with(index, value)`(ES2023, 원본을 바꾸지 않고 특정 인덱스만 바꾼 새 배열 반환)를 이용해 `TodoStore`에 없는 "특정 위치 항목 교체" 유틸을 하나 만들어봅니다.
+
+<details>
+<summary>정답 보기(1번)</summary>
+
+```js
+tagIntersectionByStatus() {
+  const doneTags = this.#todos
+    .filter((todo) => todo.done)
+    .reduce((acc, todo) => acc.union(new Set(todo.tags)), new Set());
+  const pendingTags = this.#todos
+    .filter((todo) => !todo.done)
+    .reduce((acc, todo) => acc.union(new Set(todo.tags)), new Set());
+  return doneTags.intersection(pendingTags);
+}
+```
+
+</details>
+
+## 자주 하는 실수
+
+| 증상 | 원인 | 고치는 법 |
+|------|------|-----------|
+| `toSorted is not a function` 에러 | 오래된 Node 버전(20 미만)에서 실행 | Node 22로 실행하거나 `typeof`로 먼저 지원 확인 |
+| `Object.groupBy` 결과에 배열 메서드가 없음 | 반환값이 `Object.create(null)`이라 일반 객체와 다름 | `Object.entries`/`Object.fromEntries`로 다뤄야 함(프로토타입 없는 객체) |
+| `a.union(b)` 호출 시 원본 `Set`이 바뀐 줄 앎 | `union`은 새 `Set`을 반환하는 메서드임을 착각 | `a = a.union(b)`처럼 반환값을 다시 대입해서 써야 함 |
+
+## 확인 문제
+
+<Quiz
+  questionNumber={1}
+  question="array.sort(fn)과 array.toSorted(fn)의 차이는?"
+  options={['둘 다 원본을 바꾼다', 'sort는 원본을 바꾸고, toSorted는 정렬된 새 배열을 반환하며 원본을 유지한다', 'toSorted가 원본을 바꾼다', '차이가 없다']}
+  correctAnswer={2}
+  explanation="sort는 원본 배열의 순서를 직접 바꾸지만, ES2023의 toSorted는 정렬된 새 배열을 반환하고 원본 배열은 그대로 둡니다."
+  optionExplanations={['toSorted는 원본을 바꾸지 않습니다', '정답입니다', '반대로 서술되어 있습니다', '동작 방식이 다릅니다']}
+/>
+
+<Quiz
+  questionNumber={2}
+  question="Object.groupBy(items, keyFn)의 반환값에 대한 설명으로 옳은 것은?"
+  options={['배열을 반환한다', 'keyFn이 반환하는 값을 키로 묶은 객체를 반환한다', 'Map을 반환한다', '원본 배열을 변경하고 undefined를 반환한다']}
+  correctAnswer={2}
+  explanation="Object.groupBy는 keyFn의 반환값을 키로 사용해 원본 항목들을 그룹화한 객체를 새로 만들어 반환합니다."
+  optionExplanations={['객체를 반환합니다', '정답입니다', 'Map을 반환하는 것은 Map.groupBy입니다', '원본을 바꾸지 않고 새 객체를 반환합니다']}
+/>
+
+<Quiz
+  questionNumber={3}
+  question="Set의 union 메서드에 대한 설명으로 옳은 것은?"
+  options={['두 Set 중 하나를 직접 변경한다', '두 Set의 합집합을 담은 새 Set을 반환한다', '두 Set의 교집합을 반환한다', '두 Set이 같은지 boolean을 반환한다']}
+  correctAnswer={2}
+  explanation="union은 호출한 Set과 인자로 받은 Set 어느 쪽도 변경하지 않고, 두 집합의 합집합을 담은 새 Set을 반환합니다."
+  optionExplanations={['원본을 변경하지 않습니다', '정답입니다', '교집합은 intersection입니다', 'boolean을 반환하지 않습니다']}
+/>
+
+<Quiz
+  questionNumber={4}
+  question="새 ECMAScript 문법을 프로젝트에 적용하기 전에 typeof로 먼저 확인하는 이유는?"
+  options={['코드를 짧게 쓰기 위해서다', '실행 환경(Node 버전 등)이 그 문법을 실제로 지원하는지 미리 확인하기 위해서다', 'typeof가 없으면 문법 오류가 나서다', '테스트 커버리지를 높이기 위해서다']}
+  correctAnswer={2}
+  explanation="최신 문법은 실행 환경의 버전에 따라 지원 여부가 다르므로, 적용 전에 typeof로 해당 함수가 실제로 존재하는지 확인해야 안전합니다."
+  optionExplanations={['코드 길이가 목적이 아닙니다', '정답입니다', 'typeof 없이도 문법 자체는 유효합니다(실행만 실패)', '테스트 커버리지와 무관합니다']}
+/>
+
+## 참고 자료
+
+- [MDN - Array.prototype.toSorted()](https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Array/toSorted)
+- [MDN - Object.groupBy()](https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Object/groupBy)
+- [MDN - Set.prototype.union()](https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Set/union)

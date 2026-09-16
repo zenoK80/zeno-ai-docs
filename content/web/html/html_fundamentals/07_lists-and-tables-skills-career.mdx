@@ -1,0 +1,203 @@
+---
+title: '07. 리스트와 표로 기술 스택과 경력 정리'
+description: 'ul/ol/dl과 table의 구조·접근성 규칙을 익혀 기술 스택과 경력을 정리한다'
+---
+
+<Callout type="info">
+  **이번 편의 결과물:** `index.html`에 기술 스택 목록과 경력 표(캡션·스코프 포함)가 완성된다 · **다루는 개념:** `ul`/`ol`/`li`, `dl`/`dt`/`dd`, `table`/`caption`/`thead`/`tbody`/`tfoot`/`th scope`
+</Callout>
+
+## 이 편에서 만드는 파일
+
+```text
+web-practice/portfolio/
+└── index.html   ~ (기술 스택 dl, 경력 table 추가)
+```
+
+## 개념 정리
+
+### 리스트
+
+| 요소 | 용도 |
+|------|------|
+| `ul`/`li` | 순서가 중요하지 않은 목록 |
+| `ol`/`li` | 순서가 중요한 목록(단계, 순위) |
+| `dl`/`dt`/`dd` | 용어와 설명의 짝(dt: 용어, dd: 그 설명). 카테고리별 항목 나열에도 쓴다 |
+
+기술 스택처럼 "카테고리 하나에 항목 여러 개"인 데이터는 `dl` 하나에 `dt`(카테고리)와 `dd`(항목들)를 반복해 표현합니다. `dt` 하나에 `dd`를 여러 개 붙일 수 있습니다.
+
+### 표
+
+표는 행과 열로 이루어진 데이터를 담습니다. 문단으로 나열하기 어려운 다차원 데이터(기간·회사·역할처럼 여러 속성이 한 행에 묶이는 데이터)에 씁니다.
+
+| 요소 | 역할 |
+|------|------|
+| `caption` | 표 전체의 제목. `table` 바로 안, 첫 자식으로 넣는다 |
+| `thead` | 헤더 행 묶음 |
+| `tbody` | 본문 데이터 행 묶음 |
+| `tfoot` | 합계·요약 행 묶음 |
+| `th scope=col` | 이 헤더가 세로 열 전체의 제목임을 명시 |
+| `th scope=row` | 이 헤더가 가로 행 전체의 제목임을 명시 |
+
+`scope`는 스크린 리더가 셀 하나를 읽을 때 "몇 번째 열의 무슨 값인지"를 함께 읽어 주게 합니다. 표 접근성의 자세한 규칙은 14편에서 더 다룹니다.
+
+## 실습
+
+<Steps>
+
+### 1. 파일 열기
+
+`web-practice/portfolio/index.html`을 엽니다. about 섹션 아래, footer 위에 이어 씁니다.
+
+### 2. 코드 작성
+
+기술 스택은 `dl`로, 경력은 `table`로 작성합니다.
+
+```html
+<!-- web-practice/portfolio/index.html (about 섹션 다음) -->
+<section class="skills">
+  <h2>기술 스택</h2>
+  <dl>
+    <dt>마크업·스타일</dt>
+    <dd>HTML</dd>
+    <dd>CSS</dd>
+    <dd>Sass</dd>
+    <dt>언어</dt>
+    <dd>JavaScript</dd>
+    <dd>TypeScript</dd>
+    <dt>프레임워크</dt>
+    <dd>React</dd>
+    <dd>Next.js</dd>
+    <dt>도구</dt>
+    <dd>Git</dd>
+    <dd>Vite</dd>
+    <dd>Figma</dd>
+  </dl>
+</section>
+
+<section class="career">
+  <h2>경력</h2>
+  <table>
+    <caption>Zeno Kim의 경력 요약</caption>
+    <thead>
+      <tr>
+        <th scope="col">기간</th>
+        <th scope="col">회사</th>
+        <th scope="col">역할</th>
+        <th scope="col">주요 업무</th>
+      </tr>
+    </thead>
+    <tbody>
+      <tr>
+        <th scope="row">2024.03 – 현재</th>
+        <td>스튜디오 파도</td>
+        <td>프론트엔드 개발자</td>
+        <td>사내 디자인 시스템 컴포넌트 구현, 접근성 개선</td>
+      </tr>
+      <tr>
+        <th scope="row">2023.01 – 2024.02</th>
+        <td>오늘의 기록</td>
+        <td>주니어 개발자</td>
+        <td>기록 서비스 웹 화면 개발, 반응형 전환</td>
+      </tr>
+      <tr>
+        <th scope="row">2022.06 – 2022.12</th>
+        <td>코드포올 부트캠프</td>
+        <td>수료생</td>
+        <td>팀 프로젝트 3건, 발표 우수상</td>
+      </tr>
+    </tbody>
+    <tfoot>
+      <tr>
+        <td colspan="4">2022년부터 현재까지 총 3개 조직에서 경력을 쌓았습니다.</td>
+      </tr>
+    </tfoot>
+  </table>
+</section>
+```
+
+`class="skills"`와 `class="career"`는 뒤 과목(`css_fundamentals`)이 스타일링할 때 쓸 훅입니다. `about` 섹션과 마찬가지로 지금은 스타일 없이 구조만 갖춥니다.
+
+### 3. 실행
+
+`web-practice/portfolio/index.html`을 브라우저로 새로고침합니다.
+
+### 4. 확인
+
+- 기술 스택이 카테고리별로(마크업·스타일 / 언어 / 프레임워크 / 도구) 묶여 나열된다
+- 경력 표에 캡션 "Zeno Kim의 경력 요약"이 표 위에 보인다
+- 표 헤더 행(기간·회사·역할·주요 업무)이 본문 행과 구분되어 보인다
+- 표 맨 아래에 요약 문장이 4칸을 가로질러 한 줄로 보인다
+- 개발자 도구 Elements에서 각 `tr`의 첫 `th`에 `scope="row"`가, 헤더 행의 `th`에 `scope="col"`이 붙어 있다
+
+</Steps>
+
+## 직접 해보기
+
+1. 기술 스택 `dl`에 "관심 분야"라는 새 `dt`를 추가하고 `dd`로 "웹 접근성", "성능 최적화" 두 항목을 넣어 봅니다.
+2. 경력 표에 "사용 기술" 열을 하나 추가하고 각 행에 해당 회사에서 쓴 기술을 적어 봅니다. 헤더 행의 `th`에 `scope`를 빠뜨리지 않았는지 확인합니다.
+
+<details>
+<summary>정답 보기</summary>
+
+```html
+<dt>관심 분야</dt>
+<dd>웹 접근성</dd>
+<dd>성능 최적화</dd>
+```
+
+표에 열을 추가할 때는 `thead`의 `tr`에 `th scope="col"`을 하나 더 넣고, `tbody`의 모든 `tr`에 `td`를 하나씩 더 넣어야 열 개수가 맞습니다. 개수가 안 맞으면 표가 어긋나 보입니다.
+
+</details>
+
+## 자주 하는 실수
+
+| 증상 | 원인 | 고치는 법 |
+|------|------|-----------|
+| `dt` 하나에 `dd`가 하나만 붙는 줄 안다 | `dl`의 반복 구조를 모른다 | `dt` 하나 뒤에 `dd`를 여러 번 반복해도 된다 |
+| 표의 일부 행만 칸 수가 다르다 | 열을 추가·삭제하면서 한 행을 빠뜨렸다 | 모든 `tr`의 `td`/`th` 개수를 표 전체에서 맞춘다 |
+| 스크린 리더가 셀 값만 읽고 어느 열인지 안 알려 준다 | `th`에 `scope`를 안 적었다 | 헤더 셀마다 `scope=col` 또는 `scope=row`를 적는다 |
+| `caption`이 표 밖 문단처럼 보인다 | `caption`을 `table` 밖에 따로 뒀다 | `caption`은 반드시 `table`의 첫 자식으로 넣는다 |
+
+## 확인 문제
+
+<Quiz
+  questionNumber={1}
+  question="카테고리 하나에 여러 항목을 짝지어 나열할 때 가장 알맞은 요소는?"
+  options={['ul과 li만 반복', 'ol과 li만 반복', 'dl과 dt/dd', 'table 하나만']}
+  correctAnswer={3}
+  explanation="dl은 dt(용어·카테고리)와 dd(그에 대한 설명·항목)를 짝짓는 목록입니다. dt 하나에 dd를 여러 번 반복할 수 있어 카테고리별 항목 나열에 알맞습니다."
+  optionExplanations={['카테고리 구분 없이 평평한 목록만 만들어집니다', '순서가 중요하지 않은 데이터에 ol을 쓰는 것은 적절하지 않습니다', '정답입니다', '표는 행과 열이 있는 다차원 데이터에 적합하며 이 경우는 과합니다']}
+/>
+
+<Quiz
+  questionNumber={2}
+  question="표 전체의 제목을 넣는 위치로 올바른 것은?"
+  options={['table 위 h3', 'table의 첫 자식으로 넣는 caption', 'thead 안 첫 tr', 'table 태그의 title 속성']}
+  correctAnswer={2}
+  explanation="caption은 table의 첫 자식으로 넣어야 그 표의 제목으로 인식됩니다. 표 밖에 별도 제목 요소를 두면 스크린 리더가 표와의 연결을 알기 어렵습니다."
+  optionExplanations={['표와 구조적으로 연결되지 않습니다', '정답입니다', 'thead의 tr은 헤더 데이터 행이지 제목 자리가 아닙니다', 'title 속성은 툴팁 역할만 하고 표 제목으로 인식되지 않습니다']}
+/>
+
+<Quiz
+  questionNumber={3}
+  question="표의 각 행 맨 앞 셀이 그 행 전체의 제목 역할을 할 때 붙이는 속성은?"
+  options={['scope=col', 'scope=row', 'headers=true', 'rowspan=1']}
+  correctAnswer={2}
+  explanation="scope=row는 그 th가 같은 행의 제목임을 명시합니다. 열 전체의 제목일 때는 scope=col을 씁니다."
+  optionExplanations={['열 전체의 제목일 때 쓰는 값입니다', '정답입니다', '표준 속성이 아닙니다', 'rowspan은 셀이 몇 개 행에 걸쳐 병합되는지를 나타낼 뿐 제목 역할과 무관합니다']}
+/>
+
+<Quiz
+  questionNumber={4}
+  question="합계나 요약 행을 담기에 알맞은 표 구성 요소는?"
+  options={['thead', 'tbody', 'tfoot', 'caption']}
+  correctAnswer={3}
+  explanation="tfoot은 합계·요약처럼 표 본문과 구분되는 마무리 행을 담습니다."
+  optionExplanations={['헤더 행을 담는 곳입니다', '본문 데이터 행을 담는 곳입니다', '정답입니다', 'caption은 표 전체의 제목 하나만 담습니다']}
+/>
+
+## 참고 자료
+
+- [MDN — HTML table basics](https://developer.mozilla.org/en-US/docs/Learn_web_development/Core/Structuring_content/HTML_table_basics)
+- [MDN — Table accessibility](https://developer.mozilla.org/en-US/docs/Learn_web_development/Core/Structuring_content/Table_accessibility)

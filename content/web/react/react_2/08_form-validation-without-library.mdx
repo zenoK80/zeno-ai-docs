@@ -1,0 +1,282 @@
+---
+title: '08. 라이브러리 없는 폼 검증과 에러 표시'
+description: '필드별 에러 상태와 aria 속성으로 접근성 있는 검증 메시지를 만든다'
+---
+
+<Callout type="info">
+  **이번 편의 결과물:** 추가 폼에서 빈 제목·중복 도서 등을 제출 전에 막고, 필드별 에러 메시지를 화면과 스크린 리더 모두에 전달합니다. **다루는 개념:** 제출 전 검증 함수 설계, 필드별 에러 상태와 인라인 메시지, `aria-invalid`/`aria-describedby`로 에러 연결, `useActionState`와 검증 결합
+</Callout>
+
+## 이 편에서 만드는 파일
+
+```
+bookshelf/src/
+└── pages/
+    └── NewBookPage.jsx         ~ 검증 함수 분리, 필드별 에러 상태, aria 속성 추가
+```
+
+## 개념 정리
+
+05편의 `NewBookPage`는 에러를 문자열 하나(`state.error`)로만 관리했습니다. 제목이 비어도, 저자가 비어도 같은 문구가 폼 맨 아래에 한 번 나옵니다. 이번 편은 **필드마다** 에러를 구분합니다.
+
+| 검증 항목 | 조건 | 에러 위치 |
+|-----------|------|-----------|
+| 제목 | 빈 문자열이면 안 됨 | `title` 입력 아래 |
+| 저자 | 빈 문자열이면 안 됨 | `author` 입력 아래 |
+| 쪽수 | 입력했다면 0 이상의 숫자여야 함 | `pages` 입력 아래 |
+| 제목 중복 | 이미 저장된 책과 제목(공백 제거·대소문자 무시)이 같으면 안 됨 | `title` 입력 아래 |
+
+검증 함수는 컴포넌트 밖에 순수 함수로 둡니다. 입력값 객체를 받아 `{ 필드명: 에러문구 }` 형태의 객체를 반환하고, 에러가 없는 필드는 키 자체를 만들지 않습니다.
+
+에러를 시각적으로만 빨간 글씨로 보여주면 스크린 리더 사용자는 어떤 입력에 문제가 있는지 알기 어렵습니다. 두 속성을 짝으로 씁니다.
+
+| 속성 | 위치 | 역할 |
+|------|------|------|
+| `aria-invalid` | 입력 요소 | 이 입력이 검증에 실패했음을 보조 기술에 알림 |
+| `aria-describedby` | 입력 요소 | 에러 메시지 요소의 `id`를 가리켜 두 요소를 연결 |
+| `role="alert"` | 에러 메시지 요소 | 메시지가 나타나는 순간 스크린 리더가 즉시 읽도록 함 |
+
+05편에서 확인했듯 `useActionState`로 만든 비제어 입력은 제출 실패 후에도 DOM에 입력한 값이 남아 있습니다. 그래서 값을 따로 되돌려줄 필요 없이 에러 객체만 상태에 추가하면 됩니다.
+
+## 실습
+
+<Steps>
+
+### 1. 파일 열기
+
+`src/pages/NewBookPage.jsx`를 엽니다(05편에서 만든 파일).
+
+### 2. 코드 작성
+
+검증 함수를 파일 위쪽에 추가하고, `submitNewBook`과 JSX를 아래처럼 바꿉니다. 파일 전체를 아래 내용으로 교체합니다.
+
+```jsx
+// src/pages/NewBookPage.jsx
+import { useActionState } from 'react';
+import { useNavigate } from 'react-router';
+import { useLocalStorage } from '../hooks/useLocalStorage.js';
+
+const COVER_COLORS = ['#2563eb', '#16a34a', '#f59e0b', '#db2777', '#7c3aed', '#0891b2'];
+const initialState = { errors: {} };
+
+function validateBookInput({ title, author, pages, books }) {
+  const errors = {};
+
+  if (title === '') {
+    errors.title = '제목을 입력합니다.';
+  } else if (books.some((book) => book.title.trim().toLowerCase() === title.toLowerCase())) {
+    errors.title = '이미 등록된 책 제목입니다.';
+  }
+
+  if (author === '') {
+    errors.author = '저자를 입력합니다.';
+  }
+
+  if (pages !== '' && (Number.isNaN(Number(pages)) || Number(pages) < 0)) {
+    errors.pages = '쪽수는 0 이상의 숫자로 입력합니다.';
+  }
+
+  return errors;
+}
+
+function NewBookPage() {
+  const navigate = useNavigate();
+  const [books, setBooks] = useLocalStorage('bookshelf-books', []);
+
+  async function submitNewBook(prevState, formData) {
+    const title = formData.get('title').trim();
+    const author = formData.get('author').trim();
+    const pages = formData.get('pages').trim();
+
+    const errors = validateBookInput({ title, author, pages, books });
+    if (Object.keys(errors).length > 0) {
+      return { errors };
+    }
+
+    const nextId = books.length === 0 ? 1 : Math.max(...books.map((book) => book.id)) + 1;
+
+    setBooks([
+      ...books,
+      {
+        id: nextId,
+        title,
+        author,
+        status: formData.get('status'),
+        rating: 0,
+        pages: pages === '' ? 0 : Number(pages),
+        coverColor: COVER_COLORS[Math.floor(Math.random() * COVER_COLORS.length)],
+        startedAt: null,
+        finishedAt: null,
+        memo: formData.get('memo').trim(),
+      },
+    ]);
+
+    navigate('/');
+    return { errors: {} };
+  }
+
+  const [state, formAction, isPending] = useActionState(submitNewBook, initialState);
+  const { errors } = state;
+
+  return (
+    <section className="new-book-page">
+      <h2>책 추가</h2>
+
+      <form action={formAction} noValidate>
+        <label htmlFor="new-book-title">제목</label>
+        <input
+          id="new-book-title"
+          name="title"
+          type="text"
+          placeholder="예: 클린 코드"
+          aria-invalid={Boolean(errors.title)}
+          aria-describedby={errors.title ? 'new-book-title-error' : undefined}
+        />
+        {errors.title && (
+          <p id="new-book-title-error" className="field-error" role="alert">
+            {errors.title}
+          </p>
+        )}
+
+        <label htmlFor="new-book-author">저자</label>
+        <input
+          id="new-book-author"
+          name="author"
+          type="text"
+          placeholder="예: 로버트 씨 마틴"
+          aria-invalid={Boolean(errors.author)}
+          aria-describedby={errors.author ? 'new-book-author-error' : undefined}
+        />
+        {errors.author && (
+          <p id="new-book-author-error" className="field-error" role="alert">
+            {errors.author}
+          </p>
+        )}
+
+        <label htmlFor="new-book-pages">쪽수</label>
+        <input
+          id="new-book-pages"
+          name="pages"
+          type="number"
+          min="0"
+          placeholder="예: 584"
+          aria-invalid={Boolean(errors.pages)}
+          aria-describedby={errors.pages ? 'new-book-pages-error' : undefined}
+        />
+        {errors.pages && (
+          <p id="new-book-pages-error" className="field-error" role="alert">
+            {errors.pages}
+          </p>
+        )}
+
+        <label htmlFor="new-book-status">상태</label>
+        <select id="new-book-status" name="status" defaultValue="wish">
+          <option value="wish">읽고 싶어요</option>
+          <option value="reading">읽는 중</option>
+          <option value="done">다 읽음</option>
+        </select>
+
+        <label htmlFor="new-book-memo">메모</label>
+        <textarea id="new-book-memo" name="memo" placeholder="선택 입력" />
+
+        <button type="submit" disabled={isPending}>
+          {isPending ? '추가하는 중...' : '추가'}
+        </button>
+      </form>
+    </section>
+  );
+}
+
+export default NewBookPage;
+```
+
+`form`에 `noValidate`를 추가해 브라우저 기본 검증 풍선말 대신 우리가 만든 에러 메시지만 보이게 했습니다. 05편에서 쓰던 `state.error`(문자열 하나)는 `state.errors`(객체)로 바뀌었고, 06편에서 만든 `useLocalStorage`가 반환하는 `books` 배열을 검증 함수에 그대로 넘겨 중복 제목을 확인합니다.
+
+### 3. 실행
+
+```
+npm run dev
+```
+
+### 4. 확인
+
+- 제목만 비운 채 제출하면 제목 입력 바로 아래에만 에러 문구가 보입니다. 저자 입력 아래에는 아무것도 나타나지 않습니다.
+- 이미 있는 책 제목(예: "클린 코드")을 그대로 입력하고 제출하면 "이미 등록된 책 제목입니다."가 보입니다.
+- 쪽수에 `-5`를 입력하고 제출하면 쪽수 아래에만 에러가 보입니다.
+- 개발자 도구에서 제목 입력창 요소를 확인하면 에러가 있을 때 `aria-invalid="true"`와 `aria-describedby="new-book-title-error"`가 붙어 있습니다.
+- 모든 값을 올바르게 채우면 목록 페이지로 이동하고 에러가 남아 있지 않습니다.
+
+</Steps>
+
+## 직접 해보기
+
+1. 메모 필드에 최대 200자 제한을 추가하고, 초과하면 에러를 보여주세요.
+2. 저자 이름에 숫자가 포함되면 막는 검증을 추가해 보세요(힌트: 정규식 `/\d/`).
+
+<details>
+<summary>풀이 보기</summary>
+
+```js
+function validateBookInput({ title, author, pages, memo }) {
+  const errors = {};
+  // ...기존 검증 유지
+
+  if (memo.length > 200) {
+    errors.memo = '메모는 200자 이하로 입력합니다.';
+  }
+
+  if (/\d/.test(author)) {
+    errors.author = '저자 이름에는 숫자를 넣을 수 없습니다.';
+  }
+
+  return errors;
+}
+```
+
+`submitNewBook`에서 `formData.get('memo').trim()` 값을 `validateBookInput`에 함께 넘기도록 호출부도 바꿔야 합니다.
+
+</details>
+
+## 자주 하는 실수
+
+| 증상 | 원인 | 고치는 법 |
+|------|------|-----------|
+| 에러가 모든 필드 아래에 똑같이 나타남 | `errors`를 문자열 하나로 관리 | 필드 이름을 키로 하는 객체(`{ title: ..., author: ... }`)로 관리 |
+| 스크린 리더가 에러를 안 읽어줌 | 에러 문단에 `role="alert"`이 없음 | 에러 메시지 요소에 `role="alert"` 추가 |
+| 유효한 값인데도 에러가 안 사라짐 | 이전 렌더링의 `errors` 객체를 그대로 참조 | `submitNewBook`이 매번 새 `errors` 객체를 만들어 반환하는지 확인 |
+| 브라우저 기본 풍선말과 커스텀 에러가 동시에 뜸 | `<form>`에 `noValidate`를 안 붙임 | `noValidate` 속성 추가 |
+
+## 확인 문제
+
+<Quiz
+  questionNumber={1}
+  question="에러를 필드별 객체(errors.title, errors.author 등)로 관리하는 이유는"
+  options={['객체가 문자열보다 메모리를 적게 쓰므로', '각 입력 아래에 그 입력에 해당하는 에러만 보여줄 수 있으므로', 'useActionState가 문자열 상태를 지원하지 않으므로', 'aria-invalid는 객체 타입만 받을 수 있으므로']}
+  correctAnswer={2}
+  explanation="필드별 객체로 관리하면 어떤 입력에 어떤 문제가 있는지 정확히 구분해 보여줄 수 있습니다."
+  optionExplanations={['메모리 효율이 목적이 아닙니다', '정답입니다', 'useActionState는 어떤 형태의 상태든 받을 수 있습니다', 'aria-invalid는 불리언 값을 받습니다']}
+/>
+
+<Quiz
+  questionNumber={2}
+  question="aria-describedby가 하는 역할은"
+  options={['입력창의 기본값을 지정한다', '입력 요소와 그 에러 메시지 요소를 id로 연결해 보조 기술이 함께 읽도록 한다', 'CSS 스타일을 적용한다', '폼 제출을 막는다']}
+  correctAnswer={2}
+  explanation="aria-describedby는 특정 id를 가진 요소를 현재 요소의 설명으로 연결해, 스크린 리더가 입력과 에러 메시지를 함께 읽게 합니다."
+  optionExplanations={['기본값과는 무관합니다', '정답입니다', '스타일과는 무관한 접근성 속성입니다', '제출 자체를 막지는 않습니다']}
+/>
+
+<Quiz
+  questionNumber={3}
+  question="form 요소에 noValidate를 추가하는 이유는"
+  options={['제출 자체를 막기 위해', '브라우저 기본 검증 풍선말 대신 직접 만든 에러 메시지만 보이게 하기 위해', 'useActionState를 쓰려면 반드시 필요하기 때문에', '입력창의 타입을 무시하기 위해']}
+  correctAnswer={2}
+  explanation="noValidate가 없으면 브라우저 기본 검증 풍선말과 우리가 만든 에러 메시지가 동시에 나타날 수 있습니다."
+  optionExplanations={['제출을 막는 속성이 아닙니다', '정답입니다', 'useActionState와는 무관한 HTML 표준 속성입니다', '입력 타입 자체는 그대로 동작합니다']}
+/>
+
+## 참고 자료
+
+- [React 공식 문서 - useActionState API 레퍼런스](https://react.dev/reference/react/useActionState)
+- [MDN - 클라이언트 사이드 폼 검증](https://developer.mozilla.org/ko/docs/Learn_web_development/Extensions/Forms/Form_validation)
+- [MDN - ARIA: aria-invalid 속성](https://developer.mozilla.org/en-US/docs/Web/Accessibility/ARIA/Attributes/aria-invalid)

@@ -1,0 +1,186 @@
+---
+title: '02. 태그·속성 문법과 문서 뼈대'
+description: '태그·속성 문법과 콘텐츠 모델 개념을 정리하고, index.html에 유효한 문서 뼈대를 세웁니다'
+---
+
+<Callout type="info">
+  **이번 편의 결과물:** `index.html`이 doctype·head 메타데이터를 갖춘 유효한 뼈대로 존재하고 브라우저 탭에 title이 표시됩니다. **다루는 개념:** 여는/닫는 태그와 빈 요소, 속성값 인용 규칙, 콘텐츠 모델 개념 소개, 문서 뼈대(`doctype`·`html`·`head`·`body`)와 head 메타데이터
+</Callout>
+
+## 이 편에서 만드는 파일
+
+```
+web-practice/portfolio/
++ index.html
+```
+
+## 개념 정리
+
+### 태그·속성 문법
+
+| 문법 요소 | 형태 | 예시 |
+|-----------|------|------|
+| 여는 태그 | `<태그명>` | `<p>` |
+| 닫는 태그 | `</태그명>` | `</p>` |
+| 빈 요소 | 내용도 닫는 태그도 없는 요소 | `<meta charset="utf-8">`, `<img>`, `<br>` |
+| 속성 | `이름="값"` 형태로 여는 태그 안에 작성 | `<html lang="ko">` |
+
+속성값은 큰따옴표로 감쌉니다. 값에 공백이 있으면 인용 부호가 필수이고, 없어도 관례로 항상 붙입니다. 태그·속성 이름은 대소문자를 구분하지 않지만 실무에서는 소문자로 통일합니다.
+
+```html
+<!-- 올바름 -->
+<meta name="viewport" content="width=device-width, initial-scale=1">
+
+<!-- 동작은 하지만 관례에 어긋남 -->
+<META NAME=viewport CONTENT=width=device-width>
+```
+
+### 콘텐츠 모델 — 이 요소 안에 무엇이 들어갈 수 있는가
+
+모든 요소는 **콘텐츠 모델**(content model)이라는 카테고리에 속하고, 이 카테고리가 "이 요소 안에 어떤 요소가 들어갈 수 있는가"를 정합니다. 지금 전부 외울 필요는 없습니다. 뒤 편에서 새 요소가 나올 때마다 이 표를 다시 참조합니다.
+
+| 카테고리 | 뜻 | 대표 요소 |
+|----------|-----|-----------|
+| flow | 본문 흐름에 놓일 수 있는 대부분의 요소 | `p`, `div`, `ul` |
+| phrasing | 문장 안에서 텍스트와 섞이는 요소 | `span`, `em`, `a` |
+| sectioning | 문서를 구역으로 나누는 요소 | `header`, `main`, `section` |
+| heading | 제목 요소 | `h1`–`h6` |
+| embedded | 외부 리소스를 끌어오는 요소 | `img`, `video` |
+| interactive | 사용자가 조작하는 요소 | `button`, `input`, `a` |
+| metadata | 문서 자체의 정보를 담는 요소 | `title`, `meta`, `link` |
+
+예를 들어 `<p>`는 flow 콘텐츠만 담을 수 있어서 안에 `<div>`(sectioning이 아닌 flow지만 관례상 블록 구조용)를 넣지 않습니다. 이런 위반은 15편 유효성 검사에서 실제로 확인합니다.
+
+### 문서 뼈대
+
+| 요소 | 역할 |
+|------|------|
+| `<!doctype html>` | 브라우저에 표준 모드로 렌더링하라고 알림. 오늘날은 이 한 줄뿐 |
+| `<html lang="ko">` | 문서 전체를 감싸며 언어를 지정 |
+| `<head>` | 화면에 안 보이는 메타데이터(문자셋·제목·뷰포트 등) |
+| `<body>` | 화면에 보이는 실제 콘텐츠 |
+
+head 안에는 다음 세 가지가 항상 필요합니다.
+
+| 메타데이터 | 코드 | 없으면 생기는 문제 |
+|------------|------|---------------------|
+| 문자셋 | `<meta charset="utf-8">` | 한글이 깨져 보임 |
+| 뷰포트 | `<meta name="viewport" content="width=device-width, initial-scale=1">` | 모바일에서 화면이 데스크톱 배율로 축소되어 보임 |
+| 제목 | `<title>페이지 제목</title>` | 브라우저 탭·검색 결과에 제목이 안 뜸 |
+
+`<meta charset>`은 파일 안 다른 문자를 해석하기 전에 브라우저가 읽어야 하므로 `<head>`의 맨 위 줄에 둡니다.
+
+## 실습
+
+<Steps>
+
+### 1. index.html 만들기
+
+`web-practice/portfolio/` 안에 `index.html` 파일을 만듭니다.
+
+### 2. 코드 작성
+
+```html
+<!-- portfolio/index.html -->
+<!doctype html>
+<html lang="ko">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Zeno Kim — 소개</title>
+  </head>
+  <body>
+  </body>
+</html>
+```
+
+`favicon.svg`는 01편에서 받은 파일입니다. 나중에 `css_fundamentals`에서 `<link rel="icon">`으로 연결합니다.
+
+### 3. 실행
+
+VS Code의 Live Server 확장을 쓰거나, 파일을 더블클릭해 브라우저로 직접 엽니다.
+
+```bash
+# Live Server가 없다면 Node 내장 방식으로 임시 서버를 띄워도 됩니다
+npx serve web-practice/portfolio
+```
+
+### 4. 확인
+
+- 브라우저 탭 제목이 `Zeno Kim — 소개`로 보입니다.
+- 화면은 흰 배경에 아무 내용도 없습니다(body가 비어 있으므로 정상입니다).
+- `Ctrl+U`(또는 마우스 오른쪽 버튼 → 페이지 소스 보기)로 head 안 세 메타데이터가 그대로 들어있는지 확인합니다.
+
+</Steps>
+
+## 직접 해보기
+
+1. `<meta charset="utf-8">`을 지우고 저장한 뒤 다시 열어 보세요. 브라우저가 한글을 어떻게 표시하는지 관찰합니다.
+
+<details>
+<summary>답 보기</summary>
+
+브라우저와 운영체제에 따라 다르지만, 한글 대신 깨진 기호가 보이거나 다른 문자셋으로 잘못 해석되어 표시될 수 있습니다. 확인 후 다시 `<meta charset="utf-8">`을 첫 줄에 복원합니다.
+
+</details>
+
+2. `<title>`을 빈 문자열 `<title></title>`로 바꿔 저장해 보세요. 브라우저 탭에 무엇이 표시되나요?
+
+<details>
+<summary>답 보기</summary>
+
+탭에는 보통 파일 경로나 빈 탭 이름이 표시됩니다. 검색 결과·즐겨찾기에서도 페이지를 구분하기 어려워지므로 `<title>`은 항상 의미 있는 내용을 채웁니다.
+
+</details>
+
+## 자주 하는 실수
+
+| 증상 | 원인 | 고치는 법 |
+|------|------|-----------|
+| 브라우저가 옛날 방식(호환 모드)으로 렌더링됨 | `<!doctype html>` 누락 또는 위치가 첫 줄이 아님 | doctype을 파일 맨 첫 줄에 정확히 작성 |
+| 한글이 깨져 보임 | `<meta charset>` 누락 또는 head 하단에 위치 | `<meta charset="utf-8">`을 head 첫 줄로 이동 |
+| 모바일에서 글자가 작게 보임 | 뷰포트 메타 태그 누락 | `<meta name="viewport" content="width=device-width, initial-scale=1">` 추가 |
+| 속성값에 공백이 있는데 인용 부호를 안 씀 | `content=width=device-width` 처럼 따옴표 생략 | 값 전체를 큰따옴표로 감싸기 |
+
+## 확인 문제
+
+<Quiz
+  questionNumber={1}
+  question="빈 요소(empty element)의 예로 알맞은 것은?"
+  options={['<p>내용</p>', '<meta charset="utf-8">', '<div>내용</div>', '<section>내용</section>']}
+  correctAnswer={2}
+  explanation="meta는 내용도 닫는 태그도 없는 빈 요소입니다. 나머지는 여는 태그와 닫는 태그 사이에 내용을 담는 요소입니다."
+  optionExplanations={['여는/닫는 태그가 모두 있는 요소입니다.', '정답입니다.', '내용을 감싸는 요소입니다.', '내용을 감싸는 sectioning 요소입니다.']}
+/>
+
+<Quiz
+  questionNumber={2}
+  question="meta charset을 head의 맨 위 줄에 두는 이유로 가장 알맞은 것은?"
+  options={['보기 좋아서', '브라우저가 다른 내용을 해석하기 전에 문자셋을 먼저 알아야 하므로', 'CSS가 그 위치를 요구해서', 'W3C 검증기가 순서를 강제해서']}
+  correctAnswer={2}
+  explanation="문자셋 정보가 늦게 나오면 그 앞부분이 잘못된 인코딩으로 먼저 해석될 수 있습니다. 그래서 head 맨 위에 둡니다."
+  optionExplanations={['미관과는 관계없는 이유입니다.', '정답입니다.', 'CSS와는 관계없습니다.', '검증기는 순서 자체를 강제하지 않습니다.']}
+/>
+
+<Quiz
+  questionNumber={3}
+  question="콘텐츠 모델 카테고리 중 h1~h6가 속하는 것은?"
+  options={['embedded', 'interactive', 'heading', 'metadata']}
+  correctAnswer={3}
+  explanation="h1부터 h6까지는 제목 요소로 heading 콘텐츠 카테고리에 속합니다."
+  optionExplanations={['embedded는 img·video처럼 외부 리소스를 끌어오는 요소입니다.', 'interactive는 button·input처럼 조작 가능한 요소입니다.', '정답입니다.', 'metadata는 title·meta처럼 문서 자체 정보를 담는 요소입니다.']}
+/>
+
+<Quiz
+  questionNumber={4}
+  question="다음 중 head 안에 반드시 필요한 메타데이터가 아닌 것은?"
+  options={['meta charset', 'meta viewport', 'title', 'h1']}
+  correctAnswer={4}
+  explanation="h1은 body 안에서 화면에 보이는 제목 요소입니다. head는 화면에 안 보이는 메타데이터만 담습니다."
+  optionExplanations={['head에 반드시 필요한 문자셋 정보입니다.', 'head에 반드시 필요한 뷰포트 정보입니다.', 'head에 반드시 필요한 문서 제목입니다.', '정답입니다. h1은 body 안 콘텐츠입니다.']}
+/>
+
+## 참고 자료
+
+- [WHATWG — HTML Living Standard](https://html.spec.whatwg.org/multipage/)
+- [MDN — Content categories](https://developer.mozilla.org/en-US/docs/Web/HTML/Guides/Content_categories)

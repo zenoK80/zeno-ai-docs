@@ -1,0 +1,286 @@
+---
+title: '12. 표지 이미지 업로드와 미리보기'
+description: '책 등록 폼에 표지 이미지 선택·미리보기를 추가하고 base64 데이터 URL로 json-server에 저장해 목록·상세에 반영한다'
+---
+
+<Callout type="info">
+  **이번 편의 결과물:** 책 등록 폼에서 표지 이미지를 선택하면 즉시 미리보기가 뜨고, 저장 후 목록·상세에 이미지가 보입니다. · **다루는 개념:** `input[type="file"]`과 `FileReader`, base64 데이터 URL, `PATCH`로 필드 하나만 갱신
+</Callout>
+
+## 이 편에서 만드는 파일
+
+```
+bookshelf/src/
+├── components/
+│   ├── BookForm.jsx           ~ 수정 (파일 입력·미리보기 추가)
+│   └── BookCard.jsx           ~ 수정 (coverImage 있으면 이미지, 없으면 coverColor)
+├── pages/
+│   ├── BookDetailPage.jsx     ~ 수정 (coverImage 렌더링)
+│   └── NewBookPage.jsx        ~ 수정 (등록 후 coverImage를 별도 PATCH로 저장)
+├── api/
+│   └── books.js               ~ 수정 (updateBook 함수 추가)
+└── hooks/
+    └── useBookMutations.js    ~ 수정 (useUpdateBook 추가)
+```
+
+## 개념 정리
+
+`coverImage`는 파일이 아니라 **문자열**(base64로 인코딩한 데이터 URL)로 다룹니다. `FormData`나 `multipart/form-data` 없이, 지금까지 써온 JSON 요청 그대로 저장할 수 있습니다.
+
+| 함수 | 역할 |
+|------|------|
+| `FileReader.readAsDataURL(file)` | 파일을 `data:image/png;base64,...` 형태의 문자열로 비동기 변환 |
+| `reader.onload` | 변환이 끝나면 `reader.result`에 데이터 URL이 담겨 호출됨 |
+
+`URL.createObjectURL`과 달리 `FileReader`가 만든 데이터 URL은 별도로 해제(revoke)할 필요가 없는 순수 문자열입니다. 그 값을 `<img src>`에 그대로 쓰면 미리보기가 되고, 서버에 저장하는 값과 미리보기 값이 같아 변환을 두 번 할 필요도 없습니다.
+
+책을 새로 등록할 때는 아직 `id`가 없어 표지를 한 번에 같이 저장할 수 없습니다. 그래서 순서를 나눕니다. (1) 텍스트 필드로 먼저 `POST /books`를 보내 책을 만들고, (2) 응답으로 받은 `id`에 `PATCH /books/:id`로 `coverImage` 필드만 갱신합니다. `PATCH`는 본문에 담은 필드만 바꾸고 나머지는 그대로 둔다는 점에서, 문서 전체를 교체하는 `PUT`과 다릅니다.
+
+## 실습
+
+<Steps>
+
+### 1. BookForm에 파일 입력과 미리보기 추가
+
+```jsx
+// src/components/BookForm.jsx (파일 관련 부분만 발췌 — 나머지는 10편 코드 유지)
+import { useState } from 'react';
+// ...기존 import 유지(useForm, zodResolver, bookSchema)
+
+function BookForm({ defaultValues, onSubmitBook, submitLabel = '저장' }) {
+  // ...기존 useForm 설정 유지
+
+  const [coverImage, setCoverImage] = useState(defaultValues?.coverImage ?? null);
+
+  function handleCoverChange(e) {
+    const file = e.target.files?.[0] ?? null;
+    if (!file) {
+      setCoverImage(null);
+      return;
+    }
+    const reader = new FileReader();
+    reader.onload = () => setCoverImage(reader.result);
+    reader.readAsDataURL(file);
+  }
+
+  async function onValid(values) {
+    // ...기존 coverColor 계산 유지
+    await onSubmitBook({ ...values, coverColor, coverImage }, { setError });
+  }
+
+  return (
+    <form className="book-form" onSubmit={handleSubmit(onValid)} noValidate>
+      {/* ...기존 title·author·pages·status·memo 필드 유지 */}
+
+      <label htmlFor="book-cover">표지 이미지</label>
+      <input id="book-cover" type="file" accept="image/*" onChange={handleCoverChange} />
+      {coverImage && (
+        <img className="cover-preview" src={coverImage} alt="표지 미리보기" width={120} />
+      )}
+
+      <button type="submit" disabled={isSubmitting}>
+        {isSubmitting ? '저장 중...' : submitLabel}
+      </button>
+    </form>
+  );
+}
+
+export default BookForm;
+```
+
+`readAsDataURL`은 비동기라 결과가 바로 나오지 않습니다. `reader.onload`가 호출되는 시점에야 `reader.result`가 채워지므로, 그 안에서 `setCoverImage`를 부릅니다. 파일을 선택하지 않으면 `coverImage`를 `null`로 되돌려 기존 `coverColor` 블록이 다시 보이게 합니다.
+
+### 2. api/books.js에 updateBook 추가
+
+```js
+// src/api/books.js (updateBook만 발췌 — 나머지 함수는 05~10편 코드 유지)
+export async function updateBook(id, changes) {
+  const response = await fetch(`${API_BASE}/books/${id}`, {
+    method: 'PATCH',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(changes),
+  });
+  if (!response.ok) throw new Error('책 정보를 수정하지 못했습니다');
+  return response.json();
+}
+```
+
+### 3. useBookMutations.js에 useUpdateBook 추가
+
+```js
+// src/hooks/useBookMutations.js (useUpdateBook만 발췌 — useCreateBook·useDeleteBook, 기존 import는 05~06편 코드 유지)
+import { updateBook } from '../api/books.js';
+// useMutation, useQueryClient는 05편에서 이미 import함
+
+export function useUpdateBook() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: ({ id, changes }) => updateBook(id, changes),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['books'] });
+    },
+  });
+}
+```
+
+`mutationFn`이 인자 하나(`{ id, changes }`)만 받도록 감싸, 호출부에서 `mutate({ id, changes })` 형태로 통일합니다.
+
+### 4. NewBookPage에서 등록 후 표지를 PATCH로 저장
+
+```jsx
+// src/pages/NewBookPage.jsx
+import { useNavigate } from 'react-router';
+import BookForm from '../components/BookForm';
+import { useCreateBook, useUpdateBook } from '../hooks/useBookMutations.js';
+
+function NewBookPage() {
+  const navigate = useNavigate();
+  const createBook = useCreateBook();
+  const updateBook = useUpdateBook();
+
+  async function handleSubmitBook({ coverImage, ...values }, { setError }) {
+    try {
+      const created = await createBook.mutateAsync(values);
+      if (coverImage) {
+        await updateBook.mutateAsync({ id: created.id, changes: { coverImage } });
+      }
+      navigate('/');
+    } catch (error) {
+      const fieldErrors = error.fieldErrors ?? {};
+      const fields = Object.keys(fieldErrors);
+      if (fields.length === 0) {
+        setError('root', { message: '저장에 실패했습니다. 잠시 후 다시 시도하세요.' });
+        return;
+      }
+      fields.forEach((field) => setError(field, { type: 'server', message: fieldErrors[field] }));
+    }
+  }
+
+  return (
+    <section>
+      <h2>책 등록</h2>
+      <BookForm onSubmitBook={handleSubmitBook} submitLabel="등록" />
+    </section>
+  );
+}
+
+export default NewBookPage;
+```
+
+`coverImage`는 구조 분해로 따로 떼어내 `createBook`(텍스트 필드만)에는 넘기지 않습니다. 책이 만들어져 `id`가 생긴 뒤에야 `updateBook`으로 표지를 저장합니다.
+
+### 5. BookCard·BookDetailPage에서 이미지 렌더링
+
+```jsx
+// src/components/BookCard.jsx (표지 부분만 발췌 — 나머지는 기존 코드 유지)
+function BookCover({ book }) {
+  if (book.coverImage) {
+    return <img className="book-cover" src={book.coverImage} alt={`${book.title} 표지`} />;
+  }
+  return <div className="book-cover-placeholder" style={{ backgroundColor: book.coverColor }} />;
+}
+```
+
+`BookDetailPage.jsx`에도 같은 `BookCover` 컴포넌트를 가져다 써서 목록과 상세에서 동일한 규칙(이미지 있으면 이미지, 없으면 색상 블록)을 유지합니다.
+
+### 6. 실행
+
+```text
+npx json-server db.json --port 3001
+npm run dev
+```
+
+### 7. 확인
+
+- 책 등록 폼에서 이미지 파일을 선택하면 서버 응답을 기다리지 않고 즉시 미리보기가 나타납니다.
+- 파일을 선택하지 않고 저장하면 기존처럼 `coverColor` 블록이 표시됩니다.
+- 이미지를 넣어 저장한 뒤 목록으로 돌아오면 해당 책 카드에 실제 이미지가 보입니다.
+- 상세 페이지에서도 같은 이미지가 보입니다.
+- 개발자 도구 네트워크 탭에서 `POST /books` 다음에 `PATCH /books/:id` 요청이 이어지는지 확인합니다.
+- `bookshelf/db.json`을 열어 해당 책의 `coverImage`가 `data:image/...` 문자열로 저장됐는지 확인합니다.
+
+</Steps>
+
+## 직접 해보기
+
+1. 이미지 크기가 2MB를 넘으면 미리보기 전에 "파일이 너무 큽니다" 메시지를 띄우고 업로드를 막아 보세요(`file.size` 확인).
+2. 이미지가 아닌 파일(`.pdf` 등)을 선택했을 때 `accept="image/*"`만으로는 완전히 막히지 않는 브라우저도 있습니다. `file.type.startsWith('image/')`로 한 번 더 검사해 보세요.
+
+<details>
+<summary>정답 보기</summary>
+
+```jsx
+// src/components/BookForm.jsx (handleCoverChange 안)
+function handleCoverChange(e) {
+  const file = e.target.files?.[0] ?? null;
+  if (!file) return setCoverImage(null);
+  if (file.size > 2 * 1024 * 1024) {
+    alert('파일이 너무 큽니다(2MB 이하)');
+    e.target.value = '';
+    return;
+  }
+  if (!file.type.startsWith('image/')) {
+    alert('이미지 파일만 선택하세요');
+    e.target.value = '';
+    return;
+  }
+  const reader = new FileReader();
+  reader.onload = () => setCoverImage(reader.result);
+  reader.readAsDataURL(file);
+}
+```
+
+`e.target.value = ''`로 입력을 비워야 같은 파일을 다시 선택했을 때도 `onChange`가 실행됩니다.
+
+</details>
+
+## 자주 하는 실수
+
+| 증상 | 원인 | 고치는 법 |
+|---|---|---|
+| 저장 후에도 이미지가 안 보임 | `createBook` 성공 후 `updateBook`을 호출하지 않음 | `handleSubmitBook`에서 `created.id`로 `updateBook.mutateAsync` 호출 확인 |
+| 미리보기가 늦게 나타나거나 안 바뀜 | `reader.onload` 밖에서 `setCoverImage` 호출 | 콜백 안에서만 `reader.result`를 읽을 수 있음을 확인 |
+| db.json에 `coverImage`가 매우 길게 저장됨 | base64는 원본보다 약 33% 커짐(정상 동작) | 실습 규모에서는 문제 없음. 실제 서비스는 별도 스토리지 URL 사용 |
+| 목록에는 이미지가 안 보이고 색상 블록만 보임 | `BookCard`가 여전히 `coverColor`만 참조 | `book.coverImage` 우선 분기 추가 확인 |
+
+## 확인 문제
+
+<Quiz
+  questionNumber={1}
+  question="이 편에서 표지 이미지를 서버에 저장하는 형식은?"
+  options={['File 객체 그대로', 'base64로 인코딩한 데이터 URL 문자열', 'Blob URL', 'FormData 객체']}
+  correctAnswer={2}
+  explanation="FileReader.readAsDataURL로 만든 base64 데이터 URL 문자열을 coverImage 필드에 JSON으로 저장한다."
+  optionExplanations={['File 객체는 JSON으로 직렬화할 수 없다', '정답 — 문자열이라 기존 JSON 요청 그대로 저장할 수 있다', 'Blob URL은 브라우저 세션에서만 유효하다', 'FormData 없이 JSON만으로 처리한다']}
+/>
+
+<Quiz
+  questionNumber={2}
+  question="새 책 등록 시 coverImage를 POST 본문에 바로 넣지 않고 별도 PATCH로 저장하는 이유는?"
+  options={['PATCH가 POST보다 더 빠르기 때문에', '등록 시점에는 아직 책의 id가 없어 두 단계로 나눠야 하기 때문에', 'json-server가 POST에서 문자열 필드를 거부하기 때문에', 'PATCH만 base64 문자열을 지원하기 때문에']}
+  correctAnswer={2}
+  explanation="POST 응답으로 id를 받은 뒤에야 그 id를 대상으로 PATCH를 보낼 수 있어, 등록과 표지 저장을 두 단계로 나눈다."
+  optionExplanations={['속도 차이가 이유가 아니다', '정답 — id가 생긴 뒤에만 PATCH 대상이 정해진다', 'json-server는 문자열 필드를 그대로 저장한다', 'base64 문자열은 어떤 메서드로도 전송 가능하다']}
+/>
+
+<Quiz
+  questionNumber={3}
+  question="PATCH 요청이 PUT과 다른 점은?"
+  options={['PATCH는 응답을 반환하지 않는다', 'PATCH는 본문에 담은 필드만 바꾸고 나머지는 그대로 둔다', 'PATCH는 GET과 동일하게 동작한다', 'PATCH는 json-server가 지원하지 않는다']}
+  correctAnswer={2}
+  explanation="PATCH는 부분 갱신을 의미해 본문에 없는 필드는 그대로 유지된다. PUT은 문서 전체를 교체하는 의미로 쓰인다."
+  optionExplanations={['응답은 정상적으로 반환된다', '정답이다', 'GET과는 전혀 다른 메서드다', 'json-server는 PATCH를 REST 규약대로 지원한다']}
+/>
+
+<Quiz
+  questionNumber={4}
+  question="FileReader.readAsDataURL을 URL.createObjectURL 대신 쓸 때의 이점은?"
+  options={['파일 크기가 자동으로 줄어든다', '결과가 문자열이라 미리보기와 서버 저장에 같은 값을 재사용할 수 있다', '비동기 처리가 필요 없어진다', '이미지가 아닌 파일도 미리보기가 가능해진다']}
+  correctAnswer={2}
+  explanation="readAsDataURL의 결과는 base64 문자열이라 img의 src로도, 서버에 저장할 값으로도 그대로 쓸 수 있어 별도 변환이 필요 없다."
+  optionExplanations={['파일 크기는 오히려 약간 커진다', '정답이다', 'readAsDataURL도 비동기(onload)로 처리된다', '이미지 미리보기 용도로 쓰는 것은 동일하다']}
+/>
+
+## 참고 자료
+
+- [MDN — Using files from web applications](https://developer.mozilla.org/en-US/docs/Web/API/File_API/Using_files_from_web_applications)

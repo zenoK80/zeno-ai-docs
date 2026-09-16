@@ -1,26 +1,26 @@
 {
-  "generatedAt": "2026-09-16T08:39:20.447Z",
+  "generatedAt": "2026-09-16T12:58:41.125Z",
   "groupCount": 9,
   "seriesCount": 41,
   "groups": [
     {
       "title": "Web · HTML",
-      "description": "2개 시리즈 · 문서 54편",
+      "description": "2개 시리즈 · 문서 36편",
       "order": "01",
       "series": [
         {
           "title": "HTML 기본기",
-          "description": "HTML을 HyperText·Markup·Language 세 조각으로 쪼개 뜻을 풀고, CSS·JS와의 역할 분담, WHATWG Living Standard와 옛 버전 표기의 관계를 정리한다",
-          "href": "/web/html/html_fundamentals/01_what-is-html-and-its-role",
-          "documentCount": 25,
+          "description": "웹 페이지가 HTML·CSS·JS로 나뉘는 이유를 정리하고, 포트폴리오 실습 폴더와 스타터 파일을 준비합니다",
+          "href": "/web/html/html_fundamentals/01_what-is-html-and-setup",
+          "documentCount": 17,
           "preview": "code",
           "accent": "blue"
         },
         {
           "title": "모던 HTML",
-          "description": "JS 라이브러리가 흉내 내던 모달·툴팁·아코디언이 표준 HTML로 들어온 배경과 Baseline 개념을 잡고, 이 과목 전체의 3대 축 지도를 그린다",
-          "href": "/web/html/modern_html/01_why-modern-html",
-          "documentCount": 29,
+          "description": "html_fundamentals가 끝낸 포트폴리오에 이 과목의 에셋을 더하고, 19편 동안 다룰 세 갈래 지도를 그린다",
+          "href": "/web/html/modern_html/01_starter-and-modern-html-map",
+          "documentCount": 19,
           "preview": "code",
           "accent": "green"
         }
@@ -28,22 +28,22 @@
     },
     {
       "title": "Web · CSS",
-      "description": "2개 시리즈 · 문서 63편",
+      "description": "2개 시리즈 · 문서 38편",
       "order": "02",
       "series": [
         {
           "title": "CSS 기본기",
-          "description": "CSS라는 이름의 어원과 스타일시트 개념을 통해, HTML·CSS·JS가 왜 각자 다른 역할을 맡는지, 브라우저가 CSS를 화면에 반영하기까지 어떤 큰 흐름을 거치는지 지도를 그린다",
-          "href": "/web/css/css_fundamentals/01_what-is-css",
-          "documentCount": 32,
+          "description": "포트폴리오 3개 페이지에 CSS를 연결하고, 디자인 시안과 토큰 문서를 읽는 법을 익힙니다.",
+          "href": "/web/css/css_fundamentals/01_css-and-the-design-comp",
+          "documentCount": 20,
           "preview": "code",
           "accent": "amber"
         },
         {
           "title": "모던 CSS",
-          "description": "CSS Fundamentals가 끝나는 지점을 경계선으로 긋고, \"최근 몇 년 사이 새로 생겼거나 작성 방식 자체를 바꾼 것\"이라는 이 과목의 기준을 지도로 그린다",
-          "href": "/web/css/modern_css/01_modern-css-boundary",
-          "documentCount": 31,
+          "description": "css_fundamentals가 끝난 포트폴리오 파일 구조와 CSS 상태를 다시 확인하고, modern_css 실습 폴더를 만든다",
+          "href": "/web/css/modern_css/01_starting-point-and-project-tour",
+          "documentCount": 18,
           "preview": "code",
           "accent": "red"
         }
@@ -51,22 +51,22 @@
     },
     {
       "title": "Web · JavaScript",
-      "description": "2개 시리즈 · 문서 65편",
+      "description": "2개 시리즈 · 문서 37편",
       "order": "03",
       "series": [
         {
           "title": "ECMAScript",
-          "description": "JavaScript와 ECMAScript의 관계에서 출발해, 표준·구현·엔진을 구분하고 명세 문서를 직접 읽어내는 최소 문법을 익힌다",
-          "href": "/web/javascript/ECMAscript/01_ecmascript-overview",
-          "documentCount": 35,
+          "description": "빈 폴더에서 npm init으로 todo-cli 프로젝트를 만들고 ESM 진입점을 실행합니다.",
+          "href": "/web/javascript/ECMAscript/01_node-and-project-setup",
+          "documentCount": 17,
           "preview": "code",
           "accent": "blue"
         },
         {
           "title": "Web APIs",
-          "description": "자바스크립트 엔진이 할 수 있는 일과 브라우저가 빌려주는 일의 경계를 나누고, 이벤트 루프·메인 스레드·origin이라는 플랫폼의 세 축을 지도로 그린다",
+          "description": "JS 엔진과 Web API의 관계, 이벤트 루프, origin 개념을 그림으로 정리합니다.",
           "href": "/web/javascript/web_apis/01_web-platform-basics",
-          "documentCount": 30,
+          "documentCount": 20,
           "preview": "browser",
           "accent": "green"
         }
@@ -74,30 +74,30 @@
     },
     {
       "title": "Web · React",
-      "description": "3개 시리즈 · 문서 46편",
+      "description": "3개 시리즈 · 문서 53편",
       "order": "04",
       "series": [
         {
           "title": "React 기초",
-          "description": "명령형 DOM 조작의 고통에서 출발해, 선언적 UI와 컴포넌트 모델이라는 React의 핵심 사고방식을 원리부터 이해한다",
-          "href": "/web/react/react_1/01_react-as-a-ui-library",
-          "documentCount": 15,
+          "description": "명령형 DOM 조작의 한계를 vanilla JS 카운터 예제로 확인하고 선언적 UI·컴포넌트 개념을 정리합니다.",
+          "href": "/web/react/react_1/01_react-and-the-dom-problem",
+          "documentCount": 17,
           "preview": "code",
           "accent": "amber"
         },
         {
           "title": "React 중급",
-          "description": "상속이 아니라 합성 — children과 슬롯으로 컴포넌트를 조립하는 React의 설계 철학을 원리부터 세운다",
-          "href": "/web/react/react_2/01_component-composition-basics",
+          "description": "react_1이 남긴 bookshelf 상태를 점검하고 이 과목에서 무엇이 달라지는지 확인합니다.",
+          "href": "/web/react/react_2/01_starting-point-and-roadmap",
           "documentCount": 16,
           "preview": "code",
           "accent": "red"
         },
         {
           "title": "React 실무",
-          "description": "내 메모리 안의 상태와 서버에 사는 상태는 성격이 완전히 다르다 — 요청-응답 라이프사이클과 캐시 개념으로 이 과목 전체의 토대를 세운다",
-          "href": "/web/react/react_3/01_server-vs-client-state",
-          "documentCount": 15,
+          "description": "bookshelf의 로컬 배열 상태와 서버에서 오는 데이터의 차이를 구분하고, TanStack Query가 해결하는 문제를 정리합니다",
+          "href": "/web/react/react_3/01_server-state-vs-client-state",
+          "documentCount": 20,
           "preview": "code",
           "accent": "blue"
         }

@@ -1,0 +1,179 @@
+---
+title: '08. 검색 랜드마크와 hidden=until-found'
+description: 'projects.html에 검색 랜드마크를 추가하고, 필터로 숨긴 카드가 브라우저 찾기로 다시 드러나도록 hidden=until-found를 쓴다'
+---
+
+<Callout type="info">
+  **이번 편의 결과물:** `projects.html`에 프로젝트 이름을 걸러내는 검색창이 `<search>` 랜드마크로 생기고, 검색으로 걸러져 숨은 카드도 브라우저의 찾기 기능(`Ctrl`+`F`)으로 검색하면 자동으로 다시 펼쳐집니다. · **다루는 개념:** `<search>`의 시맨틱과 랜드마크 역할, `hidden="until-found"`와 일반 `hidden`의 차이, `beforematch` 이벤트
+</Callout>
+
+## 이 편에서 만드는 파일
+
+```text
+web-practice/portfolio/
+├── projects.html   ~ (검색 랜드마크 추가)
+└── js/main.js       ~ (filterProjects 함수 추가)
+```
+
+## 개념 정리
+
+### `<search>` — 검색 영역임을 알리는 랜드마크
+
+`<search>`는 시각적으로 아무것도 바꾸지 않는 시맨틱 요소입니다. 이 영역이 "검색·필터 기능이 있는 곳"임을 스크린 리더 사용자에게 랜드마크로 알려 줍니다. `<form>`처럼 특별한 동작을 하지는 않고, 안에 검색 입력을 담는 컨테이너 역할만 합니다.
+
+### 일반 `hidden`과 `hidden="until-found"`의 차이
+
+| | `hidden`(값 없음) | `hidden="until-found"` |
+|---|---|---|
+| 화면 표시 | 안 보임 | 안 보임 |
+| 브라우저 찾기(`Ctrl`+`F`)로 검색 | 대상에서 제외됨 | **대상에 포함됨** |
+| 검색어가 매치되면 | 그대로 숨겨진 채 유지 | **자동으로 펼쳐지고 해당 위치로 스크롤됨** |
+| 펼쳐질 때 발생하는 이벤트 | 없음 | `beforematch` |
+
+우리 검색창으로 프로젝트를 걸러낼 때, 안 걸리는 카드를 값 없는 `hidden`으로 숨기면 그 카드는 브라우저 찾기로도 다시는 찾을 수 없습니다. `hidden="until-found"`로 숨기면 "지금은 검색 결과에 없지만, 브라우저 찾기로 그 카드 이름을 검색하면 다시 보여준다"는 동작을 그대로 유지할 수 있습니다.
+
+### `beforematch` 이벤트
+
+브라우저 찾기가 `hidden="until-found"` 요소 안의 텍스트와 매치되어 그 요소를 펼치기 **직전**에 발생합니다. 이 시점에 추가로 하고 싶은 처리(로그를 남기거나, 검색창을 비우는 등)를 연결할 수 있습니다.
+
+```js
+card.addEventListener('beforematch', () => {
+  console.log('찾기로 매치되어 곧 펼쳐집니다');
+});
+```
+
+<Callout type="warning">
+  2026-09 기준 최신 Chrome·Firefox·Safari 전반에서 동작합니다. 이 이벤트를 지원하지 않는 아주 오래된 브라우저에서는 `hidden="until-found"`가 그냥 `hidden`처럼 계속 숨겨진 채로 남습니다. 기능이 없을 뿐 오류는 나지 않습니다.
+</Callout>
+
+## 실습
+
+<Steps>
+
+### 1. projects.html에 검색창 추가하기
+
+06편까지 만든 `projects.html`에서 `<h1>` 아래에 검색 랜드마크를 추가합니다. 헤더·카드·`dialog`·푸터는 06편과 동일하게 유지합니다.
+
+```html
+<!-- web-practice/portfolio/projects.html의 main 시작 부분 -->
+<main>
+  <h1>프로젝트</h1>
+  <p>직접 만들고 배운 것들을 모았습니다.</p>
+
+  <search>
+    <label for="project-search">프로젝트 이름으로 찾기</label>
+    <input type="search" id="project-search" placeholder="예: bookshelf" />
+  </search>
+
+  <div class="project-grid">
+    <!-- 06편의 project-card 6개, dialog는 그대로 유지 -->
+  </div>
+</main>
+```
+
+### 2. main.js에 filterProjects 함수 추가하기
+
+03·04편의 dialog 코드 아래에 이어서 씁니다. 검색창에 입력할 때마다 카드의 전체 텍스트에서 검색어를 찾고, 매치되지 않는 카드는 `hidden="until-found"`로 숨깁니다.
+
+```js
+// web-practice/portfolio/js/main.js
+// ...기존 dialog 관련 코드 유지...
+
+const searchInput = document.querySelector('#project-search');
+
+function filterProjects(keyword) {
+  const cards = document.querySelectorAll('.project-card');
+  cards.forEach((card) => {
+    const match = card.textContent.toLowerCase().includes(keyword.toLowerCase());
+    card.hidden = keyword.length > 0 && !match ? 'until-found' : false;
+  });
+}
+
+searchInput.addEventListener('input', () => {
+  filterProjects(searchInput.value.trim());
+});
+
+document.querySelectorAll('.project-card').forEach((card) => {
+  card.addEventListener('beforematch', () => {
+    console.log('beforematch: 검색으로 숨겨졌던 카드가 찾기로 다시 펼쳐집니다 —', card.querySelector('h3').textContent);
+  });
+});
+```
+
+`card.hidden`에 문자열 `'until-found'`를 대입하면 `hidden="until-found"` 속성을 붙인 것과 같습니다. 검색어가 없을 때는 `false`를 대입해 `hidden` 속성 자체를 제거합니다.
+
+### 3. 실행
+
+Live Server로 `projects.html`을 엽니다.
+
+### 4. 확인
+
+- 검색창에 `bookshelf`를 입력하면 다른 카드가 모두 사라지고 "독서 기록 bookshelf" 카드만 남는다
+- 검색창을 비우면 모든 카드가 다시 나타난다
+- 검색창에 `bookshelf`를 입력해 다른 카드(예: "오늘의 날씨")가 숨은 상태에서, 검색창 입력은 그대로 둔 채 브라우저 찾기(`Ctrl`+`F` 또는 `Cmd`+`F`)를 열고 `오늘의 날씨`를 검색한다. 숨어 있던 카드가 자동으로 펼쳐지고 그 위치로 스크롤된다
+- 그 순간 개발자 도구 콘솔에 `beforematch` 로그가 찍혀 있다
+
+</Steps>
+
+## 직접 해보기
+
+`filterProjects` 안의 `card.hidden = keyword.length > 0 && !match ? 'until-found' : false;`를 `card.hidden = keyword.length > 0 && !match;`(불리언 `true`/`false`)로 바꾸고 같은 방식으로 브라우저 찾기를 해봅니다. 무엇이 달라지나요?
+
+<details>
+<summary>정답 보기</summary>
+
+`hidden`에 `true`를 대입하면 값 없는 일반 `hidden="hidden"`이 붙습니다. 이 경우 카드는 브라우저 찾기의 검색 대상에서 완전히 제외되어, 아무리 정확한 이름을 검색해도 다시 펼쳐지지 않습니다. 문자열 `'until-found'`를 대입해야만 찾기와 연동됩니다.
+
+</details>
+
+## 자주 하는 실수
+
+| 증상 | 원인 | 고치는 법 |
+|------|------|-----------|
+| 검색창에 입력해도 카드가 안 걸러진다 | `input` 이벤트 리스너를 `#project-search`가 아닌 다른 요소에 달았다 | `searchInput` 선택자가 실제 검색창 `id`와 같은지 확인한다 |
+| 찾기로 검색해도 숨긴 카드가 안 펼쳐진다 | `card.hidden`에 `true`(불리언)를 대입했다 | 문자열 `'until-found'`를 정확히 대입한다 |
+| `beforematch` 로그가 안 찍힌다 | 리스너를 카드가 아닌 다른 요소에 달았다 | `.project-card` 각각에 리스너를 연결했는지 확인한다 |
+| 검색어를 지워도 카드가 안 돌아온다 | `hidden`에 `false` 대신 빈 문자열 `''`을 대입했다 | 빈 문자열도 `hidden` 속성이 남는 경우가 있으므로 반드시 불리언 `false`를 대입한다 |
+
+## 확인 문제
+
+<Quiz
+  questionNumber={1}
+  question="search 요소가 하는 역할로 가장 정확한 것은?"
+  options={['입력값을 자동으로 서버에 전송한다', '검색·필터 기능이 있는 영역임을 알리는 시맨틱 랜드마크 역할을 한다', 'CSS 스타일을 강제로 초기화한다', '내부 텍스트를 항상 굵게 표시한다']}
+  correctAnswer={2}
+  explanation="search는 시각적 변화 없이, 그 영역이 검색 기능을 담고 있음을 스크린 리더 등 보조 기술에 알리는 랜드마크입니다."
+  optionExplanations={['서버 전송은 하지 않으며 form과 다릅니다', '이것이 정답입니다', '스타일과는 무관합니다', '텍스트 표시 방식과 무관합니다']}
+/>
+
+<Quiz
+  questionNumber={2}
+  question="hidden=until-found와 값 없는 hidden의 차이로 옳은 것은?"
+  options={['둘 다 브라우저 찾기 대상에서 제외된다', 'until-found만 브라우저 찾기로 매치되면 자동으로 펼쳐진다', '값 없는 hidden만 화면에서 안 보인다', '둘 다 CSS로만 구현된 기능이라 자바스크립트 이벤트가 없다']}
+  correctAnswer={2}
+  explanation="hidden=until-found는 브라우저 찾기 대상에 포함되어 매치되면 자동으로 펼쳐지고 beforematch 이벤트가 발생합니다. 값 없는 hidden은 찾기 대상에서 제외됩니다."
+  optionExplanations={['until-found는 찾기 대상에 포함됩니다', '이것이 정답입니다', '둘 다 기본적으로 화면에서 안 보입니다', 'until-found는 beforematch 이벤트를 발생시킵니다']}
+/>
+
+<Quiz
+  questionNumber={3}
+  question="beforematch 이벤트가 발생하는 시점으로 옳은 것은?"
+  options={['페이지가 처음 로드될 때', '브라우저 찾기가 hidden=until-found 요소를 펼치기 직전', '검색 input에 글자를 입력할 때마다', '폼이 제출된 직후']}
+  correctAnswer={2}
+  explanation="beforematch는 브라우저의 찾기 기능이 hidden=until-found 요소의 텍스트와 매치되어 그 요소를 펼치기 직전에 발생합니다."
+  optionExplanations={['페이지 로드와는 무관합니다', '이것이 정답입니다', 'input 이벤트와는 별개의 메커니즘입니다', '폼 제출과는 무관합니다']}
+/>
+
+<Quiz
+  questionNumber={4}
+  question="검색 필터에서 안 걸리는 카드를 값 없는 hidden 대신 hidden=until-found로 숨기는 이유로 가장 적절한 것은?"
+  options={['성능이 더 빠르기 때문에', '브라우저 찾기로 그 카드를 다시 찾아 펼칠 수 있게 하려고', 'CSS 애니메이션을 적용하기 위해', 'hidden 속성 자체가 until-found 없이는 동작하지 않기 때문에']}
+  correctAnswer={2}
+  explanation="until-found로 숨기면 우리 검색 필터로 걸러진 카드도 브라우저의 찾기 기능으로 검색해 다시 펼칠 수 있습니다. 값 없는 hidden은 이 경로를 완전히 막습니다."
+  optionExplanations={['성능 차이를 위한 선택이 아닙니다', '이것이 정답입니다', 'CSS 애니메이션과는 무관합니다', '값 없는 hidden도 정상적으로 동작하는 속성입니다']}
+/>
+
+## 참고 자료
+
+- [MDN — `<search>` 요소](https://developer.mozilla.org/en-US/docs/Web/HTML/Reference/Elements/search)
+- [web-platform-dx 기능 탐색기 — hidden-until-found](https://web-platform-dx.github.io/web-features-explorer/features/hidden-until-found/)

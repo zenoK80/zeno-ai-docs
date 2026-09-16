@@ -1,0 +1,200 @@
+---
+title: '11. @property로 애니메이션 가능한 토큰 만들기'
+description: '히어로 그라디언트 각도 --gradient-angle에 타입을 지정해 hover 시 부드럽게 회전시킨다'
+---
+
+<Callout type="info">
+  **이번 편의 결과물:** 히어로 섹션 배경의 그라디언트 각도(`--gradient-angle`)가 `@property`로 타입 지정되어, 버튼에 마우스를 올리면 각도가 부드럽게 회전하며 전환된다. · **다루는 개념:** `@property`의 `syntax`/`inherits`/`initial-value`, 타입 강제로 얻는 안전성, 트랜지션 가능한 커스텀 속성
+</Callout>
+
+## 이 편에서 만드는 파일
+
+```
+web-practice/
+└── portfolio/
+    └── css/
+        └── styles.css   ~ (tokens 레이어에 @property 추가, .hero 배경에 그라디언트 적용)
+```
+
+## 개념 정리
+
+10편에서 만든 커스텀 속성은 브라우저 입장에서 **타입이 없는 문자열**입니다. `--color-primary: #0969da`도, `--space-4: 1rem`도 브라우저는 똑같이 "임의의 텍스트"로 저장했다가 `var()`가 쓰이는 자리에서 그대로 붙여 넣습니다. 이 방식에는 한 가지 한계가 있습니다. **타입이 없는 값은 트랜지션·애니메이션이 걸리지 않습니다.** `transition: --gradient-angle 300ms`를 걸어도 브라우저는 "45deg"에서 "225deg"로 부드럽게 보간(interpolate)하는 대신 순간적으로 값을 바꿉니다.
+
+`@property`는 커스텀 속성에 타입을 지정합니다.
+
+```css
+@property --gradient-angle {
+  syntax: '<angle>';
+  inherits: false;
+  initial-value: 45deg;
+}
+```
+
+| 디스크립터 | 역할 |
+|-----------|------|
+| `syntax` | 값의 타입. `'<angle>'`, `'<color>'`, `'<length>'`, `'<number>'` 등 |
+| `inherits` | 자손 요소가 이 값을 물려받을지(`true`/`false`) |
+| `initial-value` | 아무 요소도 값을 지정하지 않았을 때 쓰는 기본값. `syntax`가 `'*'`가 아니면 필수 |
+
+`syntax: '<angle>'`로 선언하면 브라우저는 이 속성이 각도라는 것을 알고, 두 각도 값 사이를 숫자로 보간할 수 있습니다. 그래서 `transition`이나 `animation`을 걸 수 있게 됩니다. `syntax: '*'`(만능 타입)로 두면 지금까지와 똑같이 문자열 취급이라 애니메이션이 걸리지 않습니다.
+
+### 흔한 오해
+
+"`@property`를 쓰면 모든 커스텀 속성에 트랜지션이 걸린다"는 생각은 틀렸습니다. **`syntax`에 구체적인 타입을 지정한 속성만** 보간이 가능합니다. `--color-primary`처럼 이미 색인 값은 `syntax: '<color>'`를 주면 되지만, 굳이 모든 토큰에 `@property`를 붙일 필요는 없습니다. 애니메이션을 걸 계획이 있는 속성에만 사용합니다.
+
+## 실습
+
+<Steps>
+### 1. 파일 열기
+
+`portfolio/css/styles.css`를 엽니다. `@property`는 레이어 안이 아니라 최상위(전역 범위)에 둡니다.
+
+### 2. 코드 작성
+
+`@property` 선언과 히어로 배경 그라디언트를 추가합니다.
+
+```css
+/* portfolio/css/styles.css */
+@property --gradient-angle {
+  syntax: '<angle>';
+  inherits: false;
+  initial-value: 45deg;
+}
+
+@layer components {
+  .hero {
+    padding-block: var(--space-16);
+    text-align: center;
+    background: linear-gradient(
+      var(--gradient-angle),
+      var(--color-primary) 0%,
+      var(--color-accent) 100%
+    );
+    transition: --gradient-angle 600ms ease;
+  }
+
+  .hero:hover {
+    --gradient-angle: 225deg;
+  }
+}
+```
+
+`@supports`로 `@property` 미지원 브라우저의 폴백을 추가합니다. `@property` 자체는 2024-07부터 Baseline newly available이라 대부분의 최신 브라우저가 지원하지만, 이 사이트의 모든 최신 기능 실습과 마찬가지로 폴백을 습관으로 만듭니다.
+
+```css
+/* portfolio/css/styles.css */
+@supports not (background: paint(x)) {
+  /* 실제 지원 판별용 프로퍼티가 아니라 예시 — 아래 실전 형태를 씁니다 */
+}
+
+@supports (transition: color 1s) and (not (syntax: '<angle>')) {
+  .hero {
+    /* @property 미지원 시 정적 그라디언트로 대체 */
+    background: linear-gradient(45deg, var(--color-primary) 0%, var(--color-accent) 100%);
+  }
+}
+```
+
+`@supports`는 `syntax` 같은 `@property` 내부 디스크립터를 직접 조건으로 걸 수 없으므로, 실무에서는 아래처럼 **`@property` 지원 여부를 별도 커스텀 속성 하나로 확인**하는 패턴을 씁니다.
+
+```css
+/* portfolio/css/styles.css */
+@property --supports-check {
+  syntax: '<number>';
+  inherits: false;
+  initial-value: 1;
+}
+
+.hero {
+  --fallback-angle: 45deg;
+}
+```
+
+`--supports-check`가 `1`로 계산되면 `@property`가 적용된 것이고, 지원하지 않는 브라우저는 이 속성 자체를 무시하므로 정적 그라디언트만 보입니다. 이 사이트는 대상 브라우저를 최신 Chrome·Edge로 좁혔으므로 이번 편은 이 정도 확인선에서 마무리하고, 완전한 자동 폴백 패턴은 16편(`@supports` 총정리)에서 다시 다룹니다.
+
+### 3. 실행
+
+브라우저에서 `portfolio/index.html`을 새로고침합니다.
+
+### 4. 확인
+
+- 히어로 섹션 배경이 `--color-primary`에서 `--color-accent`로 이어지는 대각선 그라디언트로 보입니다.
+- 히어로 영역에 마우스를 올리면 그라디언트 각도가 0.6초에 걸쳐 부드럽게 회전합니다. 마우스를 떼면 다시 원래 각도로 돌아갑니다.
+- 개발자 도구 콘솔에서 `CSS.registerProperty`를 검색하지 않아도, `Elements → Styles`에서 `--gradient-angle` 값에 마우스를 올리면 각도 슬라이더 UI가 나타납니다. 이는 브라우저가 이 값을 문자열이 아니라 각도 타입으로 인식했다는 표시입니다.
+- `syntax`를 `'*'`로 임시로 바꿔 새로고침하면 hover 시 각도가 순간적으로 바뀌고 트랜지션이 사라집니다. 확인 후 다시 `'<angle>'`로 되돌립니다.
+</Steps>
+
+## 직접 해보기
+
+1. `--gradient-angle`의 `initial-value`를 `90deg`로 바꿔 히어로 배경이 세로 방향 그라디언트로 시작하게 만들어 보세요.
+2. `.project-card`에 `--card-tilt`(타입 `'<angle>'`, 초기값 `0deg`)를 만들고 hover 시 `transform: rotate(var(--card-tilt))`로 살짝 기울어지는 효과를 추가해 보세요.
+
+<details>
+<summary>답 보기</summary>
+
+```css
+@property --gradient-angle {
+  syntax: '<angle>';
+  inherits: false;
+  initial-value: 90deg;
+}
+
+@property --card-tilt {
+  syntax: '<angle>';
+  inherits: false;
+  initial-value: 0deg;
+}
+
+.project-card {
+  transform: rotate(var(--card-tilt));
+  transition: --card-tilt 200ms ease, transform 200ms ease;
+}
+
+.project-card:hover {
+  --card-tilt: 2deg;
+}
+```
+
+</details>
+
+## 자주 하는 실수
+
+| 증상 | 원인 | 고치는 법 |
+|------|------|-----------|
+| `transition`을 걸었는데도 값이 순간적으로 바뀐다 | `@property`를 선언하지 않았거나 `syntax`가 `'*'`다 | 구체적인 타입(`'<angle>'`, `'<color>'` 등)으로 `syntax`를 지정한다 |
+| `@property` 선언 뒤 스타일이 아예 사라진다 | `initial-value`를 생략했는데 `syntax`가 `'*'`가 아니다 | `syntax`가 만능 타입이 아니면 `initial-value`를 반드시 함께 쓴다 |
+| `@layer` 안에 `@property`를 넣었더니 순서 문제로 값이 안 먹힌다 | `@property`는 레이어 캐스케이드 대상이 아니라 전역 등록이다 | `@property`는 레이어 밖 최상위에 선언한다 |
+| 색 토큰에 `@property`를 걸었는데 `color-mix()` 계산 색과 어긋난다 | `syntax: '<color>'`로 등록한 속성은 지정한 색 공간 기준으로 보간되어, `color-mix()`가 쓰는 공간과 다를 수 있다 | 애니메이션용 색과 `color-mix()` 계산용 색을 별도 토큰으로 분리한다(12편에서 이어서 다룸) |
+
+## 확인 문제
+
+<Quiz
+  questionNumber={1}
+  question="@property의 syntax 디스크립터가 하는 일은?"
+  options={['속성 이름의 대소문자 규칙을 정한다', '속성 값의 타입을 지정해 보간 가능 여부를 결정한다', '이 속성을 어느 레이어에 넣을지 정한다', '이 속성이 미디어 쿼리에서만 쓰이게 제한한다']}
+  correctAnswer={2}
+  explanation="syntax는 값의 타입을 지정하며, 타입이 구체적일수록 브라우저가 값 사이를 보간해 트랜지션·애니메이션을 걸 수 있습니다."
+  optionExplanations={['이름 규칙과는 무관합니다', '정답입니다', '@layer와는 별개의 전역 등록입니다', '미디어 쿼리 제한 기능이 아닙니다']}
+/>
+
+<Quiz
+  questionNumber={2}
+  question="syntax를 '*'로 두면 어떻게 되나?"
+  options={['어떤 값도 저장하지 못한다', '문자열처럼 취급되어 보간되지 않고 트랜지션이 걸리지 않는다', '자동으로 숫자 타입으로 인식된다', 'initial-value 없이는 선언 자체가 무효가 된다']}
+  correctAnswer={2}
+  explanation="syntax가 만능 타입('*')이면 값은 지금까지의 커스텀 속성처럼 문자열로 취급되어 트랜지션이 걸리지 않습니다."
+  optionExplanations={['값 저장 자체는 가능합니다', '정답입니다', '자동으로 타입을 추론하지 않습니다', '만능 타입인 경우에는 initial-value가 필수가 아닙니다']}
+/>
+
+<Quiz
+  questionNumber={3}
+  question="@property 선언을 두는 올바른 위치는?"
+  options={['@layer components 블록 안', '@layer tokens 블록 안', '레이어 밖 스타일시트 최상위', '미디어 쿼리 블록 안에서만']}
+  correctAnswer={3}
+  explanation="@property는 캐스케이드 레이어의 영향을 받지 않는 전역 등록 규칙이라 레이어 밖 최상위에 둡니다."
+  optionExplanations={['레이어 안에 넣어도 동작은 하지만 레이어 순서와 무관한 전역 등록이라는 점이 가려진다', '레이어 안에 넣어도 동작은 하지만 레이어 순서와 무관한 전역 등록이라는 점이 가려진다', '정답입니다', '미디어 쿼리 안으로 제한할 필요가 없습니다']}
+/>
+
+## 참고 자료
+
+- [MDN — @property](https://developer.mozilla.org/en-US/docs/Web/CSS/@property)

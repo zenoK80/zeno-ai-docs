@@ -1,0 +1,267 @@
+---
+title: '04. TanStack Query 설치와 첫 조회'
+description: 'json-server로 mock API 서버를 띄우고, TanStack Query의 useQuery로 bookshelf 목록을 서버에서 조회합니다'
+---
+
+<Callout type="info">
+  **이번 편의 결과물:** `BookListPage`가 로컬 배열 대신 mock API 응답으로 렌더됩니다. 로딩 스피너와 에러 메시지가 화면에 표시됩니다. · **다루는 개념:** `QueryClient`/`QueryClientProvider` 설정, `json-server` mock API 서버, `useQuery`로 조회, 로딩/에러 상태
+</Callout>
+
+## 이 편에서 만드는 파일
+
+```
+bookshelf/
+├── db.json                        + (json-server용 mock 데이터)
+├── package.json                    ~ (@tanstack/react-query 추가)
+└── src/
+    ├── main.jsx                   ~ (QueryClientProvider 추가)
+    ├── api/
+    │   └── books.js               + (책 목록 조회 함수)
+    ├── hooks/
+    │   └── useBooks.js            ~ (localStorage+reducer 기반 → useQuery 기반으로 교체)
+    ├── reducers/
+    │   └── booksReducer.js        − 삭제(TanStack Query 캐시가 대체)
+    ├── utils/
+    │   └── booksStorage.js        − 삭제(TanStack Query 캐시가 대체)
+    └── pages/
+        └── BookListPage.jsx       ~ (useBooks 훅으로 서버 데이터 렌더)
+```
+
+## 개념 정리
+
+TanStack Query는 앱 전체에서 하나의 `QueryClient` 인스턴스를 공유합니다. `QueryClientProvider`로 컴포넌트 트리를 감싸면, 그 안 어디서든 `useQuery`로 서버 데이터를 조회할 수 있습니다.
+
+| 요소 | 역할 |
+|------|------|
+| `QueryClient` | 캐시 저장소 하나. 앱 전체에서 인스턴스 하나만 만든다 |
+| `QueryClientProvider` | React Context로 `QueryClient`를 하위 트리에 전달 |
+| `queryKey` | 캐시 안에서 이 데이터를 식별하는 배열(예: `['books']`) |
+| `queryFn` | 데이터를 가져오는 비동기 함수. 반환값이 캐시에 저장됨 |
+| `data`, `isLoading`, `isError` | `useQuery`가 반환하는, 화면이 바로 쓸 수 있는 상태 |
+
+이 과목은 실제 서버 대신 `json-server`로 mock API를 띄웁니다. `public/practice/bookshelf/db.json`에 책 목록과 사용자 데이터가 들어 있고, `json-server`가 이 파일을 읽어 REST API처럼 응답합니다. 통합·E2E 테스트(15~16편)에서는 MSW로 같은 흐름을 재현하지만, 지금은 실제로 떠 있는 서버에 요청을 보내며 눈으로 확인합니다.
+
+## 실습
+
+<Steps>
+
+### 1. mock API 서버 준비
+
+`https://zeno.it.kr/practice/bookshelf/db.json` 파일을 내려받아 `bookshelf/db.json`으로 저장합니다.
+
+```text
+curl -o db.json https://zeno.it.kr/practice/bookshelf/db.json
+```
+
+`db.json`은 다음 구조입니다.
+
+```json
+// bookshelf/db.json (일부)
+{
+  "books": [
+    { "id": 1, "title": "클린 코드", "author": "로버트 C. 마틴", "status": "done", "rating": 5, "pages": 584, "coverColor": "#2563eb", "startedAt": "2026-07-01", "finishedAt": "2026-07-20", "memo": "함수는 한 가지 일만." }
+  ],
+  "users": [
+    { "id": 1, "email": "zeno@example.com", "password": "password123", "name": "Zeno Kim" }
+  ]
+}
+```
+
+### 2. 패키지 설치와 서버 실행
+
+```text
+npm install @tanstack/react-query
+npx json-server db.json --port 3001
+```
+
+`json-server`는 `db.json`의 `books` 배열을 `http://localhost:3001/books`로, `users` 배열을 `http://localhost:3001/users`로 그대로 노출합니다. 이 터미널은 실습 내내 켜 둡니다.
+
+### 3. 조회 함수 작성
+
+```js
+// bookshelf/src/api/books.js
+const API_BASE = 'http://localhost:3001'
+
+export async function getBooks() {
+  const response = await fetch(`${API_BASE}/books`)
+  if (!response.ok) {
+    throw new Error(`책 목록을 가져오지 못했습니다 (상태 코드: ${response.status})`)
+  }
+  return response.json()
+}
+```
+
+### 4. QueryClientProvider로 앱 감싸기
+
+```jsx
+// bookshelf/src/main.jsx
+import { StrictMode } from 'react'
+import { createRoot } from 'react-dom/client'
+import { RouterProvider } from 'react-router'
+import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
+import { router } from './router.jsx'
+import './styles/index.css'
+
+const queryClient = new QueryClient({
+  defaultOptions: {
+    queries: {
+      staleTime: 30 * 1000,
+      retry: 1,
+    },
+  },
+})
+
+createRoot(document.getElementById('root')).render(
+  <StrictMode>
+    <QueryClientProvider client={queryClient}>
+      <RouterProvider router={router} />
+    </QueryClientProvider>
+  </StrictMode>,
+)
+```
+
+`react_2`가 남긴 `router.jsx`(`createBrowserRouter`)를 그대로 씁니다. `App.jsx`는 `react_2` 03편부터 이미 쓰이지 않으므로 새로 만들지 않습니다.
+
+`staleTime`을 30초로 두면, 같은 화면에 30초 안에 다시 들어와도 캐시를 그대로 쓰고 네트워크 요청을 다시 보내지 않습니다.
+
+### 5. useBooks 훅을 TanStack Query 기반으로 교체
+
+`react_2`의 `hooks/useBooks.js`는 `useReducer`와 `localStorage`로 책 목록을 관리했습니다. 이 편부터는 같은 이름의 훅이 서버 데이터를 조회하는 `useQuery` 래퍼로 바뀝니다. 훅 이름과 사용법(컴포넌트에서 `useBooks()` 호출)은 그대로 두고 내부 구현만 교체해, `BookListPage`가 이후 편에서도 같은 훅 이름을 계속 쓸 수 있게 합니다.
+
+```js
+// bookshelf/src/hooks/useBooks.js
+import { useQuery } from '@tanstack/react-query'
+import { getBooks } from '../api/books.js'
+
+export function useBooks(params = {}) {
+  return useQuery({
+    queryKey: ['books', params],
+    queryFn: () => getBooks(params),
+  })
+}
+```
+
+`useBooks`는 `useQuery`가 반환하는 객체(`data`, `isLoading`, `isError`, `error` 등)를 그대로 돌려줍니다. 별도로 감싸지 않아, TanStack Query가 제공하는 값을 컴포넌트가 바로 씁니다.
+
+```jsx
+// bookshelf/src/pages/BookListPage.jsx
+import { useBooks } from '../hooks/useBooks.js'
+import BookCard from '../components/BookCard.jsx'
+
+export default function BookListPage() {
+  const { data: books, isLoading, isError, error } = useBooks()
+
+  if (isLoading) {
+    return <p role="status">책 목록을 불러오는 중입니다...</p>
+  }
+
+  if (isError) {
+    return <p role="alert">목록을 불러오지 못했습니다: {error.message}</p>
+  }
+
+  return (
+    <section>
+      <h1>내 서재</h1>
+      <ul>
+        {books.map((book) => (
+          <li key={book.id}>
+            <BookCard book={book} />
+          </li>
+        ))}
+      </ul>
+    </section>
+  )
+}
+```
+
+`isLoading`, `isError`는 `useQuery`가 대신 관리합니다. 컴포넌트는 세 가지 상태(로딩·에러·성공)를 분기하기만 하면 됩니다.
+
+</Steps>
+
+### 실행
+
+```text
+npx json-server db.json --port 3001
+npm run dev
+```
+
+두 명령을 각각 다른 터미널에서 실행합니다. `json-server`가 먼저 떠 있어야 브라우저에서 목록이 보입니다.
+
+### 확인
+
+- 브라우저에서 `/`로 이동하면 잠깐 "책 목록을 불러오는 중입니다..."가 보인 뒤 6권의 책 목록으로 바뀐다
+- 브라우저 개발자 도구 네트워크 탭에 `http://localhost:3001/books` 요청이 찍혀 있다
+- `json-server`를 켠 터미널을 끄고 새로고침하면 "목록을 불러오지 못했습니다"가 표시된다
+
+## 직접 해보기
+
+<details>
+<summary>staleTime을 0으로 바꾸고 화면을 왔다 갔다 하면 네트워크 탭에서 무엇이 달라지는지 확인해보세요.</summary>
+
+`staleTime`이 0이면 컴포넌트가 다시 마운트될 때마다 데이터를 즉시 오래된 것으로 취급해, 화면 전환마다 `/books` 요청이 다시 나갑니다. 30초로 두면 그 시간 안에는 캐시를 재사용해 요청이 나가지 않습니다.
+</details>
+
+<details>
+<summary>getBooks가 실패하는 상황을 재현하려면 어떻게 해야 할지 생각해보세요(서버를 끄는 것 말고 다른 방법).</summary>
+
+`API_BASE`의 포트 번호를 일부러 틀리게 바꾸면(`3001` 대신 `3099`) 요청이 실패해 같은 에러 화면을 볼 수 있습니다.
+</details>
+
+## 자주 하는 실수
+
+| 증상 | 원인 | 고치는 법 |
+|------|------|-----------|
+| `useQuery`를 어디서든 쓸 수 없다는 에러가 난다 | `QueryClientProvider`로 감싸지 않음 | `main.jsx`에서 `App`을 `QueryClientProvider`로 감싼다 |
+| 목록이 영영 안 뜬다 | `json-server`를 안 켜거나 포트가 다름 | 3001 포트로 `json-server`가 떠 있는지 확인 |
+| 데이터가 화면에서 `undefined`로 보인다 | `response.json()`을 `await` 하지 않음 | `getBooks`에서 `return response.json()`으로 프라미스를 반환 |
+
+## 확인 문제
+
+<Quiz
+  questionNumber={1}
+  question="QueryClientProvider를 앱 최상단에서 한 번만 감싸는 이유는 무엇입니까"
+  options={['컴포넌트 렌더링 속도를 높이기 위해', '하위 트리 어디서든 같은 QueryClient의 캐시를 공유하기 위해', 'CSS 스타일을 적용하기 위해', '라우팅 경로를 등록하기 위해']}
+  correctAnswer={2}
+  explanation="QueryClientProvider는 React Context로 QueryClient를 전달해, 하위 어디서든 같은 캐시를 useQuery로 공유하게 합니다."
+  optionExplanations={['렌더링 속도와는 무관합니다', '정답입니다', 'CSS와는 무관합니다', '라우팅은 react-router의 역할입니다']}
+/>
+
+<Quiz
+  questionNumber={2}
+  question="useQuery의 queryKey 배열이 하는 역할은 무엇입니까"
+  options={['서버 URL을 자동으로 만들어준다', '캐시 안에서 이 데이터를 식별하는 키가 된다', 'CSS 클래스명을 지정한다', '컴포넌트 리렌더링을 막는다']}
+  correctAnswer={2}
+  explanation="queryKey는 캐시에서 데이터를 구분하는 식별자이며, 같은 키는 같은 캐시 항목을 가리킵니다."
+  optionExplanations={['URL은 queryFn 안에서 직접 지정합니다', '정답입니다', 'CSS와는 무관합니다', '리렌더링 자체를 막지는 않습니다']}
+/>
+
+<Quiz
+  questionNumber={3}
+  question="staleTime을 30초로 설정했을 때의 동작으로 옳은 것은 무엇입니까"
+  options={['30초마다 강제로 컴포넌트를 리렌더링한다', '30초 안에는 캐시를 오래되지 않은 것으로 보고 재요청하지 않는다', '30초가 지나면 데이터가 자동으로 삭제된다', '30초 동안 요청을 아예 보내지 못하게 막는다']}
+  correctAnswer={2}
+  explanation="staleTime은 데이터를 신선한 것으로 간주하는 기간이며, 그 안에는 같은 쿼리를 다시 마운트해도 네트워크 요청을 새로 보내지 않습니다."
+  optionExplanations={['강제 리렌더링과는 무관합니다', '정답입니다', '삭제는 gcTime의 역할입니다', '요청 자체를 막는 옵션이 아닙니다']}
+/>
+
+<Quiz
+  questionNumber={4}
+  question="이 편에서 json-server를 mock API로 쓰는 이유로 가장 알맞은 것은 무엇입니까"
+  options={['실제 프로덕션 서버로 쓰기 위해', '실서버 없이도 db.json 기반 REST API로 실제 요청 흐름을 눈으로 확인하기 위해', 'MSW를 대체하기 위한 유일한 방법이라서', 'React 19와만 호환돼서']}
+  correctAnswer={2}
+  explanation="json-server는 db.json을 읽어 REST API처럼 응답해, 실서버 없이도 실제 네트워크 요청 흐름을 눈으로 확인할 수 있게 해줍니다."
+  optionExplanations={['프로덕션용이 아니라 실습용입니다', '정답입니다', 'MSW는 15편 테스트에서 별도로 사용합니다', '버전 호환과는 무관합니다']}
+/>
+
+<Quiz
+  questionNumber={5}
+  question="BookListPage 컴포넌트가 isLoading, isError를 직접 useState로 관리하지 않는 이유는 무엇입니까"
+  options={['React 19에서 useState가 제거돼서', 'useQuery가 로딩·에러·성공 상태를 대신 계산해 반환하기 때문에', 'CSS로 처리하는 것이 더 빨라서', 'json-server가 상태를 대신 저장해서']}
+  correctAnswer={2}
+  explanation="useQuery는 요청의 진행 상태를 추적해 isLoading, isError 같은 값을 직접 계산해 반환하므로 컴포넌트가 따로 관리할 필요가 없습니다."
+  optionExplanations={['useState는 여전히 존재합니다', '정답입니다', 'CSS로 처리할 수 있는 상태가 아닙니다', 'json-server는 요청 상태를 저장하지 않습니다']}
+/>
+
+## 참고 자료
+
+- [TanStack Query — React Overview](https://tanstack.com/query/latest/docs/framework/react/overview)

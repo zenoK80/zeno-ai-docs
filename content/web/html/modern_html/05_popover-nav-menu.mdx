@@ -1,0 +1,262 @@
+---
+title: '05. Popover API로 만드는 내비게이션 메뉴'
+description: '포트폴리오 헤더의 내비게이션을 Popover API 기반 드롭다운 메뉴로 바꾼다'
+---
+
+<Callout type="info">
+  **이번 편의 결과물:** 세 페이지 공통 헤더의 메뉴 버튼을 누르면 `popover` 속성으로 만든 내비게이션이 열리고, 바깥을 클릭하거나 `Esc`를 누르면 자동으로 닫힙니다. · **다루는 개념:** `popover` 전역 속성과 auto 모드, `popovertarget`/`popovertargetaction`, 라이트 디스미스
+</Callout>
+
+## 이 편에서 만드는 파일
+
+```text
+web-practice/portfolio/
+├── index.html      ~ (헤더를 popover 메뉴로 교체)
+├── projects.html    ~ (헤더 동일 적용)
+└── contact.html     ~ (헤더 동일 적용)
+```
+
+## 개념 정리
+
+지금까지 헤더의 `<nav>`는 항상 화면에 노출된 링크 목록이었습니다. 화면이 좁아지면 이 목록을 숨겼다가 버튼으로 열어야 하는데, 예전에는 `display: none`을 토글하는 자바스크립트와 "바깥을 클릭하면 닫는다"는 이벤트 리스너를 직접 짜야 했습니다. Popover API는 이 두 가지를 표준 속성만으로 제공합니다.
+
+### `popover` 전역 속성
+
+| 값 | 동작 |
+|----|------|
+| `auto`(기본값, 속성값 생략 가능) | 열리면 top layer(다른 모든 요소 위)에 표시되고, 바깥 클릭·`Esc`로 자동 닫힘(라이트 디스미스). 다른 auto popover가 열리면 기존 것은 자동으로 닫힘 |
+| `manual` | 자동으로 닫히지 않음. 열고 닫는 시점을 직접 제어해야 할 때만 사용 |
+
+`popover` 속성이 붙은 요소는 기본적으로 `hidden`과 비슷하게 숨겨져 있다가, 열리면 body의 나머지 레이아웃과 무관하게 화면 위에 떠서 표시됩니다.
+
+### 버튼으로 열고 닫기 — `popovertarget`/`popovertargetaction`
+
+```html
+<button popovertarget="mobile-menu" popovertargetaction="toggle">메뉴</button>
+<nav id="mobile-menu" popover>...</nav>
+```
+
+`popovertarget`은 열고 닫을 popover 요소의 `id`를 가리킵니다. `popovertargetaction`은 `show`(열기)·`hide`(닫기)·`toggle`(상태 반전) 중 하나이며, 생략하면 `toggle`이 기본값입니다. 자바스크립트 없이 버튼 하나로 메뉴를 열고 닫을 수 있습니다.
+
+### 라이트 디스미스가 자동으로 처리하는 것
+
+`auto` 모드 popover가 열려 있을 때 다음 중 하나가 일어나면 브라우저가 자동으로 닫습니다.
+
+- popover 바깥 영역을 클릭
+- `Esc` 키
+- 다른 `auto` popover를 여는 동작
+
+이 세 가지를 직접 구현하려면 `document`에 클릭 리스너를 달고 이벤트 target이 메뉴 안인지 바깥인지 매번 판별해야 했습니다. `popover="auto"`는 이 판별을 브라우저가 대신합니다.
+
+<Callout type="warning">
+  지금 단계에서는 CSS가 없어 메뉴 버튼이 항상 보입니다. 화면 크기에 따라 버튼을 숨기거나 보이는 것은 `css_fundamentals`에서 미디어 쿼리로 처리합니다. 이 편의 목표는 기능이 동작하는 것까지입니다.
+</Callout>
+
+## 실습
+
+<Steps>
+
+### 1. index.html 헤더 열기
+
+`portfolio/index.html`에서 03·04편까지 만든 `<header>`를 찾습니다. 안의 `<nav>`를 popover 메뉴로 바꿉니다.
+
+### 2. index.html 전체 코드 작성
+
+```html
+<!-- portfolio/index.html -->
+<!doctype html>
+<html lang="ko">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>소개 · Zeno Kim</title>
+  <link rel="icon" href="favicon.svg" type="image/svg+xml" />
+  <link rel="stylesheet" href="css/tokens.css" />
+  <link rel="stylesheet" href="css/styles.css" />
+</head>
+<body>
+  <header class="site-header">
+    <a class="logo" href="index.html">Zeno Kim</a>
+    <button type="button" class="menu-toggle" popovertarget="mobile-menu" popovertargetaction="toggle" aria-label="메뉴 열기">
+      메뉴
+    </button>
+    <nav id="mobile-menu" class="site-nav" popover aria-label="주요 메뉴">
+      <ul>
+        <li><a href="index.html" aria-current="page">소개</a></li>
+        <li><a href="projects.html">프로젝트</a></li>
+        <li><a href="contact.html">연락</a></li>
+      </ul>
+    </nav>
+  </header>
+
+  <main>
+    <section class="hero">
+      <h1>웹을 만드는 개발자, Zeno Kim입니다.</h1>
+      <p>HTML·CSS·JavaScript로 누구나 쓸 수 있는 화면을 만듭니다.</p>
+      <a href="projects.html" class="button-primary">프로젝트 보기</a>
+      <a href="contact.html" class="button-secondary">연락하기</a>
+    </section>
+
+    <section class="about">
+      <h2>소개</h2>
+      <img src="images/profile.svg" alt="Zeno Kim 프로필 이미지" width="400" height="400" />
+      <p>저는 3년째 프론트엔드를 공부하고 만들고 있습니다. 화면이 예뻐 보이는 것보다 누가 봐도 쓸 수 있는가를 먼저 생각합니다.</p>
+      <p>처음에는 디자인 툴로 화면을 그리다가, 직접 만들어 보고 싶어서 HTML과 CSS를 배웠습니다. 지금은 React로 서비스 화면을 만들고 있습니다.</p>
+      <p>접근성과 웹 표준을 좋아합니다. 스크린 리더로 제 사이트를 읽어 보는 일이 습관이 됐습니다.</p>
+    </section>
+
+    <section class="skills">
+      <h2>기술 스택</h2>
+      <ul>
+        <li>마크업·스타일: HTML, CSS, Sass</li>
+        <li>언어: JavaScript, TypeScript</li>
+        <li>프레임워크: React, Next.js</li>
+        <li>도구: Git, Vite, Figma</li>
+      </ul>
+    </section>
+
+    <section class="career">
+      <h2>경력</h2>
+      <table>
+        <thead>
+          <tr><th>기간</th><th>회사</th><th>역할</th><th>주요 업무</th></tr>
+        </thead>
+        <tbody>
+          <tr><td>2024.03 – 현재</td><td>스튜디오 파도</td><td>프론트엔드 개발자</td><td>디자인 시스템 컴포넌트 구현, 접근성 개선</td></tr>
+          <tr><td>2023.01 – 2024.02</td><td>오늘의 기록</td><td>주니어 개발자</td><td>기록 서비스 웹 화면 개발, 반응형 전환</td></tr>
+          <tr><td>2022.06 – 2022.12</td><td>코드포올 부트캠프</td><td>수료생</td><td>팀 프로젝트 3건, 발표 우수상</td></tr>
+        </tbody>
+      </table>
+    </section>
+  </main>
+
+  <footer class="site-footer">
+    <p>© 2026 Zeno Kim. 이 사이트는 학습용으로 제작되었습니다.</p>
+    <ul>
+      <li><a href="https://github.com/example">GitHub</a></li>
+      <li><a href="https://www.linkedin.com/in/example">LinkedIn</a></li>
+      <li><a href="https://blog.example.com">Blog</a></li>
+    </ul>
+  </footer>
+
+  <script type="module" src="js/main.js"></script>
+</body>
+</html>
+```
+
+### 3. projects.html·contact.html 헤더 교체
+
+두 파일은 `<main>` 이하 내용이 다를 뿐 헤더 구조는 동일합니다. 각 파일에서 `<header>`만 아래처럼 바꿉니다(나머지는 그대로 둡니다).
+
+수정 전(03·04편까지):
+
+```html
+<header class="site-header">
+  <a class="logo" href="index.html">Zeno Kim</a>
+  <nav class="site-nav" aria-label="주요 메뉴">
+    <ul>
+      <li><a href="index.html">소개</a></li>
+      <li><a href="projects.html">프로젝트</a></li>
+      <li><a href="contact.html">연락</a></li>
+    </ul>
+  </nav>
+</header>
+```
+
+수정 후(projects.html 기준, `aria-current="page"` 위치만 페이지마다 다르게):
+
+```html
+<header class="site-header">
+  <a class="logo" href="index.html">Zeno Kim</a>
+  <button type="button" class="menu-toggle" popovertarget="mobile-menu" popovertargetaction="toggle" aria-label="메뉴 열기">
+    메뉴
+  </button>
+  <nav id="mobile-menu" class="site-nav" popover aria-label="주요 메뉴">
+    <ul>
+      <li><a href="index.html">소개</a></li>
+      <li><a href="projects.html" aria-current="page">프로젝트</a></li>
+      <li><a href="contact.html">연락</a></li>
+    </ul>
+  </nav>
+</header>
+```
+
+`contact.html`은 `aria-current="page"`를 `연락` 링크로 옮기면 됩니다.
+
+### 4. 실행
+
+VS Code Live Server 확장으로 `portfolio/index.html`을 엽니다(주소창이 `http://127.0.0.1:5500/...`이어야 `popover`가 정상 동작합니다. `file://`로 직접 열어도 대부분 동작하지만 확장 기능은 Live Server를 권장합니다).
+
+### 5. 확인
+
+- 헤더의 `메뉴` 버튼을 클릭하면 세 링크가 담긴 상자가 화면 위에 뜬다
+- 메뉴가 열린 상태에서 상자 바깥을 클릭하면 자동으로 닫힌다
+- 메뉴가 열린 상태에서 `Esc`를 누르면 닫힌다
+- 세 페이지 모두 같은 방식으로 동작하고, 현재 페이지 링크에는 `aria-current="page"`가 붙어 있다
+
+</Steps>
+
+## 직접 해보기
+
+1. `popovertargetaction="toggle"`을 `"show"`로 바꾸고 메뉴 버튼을 두 번 눌러 봅니다. 무엇이 달라지나요?
+2. `<nav id="mobile-menu" popover>`를 `popover="manual"`로 바꾸고 바깥을 클릭해 봅니다. 왜 안 닫힐까요?
+
+<details>
+<summary>정답 보기</summary>
+
+1. `show`는 항상 "열기"만 실행합니다. 이미 열려 있을 때 또 누르면 아무 변화가 없습니다(닫히지 않습니다). 버튼 하나로 열고 닫으려면 `toggle`이 필요합니다.
+2. `manual` 모드는 라이트 디스미스가 꺼집니다. 바깥 클릭·`Esc`로 닫히지 않고, `popovertargetaction="hide"` 버튼이나 자바스크립트의 `hidePopover()`로만 닫을 수 있습니다.
+
+</details>
+
+## 자주 하는 실수
+
+| 증상 | 원인 | 고치는 법 |
+|------|------|-----------|
+| 버튼을 눌러도 메뉴가 안 열린다 | `popovertarget` 값과 `nav`의 `id`가 다르다 | 두 값이 정확히 같은 문자열인지 확인한다 |
+| 메뉴가 열리자마자 바로 닫힌다 | 버튼 클릭 이벤트가 문서 클릭으로도 잡혀 라이트 디스미스가 같이 발동한 것처럼 보이는 착시 | 실제로는 정상 동작인 경우가 많다. 버튼과 메뉴 사이에 다른 클릭 리스너를 붙이지 않았는지 확인한다 |
+| `Esc`를 눌러도 안 닫힌다 | `popover="manual"`로 설정했다 | 라이트 디스미스가 필요하면 `auto`(기본값)를 쓴다 |
+| 페이지마다 열린 링크 표시가 다르다 | `aria-current="page"` 위치를 페이지별로 안 바꿨다 | 각 페이지의 현재 링크에만 붙인다 |
+
+## 확인 문제
+
+<Quiz
+  questionNumber={1}
+  question="popover 전역 속성의 기본값인 auto 모드가 자동으로 처리하는 것으로 옳지 않은 것은?"
+  options={['바깥 클릭 시 닫힘', 'Esc 키로 닫힘', '다른 auto popover가 열리면 기존 것 자동 닫힘', '입력 필드 값 자동 검증']}
+  correctAnswer={4}
+  explanation="auto 모드는 라이트 디스미스(바깥 클릭, Esc, 다른 popover 열림)를 자동 처리합니다. 입력값 검증은 Constraint Validation API의 역할입니다."
+  optionExplanations={['라이트 디스미스에 포함됩니다', '라이트 디스미스에 포함됩니다', 'auto 모드의 특징입니다', '이것이 정답입니다 — popover와 무관한 기능입니다']}
+/>
+
+<Quiz
+  questionNumber={2}
+  question="popovertargetaction의 값 중 이미 열려 있어도 버튼을 다시 누르면 닫히게 하는 값은?"
+  options={['show', 'hide', 'toggle', 'auto']}
+  correctAnswer={3}
+  explanation="toggle은 현재 상태를 반전시켜 열림/닫힘을 하나의 버튼으로 제어할 수 있게 합니다."
+  optionExplanations={['열기만 실행하며 이미 열려 있으면 변화가 없습니다', '닫기만 실행합니다', '이것이 정답입니다', 'auto는 popovertargetaction의 값이 아니라 popover 속성의 값입니다']}
+/>
+
+<Quiz
+  questionNumber={3}
+  question="popover=manual 모드에 대한 설명으로 옳은 것은?"
+  options={['라이트 디스미스가 자동으로 동작한다', '바깥 클릭이나 Esc로 닫히지 않는다', 'popovertarget 버튼을 쓸 수 없다', '항상 top layer에 표시되지 않는다']}
+  correctAnswer={2}
+  explanation="manual 모드는 라이트 디스미스가 꺼져 있어, hide 액션이나 hidePopover() 호출로만 닫을 수 있습니다."
+  optionExplanations={['manual은 라이트 디스미스가 꺼져 있습니다', '이것이 정답입니다', 'manual 모드에서도 popovertarget 버튼은 그대로 사용할 수 있습니다', 'manual도 top layer에 표시됩니다']}
+/>
+
+<Quiz
+  questionNumber={4}
+  question="popovertarget 속성이 버튼에서 하는 역할로 가장 정확한 것은?"
+  options={['버튼을 눌렀을 때 이동할 페이지 주소를 지정한다', '열고 닫을 popover 요소의 id를 가리킨다', '버튼의 스타일을 지정한다', '폼 제출 방식을 지정한다']}
+  correctAnswer={2}
+  explanation="popovertarget은 제어할 popover 요소의 id 값을 가리켜, 자바스크립트 없이 버튼과 popover를 연결합니다."
+  optionExplanations={['페이지 이동은 href 속성의 역할입니다', '이것이 정답입니다', '스타일은 CSS의 역할입니다', '폼 제출 방식은 method 속성의 역할입니다']}
+/>
+
+## 참고 자료
+
+- [web.dev — Popover API lands in Baseline](https://web.dev/blog/popover-api)
+- [MDN — Popover API](https://developer.mozilla.org/en-US/docs/Web/API/Popover_API)

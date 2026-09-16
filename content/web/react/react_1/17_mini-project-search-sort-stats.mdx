@@ -1,0 +1,563 @@
+---
+title: '17. 미니 완성: 검색·정렬·통계'
+description: '지금까지 배운 상태·이벤트·리스트·Context·reducer를 조합해 검색·정렬·통계 기능을 완성하고 react_1을 마무리한다'
+---
+
+<Callout type="info">
+  **이번 편의 결과물:** 검색창으로 제목을 필터링하고, 정렬 컨트롤로 별점·제목순 정렬하며, 상단에 총 권수·평균 별점 통계가 표시되는 완성된 `bookshelf` 앱입니다. · **다루는 개념:** 지금까지 배운 상태·이벤트·리스트·Context·reducer의 조합
+</Callout>
+
+## 이 편에서 만드는 파일
+
+```
+bookshelf/src/
+├── context/
+│   └── FilterContext.jsx    ~ 수정 (searchTerm·sortBy 추가)
+├── components/
+│   ├── SearchBar.jsx         + 신규
+│   ├── SortControl.jsx       + 신규
+│   ├── Stats.jsx              + 신규
+│   ├── Header.jsx             ~ 수정 (SearchBar·SortControl 배치)
+│   └── BookList.jsx           ~ 수정 (검색·정렬 적용)
+└── App.jsx                    ~ 수정 (Stats 배치)
+```
+
+새 훅은 도입하지 않습니다. 지금까지 만든 `useState`, `useReducer`, `Context`, 리스트 렌더링, 이벤트 처리만으로 기능을 완성합니다.
+
+## 개념 정리
+
+이번 편은 새 개념보다 **기존 개념의 조합**이 핵심입니다. 세 기능이 어떤 상태에 의존하는지 먼저 정리합니다.
+
+| 기능 | 담당 상태 | 위치 |
+|------|-----------|------|
+| 검색 | `searchTerm` (문자열) | `FilterContext` |
+| 정렬 | `sortBy` (`'title'` \| `'rating'`) | `FilterContext` |
+| 상태 필터 | `statusFilter` (13편에서 이미 존재) | `FilterContext` |
+| 통계 | 없음 — `books` 배열에서 매 렌더 계산 | props로 전달받음 |
+
+검색·정렬·상태 필터는 모두 "목록에 무엇을 보여줄지" 결정하는 값이라 `FilterContext` 하나에 함께 둡니다. `BookList`는 이 세 값을 `useFilter()`로 한 번에 받아 `books` 배열에 `filter` → `filter` → `sort`를 순서대로 적용합니다.
+
+**통계는 별도의 상태가 필요 없습니다.** `총 권수`와 `평균 별점`은 `books` 배열이 있으면 그 자리에서 계산할 수 있는 **파생 값**입니다. 파생 가능한 값을 굳이 `useState`로 따로 관리하면, `books`가 바뀔 때마다 통계도 손으로 동기화해야 하는 이중 관리 문제가 생깁니다. `Stats` 컴포넌트는 `books`를 props로 받아 렌더링 중에 직접 계산합니다.
+
+배열 메서드 체이닝 순서도 짚어둡니다. `filter`(상태) → `filter`(검색어) → `sort`(정렬) 순으로 적용하면, 정렬은 이미 걸러진 적은 개수의 배열에서만 일어나 불필요한 비교를 줄입니다. `sort`는 원본을 바꾸는 메서드이지만, 그 앞의 `filter`가 이미 **새 배열**을 만들어 반환했으므로 `books` 원본은 안전합니다.
+
+## 실습
+
+<Steps>
+
+### 1. FilterContext에 검색·정렬 상태 추가하기
+
+```jsx
+// src/context/FilterContext.jsx
+import { createContext, useContext, useState } from 'react';
+
+const FilterContext = createContext(null);
+
+export function FilterProvider({ children }) {
+  const [statusFilter, setStatusFilter] = useState('all');
+  const [searchTerm, setSearchTerm] = useState('');
+  const [sortBy, setSortBy] = useState('title');
+
+  const value = {
+    statusFilter,
+    setStatusFilter,
+    searchTerm,
+    setSearchTerm,
+    sortBy,
+    setSortBy,
+  };
+
+  return <FilterContext.Provider value={value}>{children}</FilterContext.Provider>;
+}
+
+export function useFilter() {
+  const context = useContext(FilterContext);
+  if (context === null) {
+    throw new Error('useFilter는 FilterProvider 내부에서만 사용합니다.');
+  }
+  return context;
+}
+```
+
+### 2. SearchBar 만들기
+
+```jsx
+// src/components/SearchBar.jsx
+import { useFilter } from '../context/FilterContext';
+
+function SearchBar() {
+  const { searchTerm, setSearchTerm } = useFilter();
+
+  return (
+    <input
+      type="search"
+      value={searchTerm}
+      onChange={(event) => setSearchTerm(event.target.value)}
+      placeholder="제목으로 검색"
+      aria-label="책 제목 검색"
+      className="search-bar"
+    />
+  );
+}
+
+export default SearchBar;
+```
+
+### 3. SortControl 만들기
+
+```jsx
+// src/components/SortControl.jsx
+import { useFilter } from '../context/FilterContext';
+
+function SortControl() {
+  const { sortBy, setSortBy } = useFilter();
+
+  return (
+    <select
+      value={sortBy}
+      onChange={(event) => setSortBy(event.target.value)}
+      aria-label="정렬 기준"
+      className="sort-control"
+    >
+      <option value="title">제목순</option>
+      <option value="rating">별점순</option>
+    </select>
+  );
+}
+
+export default SortControl;
+```
+
+### 4. Stats 만들기
+
+```jsx
+// src/components/Stats.jsx
+function Stats({ books }) {
+  const total = books.length;
+  const ratedBooks = books.filter((book) => book.rating > 0);
+  const averageRating =
+    ratedBooks.length === 0
+      ? 0
+      : ratedBooks.reduce((sum, book) => sum + book.rating, 0) / ratedBooks.length;
+
+  return (
+    <div className="stats">
+      <span>총 {total}권</span>
+      <span>평균 별점 {averageRating.toFixed(1)}</span>
+    </div>
+  );
+}
+
+export default Stats;
+```
+
+`rating`이 0인 책(아직 평가하지 않은 책)은 평균 계산에서 제외합니다. `ratedBooks.length`가 0일 때(평가된 책이 하나도 없을 때) 나눗셈으로 `NaN`이 나오지 않도록 미리 분기합니다.
+
+### 5. Header에 SearchBar·SortControl 배치하기
+
+```jsx
+// src/components/Header.jsx
+import { useTheme } from '../context/ThemeContext';
+import { useFilter } from '../context/FilterContext';
+import SearchBar from './SearchBar';
+import SortControl from './SortControl';
+
+const FILTERS = [
+  { value: 'all', label: '전체' },
+  { value: 'wish', label: '읽고 싶음' },
+  { value: 'reading', label: '읽는 중' },
+  { value: 'done', label: '다 읽음' },
+];
+
+function Header() {
+  const { theme, toggleTheme } = useTheme();
+  const { statusFilter, setStatusFilter } = useFilter();
+
+  return (
+    <header className="header">
+      <h1>bookshelf</h1>
+      <button type="button" onClick={toggleTheme}>
+        {theme === 'light' ? '다크 모드' : '라이트 모드'}
+      </button>
+      <div className="filter-bar">
+        {FILTERS.map((filter) => (
+          <button
+            key={filter.value}
+            type="button"
+            className={statusFilter === filter.value ? 'active' : ''}
+            onClick={() => setStatusFilter(filter.value)}
+          >
+            {filter.label}
+          </button>
+        ))}
+      </div>
+      <SearchBar />
+      <SortControl />
+    </header>
+  );
+}
+
+export default Header;
+```
+
+### 6. BookList에 검색·정렬 적용하기
+
+```jsx
+// src/components/BookList.jsx
+import { forwardRef } from 'react';
+import BookCard from './BookCard.jsx';
+import { useFilter } from '../context/FilterContext.jsx';
+
+const BookList = forwardRef(function BookList(
+  { books, onDelete, onRate, onToggleStatus, onOpenDetail },
+  scrollTargetRef,
+) {
+  const { statusFilter, searchTerm, sortBy } = useFilter();
+
+  const visibleBooks = books
+    .filter((book) => statusFilter === 'all' || book.status === statusFilter)
+    .filter((book) => book.title.toLowerCase().includes(searchTerm.toLowerCase()))
+    .sort((a, b) => {
+      if (sortBy === 'rating') return b.rating - a.rating;
+      return a.title.localeCompare(b.title);
+    });
+
+  if (visibleBooks.length === 0) {
+    return <p className="empty-state">표시할 책이 없습니다.</p>;
+  }
+
+  return (
+    <ul className="book-list">
+      {visibleBooks.map((book) => (
+        <li key={book.id}>
+          <BookCard
+            book={book}
+            onDelete={onDelete}
+            onRate={onRate}
+            onToggleStatus={onToggleStatus}
+            onOpenDetail={onOpenDetail}
+          />
+        </li>
+      ))}
+      <li ref={scrollTargetRef} className="scroll-sentinel" />
+    </ul>
+  );
+});
+
+export default BookList;
+```
+
+`sort`는 앞의 두 `filter`가 만든 **새 배열**을 대상으로 하므로 `books` 원본은 바뀌지 않습니다. `key`는 여전히 `book.id`를 씁니다 — 정렬로 순서가 바뀌어도 각 카드가 같은 책을 올바르게 유지합니다(6편). `forwardRef`와 맨 끝 sentinel `<li>`는 12편에서 만든 자동 스크롤 구조를 그대로 유지한 것입니다.
+
+### 7. App.jsx에 Stats 배치하기
+
+```jsx
+// src/App.jsx (Stats 배치 부분만 발췌 — 나머지는 기존 코드 유지)
+import Stats from './components/Stats';
+// ...기존 import 유지
+
+function App() {
+  // ...기존 useReducer·useEffect·useRef·selectedBook state 유지
+
+  return (
+    <Layout>
+      <Header />
+      <Stats books={books} />
+      <BookList
+        ref={scrollTargetRef}
+        books={books}
+        onDelete={handleDeleteBook}
+        onRate={handleRateBook}
+        onToggleStatus={handleToggleStatus}
+        onOpenDetail={handleOpenDetail}
+      />
+      <BookForm onAddBook={handleAddBook} />
+      <Modal isOpen={selectedBook !== null} onClose={handleCloseDetail}>
+        {selectedBook && (
+          <div className="book-detail">
+            <h2>{selectedBook.title}</h2>
+            <p>{selectedBook.author}</p>
+            <p>{selectedBook.pages}쪽</p>
+            <p>{selectedBook.memo || '메모가 없습니다.'}</p>
+          </div>
+        )}
+      </Modal>
+    </Layout>
+  );
+}
+
+export default App;
+```
+
+`Stats`는 필터·검색으로 걸러지기 **전** `books` 전체를 받습니다. "지금 화면에 보이는 책 수"가 아니라 "서재 전체 통계"를 보여주는 것이 의도이기 때문입니다.
+
+### 8. 실행
+
+```text
+npm run dev
+```
+
+### 9. 확인
+
+- 검색창에 책 제목 일부(예: "리팩")를 입력하면 "리팩터링 2판"만 남습니다.
+- 정렬 드롭다운을 "별점순"으로 바꾸면 별점이 높은 책부터 나열됩니다. "제목순"으로 되돌리면 가나다순으로 정렬됩니다.
+- 상단에 "총 6권", "평균 별점 X.X" 형태의 통계가 표시됩니다(초기 시드 데이터 기준 6권).
+- 검색어와 상태 필터를 동시에 적용해도(예: "읽는 중" + "리") 두 조건을 모두 만족하는 책만 남습니다.
+- 검색 결과가 없으면 "표시할 책이 없습니다." 문구가 보입니다.
+
+</Steps>
+
+## 직접 해보기
+
+1. `SortControl`에 "쪽수순" 옵션을 추가해 `pages` 기준 오름차순 정렬을 구현해 보세요.
+2. 검색창에 입력한 값이 없을 때 플레이스홀더 대신 최근 검색어를 `localStorage`에 저장했다가 새로고침 후 복원해 보세요(11편의 `useEffect` 패턴 응용).
+
+<details>
+<summary>정답 보기</summary>
+
+```jsx
+// src/components/SortControl.jsx (option 추가)
+<option value="pages">쪽수순</option>
+```
+
+```jsx
+// src/components/BookList.jsx (sort 콜백에 분기 추가)
+.sort((a, b) => {
+  if (sortBy === 'rating') return b.rating - a.rating;
+  if (sortBy === 'pages') return a.pages - b.pages;
+  return a.title.localeCompare(b.title);
+});
+```
+
+검색어 복원은 `FilterProvider`의 `searchTerm` 초기값을 `useState(() => localStorage.getItem('bookshelf-search') ?? '')`로 바꾸고, `useEffect(() => localStorage.setItem('bookshelf-search', searchTerm), [searchTerm])`를 추가하면 됩니다.
+
+</details>
+
+## 자주 하는 실수
+
+| 증상 | 원인 | 고치는 법 |
+|------|------|-----------|
+| 대문자로 검색하면 안 찾아짐 | 대소문자를 그대로 비교 | 양쪽 모두 `toLowerCase()`로 변환 후 비교(본문 코드 참고) |
+| 평가한 책이 없을 때 평균 별점이 `NaN` | 0으로 나누기 | `ratedBooks.length === 0`일 때 `0`을 반환하도록 분기 |
+| 정렬 후 필터를 바꾸면 순서가 이상해짐 | `filter`와 `sort` 순서를 반대로 적용 | `filter` → `filter` → `sort` 순서 유지(본문 코드 참고) |
+| 검색·정렬 상태가 새로고침하면 초기화됨 | `FilterContext`는 `localStorage`에 저장하지 않음(의도된 동작) | 필요하면 `직접 해보기 2번`처럼 `useEffect`로 저장 추가 |
+
+## react_1 종료 시점 최종 구조
+
+`bookshelf`는 이 편으로 `react_1`을 마칩니다. `react_2`는 아래 구조를 그대로 이어받아 라우팅·커스텀 훅·성능 최적화·에러 경계를 더합니다.
+
+```
+bookshelf/
+├── index.html
+├── package.json
+├── vite.config.js
+└── src/
+    ├── main.jsx
+    ├── App.jsx
+    ├── index.css
+    ├── data/
+    │   └── books.seed.json
+    ├── context/
+    │   ├── ThemeContext.jsx
+    │   └── FilterContext.jsx
+    ├── reducers/
+    │   └── booksReducer.js
+    └── components/
+        ├── Layout.jsx
+        ├── Modal.jsx
+        ├── Header.jsx
+        ├── BookForm.jsx
+        ├── BookList.jsx
+        ├── BookCard.jsx
+        ├── StatusBadge.jsx
+        ├── StarRating.jsx
+        ├── SearchBar.jsx
+        ├── SortControl.jsx
+        └── Stats.jsx
+```
+
+`src/lessons/`의 편별 스냅샷은 개념 격리 학습용으로 남겨두되, 실제 동작하는 앱은 위 구조가 전부입니다. 아래는 `react_2`가 그대로 이어받을 핵심 파일 세 개의 최종 코드입니다.
+
+```jsx
+// src/main.jsx (최종)
+import { StrictMode } from 'react';
+import { createRoot } from 'react-dom/client';
+import App from './App.jsx';
+import { ThemeProvider } from './context/ThemeContext.jsx';
+import { FilterProvider } from './context/FilterContext.jsx';
+import './index.css';
+
+createRoot(document.getElementById('root')).render(
+  <StrictMode>
+    <ThemeProvider>
+      <FilterProvider>
+        <App />
+      </FilterProvider>
+    </ThemeProvider>
+  </StrictMode>,
+);
+```
+
+```js
+// src/reducers/booksReducer.js (최종)
+export const initialBooksState = [];
+
+export function booksReducer(books, action) {
+  switch (action.type) {
+    case 'ADD_BOOK':
+      return [...books, action.book];
+
+    case 'DELETE_BOOK':
+      return books.filter((book) => book.id !== action.id);
+
+    case 'SET_RATING':
+      return books.map((book) =>
+        book.id === action.id ? { ...book, rating: action.rating } : book,
+      );
+
+    case 'SET_STATUS':
+      return books.map((book) =>
+        book.id === action.id ? { ...book, status: action.status } : book,
+      );
+
+    default:
+      throw new Error(`알 수 없는 액션 타입입니다: ${action.type}`);
+  }
+}
+```
+
+```jsx
+// src/App.jsx (최종)
+import { useReducer, useEffect, useRef, useState } from 'react';
+import initialBooks from './data/books.seed.json';
+import { booksReducer } from './reducers/booksReducer';
+import Layout from './components/Layout';
+import Header from './components/Header';
+import Stats from './components/Stats';
+import BookForm from './components/BookForm';
+import BookList from './components/BookList';
+import Modal from './components/Modal';
+
+function loadInitialState() {
+  const saved = localStorage.getItem('bookshelf-books');
+  return saved ? JSON.parse(saved) : initialBooks;
+}
+
+function App() {
+  const [books, dispatch] = useReducer(booksReducer, undefined, loadInitialState);
+  const [selectedBook, setSelectedBook] = useState(null);
+  const scrollTargetRef = useRef(null);
+
+  useEffect(() => {
+    localStorage.setItem('bookshelf-books', JSON.stringify(books));
+    document.title = `bookshelf (${books.length}권)`;
+  }, [books]);
+
+  useEffect(() => {
+    scrollTargetRef.current?.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+  }, [books.length]);
+
+  function handleAddBook(newBook) {
+    dispatch({ type: 'ADD_BOOK', book: newBook });
+  }
+
+  function handleDeleteBook(id) {
+    dispatch({ type: 'DELETE_BOOK', id });
+  }
+
+  function handleRateBook(id, rating) {
+    dispatch({ type: 'SET_RATING', id, rating });
+  }
+
+  function handleToggleStatus(id, status) {
+    dispatch({ type: 'SET_STATUS', id, status });
+  }
+
+  function handleOpenDetail(book) {
+    setSelectedBook(book);
+  }
+
+  function handleCloseDetail() {
+    setSelectedBook(null);
+  }
+
+  return (
+    <Layout>
+      <Header />
+      <Stats books={books} />
+      <BookList
+        ref={scrollTargetRef}
+        books={books}
+        onDelete={handleDeleteBook}
+        onRate={handleRateBook}
+        onToggleStatus={handleToggleStatus}
+        onOpenDetail={handleOpenDetail}
+      />
+      <BookForm onAddBook={handleAddBook} />
+      <Modal isOpen={selectedBook !== null} onClose={handleCloseDetail}>
+        {selectedBook && (
+          <div className="book-detail">
+            <h2>{selectedBook.title}</h2>
+            <p>{selectedBook.author}</p>
+            <p>{selectedBook.pages}쪽</p>
+            <p>{selectedBook.memo || '메모가 없습니다.'}</p>
+          </div>
+        )}
+      </Modal>
+    </Layout>
+  );
+}
+
+export default App;
+```
+
+## 확인 문제
+
+<Quiz
+  questionNumber={1}
+  question="Stats 컴포넌트가 총 권수·평균 별점을 별도의 useState 없이 books props로부터 계산하는 이유는?"
+  options={['파생 가능한 값을 상태로 따로 관리하면 원본과 동기화를 직접 챙겨야 하는 이중 관리 문제가 생기기 때문', 'useState는 숫자 값을 저장할 수 없기 때문', 'Stats는 App의 자식이 아니므로 상태를 가질 수 없기 때문', '평균 별점 계산에는 useReducer만 사용할 수 있기 때문']}
+  correctAnswer={1}
+  explanation="총 권수·평균 별점은 books 배열이 있으면 렌더링 중에 바로 계산할 수 있는 파생 값이다. 이를 별도 상태로 두면 books가 바뀔 때마다 손으로 동기화해야 하는 문제가 생긴다."
+  optionExplanations={['정답 — 파생 값을 상태로 이중 관리하지 않기 위해서다', 'useState는 어떤 타입의 값도 저장할 수 있다', '자식 컴포넌트도 자신만의 상태를 가질 수 있다', '계산 로직에 useReducer가 필요하지는 않다']}
+/>
+
+<Quiz
+  questionNumber={2}
+  question="BookList에서 filter를 두 번(상태·검색어) 적용한 뒤 sort를 마지막에 적용하는 순서의 장점은?"
+  options={['이미 걸러진 적은 개수의 배열에서 정렬이 일어나 비교 횟수를 줄일 수 있다', 'sort를 먼저 하면 문법 에러가 발생하기 때문에 순서가 강제된다', 'filter는 반드시 sort보다 먼저 호출해야 하는 React의 규칙이 있다', '순서를 바꿔도 결과와 성능에 차이가 전혀 없다']}
+  correctAnswer={1}
+  explanation="filter로 대상 개수를 먼저 줄이면 그만큼 sort의 비교 대상이 줄어든다. 결과의 정확성 자체에는 순서가 필수는 아니지만, 이 순서가 더 효율적이다."
+  optionExplanations={['정답 — 걸러진 뒤 정렬하면 비교 횟수가 줄어든다', 'sort를 먼저 호출해도 문법 에러는 나지 않는다', 'React의 규칙이 아니라 배열 메서드 사용상의 선택이다', '개수가 많아질수록 순서에 따른 효율 차이가 커진다']}
+/>
+
+<Quiz
+  questionNumber={3}
+  question="searchTerm, sortBy, statusFilter를 모두 FilterContext 한곳에 둔 이유로 가장 알맞은 것은?"
+  options={['모두 목록에 무엇을 보여줄지 결정하는 같은 성격의 값이라 하나의 Context로 묶는 것이 자연스럽기 때문', 'React는 Context를 한 앱에 하나만 만들 수 있기 때문', 'useState보다 Context가 항상 더 빠르기 때문', '세 값이 항상 동시에 바뀌기 때문']}
+  correctAnswer={1}
+  explanation="세 값 모두 목록 표시 조건을 결정하는 같은 성격의 상태다. 성격이 다른 theme은 별도의 ThemeContext로 분리되어 있다(13편)."
+  optionExplanations={['정답 — 같은 성격의 값을 한 Context로 묶은 것이다', 'Context 개수 제한은 없다', '속도 비교가 아니라 값의 성격이 기준이다', '세 값은 각자 독립적으로 바뀐다']}
+/>
+
+<Quiz
+  questionNumber={4}
+  question="이 편에서 검색·정렬·통계 기능을 구현하며 새로 도입한 훅은?"
+  options={['새 훅을 도입하지 않고 기존 useState·useReducer·Context만으로 구현했다', 'useMemo를 새로 도입했다', 'useCallback을 새로 도입했다', 'useLayoutEffect를 새로 도입했다']}
+  correctAnswer={1}
+  explanation="17편은 지금까지 배운 상태·이벤트·리스트·Context·reducer를 조합하는 데 집중하며 새 훅을 도입하지 않는다. 성능 최적화 훅은 react_2의 범위다."
+  optionExplanations={['정답 — 기존 도구의 조합만으로 완성한다', 'useMemo는 이번 과목 범위 밖이다(react_2)', 'useCallback도 이번 과목 범위 밖이다(react_2)', 'useLayoutEffect는 이 과목에서 다루지 않는다']}
+/>
+
+<Quiz
+  questionNumber={5}
+  question="Stats 컴포넌트에 books 전체(필터·검색 적용 전)를 전달하는 이유는?"
+  options={['현재 화면에 보이는 목록이 아니라 서재 전체의 통계를 보여주려는 의도이기 때문', 'BookList에서 이미 필터링된 배열을 다시 받으면 에러가 나기 때문', 'Stats는 filter 메서드를 사용할 수 없기 때문', '전체 배열을 전달하지 않으면 useReducer가 동작하지 않기 때문']}
+  correctAnswer={1}
+  explanation="Stats는 지금 화면에 보이는 검색·필터 결과가 아니라 서재 전체의 총 권수와 평균 별점을 보여주는 것이 의도다. 그래서 필터링 이전의 books 원본을 전달한다."
+  optionExplanations={['정답 — 서재 전체 통계를 의도했기 때문이다', '필터링된 배열을 받아도 문법적으로 문제는 없다', 'Stats도 내부에서 filter를 사용한다(평가된 책 거르기)', 'useReducer는 App에서만 사용되며 Stats와 무관하다']}
+/>
+
+## 참고 자료
+
+- [React 공식 - Thinking in React](https://react.dev/learn/thinking-in-react)

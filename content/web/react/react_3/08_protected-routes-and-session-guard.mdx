@@ -1,0 +1,319 @@
+---
+title: '08. 보호 라우트와 세션 만료 처리'
+description: '로그인하지 않으면 /books 접근을 막고, 세션이 만료되면 자동으로 로그아웃합니다'
+---
+
+<Callout type="info">
+  **이번 편의 결과물:** 로그인하지 않고 `/books`에 접근하면 `/login`으로 이동하고, 로그인 후 원래 페이지로 돌아옵니다. · **다루는 개념:** `react-router` 기반 인증 가드, 미인증 리다이렉트 후 원래 경로 복귀, 요청 인터셉터로 토큰 자동 첨부, 세션 만료 처리
+</Callout>
+
+07편까지는 로그인 폼과 토큰 저장은 갖췄지만, 로그인 없이도 아무 화면이나 볼 수 있었습니다. 이 편은 라우트에 가드를 걸고, API 요청에 토큰을 자동으로 붙이고, 토큰이 만료되면 로그인 화면으로 돌려보냅니다.
+
+## 이 편에서 만드는 파일
+
+```text
+bookshelf/src/
+├── components/
+│   ├── ProtectedRoute.jsx      + 인증 가드 컴포넌트
+│   └── SessionWatcher.jsx      + 세션 만료 이벤트 감지(라우터 트리 안에 배치)
+├── api/
+│   ├── books.js                ~ apiFetch로 토큰 자동 첨부, 401 처리
+│   └── auth.js                 ~ simulateExpiredSession 추가
+├── pages/
+│   └── LoginPage.jsx            ~ 원래 경로로 복귀
+└── router.jsx                  ~ 보호 라우트 적용, 세션 만료 감지용 레이아웃 라우트 추가
+```
+
+## 개념 정리
+
+| 개념 | 설명 |
+|------|------|
+| 인증 가드 | 라우트를 렌더하기 전에 인증 여부를 확인하고, 아니면 다른 곳으로 보내는 컴포넌트 |
+| `location.state` | `Navigate` 리다이렉트 시 원래 경로를 함께 실어 보내는 방법 |
+| 요청 인터셉터 | API 요청 앞단에서 공통 처리(토큰 첨부 등)를 끼워 넣는 함수 |
+| 세션 만료 처리 | 토큰 만료 시 토큰을 지우고 로그인 화면으로 되돌리는 흐름 |
+
+이 과목은 axios 인터셉터 대신 `fetch`를 감싼 `apiFetch` 함수로 같은 역할을 합니다. 모든 API 함수가 이 함수를 거치면 토큰 첨부와 401 처리를 한 곳에서만 관리할 수 있습니다. 백엔드는 `json-server`(포트 3001)를 그대로 쓰지만, 헤더를 검사해 401을 돌려주지는 않으므로 `apiFetch`가 토큰이 없거나 `expired-token`일 때 직접 실패를 흉내 냅니다.
+
+## 실습
+
+<Steps>
+
+### 1. 인증 가드 컴포넌트 작성
+
+```jsx
+// src/components/ProtectedRoute.jsx
+import { Navigate, useLocation } from 'react-router'
+import { useAuth } from '../context/AuthContext'
+
+export default function ProtectedRoute({ children }) {
+  const { token } = useAuth()
+  const location = useLocation()
+
+  if (!token) {
+    return <Navigate to="/login" replace state={{ from: location.pathname }} />
+  }
+
+  return children
+}
+```
+
+`replace`를 쓰면 히스토리에 로그인 페이지가 남지 않아 뒤로 가기를 눌러도 다시 리다이렉트되지 않습니다. `state`에 `from`을 담아 로그인 후 돌아갈 경로를 전달합니다.
+
+### 2. 토큰을 자동으로 붙이는 apiFetch 작성
+
+`json-server`는 인증을 검사하지 않으므로, 요청을 보내기 전에 **클라이언트 쪽에서 먼저** 토큰 유무·만료 여부를 확인해 세션 만료를 흉내 냅니다.
+
+```js
+// bookshelf/src/api/books.js
+import { getToken, clearToken } from './auth'
+
+const API_BASE = 'http://localhost:3001'
+
+async function apiFetch(path, options = {}) {
+  const token = getToken()
+
+  if (!token || token === 'expired-token') {
+    clearToken()
+    throw new Error('SESSION_EXPIRED')
+  }
+
+  const headers = {
+    'Content-Type': 'application/json',
+    ...options.headers,
+  }
+
+  const response = await fetch(`${API_BASE}${path}`, { ...options, headers })
+  if (!response.ok) {
+    throw new Error(`요청이 실패했습니다 (상태 코드: ${response.status})`)
+  }
+  return response
+}
+
+export async function getBooks({ page = 1, limit = 4 } = {}) {
+  const response = await apiFetch(`/books?_page=${page}&_limit=${limit}`)
+  const items = await response.json()
+  const total = Number(response.headers.get('X-Total-Count') ?? items.length)
+  return { items, total }
+}
+
+export async function createBook(book) {
+  const response = await apiFetch('/books', {
+    method: 'POST',
+    body: JSON.stringify(book),
+  })
+  return response.json()
+}
+
+export async function deleteBook(id) {
+  const response = await apiFetch(`/books/${id}`, { method: 'DELETE' })
+  return response.json()
+}
+```
+
+`apiFetch`가 `books.js`의 모든 함수 앞단을 지나가므로, 토큰 검사를 한 곳에서만 관리할 수 있습니다. 토큰이 없거나 `expired-token`이면 실제 요청을 보내지 않고 바로 `SESSION_EXPIRED` 에러를 던집니다. 04~06편에서 쓰던 `getBooks`·`createBook`·`deleteBook`의 시그니처는 그대로 유지합니다.
+
+### 3. 세션 만료를 흉내 내는 함수 추가
+
+`login`·`getToken`·`setToken`·`clearToken`은 07편 코드 그대로입니다. `simulateExpiredSession` 함수만 추가합니다.
+
+```js
+// bookshelf/src/api/auth.js (발췌 — login 등 나머지 함수는 07편 코드 유지)
+export function simulateExpiredSession() {
+  authToken = 'expired-token'
+}
+```
+
+`json-server`는 시간이 지나도 토큰을 만료시키지 않으므로, 이 함수로 토큰 값을 `expired-token`으로 바꿔 다음 요청에서 `apiFetch`가 거부하는 상황을 재현합니다.
+
+### 4. 로그인 후 원래 경로로 복귀
+
+`LoginPage`는 07편 코드에서 두 줄만 바뀝니다. 리다이렉트 대상을 고정 경로 대신 `location.state.from`에서 읽습니다.
+
+```jsx
+// src/pages/LoginPage.jsx (발췌 — 폼 마크업은 07편 코드 유지)
+import { useNavigate, useLocation } from 'react-router'
+// ...기존 import 유지(useState, useAuth)
+
+export default function LoginPage() {
+  const navigate = useNavigate()
+  const location = useLocation()
+  // ...기존 email·password·error·isSubmitting state 유지
+  const from = location.state?.from ?? '/'
+
+  async function handleSubmit(event) {
+    event.preventDefault()
+    setError('')
+    setIsSubmitting(true)
+    try {
+      await login(email, password)
+      navigate(from, { replace: true })
+    } catch (err) {
+      setError(err.message)
+    } finally {
+      setIsSubmitting(false)
+    }
+  }
+
+  // ...기존 return의 form 마크업 유지
+}
+```
+
+### 5. 라우트에 가드 적용하고 세션 만료 감지
+
+`SessionWatcher`는 `window` 커스텀 이벤트를 구독해 로그아웃·화면 전환을 처리합니다. `useNavigate`를 쓰므로 라우터 트리 **안**에서 렌더돼야 합니다. `createBrowserRouter`에는 `App.jsx` 같은 단일 진입점이 없으므로, `path` 없는 레이아웃 라우트를 최상단에 두고 그 `children`으로 기존 라우트를 옮깁니다.
+
+```jsx
+// src/components/SessionWatcher.jsx
+import { useEffect } from 'react'
+import { useNavigate, Outlet } from 'react-router'
+import { useAuth } from '../context/AuthContext'
+
+export default function SessionWatcher() {
+  const navigate = useNavigate()
+  const { logout } = useAuth()
+
+  useEffect(() => {
+    function handleExpired() {
+      logout()
+      navigate('/login', { replace: true })
+    }
+
+    window.addEventListener('session-expired', handleExpired)
+    return () => window.removeEventListener('session-expired', handleExpired)
+  }, [logout, navigate])
+
+  return <Outlet />
+}
+```
+
+```jsx
+// src/router.jsx
+import { createBrowserRouter } from 'react-router'
+import BookListPage from './pages/BookListPage'
+import BookDetailPage from './pages/BookDetailPage'
+import NewBookPage from './pages/NewBookPage'
+import NotFoundPage from './pages/NotFoundPage'
+import LoginPage from './pages/LoginPage'
+import ProtectedRoute from './components/ProtectedRoute'
+import SessionWatcher from './components/SessionWatcher'
+
+function guarded(element) {
+  return <ProtectedRoute>{element}</ProtectedRoute>
+}
+
+export const router = createBrowserRouter([
+  {
+    element: <SessionWatcher />,
+    children: [
+      { path: '/', element: guarded(<BookListPage />) },
+      { path: '/books/new', element: guarded(<NewBookPage />) },
+      { path: '/books/:id', element: guarded(<BookDetailPage />) },
+      { path: '/login', element: <LoginPage /> },
+      { path: '*', element: <NotFoundPage /> },
+    ],
+  },
+])
+```
+
+`SessionWatcher`가 `<Outlet />`을 렌더해야 자식 라우트가 나타납니다. react_2의 `/books/:id` 중첩 자식 라우트와 같은 메커니즘을 최상단에 적용한 것입니다.
+
+`apiFetch`가 던지는 `SESSION_EXPIRED` 에러를 컴포넌트까지 전달해 화면 전환을 시키려면 별도 신호가 필요합니다. 08편은 간단히 `window`의 커스텀 이벤트로 알립니다. `BookListPage`의 쿼리 에러 분기에서 에러 메시지가 `SESSION_EXPIRED`이면 이벤트를 발생시키도록 한 줄을 추가합니다.
+
+```jsx
+// src/pages/BookListPage.jsx 안, useBooks() 선언 다음에 추가
+useEffect(() => {
+  if (error?.message === 'SESSION_EXPIRED') {
+    window.dispatchEvent(new Event('session-expired'))
+  }
+}, [error])
+```
+
+`useEffect`를 쓰려면 파일 상단에 `import { useEffect } from 'react'`를 추가합니다.
+
+### 6. 실행과 확인
+
+```text
+npx json-server db.json --port 3001
+npm run dev
+```
+
+- 로그아웃 상태에서 주소창에 `/books/new`를 직접 입력하면 `/login`으로 이동한다.
+- 로그인하면 원래 가려던 `/books/new`로 돌아온다.
+- 콘솔에서 `import('/src/api/auth.js').then(m => m.simulateExpiredSession())` 실행 후 새로고침하면 `apiFetch`가 `SESSION_EXPIRED`를 던지고 자동으로 `/login`으로 이동한다.
+- `/login`은 로그인 여부와 관계없이 항상 접근할 수 있다.
+
+</Steps>
+
+## 직접 해보기
+
+1. `ProtectedRoute`를 로그인된 사용자가 `/login`에 접근했을 때 `/`로 돌려보내도록 반대 방향 가드로도 만들어 보세요.
+2. `apiFetch`에 `console.log`를 추가해 모든 요청에 어떤 `Authorization` 값이 붙는지 확인해 보세요.
+
+<details>
+<summary>정답 보기</summary>
+
+```jsx
+// src/components/GuestOnlyRoute.jsx
+import { Navigate } from 'react-router'
+import { useAuth } from '../context/AuthContext'
+
+export default function GuestOnlyRoute({ children }) {
+  const { token } = useAuth()
+  return token ? <Navigate to="/" replace /> : children
+}
+```
+
+`router.jsx`의 `/login` 라우트 `element`를 `<GuestOnlyRoute><LoginPage /></GuestOnlyRoute>`로 감싸면 이미 로그인한 사용자가 `/login`에 다시 들어오는 것을 막습니다.
+
+</details>
+
+## 자주 하는 실수
+
+| 증상 | 원인 | 고치는 법 |
+|------|------|-----------|
+| 로그인 후 항상 `/`로만 이동 | `state.from`을 안 읽고 `navigate('/')`로 고정 | `useLocation().state.from`을 읽어 이동한다 |
+| 만료 시뮬레이션 후 화면이 안 바뀜 | `session-expired` 이벤트 트리거 코드가 없음 | `error` 감시 `useEffect` 추가 |
+| `/login`도 보호 라우트로 감싸 로그인이 불가능해짐 | `ProtectedRoute`를 모든 라우트에 적용 | `/login`은 가드 밖에 둔다 |
+
+## 확인 문제
+
+<Quiz
+  questionNumber={1}
+  question="ProtectedRoute에서 Navigate에 replace를 쓰는 이유는"
+  options={['페이지 전환 속도를 높이기 위해', '브라우저 히스토리에 리다이렉트 경로가 남지 않게 하기 위해', 'state를 전달할 수 없어서 대신 쓰는 것', 'React 19에서 필수 문법이라서']}
+  correctAnswer={2}
+  explanation="replace는 히스토리 스택에 현재 항목을 남기지 않아, 로그인 후 뒤로 가기를 눌러도 보호 라우트로 다시 튕기지 않습니다."
+  optionExplanations={['속도와는 무관합니다', '정답입니다', 'state 전달과는 별개 옵션입니다', '필수 문법이 아닙니다']}
+/>
+
+<Quiz
+  questionNumber={2}
+  question="apiFetch 함수를 만들어 모든 API 함수가 거치게 한 이유는"
+  options={['코드 줄 수를 줄이기 위해서만', '토큰 검사와 세션 만료 처리를 한 곳에서 관리하기 위해', 'fetch보다 성능이 좋아서', 'json-server가 apiFetch만 가로챌 수 있어서']}
+  correctAnswer={2}
+  explanation="공통 처리를 한 함수에 모아두면 인증 로직이 바뀔 때 books.js의 모든 함수를 일일이 고치지 않아도 됩니다."
+  optionExplanations={['줄 수 절감이 주된 목적은 아닙니다', '정답입니다', '성능 차이가 이유가 아닙니다', 'json-server는 URL 패턴을 검사하지 않습니다']}
+/>
+
+<Quiz
+  questionNumber={3}
+  question="apiFetch가 요청을 보내기 전에 토큰이 없거나 expired-token인지 먼저 확인하는 이유는"
+  options={['네트워크 속도를 높이기 위해', 'json-server는 인증을 검사하지 않으므로 클라이언트가 직접 세션 만료를 판단해야 하기 때문', 'CORS 오류를 피하기 위해', '요청 형식 오류(400)를 막기 위해']}
+  correctAnswer={2}
+  explanation="json-server는 db.json을 그대로 노출할 뿐 Authorization 헤더를 검사하지 않습니다. 그래서 이 과목은 요청을 보내기 전에 클라이언트 쪽에서 먼저 토큰 유효성을 판단합니다."
+  optionExplanations={['속도 개선이 목적이 아닙니다', '정답입니다', 'CORS와 무관합니다', '400 오류 방지가 목적이 아닙니다']}
+/>
+
+<Quiz
+  questionNumber={4}
+  question="apiFetch가 세션 만료를 감지했을 때 clearToken()을 먼저 호출하는 이유는"
+  options={['서버에 로그아웃을 알리기 위해', '만료된 토큰을 계속 재사용해 같은 실패를 반복 발생시키지 않기 위해', '메모리 누수를 막기 위해', 'React 상태 업데이트 규칙 때문에']}
+  correctAnswer={2}
+  explanation="토큰을 지우지 않으면 다음 요청에도 같은 만료 토큰이 남아 계속 같은 실패를 반복하게 됩니다. 즉시 지워야 재로그인 흐름으로 넘어갈 수 있습니다."
+  optionExplanations={['서버 통지가 목적이 아닙니다', '정답입니다', '메모리 누수와는 다른 문제입니다', 'React 규칙과 무관합니다']}
+/>
+
+## 참고 자료
+
+- [React Router — Navigating(공식 문서)](https://reactrouter.com/start/library/navigating)

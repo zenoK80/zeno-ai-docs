@@ -1,0 +1,373 @@
+---
+title: '08. fetch로 JSON 서버 동기화'
+description: 'json-server를 띄우고 fetch로 메모를 주고받아 여러 탭이 같은 목록을 보게 합니다.'
+---
+
+<Callout type="info">
+  **이번 편의 결과물:** 로컬 `json-server`를 실행하고, `notes-app`이 시작할 때 서버에서 메모를 받아오고 추가·수정·삭제도 서버에 반영합니다. 같은 서버를 보는 다른 탭에서도 새로고침하면 같은 목록이 보입니다. · **다루는 개념:** `fetch` GET/POST/PATCH/DELETE, json-server 실행, 응답 상태 처리, 로딩 상태 표시
+</Callout>
+
+## 이 편에서 만드는 파일
+
+```
+notes-app/
+├── db.json             (+ json-server용 시드 데이터)
+└── src/
+    ├── api.js            (+ fetch로 json-server CRUD)
+    ├── notes.js            (~ setNotes 추가)
+    └── main.js              (~ hydrate·서버 동기화 호출 추가)
+```
+
+## 개념 정리
+
+### json-server
+
+`json-server`는 JSON 파일 하나로 REST API 서버를 즉석에서 띄워 주는 도구입니다. `db.json`에 `{ "notes": [...] }`처럼 키를 두면, 그 키 이름으로 `/notes` 자원이 자동 생성됩니다.
+
+| 요청 | 동작 |
+|------|------|
+| `GET /notes` | 전체 메모 목록 조회 |
+| `POST /notes` | 새 메모 생성(요청 본문을 그대로 저장하고 `id` 자동 부여) |
+| `PATCH /notes/:id` | 메모 일부 필드 수정 |
+| `DELETE /notes/:id` | 메모 삭제 |
+
+### fetch 응답 상태 확인
+
+`fetch`는 서버가 404나 500을 응답해도 예외를 던지지 않습니다. 오직 네트워크 자체가 끊겼을 때만 예외가 발생합니다. 그래서 응답을 받은 뒤 `response.ok`(상태 코드 200~299 여부)를 직접 확인해야 합니다.
+
+```js
+const response = await fetch(url);
+if (!response.ok) {
+  throw new Error(`요청 실패 (${response.status})`);
+}
+```
+
+### 로딩 상태
+
+네트워크 요청은 즉시 끝나지 않습니다. 요청이 진행되는 동안 화면에 아무 안내가 없으면 사용자는 앱이 멈췄다고 오해합니다. 요청 시작 시 "불러오는 중" 표시를 하고, 끝나면 결과로 교체합니다.
+
+## 실습
+
+<Steps>
+
+### 1. db.json 준비, json-server 실행
+
+`notes-app` 폴더 바로 아래에 `db.json`을 만듭니다.
+
+```json
+// db.json
+{
+  "notes": [
+    {
+      "id": "n1",
+      "title": "Vite 프로젝트 만들기",
+      "body": "npm create vite@latest notes-app -- --template vanilla 로 시작한다.",
+      "tags": ["setup"],
+      "pinned": true,
+      "updatedAt": "2026-09-15T09:00:00+09:00"
+    },
+    {
+      "id": "n2",
+      "title": "이벤트 위임 메모",
+      "body": "목록 전체에 리스너 하나를 달고 event.target.closest 로 버튼을 찾는다.",
+      "tags": ["dom", "events"],
+      "pinned": false,
+      "updatedAt": "2026-09-15T11:20:00+09:00"
+    },
+    {
+      "id": "n3",
+      "title": "fetch 취소",
+      "body": "AbortController 의 signal 을 fetch 옵션으로 넘기고 abort() 로 취소한다.",
+      "tags": ["fetch"],
+      "pinned": false,
+      "updatedAt": "2026-09-16T08:00:00+09:00"
+    },
+    {
+      "id": "n4",
+      "title": "IndexedDB 는 트랜잭션 단위",
+      "body": "objectStore 접근은 transaction 안에서만 가능하다.",
+      "tags": ["storage"],
+      "pinned": false,
+      "updatedAt": "2026-09-16T09:30:00+09:00"
+    }
+  ]
+}
+```
+
+새 터미널을 열어 json-server를 실행합니다(`npm run dev`를 실행 중인 터미널은 그대로 둡니다).
+
+```text
+npx json-server db.json --port 3001
+```
+
+### 2. src/api.js 만들기
+
+```js
+// src/api.js
+const BASE_URL = 'http://localhost:3001';
+
+export async function fetchNotes() {
+  const response = await fetch(`${BASE_URL}/notes`);
+  if (!response.ok) throw new Error(`목록을 불러오지 못했습니다 (${response.status})`);
+  return response.json();
+}
+
+export async function createNoteOnServer(note) {
+  const response = await fetch(`${BASE_URL}/notes`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(note),
+  });
+  if (!response.ok) throw new Error(`메모를 저장하지 못했습니다 (${response.status})`);
+  return response.json();
+}
+
+export async function updateNoteOnServer(id, patch) {
+  const response = await fetch(`${BASE_URL}/notes/${id}`, {
+    method: 'PATCH',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(patch),
+  });
+  if (!response.ok) throw new Error(`메모를 수정하지 못했습니다 (${response.status})`);
+  return response.json();
+}
+
+export async function deleteNoteOnServer(id) {
+  const response = await fetch(`${BASE_URL}/notes/${id}`, { method: 'DELETE' });
+  if (!response.ok) throw new Error(`메모를 삭제하지 못했습니다 (${response.status})`);
+}
+```
+
+`src/notes.js`에 서버에서 받은 배열로 상태를 통째로 교체하는 `setNotes`를 추가합니다.
+
+```js
+// src/notes.js의 export 목록에 추가
+export function setNotes(newNotes) {
+  notes = newNotes;
+  saveNotes(notes);
+}
+```
+
+`src/main.js`를 열어 시작 시 서버에서 목록을 받아오고, 추가·수정·삭제마다 서버에도 반영하도록 바꿉니다.
+
+```js
+// src/main.js
+import { getNotes, addNote, removeNote, updateNote, setNotes } from './notes.js';
+import { renderList } from './render.js';
+import {
+  fetchNotes,
+  createNoteOnServer,
+  updateNoteOnServer,
+  deleteNoteOnServer,
+} from './api.js';
+
+const listEl = document.querySelector('#note-list');
+const form = document.querySelector('#note-form');
+const titleInput = form.elements.title;
+const titleError = form.querySelector('[data-error-for="title"]');
+
+let editingId = null;
+
+function render() {
+  renderList(getNotes(), listEl, { editingId });
+}
+
+async function hydrate() {
+  listEl.innerHTML = '<li class="note-status">불러오는 중...</li>';
+  try {
+    const serverNotes = await fetchNotes();
+    setNotes(serverNotes);
+  } catch (error) {
+    console.error(error);
+  }
+  render();
+}
+
+titleInput.addEventListener('input', () => {
+  titleInput.setCustomValidity('');
+});
+
+form.addEventListener('submit', async (event) => {
+  event.preventDefault();
+
+  if (titleInput.value.trim().length === 0) {
+    titleInput.setCustomValidity('제목을 입력하세요.');
+  } else if (titleInput.value.trim().length < 2) {
+    titleInput.setCustomValidity('제목은 2자 이상 입력하세요.');
+  } else {
+    titleInput.setCustomValidity('');
+  }
+
+  if (!form.checkValidity()) {
+    titleError.textContent = titleInput.validationMessage;
+    return;
+  }
+
+  titleError.textContent = '';
+  const formData = new FormData(form);
+  const draft = {
+    title: formData.get('title').trim(),
+    body: formData.get('body').trim(),
+    tags: [],
+    pinned: false,
+  };
+
+  try {
+    const saved = await createNoteOnServer(draft);
+    addNote(saved);
+  } catch (error) {
+    console.error(error);
+    addNote(draft);
+  }
+  form.reset();
+  render();
+});
+
+listEl.addEventListener('click', async (event) => {
+  const actionEl = event.target.closest('[data-action]');
+  if (!actionEl) return;
+  const card = actionEl.closest('.note-card');
+  if (!card) return;
+  const id = card.dataset.id;
+  const action = actionEl.dataset.action;
+
+  if (action === 'delete') {
+    try {
+      await deleteNoteOnServer(id);
+    } catch (error) {
+      console.error(error);
+    }
+    removeNote(id);
+    render();
+  } else if (action === 'edit') {
+    editingId = id;
+    render();
+  } else if (action === 'cancel') {
+    editingId = null;
+    render();
+  } else if (action === 'save') {
+    const title = card.querySelector('.edit-title').value.trim();
+    const body = card.querySelector('.edit-body').value.trim();
+    try {
+      await updateNoteOnServer(id, { title, body });
+    } catch (error) {
+      console.error(error);
+    }
+    updateNote(id, { title, body });
+    editingId = null;
+    render();
+  }
+});
+
+hydrate();
+```
+
+`hydrate`는 서버 요청이 실패해도 `catch`에서 콘솔에만 기록하고 넘어갑니다. 07편에서 만든 `localStorage` 저장분이 이미 `notes.js`의 초기값으로 남아 있으므로, 서버 없이 실행해도 마지막으로 저장된 목록이 그대로 보입니다.
+
+### 3. 실행
+
+두 터미널에서 각각 실행합니다.
+
+```text
+npx json-server db.json --port 3001
+```
+
+```text
+npm run dev
+```
+
+</Steps>
+
+## 확인
+
+- 페이지를 열면 잠깐 "불러오는 중..."이 보인 뒤 `db.json`의 메모 4개가 나타납니다.
+- 새 메모를 추가하고 `db.json` 파일을 열어 보면 새 메모가 실제로 추가되어 있습니다(json-server가 파일에 반영합니다).
+- 같은 주소를 새 탭에서 열면 방금 추가한 메모까지 똑같이 보입니다.
+- json-server를 끈 상태로 새로고침하면 "불러오는 중..." 뒤 콘솔에 오류가 찍히고, `localStorage`에 남은 마지막 목록이 대신 보입니다.
+
+## 직접 해보기
+
+1. `fetchNotes` 실패 시 `listEl`에 "서버에 연결하지 못했습니다. 저장된 메모를 표시합니다." 문구를 잠깐 보여준 뒤 `render()`로 교체해 봅니다.
+2. `createNoteOnServer`가 실패했을 때 사용자에게 "오프라인 상태로 저장했습니다" 안내를 추가해 봅니다.
+
+<details>
+<summary>정답 보기</summary>
+
+```js
+async function hydrate() {
+  listEl.innerHTML = '<li class="note-status">불러오는 중...</li>';
+  try {
+    const serverNotes = await fetchNotes();
+    setNotes(serverNotes);
+  } catch (error) {
+    console.error(error);
+    listEl.innerHTML =
+      '<li class="note-status">서버에 연결하지 못했습니다. 저장된 메모를 표시합니다.</li>';
+  }
+  render();
+}
+```
+
+```js
+try {
+  const saved = await createNoteOnServer(draft);
+  addNote(saved);
+} catch (error) {
+  console.error(error);
+  addNote(draft);
+  window.alert('오프라인 상태로 저장했습니다.');
+}
+```
+
+</details>
+
+## 자주 하는 실수
+
+| 증상 | 원인 | 고치는 법 |
+|------|------|-----------|
+| 404 응답인데도 `.then`이 정상 실행됨 | `fetch`는 HTTP 오류 상태에서도 예외를 던지지 않음 | 응답을 받은 직후 `response.ok`를 확인해 직접 예외를 던진다 |
+| `Failed to fetch` | json-server를 실행하지 않았거나 포트가 다름 | `npx json-server db.json --port 3001`이 실행 중인지, 포트 번호가 `api.js`와 같은지 확인한다 |
+| 메모 추가는 되는데 새로고침하면 사라짐 | `createNoteOnServer` 실패를 무시하고 `addNote`만 호출, 실제로는 로컬 상태만 바뀜 | `db.json`과 json-server 실행 상태를 확인하고, 실패 시 사용자에게 알린다 |
+
+## 확인 문제
+
+<Quiz
+  questionNumber={1}
+  question="fetch가 404 응답을 받았을 때의 동작으로 옳은 것은?"
+  options={['자동으로 예외를 던진다', '예외를 던지지 않고 response.ok가 false인 정상 응답으로 처리된다', '요청이 취소된다', '브라우저가 자동으로 재시도한다']}
+  correctAnswer={2}
+  explanation="fetch는 네트워크 자체가 끊긴 경우에만 예외를 던지며, HTTP 오류 상태는 정상 응답으로 취급되어 response.ok로 직접 확인해야 합니다."
+  optionExplanations={['자동으로 예외를 던지지 않습니다', '정답입니다', '취소는 AbortController가 담당합니다', '자동 재시도 기능은 없습니다']}
+/>
+
+<Quiz
+  questionNumber={2}
+  question="json-server에서 db.json의 notes 키가 하는 역할은?"
+  options={['CSS 클래스 이름을 정의한다', '/notes 경로의 REST 자원을 자동으로 생성한다', '데이터베이스 접속 정보를 담는다', '포트 번호를 지정한다']}
+  correctAnswer={2}
+  explanation="json-server는 JSON 파일의 최상위 키 이름을 그대로 REST 자원 경로로 사용해 CRUD API를 만들어 줍니다."
+  optionExplanations={['CSS와는 무관합니다', '정답입니다', '접속 정보가 아니라 데이터 자체입니다', '포트는 --port 옵션으로 지정합니다']}
+/>
+
+<Quiz
+  questionNumber={3}
+  question="hydrate 함수가 시작할 때 listEl에 로딩 문구를 넣는 이유는?"
+  options={['CSS 애니메이션을 트리거하기 위해서', '요청이 끝나기 전까지 화면이 멈춘 것처럼 보이지 않게 하기 위해서', 'localStorage 용량을 확인하기 위해서', '이벤트 위임을 초기화하기 위해서']}
+  correctAnswer={2}
+  explanation="네트워크 요청은 시간이 걸리므로, 진행 중임을 알리는 로딩 표시가 없으면 사용자가 앱이 멈췄다고 오해할 수 있습니다."
+  optionExplanations={['애니메이션 트리거가 목적이 아닙니다', '정답입니다', 'localStorage 확인과는 무관합니다', '이벤트 위임 초기화와는 무관합니다']}
+/>
+
+<Quiz
+  questionNumber={4}
+  question="notes.js의 setNotes 함수가 필요한 이유는?"
+  options={['메모 하나만 추가하기 위해서', '서버에서 받은 배열 전체로 로컬 상태를 한 번에 교체하기 위해서', '메모를 정렬하기 위해서', 'CSS 클래스를 바꾸기 위해서']}
+  correctAnswer={2}
+  explanation="setNotes는 addNote처럼 한 개씩 추가하는 것이 아니라, 서버에서 받은 배열 전체로 상태를 통째로 교체할 때 사용합니다."
+  optionExplanations={['하나만 추가하는 것은 addNote입니다', '정답입니다', '정렬 기능은 없습니다', 'CSS와는 무관합니다']}
+/>
+
+## 참고 자료
+
+- [MDN - Fetch API](https://developer.mozilla.org/en-US/docs/Web/API/Fetch_API)
+- [json-server - GitHub](https://github.com/typicode/json-server)

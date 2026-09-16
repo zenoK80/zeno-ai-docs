@@ -1,0 +1,207 @@
+---
+title: '18. 실험적 기능: Customizable select로 필터 만들기'
+description: 'appearance: base-select와 selectedcontent로 프로젝트 필터 select를 커스텀 스타일링하되, 반드시 폴백을 함께 만든다'
+---
+
+<Callout type="info">
+  **이번 편의 결과물:** 프로젝트 필터 `select`가 지원 브라우저에서는 커스텀 스타일로, 미지원 브라우저에서는 평범한 네이티브 select로 그대로 동작한다 · **다루는 개념:** `appearance: base-select`, `selectedcontent`, 실험적 기능의 폴백 설계
+</Callout>
+
+<Callout type="warning">
+  **실험적 기능 표기:** 이 편의 Customizable `select`는 2026-09 기준 Chrome/Edge 135+에서만 안정적으로 동작하고, Safari는 Technology Preview 단계, Firefox는 플래그 뒤 프로토타입이다. "이제 select를 자유롭게 스타일링할 수 있다"고 단정하지 않는다. 집필 시점과 읽는 시점의 지원 상태가 다를 수 있으니 [MDN selectedcontent 호환성 표](https://developer.mozilla.org/en-US/docs/Web/HTML/Reference/Elements/selectedcontent)를 02편 방법으로 직접 확인한다.
+</Callout>
+
+## 이 편에서 만드는 파일
+
+```text
+web-practice/portfolio/
+├── projects.html   ~ (태그 필터 select 신규 추가, button+selectedcontent, 카드마다 data-tags 추가)
+├── js/main.js      ~ (태그 select change 필터 로직, base-select 지원 감지 추가)
+└── css/styles.css  ~ (appearance: base-select 스타일, @supports 폴백)
+```
+
+## 개념 정리
+
+지금까지 `<select>`는 브라우저마다 드롭다운 목록의 모양을 직접 그렸고, CSS로 목록 안쪽을 꾸밀 방법이 없었다. Customizable `<select>`는 `<select>` 안에 `<button>`을 첫 자식으로 넣고, 그 버튼 안에 `<selectedcontent>`를 두면 선택된 옵션의 내용을 그대로 미러링해서 보여준다. CSS에서 `appearance: base-select`를 주면 브라우저 기본 렌더링을 걷어내고 일반 요소처럼 스타일링할 수 있다.
+
+| 요소/속성 | 역할 |
+|-----------|------|
+| `<button>` (select의 첫 자식) | 닫혀 있을 때 보이는 버튼 부분 |
+| `<selectedcontent>` | 선택된 `<option>`의 내용을 실시간으로 복제해 표시 |
+| `appearance: base-select` | 브라우저 기본 select 렌더링을 해제하고 커스텀 스타일을 허용 |
+| `::picker(select)` | 열렸을 때 드롭다운 목록 부분을 스타일링하는 의사 요소 |
+
+**폴백이 반드시 필요한 이유:** `appearance: base-select`는 가산적(additive)이다. 이 속성을 모르는 브라우저는 그냥 무시하고, `<select>` 안에 들어간 `<button>`/`<selectedcontent>`도 표준 select 콘텐츠 모델에서 벗어난 부분이라 무시한 채 `<option>` 목록만 정상적으로 보여준다. 즉 **아무 것도 하지 않아도 미지원 브라우저는 평범한 select로 동작한다.** 이 편에서 확인해야 할 것은 "커스텀 스타일이 보이는가"가 아니라 "미지원 브라우저에서도 선택 기능 자체는 멀쩡한가"다.
+
+## 실습
+
+<Steps>
+
+### 1. 파일 열기
+
+`web-practice/portfolio/projects.html`과 `css/styles.css`를 연다. 이번 편에서 프로젝트 태그 필터 `<select id="tag-filter">`를 처음 만든다.
+
+### 2. 코드 작성
+
+08편의 `<search>` 아래에 태그 필터 `<select>`를 추가하고, `<select>` 안 첫 자리에 `<button>`과 `<selectedcontent>`를 넣는다. `<option>` 값은 06편에서 카드마다 붙인 기술 배지 이름과 맞춘다.
+
+```html
+<!-- projects.html -->
+<!-- ...기존 코드 유지 -->
+<search>
+  <label for="project-search">프로젝트 이름으로 찾기</label>
+  <input type="search" id="project-search" placeholder="예: bookshelf" />
+</search>
+
+<label for="tag-filter">태그로 거르기</label>
+<select id="tag-filter">
+  <button type="button">
+    <selectedcontent></selectedcontent>
+  </button>
+  <option value="all">전체</option>
+  <option value="JavaScript">JavaScript</option>
+  <option value="React">React</option>
+  <option value="Web APIs">Web APIs</option>
+  <option value="HTML">HTML</option>
+  <option value="CSS">CSS</option>
+  <option value="Node.js">Node.js</option>
+</select>
+<!-- ...기존 코드 유지 -->
+```
+
+각 프로젝트 카드(`<article class="project-card">`)에도 필터가 읽을 `data-tags`를 추가한다. 오늘의 날씨 카드 기준이며, 나머지 5개도 06편 기술 배지와 같은 값으로 채운다.
+
+```html
+<!-- projects.html의 project-grid 안, 카드 1 -->
+<article class="project-card" data-tags="JavaScript,PWA">
+  <!-- ...09편까지 만든 이미지·제목·설명·tags·btn-detail 버튼 유지... -->
+</article>
+```
+
+CSS에서는 `@supports`로 지원 여부를 나눠, 지원하는 브라우저에서만 `appearance: base-select`와 `::picker(select)`를 적용한다.
+
+```css
+/* css/styles.css */
+/* ...기존 코드 유지 */
+
+/* Customizable select를 지원하는 브라우저에서만 커스텀 스타일 적용 */
+@supports (appearance: base-select) {
+  #tag-filter {
+    appearance: base-select;
+    border: 1px solid var(--color-border);
+    border-radius: var(--radius);
+    padding: var(--space-2) var(--space-3);
+  }
+
+  #tag-filter::picker(select) {
+    border: 1px solid var(--color-border);
+    border-radius: var(--radius);
+    box-shadow: var(--shadow);
+  }
+
+  #tag-filter option:checked {
+    background: var(--color-surface);
+    font-weight: bold;
+  }
+}
+/* ...기존 코드 유지 */
+```
+
+`<selectedcontent>`는 브라우저가 자동으로 채워 주므로 별도 JS가 필요 없다. 대신 `change` 이벤트로 카드를 걸러내는 로직을 `js/main.js`에 새로 추가한다. 지원 여부만 감지해 문서 최상단에 클래스를 붙여 두면, 나중에 CSS에서 "지원 브라우저 전용" 안내 문구를 보여주는 데도 쓸 수 있다.
+
+```js
+// js/main.js
+// ...기존 코드 유지
+const tagFilter = document.querySelector('#tag-filter')
+const projectCards = document.querySelectorAll('.project-card')
+
+tagFilter?.addEventListener('change', () => {
+  const tag = tagFilter.value
+  projectCards.forEach((card) => {
+    const tags = (card.dataset.tags || '').split(',')
+    card.hidden = tag !== 'all' && !tags.includes(tag)
+  })
+})
+if (window.CSS?.supports?.('appearance', 'base-select')) {
+  document.documentElement.classList.add('supports-base-select');
+}
+// ...기존 코드 유지
+```
+
+### 3. 실행
+
+`npx serve web-practice/portfolio`로 서버를 띄우고 `projects.html`을 Chrome/Edge 135 이상과, 지원하지 않는 브라우저(또는 개발자 도구의 이전 렌더링 모드) 두 곳에서 각각 연다.
+
+### 4. 확인
+
+- Chrome/Edge 135+에서는 태그 필터 select를 열면 옵션 목록에 `styles.css`로 준 테두리·그림자 스타일이 적용된다.
+- 지원하지 않는 브라우저에서는 select가 평범한 네이티브 드롭다운으로 보이지만, 옵션을 고르면 `js/main.js`의 필터 로직이 똑같이 동작해 프로젝트 카드가 걸러진다.
+- 개발자 도구 콘솔에서 `CSS.supports('appearance', 'base-select')`를 직접 실행해 참/거짓 값을 확인한다.
+- 두 브라우저 모두에서 옵션을 선택했을 때 `<selectedcontent>` 안쪽 텍스트(또는 네이티브 select의 표시값)가 선택한 옵션과 일치한다.
+
+</Steps>
+
+## 직접 해보기
+
+1. `<select>`의 `<option>` 안에 이모지나 짧은 아이콘 문자를 추가해 `<selectedcontent>`가 옵션 내용을 그대로 복제하는지 확인해 본다.
+
+<details>
+<summary>답 보기</summary>
+
+`<option value="React">⚛️ React</option>`처럼 옵션 안에 이모지를 넣으면, 지원 브라우저에서는 `<selectedcontent>`도 이모지를 포함한 텍스트를 그대로 복제해서 보여준다. `<selectedcontent>`는 선택된 옵션의 내용을 실시간으로 미러링하기 때문이다.
+
+</details>
+
+2. `@supports not (appearance: base-select)` 블록을 추가해, 미지원 브라우저에서만 적용할 대체 스타일(예: 테두리 색만 살짝 다르게)을 만들어 본다.
+
+## 자주 하는 실수
+
+| 증상 | 원인 | 고치는 법 |
+|------|------|-----------|
+| 커스텀 스타일이 모든 브라우저에서 다르게 보임 | `@supports`로 감싸지 않고 무조건 `appearance: base-select` 적용 | 지원 여부를 `@supports (appearance: base-select)`로 분기한다 |
+| `<button>`을 select 밖에 따로 만들어 둠 | customizable select 구조를 오해 | `<button>`은 반드시 `<select>`의 첫 자식이어야 한다 |
+| 이 기능을 프로덕션에 바로 적용 | Baseline 미도달 상태를 확인하지 않음 | 02편 방법으로 MDN 호환성 표를 다시 확인하고 결정한다 |
+| `<selectedcontent>`에 직접 텍스트를 넣어 관리하려 함 | 자동 미러링 동작을 모름 | 내용은 항상 선택된 `<option>`에서 자동으로 채워지므로 직접 수정하지 않는다 |
+
+## 확인 문제
+
+<Quiz
+  questionNumber={1}
+  question="Customizable select에서 selectedcontent 요소의 역할은?"
+  options={['옵션 목록 전체를 감싼다', '선택된 option의 내용을 실시간으로 복제해 표시한다', '드롭다운이 열리는 애니메이션을 담당한다', '옵션을 정렬한다']}
+  correctAnswer={2}
+  explanation="selectedcontent는 현재 선택된 option의 내용을 button 안에 그대로 미러링해서 보여주는 요소다."
+  optionExplanations={['옵션 목록은 option 요소들이 담당한다', '정답이다', '애니메이션은 CSS 트랜지션의 역할이다', '정렬은 마크업 순서로 결정된다']}
+/>
+
+<Quiz
+  questionNumber={2}
+  question="appearance: base-select를 미지원 브라우저에 적용했을 때 벌어지는 일로 알맞은 것은?"
+  options={['페이지 렌더링이 중단된다', '알 수 없는 속성이라 무시되고 select는 기본 렌더링을 유지한다', 'select가 사라진다', '옵션 값이 초기화된다']}
+  correctAnswer={2}
+  explanation="appearance: base-select는 가산적 속성이라 이를 모르는 브라우저는 그냥 무시하며, select는 평소처럼 기본 렌더링으로 동작한다."
+  optionExplanations={['알 수 없는 CSS 속성은 페이지를 멈추지 않는다', '정답이다', 'select 요소 자체는 사라지지 않는다', '값 초기화와는 무관하다']}
+/>
+
+<Quiz
+  questionNumber={3}
+  question="Customizable select 구조에서 button 요소가 반드시 지켜야 하는 위치는?"
+  options={['select의 마지막 자식', 'select의 첫 자식', 'select 바깥의 형제 요소', 'option 안쪽']}
+  correctAnswer={2}
+  explanation="닫혀 있을 때 보이는 버튼 부분을 만들려면 button이 select의 첫 자식으로 와야 브라우저가 이를 커스텀 트리거로 인식한다."
+  optionExplanations={['마지막 자식으로 두면 의도한 대로 동작하지 않는다', '정답이다', '바깥에 두면 select와의 연결이 성립하지 않는다', 'option 안쪽에는 텍스트만 들어간다']}
+/>
+
+<Quiz
+  questionNumber={4}
+  question="2026-09 시점에서 이 편의 태도로 가장 알맞은 것은?"
+  options={['이제 모든 브라우저에서 select를 자유롭게 스타일링할 수 있다고 안내한다', '실험적 기능임을 명시하고 폴백이 항상 동작하는지 함께 확인하도록 안내한다', '이 기능은 곧 폐기되니 배우지 말라고 안내한다', '폴백은 필요 없으니 신경 쓰지 않아도 된다고 안내한다']}
+  correctAnswer={2}
+  explanation="Baseline 미도달 실험적 기능은 지원 상태를 명시하고, 미지원 환경에서도 정상 동작하는 폴백을 반드시 함께 확인해야 한다."
+  optionExplanations={['크로스 브라우저 지원이 아직 없으므로 단정은 틀린 안내다', '정답이다', '폐기 예정이 아니라 아직 표준화가 진행 중인 기능이다', '폴백 확인은 이 편의 핵심 목표다']}
+/>
+
+## 참고 자료
+
+- [MDN — selectedcontent 요소](https://developer.mozilla.org/en-US/docs/Web/HTML/Reference/Elements/selectedcontent)
+- [MDN Learn — Customizable select elements](https://developer.mozilla.org/en-US/docs/Learn_web_development/Extensions/Forms/Customizable_select)

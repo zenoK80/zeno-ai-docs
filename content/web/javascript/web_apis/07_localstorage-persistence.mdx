@@ -1,0 +1,251 @@
+---
+title: '07. localStorage로 영구 저장'
+description: '메모 배열을 localStorage에 저장해 새로고침해도 유지되게 만듭니다.'
+---
+
+<Callout type="info">
+  **이번 편의 결과물:** 06편까지는 새로고침하면 사라지던 메모가 이제 `localStorage`에 저장되어 새로고침·재접속해도 유지됩니다. · **다루는 개념:** `localStorage.setItem`/`getItem`, JSON 직렬화, 저장 실패(quota) 처리
+</Callout>
+
+## 이 편에서 만드는 파일
+
+```
+notes-app/
+└── src/
+    ├── storage.js      (+ localStorage 저장/불러오기)
+    └── notes.js          (~ 초기화 시 불러오기, 변경 시 저장하기)
+```
+
+## 개념 정리
+
+### localStorage
+
+`localStorage`는 문자열 키-값 쌍을 브라우저에 origin 단위로 저장합니다. 탭을 닫아도, 컴퓨터를 재부팅해도 사용자가 직접 지우기 전까지 남습니다.
+
+| 메서드 | 역할 |
+|--------|------|
+| `localStorage.setItem(key, value)` | 문자열 값을 저장(값이 문자열이 아니면 자동으로 문자열 변환됨) |
+| `localStorage.getItem(key)` | 저장된 문자열을 반환, 없으면 `null` |
+| `localStorage.removeItem(key)` | 해당 키 삭제 |
+
+값은 문자열만 저장할 수 있으므로, 배열이나 객체는 `JSON.stringify`로 문자열로 바꿔 저장하고 `JSON.parse`로 다시 객체로 되돌립니다.
+
+### 저장 실패 대비
+
+`localStorage`는 origin당 보통 5~10MB로 용량이 제한됩니다. 용량을 넘거나 브라우저가 저장을 차단(프라이빗 모드 등)하면 `setItem`이 예외를 던집니다. `try`/`catch`로 감싸지 않으면 이후 코드 전체가 멈춥니다.
+
+```js
+try {
+  localStorage.setItem('notes-app:notes', JSON.stringify(notes));
+} catch (error) {
+  console.error('메모를 저장하지 못했습니다.', error);
+}
+```
+
+`JSON.parse`도 저장된 값이 손상되어 있으면 예외를 던지므로 불러올 때도 같은 방식으로 감쌉니다.
+
+## 실습
+
+<Steps>
+
+### 1. src/storage.js 만들기
+
+`src` 폴더에 새 파일 `storage.js`를 만듭니다.
+
+### 2. 코드 작성
+
+```js
+// src/storage.js
+const STORAGE_KEY = 'notes-app:notes';
+
+export function loadNotes(fallback = []) {
+  try {
+    const raw = localStorage.getItem(STORAGE_KEY);
+    if (!raw) return fallback;
+    return JSON.parse(raw);
+  } catch (error) {
+    console.error('메모를 불러오지 못했습니다.', error);
+    return fallback;
+  }
+}
+
+export function saveNotes(notes) {
+  try {
+    localStorage.setItem(STORAGE_KEY, JSON.stringify(notes));
+    return true;
+  } catch (error) {
+    console.error('메모를 저장하지 못했습니다.', error);
+    return false;
+  }
+}
+```
+
+`src/notes.js`를 열어 초기 배열을 기본값으로 두고, `loadNotes`로 저장된 값이 있으면 그것을 쓰도록 바꿉니다. 상태를 바꾸는 세 함수 끝에 `saveNotes(notes)` 호출을 추가합니다.
+
+```js
+// src/notes.js
+import { loadNotes, saveNotes } from './storage.js';
+
+const defaultNotes = [
+  {
+    id: 'n1',
+    title: 'Vite 프로젝트 만들기',
+    body: 'npm create vite@latest notes-app -- --template vanilla 로 시작한다.',
+    tags: ['setup'],
+    pinned: true,
+    updatedAt: '2026-09-15T09:00:00+09:00',
+  },
+  {
+    id: 'n2',
+    title: '이벤트 위임 메모',
+    body: '목록 전체에 리스너 하나를 달고 event.target.closest 로 버튼을 찾는다.',
+    tags: ['dom', 'events'],
+    pinned: false,
+    updatedAt: '2026-09-15T11:20:00+09:00',
+  },
+  {
+    id: 'n3',
+    title: 'fetch 취소',
+    body: 'AbortController 의 signal 을 fetch 옵션으로 넘기고 abort() 로 취소한다.',
+    tags: ['fetch'],
+    pinned: false,
+    updatedAt: '2026-09-16T08:00:00+09:00',
+  },
+  {
+    id: 'n4',
+    title: 'IndexedDB 는 트랜잭션 단위',
+    body: 'objectStore 접근은 transaction 안에서만 가능하다.',
+    tags: ['storage'],
+    pinned: false,
+    updatedAt: '2026-09-16T09:30:00+09:00',
+  },
+];
+
+let notes = loadNotes(defaultNotes);
+
+function generateId() {
+  return `n${Date.now()}`;
+}
+
+export function getNotes() {
+  return notes;
+}
+
+export function addNote({ id, title, body, tags = [], pinned = false, updatedAt }) {
+  const note = {
+    id: id ?? generateId(),
+    title,
+    body,
+    tags,
+    pinned,
+    updatedAt: updatedAt ?? new Date().toISOString(),
+  };
+  notes = [note, ...notes];
+  saveNotes(notes);
+  return note;
+}
+
+export function removeNote(id) {
+  notes = notes.filter((note) => note.id !== id);
+  saveNotes(notes);
+}
+
+export function updateNote(id, patch) {
+  notes = notes.map((note) =>
+    note.id === id ? { ...note, ...patch, updatedAt: new Date().toISOString() } : note,
+  );
+  saveNotes(notes);
+}
+```
+
+`loadNotes(defaultNotes)`는 저장된 값이 없을 때만 `defaultNotes`를 씁니다. 한 번이라도 `addNote`나 `removeNote`가 호출되면 그 이후부터는 `localStorage`에 저장된 값이 항상 우선합니다.
+
+### 3. 실행
+
+```text
+npm run dev
+```
+
+</Steps>
+
+## 확인
+
+- 메모를 하나 추가한 뒤 브라우저를 새로고침하면 추가한 메모가 그대로 남아 있습니다.
+- 브라우저 개발자 도구 `Application` 탭 → `Local Storage`에서 `notes-app:notes` 키에 JSON 문자열이 저장된 것을 확인합니다.
+- 개발자 도구 콘솔에서 `localStorage.removeItem('notes-app:notes')`를 실행하고 새로고침하면 04편의 초기 데이터로 돌아갑니다.
+
+## 직접 해보기
+
+1. `storage.js`에 `clearNotes()` 함수를 추가하고, `notes.js`에서 이를 이용해 "전체 삭제" 버튼을 만들어 봅니다.
+2. `saveNotes`가 `false`를 반환하면(저장 실패) 화면 상단에 "저장 공간이 부족합니다" 메시지를 잠깐 보여주도록 `main.js`를 고쳐 봅니다.
+
+<details>
+<summary>정답 보기</summary>
+
+```js
+// src/storage.js에 추가
+export function clearNotes() {
+  localStorage.removeItem(STORAGE_KEY);
+}
+```
+
+```js
+// src/notes.js의 addNote 안
+const saved = saveNotes(notes);
+if (!saved) {
+  window.alert('저장 공간이 부족합니다.');
+}
+```
+
+</details>
+
+## 자주 하는 실수
+
+| 증상 | 원인 | 고치는 법 |
+|------|------|-----------|
+| 새로고침해도 계속 초기 데이터만 보임 | `addNote` 등에서 `saveNotes(notes)` 호출을 빠뜨림 | 상태를 바꾸는 함수 끝에 항상 `saveNotes(notes)`를 추가한다 |
+| `JSON.parse` 에러로 화면이 하얗게 뜸 | 저장된 값이 손상됐는데 `try`/`catch` 없이 파싱 | `loadNotes` 내부처럼 `try`/`catch`로 감싸고 실패 시 기본값을 반환한다 |
+| 다른 탭에서 추가한 메모가 현재 탭에 안 보임 | `localStorage`는 자동으로 다른 탭에 반영되지 않고 새로고침해야 반영됨 | `storage` 이벤트를 듣거나(선택 심화), 우선 새로고침으로 확인한다 |
+
+## 확인 문제
+
+<Quiz
+  questionNumber={1}
+  question="localStorage에 배열을 저장할 때 JSON.stringify를 쓰는 이유는?"
+  options={['localStorage는 문자열만 저장할 수 있기 때문에', '배열을 정렬하기 위해서', '네트워크로 전송하기 위해서', '이벤트 위임을 구현하기 위해서']}
+  correctAnswer={1}
+  explanation="localStorage의 값은 문자열만 저장 가능하므로, 배열이나 객체는 JSON.stringify로 문자열로 변환해야 합니다."
+  optionExplanations={['정답입니다', '정렬과는 무관합니다', '이번 편에는 네트워크 전송이 없습니다', '이벤트 위임과는 무관합니다']}
+/>
+
+<Quiz
+  questionNumber={2}
+  question="localStorage.getItem으로 존재하지 않는 키를 조회하면?"
+  options={['빈 문자열을 반환한다', 'null을 반환한다', '예외가 발생한다', 'undefined 문자열을 반환한다']}
+  correctAnswer={2}
+  explanation="getItem은 해당 키가 없으면 null을 반환합니다. 예외를 던지지 않습니다."
+  optionExplanations={['빈 문자열이 아니라 null입니다', '정답입니다', '예외를 던지지 않습니다', "문자열 'undefined'가 아니라 null 값입니다"]}
+/>
+
+<Quiz
+  questionNumber={3}
+  question="saveNotes 함수에서 try/catch로 setItem을 감싸는 이유는?"
+  options={['코드를 짧게 만들기 위해서', '저장 용량 초과 등으로 setItem이 예외를 던져도 나머지 코드가 멈추지 않게 하기 위해서', 'JSON.stringify 속도를 높이기 위해서', 'localStorage를 자동으로 비우기 위해서']}
+  correctAnswer={2}
+  explanation="localStorage는 용량 제한이나 접근 차단 시 setItem에서 예외를 던질 수 있어, try/catch로 감싸 예외가 전체 실행을 막지 않게 합니다."
+  optionExplanations={['길이 단축이 목적이 아닙니다', '정답입니다', '직렬화 속도와는 무관합니다', '자동 삭제 기능이 아닙니다']}
+/>
+
+<Quiz
+  questionNumber={4}
+  question="loadNotes(defaultNotes)가 defaultNotes를 반환하는 경우는?"
+  options={['항상 반환한다', 'localStorage에 저장된 값이 없거나 파싱에 실패했을 때만 반환한다', 'defaultNotes가 빈 배열일 때만 반환한다', '브라우저를 새로고침할 때마다 반환한다']}
+  correctAnswer={2}
+  explanation="loadNotes는 저장된 값이 없거나 JSON.parse가 실패했을 때 fallback인 defaultNotes를 반환하고, 그 외에는 저장된 값을 반환합니다."
+  optionExplanations={['저장된 값이 있으면 그 값을 반환합니다', '정답입니다', '배열이 비어있는지 여부와는 무관합니다', '저장된 값이 있으면 새로고침해도 저장된 값을 씁니다']}
+/>
+
+## 참고 자료
+
+- [MDN - Window: localStorage property](https://developer.mozilla.org/en-US/docs/Web/API/Window/localStorage)
+- [MDN - Using the Web Storage API](https://developer.mozilla.org/en-US/docs/Web/API/Web_Storage_API/Using_the_Web_Storage_API)

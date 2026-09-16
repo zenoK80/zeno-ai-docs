@@ -1,0 +1,364 @@
+---
+title: '01. 출발점 확인하기 — 포트폴리오 다시 열어보기'
+description: 'css_fundamentals가 끝난 포트폴리오 파일 구조와 CSS 상태를 다시 확인하고, modern_css 실습 폴더를 만든다'
+---
+
+<Callout type="info">
+  **이번 편의 결과물:** 코드 변경 없이 기존 포트폴리오 구조를 표로 정리하고, 실습 스냅샷을 쌓을 `lessons/modern-css/` 폴더를 만든다 · **다루는 개념:** css_fundamentals 산출물 구조 복기, 이 과목의 작업 범위(CSS 위주), lessons 폴더 규칙
+</Callout>
+
+## 이 편에서 만드는 파일
+
+```text
+web-practice/
+├── portfolio/                      (기존 그대로, 수정 없음)
+│   ├── index.html
+│   ├── projects.html
+│   ├── contact.html
+│   ├── css/
+│   │   ├── tokens.css
+│   │   └── styles.css
+│   ├── js/main.js
+│   ├── images/
+│   └── favicon.svg
+└── lessons/
+    └── modern-css/
+        └── 01_starting-point-and-project-tour/   + notes.md
+```
+
+## 개념 정리
+
+modern_css는 **css_fundamentals를 끝낸 상태**의 포트폴리오를 그대로 이어받는다. 새 페이지나 새 프로젝트를 만들지 않고, `css/` 안의 스타일시트만 현대적으로 재구성하거나 기능을 추가한다. 앞으로 18편 동안 마크업은 `:has()`나 뷰 전환에 필요한 속성 하나 정도만 최소로 건드리고, 대부분의 변경은 `tokens.css`와 `styles.css`에서 일어난다.
+
+시작 전에 두 가지를 확인한다.
+
+| 확인 대상 | 왜 확인하는가 |
+|-----------|---------------|
+| `css/tokens.css`의 커스텀 속성 이름 | 10편 이후 색·간격 토큰을 그대로 재사용하므로 이름이 바뀌면 안 된다 |
+| `css/styles.css`의 선택자 구조 | 03편에서 이 선택자들을 레이어로, 04편에서 중첩으로 옮기므로 현재 형태를 알아야 변경분을 알아본다 |
+| `index.html`/`projects.html`/`contact.html`의 클래스명 | `.site-header`, `.project-grid`, `.contact-form` 같은 이름이 앞으로 계속 선택자 대상이 된다 |
+
+### css/tokens.css (출발점, 수정하지 않음)
+
+```css
+/* portfolio/css/tokens.css */
+:root {
+  --color-bg: #ffffff;
+  --color-surface: #f6f7f9;
+  --color-text: #1f2328;
+  --color-text-muted: #59636e;
+  --color-primary: #0969da;
+  --color-primary-hover: #0550ae;
+  --color-border: #d0d7de;
+  --color-accent: #bf3989;
+
+  --font-sans: "Pretendard", "Noto Sans KR", system-ui, sans-serif;
+  --font-mono: "JetBrains Mono", ui-monospace, monospace;
+  --text-xs: 0.75rem;
+  --text-sm: 0.875rem;
+  --text-base: 1rem;
+  --text-lg: 1.25rem;
+  --text-xl: 1.5rem;
+  --text-2xl: 2rem;
+  --text-3xl: 3rem;
+  --leading: 1.6;
+
+  --space-1: 0.25rem;
+  --space-2: 0.5rem;
+  --space-3: 0.75rem;
+  --space-4: 1rem;
+  --space-6: 1.5rem;
+  --space-8: 2rem;
+  --space-12: 3rem;
+  --space-16: 4rem;
+
+  --container-max: 72rem;
+  --radius: 0.5rem;
+  --shadow: 0 1px 3px rgb(0 0 0 / 0.1), 0 4px 12px rgb(0 0 0 / 0.06);
+  --header-height: 4rem;
+}
+```
+
+### css/styles.css (출발점, 수정하지 않음)
+
+```css
+/* portfolio/css/styles.css — css_fundamentals 20편 정본(요약 발췌) */
+*, *::before, *::after { box-sizing: border-box; }
+body, h1, h2, h3, p, ul, ol, figure { margin: 0; }
+ul, ol { padding: 0; list-style: none; }
+img { max-width: 100%; display: block; }
+a { color: var(--color-primary); text-decoration: none; }
+a.logo, .site-nav a, .project-card a { color: inherit; }
+body {
+  font-family: var(--font-sans);
+  font-size: var(--text-base);
+  line-height: var(--leading);
+  color: var(--color-text);
+  background: var(--color-bg);
+}
+
+/* 헤더 & 내비게이션: <nav class="site-nav">/<nav id="mobile-menu" popover> 안에는
+   ul·li 없이 <a> 3개가 바로 들어 있다 */
+.site-header {
+  position: sticky;
+  top: 0;
+  height: var(--header-height);
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding-inline: var(--space-6);
+  background: var(--color-bg);
+  border-bottom: 1px solid var(--color-border);
+}
+.logo { font-size: var(--text-lg); font-weight: 700; }
+.site-nav { display: none; gap: var(--space-6); }
+.site-nav a[aria-current='page'] { color: var(--color-primary); font-weight: 700; }
+.menu-toggle {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 2.5rem;
+  height: 2.5rem;
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius);
+  background: var(--color-bg);
+}
+#mobile-menu {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-4);
+  position: fixed;
+  inset: var(--header-height) var(--space-4) auto var(--space-4);
+  margin: 0;
+  padding: var(--space-4);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius);
+  background: var(--color-bg);
+  box-shadow: var(--shadow);
+}
+@media (min-width: 1024px) {
+  .site-nav { display: flex; }
+  .menu-toggle { display: none; }
+}
+
+/* 히어로: 버튼 클래스는 .button/.button-secondary, 등장 애니메이션은 nth-child 스태거 + hero-enter */
+.hero { padding-block: var(--space-16); text-align: center; }
+.hero h1 { font-size: var(--text-3xl); }
+.hero p { font-size: var(--text-lg); color: var(--color-text-muted); }
+.hero > * { animation: hero-enter 600ms ease-out both; }
+.hero > *:nth-child(2) { animation-delay: 150ms; }
+.hero > *:nth-child(3) { animation-delay: 300ms; }
+.hero > *:nth-child(4) { animation-delay: 400ms; }
+@keyframes hero-enter {
+  from { opacity: 0; transform: translateY(12px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+@media (prefers-reduced-motion: reduce) {
+  .hero > * { animation: none; }
+}
+.button {
+  display: inline-block;
+  border-radius: var(--radius);
+  padding: var(--space-2) var(--space-6);
+  font-weight: 700;
+  background-color: var(--color-primary);
+  color: #ffffff;
+  border: 1px solid transparent;
+  transition: background-color 200ms ease, border-color 200ms ease, transform 100ms ease;
+}
+.button:hover { background-color: var(--color-primary-hover); }
+.button-secondary { background-color: transparent; border-color: var(--color-border); color: var(--color-text); }
+
+.about, .skills, .career { padding-block: var(--space-12); }
+.about { display: flex; flex-wrap: wrap; gap: var(--space-8); }
+.about img { width: 12rem; border-radius: var(--radius); }
+.skills ul { display: flex; flex-wrap: wrap; gap: var(--space-4); }
+.skills li {
+  padding: var(--space-2) var(--space-4);
+  background: var(--color-surface);
+  border-radius: var(--radius);
+  font-size: var(--text-sm);
+}
+.career table { width: 100%; border-collapse: collapse; }
+.career th, .career td {
+  padding: var(--space-3) var(--space-4);
+  border-bottom: 1px solid var(--color-border);
+  text-align: left;
+}
+.career th { background: var(--color-surface); }
+
+/* 프로젝트 카드: img/h2/p/ul.tags>li/button[data-open-project], data-tags 속성 */
+.project-grid {
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: var(--space-6);
+  padding-block: var(--space-12);
+}
+@media (min-width: 768px) { .project-grid { grid-template-columns: repeat(2, 1fr); } }
+@media (min-width: 1024px) { .project-grid { grid-template-columns: repeat(3, 1fr); } }
+.project-card {
+  display: flex;
+  flex-direction: column;
+  background: var(--color-surface);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius);
+  overflow: hidden;
+  transition: transform 200ms ease, box-shadow 200ms ease;
+}
+.project-card:hover { transform: translateY(-2px); box-shadow: var(--shadow); }
+.project-card img { aspect-ratio: 3 / 2; object-fit: cover; }
+.project-card h2 { font-size: var(--text-lg); padding-inline: var(--space-4); margin-top: var(--space-4); }
+.project-card p { padding-inline: var(--space-4); color: var(--color-text-muted); font-size: var(--text-sm); }
+.project-card .tags { display: flex; gap: var(--space-2); flex-wrap: wrap; padding-inline: var(--space-4); }
+.project-card .tags li {
+  padding: var(--space-1) var(--space-3);
+  background: var(--color-bg);
+  border: 1px solid var(--color-border);
+  border-radius: 999px;
+  font-size: var(--text-xs);
+}
+.project-card button[data-open-project] { margin: var(--space-4); margin-top: auto; }
+
+/* 프로젝트 상세 모달: dialog#project-dialog */
+#project-dialog {
+  width: min(32rem, 90vw);
+  border: none;
+  border-radius: var(--radius);
+  padding: var(--space-8);
+  background: var(--color-bg);
+  box-shadow: var(--shadow);
+}
+#project-dialog::backdrop { background: rgb(15 23 32 / 0.5); }
+
+/* 연락 폼: 필드 래퍼 .field, 체크박스 줄 .field-checkbox, 도움말 .help */
+.contact-form { display: flex; flex-direction: column; gap: var(--space-6); max-width: 32rem; }
+.field { display: flex; flex-direction: column; gap: var(--space-2); }
+.field label { font-size: var(--text-sm); font-weight: 700; }
+.field input, .field select, .field textarea {
+  width: 100%;
+  padding: var(--space-3);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius);
+  font: inherit;
+}
+.field input:focus, .field select:focus, .field textarea:focus {
+  outline: none;
+  border-color: var(--color-primary);
+  box-shadow: 0 0 0 2px rgb(9 105 218 / 0.2);
+}
+.field input:invalid:not(:placeholder-shown) { border-color: var(--color-accent); }
+.field-checkbox { flex-direction: row; align-items: center; gap: var(--space-2); }
+.field .help { font-size: var(--text-xs); color: var(--color-text-muted); }
+.contact-form button[type='submit'] {
+  height: 2.75rem;
+  padding-inline: var(--space-6);
+  border-radius: var(--radius);
+  font-weight: 700;
+  background: var(--color-primary);
+  color: #ffffff;
+  border: 1px solid transparent;
+}
+
+.faq details { border-bottom: 1px solid var(--color-border); padding-block: var(--space-4); }
+.faq summary { display: flex; justify-content: space-between; cursor: pointer; font-weight: 700; }
+.site-footer {
+  padding-block: var(--space-8);
+  border-top: 1px solid var(--color-border);
+  color: var(--color-text-muted);
+  font-size: var(--text-sm);
+}
+```
+
+(`.faq summary::after`의 `+`/`×` 아이콘 전환, `.site-footer .container`의 좌우 정렬 같은 세부 규칙은 이후 편에서 다시 나올 때 확인한다.)
+
+이 파일은 레이어 없이 위에서 아래로 쌓이는 **일반 캐스케이드**다. 순서가 곧 우선순위에 가깝다는 점, 선택자가 대부분 클래스 하나짜리 평탄한 구조라는 점을 눈여겨본다. 03편에서는 이 순서를 `@layer`로 명시적인 다섯 구간으로 나누고, 04편에서는 `.project-card img`, `.field input` 같은 하위 선택자를 `&` 중첩으로 묶는다.
+
+## 실습
+
+<Steps>
+
+### 1. 포트폴리오 폴더 열기
+
+VS Code에서 `web-practice/portfolio/`를 연다. `index.html`, `projects.html`, `contact.html`을 순서대로 열어 `.site-header`, `.hero`, `.about`, `.skills`, `.career`, `.project-grid`, `.contact-form`, `.faq`, `.site-footer` 클래스가 실제로 어느 요소에 붙어 있는지 확인한다.
+
+### 2. 브라우저로 현재 상태 확인
+
+`index.html`을 브라우저로 연다(더블클릭 또는 VS Code Live Server). 헤더가 상단에 고정되고, 히어로 제목이 페이드인 되고, 프로젝트 카드에 마우스를 올리면 살짝 떠오르는지 확인한다.
+
+### 3. lessons 폴더 만들기
+
+터미널에서 실행한다.
+
+```bash
+mkdir -p web-practice/lessons/modern-css/01_starting-point-and-project-tour
+```
+
+그 폴더 안에 `notes.md` 파일을 하나 만들고, 위 표의 세 확인 대상을 각자 프로젝트에 맞게 옮겨 적는다. 이 파일은 앞으로 편마다 무엇을 바꿨는지 스스로 기록하는 용도로 계속 쓴다.
+
+```text
+web-practice/lessons/modern-css/01_starting-point-and-project-tour/notes.md
+```
+
+### 4. 확인
+
+- `web-practice/lessons/modern-css/01_starting-point-and-project-tour/notes.md` 파일이 존재한다.
+- 브라우저에서 index.html의 헤더가 스크롤해도 상단에 붙어 있다.
+- projects.html의 카드가 화면 폭에 따라 1열(모바일)·2열(태블릿)·3열(데스크톱)로 바뀐다.
+- `css/tokens.css`와 `css/styles.css`의 파일 크기와 선택자 개수를 대략 파악했다(다음 편부터 이 파일을 계속 고친다).
+
+</Steps>
+
+## 직접 해보기
+
+1. `css/styles.css`에서 `@media`가 몇 번 등장하는지 세어 본다. 이 숫자가 06편(컨테이너 쿼리)에서 얼마나 줄어드는지 나중에 비교해 본다.
+2. `.project-card`가 사용하는 커스텀 속성을 전부 나열해 본다(`--color-surface`, `--color-border`, `--radius`, `--shadow` 등). 10편에서 이 이름들을 토큰 체계로 다시 정리할 때 참고한다.
+
+<details>
+<summary>정답 예시</summary>
+
+1. 이 파일에는 `.site-nav`/`.menu-toggle`(min-width: 1024px), `prefers-reduced-motion`, `.project-grid`(min-width: 768px·1024px) 총 4번의 `@media`가 있다. 06편에서 `.project-grid`의 `@media` 2개가 `@container`로 바뀐다.
+2. `.project-card`는 `--color-surface`, `--color-border`, `--radius`, `--shadow`, `--space-4`, `--space-2`, `--space-1`, `--text-lg`, `--text-sm`, `--text-xs`를 직접 또는 자식 요소에서 사용한다.
+
+</details>
+
+## 자주 하는 실수
+
+| 증상 | 원인 | 고치는 법 |
+|------|------|-----------|
+| `css/tokens.css`를 열었더니 파일이 비어 있다 | css_fundamentals를 아직 끝내지 않았거나 다른 경로에 저장했다 | `01_학습방향.md`의 출발점 구조를 참고해 위 코드를 그대로 붙여 넣고 시작한다 |
+| 브라우저에 스타일이 하나도 안 먹는다 | `index.html`의 `link` 태그 경로가 `css/tokens.css`, `css/styles.css` 순서와 다르다 | `head` 안 `link` 순서를 tokens 다음 styles로 맞춘다 |
+| lessons 폴더를 portfolio 안에 만들었다 | 폴더 구조를 헷갈렸다 | lessons는 portfolio와 형제 폴더다. `web-practice/lessons/...`로 옮긴다 |
+
+## 확인 문제
+
+<Quiz
+  questionNumber={1}
+  question="modern_css 과목에서 새로 만드는 페이지나 프로젝트 개수는 몇 개인가?"
+  options={['0개, 기존 3페이지의 CSS만 재구성한다', '3개, 페이지마다 다크모드 전용 버전을 추가한다', '6개, 프로젝트 카드마다 상세 페이지를 만든다', '1개, 색 팔레트 미리보기 페이지를 추가한다']}
+  correctAnswer={1}
+  explanation="modern_css는 css_fundamentals가 만든 index.html, projects.html, contact.html 세 페이지를 그대로 두고 CSS만 현대적으로 재구성한다."
+  optionExplanations={['정답. 새 페이지 없이 기존 CSS를 재구성하고 기능을 추가한다', '다크모드는 토글 버튼으로 같은 페이지 안에서 전환되며 별도 페이지가 아니다', '프로젝트 상세는 modern_html의 dialog 모달로 이미 구현되어 있다', '색 팔레트 미리보기는 이 과목의 실습 대상이 아니다']}
+/>
+
+<Quiz
+  questionNumber={2}
+  question="css/tokens.css와 css/styles.css의 역할 구분으로 옳은 것은?"
+  options={['tokens.css는 색·간격·타이포 변수, styles.css는 나머지 스타일 전부', 'tokens.css는 다크모드 전용, styles.css는 라이트모드 전용', 'tokens.css는 애니메이션, styles.css는 레이아웃', 'tokens.css는 모바일, styles.css는 데스크톱']}
+  correctAnswer={1}
+  explanation="design-spec.md 2절에 따라 tokens.css는 커스텀 속성 변수 모음이고, styles.css가 실제 선택자 규칙을 담는다."
+  optionExplanations={['정답. 변수와 규칙으로 파일이 나뉜다', '다크모드 값도 결국 tokens.css의 커스텀 속성으로 관리된다(13편)', '애니메이션도 styles.css 안에 있다', '반응형은 두 파일 모두와 무관하게 media query로 처리한다']}
+/>
+
+<Quiz
+  questionNumber={3}
+  question="현재 styles.css의 project-grid가 반응형을 구현하는 방식은?"
+  options={['min-width 미디어 쿼리 두 개로 열 수를 1 → 2 → 3으로 바꾼다', '컨테이너 쿼리로 부모 폭에 반응한다', '서브그리드로 부모 트랙을 상속한다', '뷰포트 단위(vw)로 카드 폭을 계산한다']}
+  correctAnswer={1}
+  explanation="출발점 코드는 @media (min-width: 768px)와 @media (min-width: 1024px)로 열 수를 늘리는 전형적인 미디어 쿼리 반응형이다. 컨테이너 쿼리 전환은 06편에서 다룬다."
+  optionExplanations={['정답. 두 개의 min-width 미디어 쿼리가 열 수를 바꾼다', '컨테이너 쿼리는 아직 적용되지 않았다(06편 예정)', '서브그리드는 08편에서 카드 내부 정렬에만 쓰인다', 'vw 계산은 이 그리드에 쓰이지 않는다']}
+/>
+
+## 참고 자료
+
+- [MDN — Baseline](https://developer.mozilla.org/en-US/docs/Glossary/Baseline/Compatibility) — 이후 편에서 계속 확인할 지원 상태 배지의 의미
+- [web.dev — Baseline](https://web.dev/baseline) — Baseline newly/widely available 개념 소개

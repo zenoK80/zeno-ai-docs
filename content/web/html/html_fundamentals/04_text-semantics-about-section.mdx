@@ -1,0 +1,198 @@
+---
+title: '04. 텍스트 시맨틱스로 자기소개 채우기'
+description: '문단·강조·약어 요소로 index.html의 히어로와 About 섹션에 원고 텍스트를 채웁니다'
+---
+
+<Callout type="info">
+  **이번 편의 결과물:** `index.html`의 hero·about 섹션에 `copy.md` 원고가 문단·강조 요소로 마크업되어 채워집니다. **다루는 개념:** 문단(`p`), 강조 `em`/`strong`과 시각적 굵기 `b`/`i`의 의미 차이, 약어·인용(`abbr`·`q`)
+</Callout>
+
+## 이 편에서 만드는 파일
+
+```
+web-practice/portfolio/
+~ index.html   (hero·about 섹션에 텍스트 추가)
+```
+
+## 개념 정리
+
+### 문단
+
+문단은 `<p>`로 감쌉니다. 줄바꿈만으로는 문단이 구분되지 않고, 서로 다른 `<p>`로 나눠야 브라우저와 스크린 리더가 별개 문단으로 인식합니다.
+
+### 강조 요소와 시각적 굵기 요소의 차이
+
+| 요소 | 의미 | 스크린 리더 동작 |
+|------|------|-------------------|
+| `em` | 문장 안에서 **의미상** 강조(강세) | 억양을 바꿔 읽을 수 있음 |
+| `strong` | **중요도**가 높은 내용 | 강조해서 읽을 수 있음 |
+| `b` | 의미 없이 **시각적으로만** 굵게 | 일반 텍스트와 동일하게 읽음 |
+| `i` | 의미 없이 **시각적으로만** 기울임 | 일반 텍스트와 동일하게 읽음 |
+
+`em`·`strong`은 "왜 강조하는지" 의미가 있을 때 씁니다. 단순히 굵게만 보이면 되는 자리(예: 상표명 표기)는 `b`를 씁니다. 이 과목은 CSS가 없어 `b`·`i`도 브라우저 기본 스타일(굵게·기울임)로 보이지만, 뜻은 "의미 없음"이라는 점이 다릅니다.
+
+```html
+<p>화면이 예뻐 보이는 것보다 <strong>누가 봐도 쓸 수 있는가</strong>를 먼저 생각합니다.</p>
+```
+
+### 약어와 인용
+
+| 요소 | 용도 | 예시 |
+|------|------|------|
+| `abbr` | 약어를 풀어 쓴 뜻을 `title` 속성으로 제공 | `<abbr title="HyperText Markup Language">HTML</abbr>` |
+| `q` | 짧은 인라인 인용(브라우저가 자동으로 따옴표를 붙임) | `<q>인용문</q>` |
+| `blockquote` | 문단 단위의 긴 인용(08편에서 프로젝트 추천사에 사용) | - |
+
+`abbr`의 `title`은 마우스를 올렸을 때 툴팁으로 뜨고, 스크린 리더는 풀어 쓴 뜻을 읽어 줄 수 있습니다. 이 편에서는 자기소개 문단에 처음 등장하는 `HTML`·`CSS`에 적용합니다.
+
+## 실습
+
+<Steps>
+
+### 1. index.html 열기
+
+03편에서 만든 `index.html`을 엽니다. `hero`·`about` 두 섹션의 주석을 실제 콘텐츠로 바꿉니다.
+
+### 2. 코드 작성
+
+```html
+<!-- portfolio/index.html -->
+<!doctype html>
+<html lang="ko">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Zeno Kim — 소개</title>
+  </head>
+  <body>
+    <header class="site-header">
+      <a class="logo" href="index.html">Zeno Kim</a>
+      <nav class="site-nav">
+        <a href="index.html" aria-current="page">소개</a>
+        <a href="projects.html">프로젝트</a>
+        <a href="contact.html">연락</a>
+      </nav>
+    </header>
+
+    <main>
+      <section class="hero">
+        <h1>웹을 만드는 개발자, Zeno Kim입니다.</h1>
+        <p>HTML·CSS·JavaScript로 누구나 쓸 수 있는 화면을 만듭니다.</p>
+      </section>
+
+      <section class="about">
+        <h2>소개</h2>
+        <p>
+          저는 3년째 프론트엔드를 공부하고 만들고 있습니다. 화면이 예뻐 보이는 것보다
+          <strong>누가 봐도 쓸 수 있는가</strong>를 먼저 생각합니다.
+        </p>
+        <p>
+          처음에는 디자인 툴로 화면을 그리다가, 직접 만들어 보고 싶어서
+          <abbr title="HyperText Markup Language">HTML</abbr>과
+          <abbr title="Cascading Style Sheets">CSS</abbr>를 배웠습니다.
+          지금은 React로 서비스 화면을 만들고 있습니다.
+        </p>
+        <p>
+          <em>접근성</em>과 웹 표준을 좋아합니다. 스크린 리더로 제 사이트를 읽어 보는 일이
+          습관이 됐습니다.
+        </p>
+      </section>
+
+      <section class="skills">
+        <!-- 07편: 기술 스택 리스트 -->
+      </section>
+      <section class="career">
+        <!-- 07편: 경력 표 -->
+      </section>
+    </main>
+
+    <footer class="site-footer">
+      <p>© 2026 Zeno Kim. 이 사이트는 학습용으로 제작되었습니다.</p>
+    </footer>
+  </body>
+</html>
+```
+
+### 3. 실행
+
+`index.html`을 브라우저에서 새로고침합니다.
+
+### 4. 확인
+
+- 히어로에 제목 "웹을 만드는 개발자, Zeno Kim입니다."와 부제가 보입니다.
+- About에 문단 3개가 순서대로 보입니다.
+- "누가 봐도 쓸 수 있는가" 부분이 굵게 보입니다(strong의 브라우저 기본 스타일).
+- `HTML`·`CSS` 위에 마우스를 올리면 풀어 쓴 영문 명칭이 툴팁으로 뜹니다.
+
+</Steps>
+
+## 직접 해보기
+
+1. "접근성"을 `em` 대신 `b`로 바꾸면 화면이 달라지는지, 스크린 리더 관점에서는 무엇이 달라지는지 생각해 보세요.
+
+<details>
+<summary>답 보기</summary>
+
+화면상 기울임(em 기본 스타일)이 굵게(b 기본 스타일)로 바뀌어 보이는 차이만 있습니다. 스크린 리더 관점에서는 `em`은 의미상 강세가 있는 단어로 인식될 수 있지만 `b`는 일반 텍스트와 동일하게 읽혀 의미가 전달되지 않습니다.
+
+</details>
+
+2. `abbr`의 `title` 속성 값을 지우고 태그만 남기면 어떤 문제가 생기는지 생각해 보세요.
+
+<details>
+<summary>답 보기</summary>
+
+`title`이 없으면 마우스를 올려도 풀어 쓴 뜻이 뜨지 않고, 스크린 리더도 약어를 그대로 읽어 처음 보는 사람이 무슨 뜻인지 알기 어렵습니다. `abbr`는 반드시 `title`과 함께 씁니다.
+
+</details>
+
+## 자주 하는 실수
+
+| 증상 | 원인 | 고치는 법 |
+|------|------|-----------|
+| 문단이 한 줄로 붙어 보임 | 여러 문장을 `p` 하나에 몰아넣음 | 의미 단위로 `p`를 나눔 |
+| 강조하고 싶은 단어를 전부 `b`로 표시 | `em`/`strong`과 `b`/`i`의 의미 차이를 모름 | 의미가 있으면 `em`/`strong`, 순수 장식이면 `b`/`i` |
+| `abbr`에 `title`을 안 붙임 | 약어 풀이가 필요 없다고 착각 | 처음 등장하는 약어마다 `title`에 전체 명칭 기입 |
+| `q`를 문단 전체 인용에 사용 | `q`는 짧은 인라인 인용용이라는 점을 놓침 | 문단 단위 긴 인용은 `blockquote`(08편) 사용 |
+
+## 확인 문제
+
+<Quiz
+  questionNumber={1}
+  question="strong 요소를 쓰는 기준으로 가장 알맞은 것은?"
+  options={['글자를 굵게 보이게 하고 싶을 때', '내용의 중요도가 높다는 의미를 전달하고 싶을 때', '이탤릭체로 보이게 하고 싶을 때', 'CSS 클래스를 대신하고 싶을 때']}
+  correctAnswer={2}
+  explanation="strong은 중요도가 높다는 의미를 전달합니다. 순수하게 굵게만 보이면 되는 자리는 b를 씁니다."
+  optionExplanations={['시각 효과만 필요하면 b를 씁니다.', '정답입니다.', '이탤릭 효과는 i와 관련이 있습니다.', 'CSS 클래스와는 다른 목적입니다.']}
+/>
+
+<Quiz
+  questionNumber={2}
+  question="abbr 요소와 함께 반드시 채워야 하는 속성은?"
+  options={['id', 'title', 'class', 'lang']}
+  correctAnswer={2}
+  explanation="abbr는 title에 약어를 풀어 쓴 전체 명칭을 담아야 툴팁과 스크린 리더 안내가 정상 동작합니다."
+  optionExplanations={['id는 필수가 아닙니다.', '정답입니다.', 'class는 스타일링용으로 필수가 아닙니다.', 'lang은 다른 언어 구간 표시용입니다.']}
+/>
+
+<Quiz
+  questionNumber={3}
+  question="b·i 요소와 em·strong 요소의 근본적인 차이는?"
+  options={['b·i가 더 최신 표준이다', 'em·strong은 의미를 전달하고 b·i는 시각 효과만 전달한다', 'b·i는 폐기된 요소다', '차이가 없다']}
+  correctAnswer={2}
+  explanation="em·strong은 강세·중요도라는 의미를 담고, b·i는 의미 없이 시각적 효과만 담당합니다."
+  optionExplanations={['최신·구식의 문제가 아닙니다.', '정답입니다.', 'b·i는 여전히 유효한 요소입니다. 의미가 없을 뿐입니다.', '의미 전달 여부에서 분명한 차이가 있습니다.']}
+/>
+
+<Quiz
+  questionNumber={4}
+  question="한 섹션 안에서 문단을 나누는 이유로 가장 알맞은 것은?"
+  options={['파일 용량을 줄이기 위해', '브라우저와 스크린 리더가 별개 문단으로 인식하게 하기 위해', 'CSS 선택자를 늘리기 위해', '검색 엔진 순위를 올리기 위해']}
+  correctAnswer={2}
+  explanation="줄바꿈만으로는 문단이 구분되지 않으므로 의미 단위마다 p로 감싸야 문단으로 인식됩니다."
+  optionExplanations={['용량과는 관계없는 이유입니다.', '정답입니다.', 'CSS 선택자 개수가 목적이 아닙니다.', '검색 순위는 이 편의 주제가 아닙니다.']}
+/>
+
+## 참고 자료
+
+- [WHATWG — HTML Living Standard](https://html.spec.whatwg.org/multipage/)

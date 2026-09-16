@@ -1,0 +1,224 @@
+---
+title: '16. Playwright E2E: 로그인부터 책 등록까지'
+description: 'Playwright 프로젝트를 설정하고 실제 브라우저·실제 json-server에서 로그인 후 책을 등록하는 시나리오 1개를 E2E 테스트로 작성합니다'
+---
+
+<Callout type="info">
+  **이번 편의 결과물:** 실제 브라우저를 띄워 로그인 후 책을 등록하고 목록에서 확인하는 E2E 테스트 1개가 통과합니다. · **다루는 개념:** Playwright 프로젝트 설정, 브라우저 기반 시나리오 작성, 로케이터·어서션
+</Callout>
+
+## 이 편에서 만드는 파일
+
+```
+bookshelf/
+├── playwright.config.js         (+) 브라우저·webServer 설정
+├── e2e/
+│   └── login-and-add-book.spec.js (+) E2E 테스트 1개
+└── package.json                 (~) test:e2e 스크립트 추가
+```
+
+## 개념 정리
+
+### 15편과 다른 점 — 무엇도 가짜로 만들지 않는다
+
+15편의 통합 테스트는 MSW로 네트워크를 가로챘고, 컴포넌트도 JSDOM(가상 DOM)에서 렌더링했습니다. Playwright E2E는 셋 다 진짜입니다. `npm run dev`로 띄운 실제 개발 서버와 04편부터 써온 실제 `json-server`를, 실제로 설치된 Chromium 브라우저가 열어서 클릭하고 타이핑합니다. 08편의 라우트 가드, 13편의 언어 전환, 12편의 이미지 업로드까지 — 각 편에서 따로 확인했던 기능들이 **한 사용자의 한 연속된 조작** 안에서 실제로 이어지는지가 이 편의 관심사입니다.
+
+| 계층 | 브라우저 | 백엔드 |
+|------|----------|--------|
+| 14편 단위 | 없음(JSDOM도 아님) | 함수 목 |
+| 15편 통합 | JSDOM(가상) | MSW(네트워크 가로채기) |
+| 16편 E2E | 실제 Chromium | 실제 `json-server` |
+
+MSW는 15편의 단위·통합 테스트 전용입니다. E2E는 앱이 실제로 의존하는 백엔드(json-server)까지 함께 띄워, 화면부터 저장까지 전체 경로를 검증합니다. `db.json`에 실제로 쓰기가 일어나므로, 테스트가 추가한 책이 다음 실행에도 남아 있을 수 있다는 점만 유의합니다(직접 해보기에서 정리 방법을 다룹니다).
+
+### 왜 E2E는 1개만 두는가
+
+E2E는 느리고(실제 브라우저 실행), 깨지기 쉽고(타이밍 의존적), 실패 원인을 좁히기 어렵습니다. 그래서 "가장 값진 한 가지 흐름"만 검증합니다. 이 과목에서는 로그인부터 책 등록까지가 가장 많은 기능(인증, 폼, 서버 상태, 라우팅)을 가로지르는 흐름이라 이 하나를 선택합니다. 나머지 세부 로직은 이미 14~15편이 담당합니다.
+
+## 실습
+
+<Steps>
+
+### 1. Playwright 설치
+
+```bash
+npm install @playwright/test@1.63.0 --save-dev
+npx playwright install chromium
+```
+
+`e2e/` 폴더를 만들고 그 안에 테스트 파일을 둡니다.
+
+### 2. Playwright 설정 작성
+
+```js
+// bookshelf/playwright.config.js
+import { defineConfig, devices } from '@playwright/test';
+
+export default defineConfig({
+  testDir: './e2e',
+  fullyParallel: true,
+  retries: 1,
+  use: {
+    baseURL: 'http://localhost:5173',
+    trace: 'on-first-retry',
+  },
+  projects: [{ name: 'chromium', use: { ...devices['Desktop Chrome'] } }],
+  webServer: [
+    {
+      command: 'npx json-server db.json --port 3001',
+      url: 'http://localhost:3001/books',
+      reuseExistingServer: true,
+    },
+    {
+      command: 'npm run dev',
+      url: 'http://localhost:5173',
+      reuseExistingServer: true,
+    },
+  ],
+});
+```
+
+`webServer`에 배열을 넘기면 Playwright가 두 명령을 함께 띄우고, 각 `url`이 응답할 때까지 기다린 뒤 테스트를 시작합니다. 이미 두 서버가 떠 있으면(개발 중이라면 흔한 상황) `reuseExistingServer`가 새로 띄우지 않고 그대로 씁니다.
+
+### 3. E2E 테스트 작성
+
+```js
+// bookshelf/e2e/login-and-add-book.spec.js
+import { test, expect } from '@playwright/test';
+
+test('로그인 후 책을 등록하면 목록에 나타난다', async ({ page }) => {
+  await page.goto('/login');
+
+  await page.getByLabel('이메일').fill('zeno@example.com');
+  await page.getByLabel('비밀번호').fill('password123');
+  await page.getByRole('button', { name: '로그인' }).click();
+
+  await expect(page.getByText('내 서재')).toBeVisible();
+
+  await page.getByRole('link', { name: '새 책 등록' }).click();
+  await page.getByLabel('제목').fill('이펙티브 자바 3판');
+  await page.getByLabel('저자').fill('조슈아 블로크');
+  await page.getByLabel('쪽수').fill('650');
+  await page.getByRole('button', { name: '등록' }).click();
+
+  await expect(page).toHaveURL('http://localhost:5173/');
+  await expect(page.getByText('이펙티브 자바 3판')).toBeVisible();
+});
+
+test('로그인하지 않고 목록에 접근하면 로그인 화면으로 이동한다', async ({ page }) => {
+  await page.goto('/');
+
+  await expect(page).toHaveURL(/\/login$/);
+});
+```
+
+로케이터(`getByLabel`, `getByRole`)는 15편의 RTL 쿼리와 이름이 같습니다. 두 도구 모두 "사용자가 화면에서 찾는 방식"을 기준으로 요소를 찾는 철학을 공유합니다. 제목을 "이펙티브 자바 3판"처럼 db.json에 없는 값으로 지어, 10편에서 만든 중복 제목 검사에 걸리지 않게 합니다.
+
+### 4. package.json에 스크립트 추가
+
+```json
+{
+  "scripts": {
+    "test:e2e": "playwright test"
+  }
+}
+```
+
+### 5. 실행
+
+```bash
+npm run test:e2e
+```
+
+### 6. 확인
+
+```text
+Running 2 tests using 1 worker
+
+  ✓  e2e/login-and-add-book.spec.js:4:1 › 로그인 후 책을 등록하면 목록에 나타난다 (2.1s)
+  ✓  e2e/login-and-add-book.spec.js:22:1 › 로그인하지 않고 목록에 접근하면 로그인 화면으로 이동한다 (0.6s)
+
+  2 passed (3.4s)
+```
+
+- 실패 시 `playwright-report/index.html`에서 실패 지점의 스크린샷과 트레이스를 확인할 수 있습니다.
+- 테스트가 끝난 뒤 `bookshelf/db.json`을 열어보면 방금 등록한 책이 실제로 남아 있습니다. 반복 실행 전에 `git checkout db.json`으로 되돌리는 습관을 들입니다(직접 해보기 참고).
+
+</Steps>
+
+## 직접 해보기
+
+<details>
+<summary>테스트가 db.json에 남긴 변경을 매번 되돌리는 스크립트를 package.json에 추가해 보세요.</summary>
+
+```json
+{
+  "scripts": {
+    "pretest:e2e": "git checkout -- db.json",
+    "test:e2e": "playwright test"
+  }
+}
+```
+
+`pretest:e2e`는 npm이 `test:e2e` 실행 전 자동으로 실행하는 훅입니다. 실제 팀 프로젝트에서는 E2E 전용 데이터베이스 파일을 따로 두는 방식이 더 흔합니다.
+</details>
+
+## 자주 하는 실수
+
+| 증상 | 원인 | 고치는 법 |
+|------|------|-----------|
+| 테스트가 로컬에서만 통과하고 CI에서 실패한다 | `webServer` 없이 수동으로 띄운 서버에 의존 | `playwright.config.js`의 `webServer`로 두 서버 기동을 테스트에 포함 |
+| 요소를 못 찾는다는 타임아웃 에러 | 클릭 직후 페이지 전환을 기다리지 않음 | `expect(page).toHaveURL()`이나 `toBeVisible()`로 자동 대기 활용 |
+| 두 번째 실행부터 등록 테스트가 실패 | 같은 제목이 이미 db.json에 남아 10편의 중복 검사에 걸림 | 매번 다른 제목을 쓰거나 db.json을 원상 복구 |
+| 테스트가 가끔 실패한다(flaky) | 고정된 `waitForTimeout` 사용 | 타임아웃 대신 로케이터·어서션의 자동 재시도 대기 사용 |
+
+## 확인 문제
+
+<Quiz
+  questionNumber={1}
+  question="Playwright E2E와 15편 MSW 통합 테스트의 가장 큰 차이는 무엇입니까"
+  options={['테스트 프레임워크 이름만 다르다', 'E2E는 실제 브라우저·실제 백엔드에서 실행되고, 통합 테스트는 JSDOM과 MSW로 둘 다 흉내 낸다', 'E2E는 비동기 코드를 다루지 않는다', '통합 테스트만 로케이터를 지원한다']}
+  correctAnswer={2}
+  explanation="E2E는 실제 Chromium 브라우저와 실제 json-server를 사용하고, 통합 테스트는 JSDOM 위에서 MSW로 네트워크를 흉내 냅니다."
+  optionExplanations={['프레임워크 이름 차이가 핵심이 아닙니다', '정답입니다', '비동기 처리는 둘 다 필요합니다', '로케이터 개념은 RTL 쿼리와도 통합니다']}
+/>
+
+<Quiz
+  questionNumber={2}
+  question="이 과목이 E2E 테스트를 1개만 두는 이유로 옳은 것은 무엇입니까"
+  options={['Playwright가 여러 개를 지원하지 않아서', 'E2E는 느리고 깨지기 쉬워 가장 값진 흐름 하나만 검증하고 나머지는 다른 계층에 맡기기 위해', '브라우저 라이선스 제한 때문에', '단위 테스트가 이미 모든 것을 검증해서 불필요하기 때문에']}
+  correctAnswer={2}
+  explanation="E2E는 실행 비용이 크고 타이밍에 민감하므로, 가장 많은 기능을 가로지르는 흐름 하나만 남기고 세부 로직은 단위·통합 테스트에 맡깁니다."
+  optionExplanations={['Playwright는 여러 테스트를 지원합니다', '정답입니다', '라이선스 제한이 이유가 아닙니다', '단위 테스트가 전체 흐름을 대체하지 못합니다']}
+/>
+
+<Quiz
+  questionNumber={3}
+  question="playwright.config.js의 webServer에 배열을 넘기는 이유는 무엇입니까"
+  options={['테스트 결과를 여러 서버에 나눠 업로드하기 위해', '프런트엔드 개발 서버와 json-server 백엔드를 함께 띄우기 위해', '브라우저를 여러 대 실행하기 위해', 'CI 환경 변수를 여러 개 등록하기 위해']}
+  correctAnswer={2}
+  explanation="이 과목의 앱은 json-server라는 실제 백엔드에 의존하므로, E2E 실행 전 개발 서버와 json-server를 둘 다 띄워야 합니다."
+  optionExplanations={['결과 업로드 기능이 아닙니다', '정답입니다', '브라우저 실행 대수와는 무관합니다', '환경 변수 등록과는 다른 옵션입니다']}
+/>
+
+<Quiz
+  questionNumber={4}
+  question="E2E 테스트에서 고정된 waitForTimeout 대신 권장되는 방식은 무엇입니까"
+  options={['테스트를 여러 번 반복 실행한다', '로케이터·어서션의 자동 재시도 대기를 사용한다', '타임아웃 값을 최대한 늘린다', '테스트를 건너뛴다']}
+  correctAnswer={2}
+  explanation="Playwright의 expect와 로케이터는 조건이 충족될 때까지 자동으로 재시도하며 기다리므로, 임의의 고정 시간 대기보다 안정적입니다."
+  optionExplanations={['반복 실행은 근본 해결책이 아닙니다', '정답입니다', '타임아웃을 늘리는 것은 임시방편입니다', '테스트를 건너뛰면 검증이 안 됩니다']}
+/>
+
+<Quiz
+  questionNumber={5}
+  question="이 편의 등록 테스트가 db.json에 이미 있는 제목 대신 새 제목을 쓰는 이유는 무엇입니까"
+  options={['제목이 길수록 테스트가 안정적이라서', '10편에서 만든 중복 제목 검사에 걸려 등록이 거부되지 않게 하려고', 'Playwright가 한글 제목을 지원하지 않아서', '짧은 제목은 검색되지 않아서']}
+  correctAnswer={2}
+  explanation="createBook은 같은 제목이 이미 있으면 필드 에러를 던지도록 10편에서 구현했으므로, 이미 존재하는 제목으로 테스트하면 등록이 실패한다."
+  optionExplanations={['길이와 안정성은 무관합니다', '정답입니다', '한글 제목은 정상적으로 지원됩니다', '검색 여부와는 무관합니다']}
+/>
+
+## 참고 자료
+
+- [Playwright — Installation](https://playwright.dev/docs/intro)

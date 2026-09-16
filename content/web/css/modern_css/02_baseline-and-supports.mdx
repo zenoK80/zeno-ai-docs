@@ -1,0 +1,199 @@
+---
+title: '02. Baseline 읽는 법과 @supports 폴백'
+description: 'MDN·webstatus.dev로 CSS 기능 지원 상태를 확인하고, @supports로 점진적 향상 폴백을 만든다'
+---
+
+<Callout type="info">
+  **이번 편의 결과물:** `lessons/02_baseline-and-supports/`에 `@supports` 폴백 예제 1개(배경색 대체)를 만든다 · **다루는 개념:** Baseline newly/widely available 개념, MDN·webstatus.dev로 지원 상태 확인하는 법, `@supports` 문법(`and`/`or`/`not`)
+</Callout>
+
+## 이 편에서 만드는 파일
+
+```text
+web-practice/lessons/modern-css/
+└── 02_baseline-and-supports/     +
+    ├── index.html
+    └── styles.css
+```
+
+포트폴리오 본체(`portfolio/`)는 이번 편에서 건드리지 않는다. 앞으로 06·07·15·16·17편에서 반복할 판단 절차를 여기서 먼저 연습한다.
+
+## 개념 정리
+
+**Baseline**은 어떤 CSS·JS 기능이 주요 브라우저(Chrome, Edge, Firefox, Safari)에서 얼마나 널리 쓸 수 있는지를 MDN과 web.dev가 함께 표시하는 상태 배지다.
+
+| 상태 | 뜻 | 실무 판단 |
+|------|-----|-----------|
+| Widely available | 등재 후 약 30개월이 지나 구형 브라우저까지 대부분 지원 | 폴백 없이 바로 써도 된다 |
+| Newly available | 최신 브라우저에는 다 들어왔지만 30개월이 안 지남 | 대상 사용자층에 구형 브라우저가 있으면 `@supports` 폴백을 함께 만든다 |
+| Limited availability | 일부 브라우저(주로 Firefox)가 아직 안 막았거나 실험적 | 있으면 좋은 향상 요소로만 쓰고, 없어도 기본 기능이 되게 폴백을 필수로 만든다 |
+
+배지는 시간이 지나면 바뀐다. 이 과목의 `01_학습방향.md`에 정리된 표는 2026년 9월 시점 값이므로, 실제로 편을 실습할 때는 아래 두 곳에서 직접 다시 확인한다.
+
+- MDN 기능 페이지 상단의 Baseline 배지(예: `@scope`, `@property` 문서 맨 위)
+- [webstatus.dev](https://webstatus.dev/)에서 기능 이름으로 검색하면 브라우저별 지원 버전과 그래프를 볼 수 있다
+
+### `@supports` 문법
+
+`@supports`는 브라우저가 특정 선언을 해석할 수 있는지 검사해 그 결과에 따라 스타일을 적용하는 규칙이다.
+
+| 문법 | 뜻 |
+|------|-----|
+| `@supports (속성: 값) { ... }` | 그 선언을 지원하면 내부 규칙 적용 |
+| `@supports not (속성: 값) { ... }` | 지원하지 않으면 적용(폴백) |
+| `@supports (A) and (B) { ... }` | 두 조건 모두 지원할 때 |
+| `@supports (A) or (B) { ... }` | 둘 중 하나라도 지원할 때 |
+
+점진적 향상(progressive enhancement)의 기본 순서는 **먼저 모든 브라우저가 이해하는 기본 스타일을 적는다. 그다음 `@supports`로 감싼 향상된 스타일을 아래에 덧붙인다.** 순서를 반대로 하면 지원 브라우저에서도 기본 스타일이 나중에 덮어써 버릴 수 있다.
+
+## 실습
+
+<Steps>
+
+### 1. 폴더 만들기
+
+```bash
+mkdir -p web-practice/lessons/modern-css/02_baseline-and-supports
+```
+
+### 2. index.html 작성
+
+```html
+<!-- web-practice/lessons/modern-css/02_baseline-and-supports/index.html -->
+<!doctype html>
+<html lang="ko">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>@supports 폴백 연습</title>
+    <link rel="stylesheet" href="styles.css" />
+  </head>
+  <body>
+    <section class="panel">
+      <h1>배경 폴백 예제</h1>
+      <p>이 카드의 배경은 <code>color-mix()</code>를 지원하면 은은한 혼합색, 지원하지 않으면 단색으로 보입니다.</p>
+    </section>
+  </body>
+</html>
+```
+
+### 3. styles.css 작성
+
+`color-mix()`는 널리 사용 가능한 기능이지만, 폴백 연습을 위해 일부러 지원 여부를 나누는 예시로 쓴다. 실제로 지원이 갈리는 기능(예: `@property`, 앵커 포지셔닝)에도 같은 순서를 그대로 적용한다.
+
+```css
+/* web-practice/lessons/modern-css/02_baseline-and-supports/styles.css */
+body {
+  font-family: system-ui, sans-serif;
+  display: grid;
+  place-items: center;
+  min-height: 100vh;
+  margin: 0;
+  background: #f6f7f9;
+}
+
+.panel {
+  max-width: 28rem;
+  padding: 2rem;
+  border-radius: 0.5rem;
+  border: 1px solid #d0d7de;
+  /* 기본값: 모든 브라우저가 이해하는 단색 배경 */
+  background-color: #eef2f7;
+}
+
+/* 향상: color-mix()를 지원하면 은은한 혼합색으로 교체 */
+@supports (background: color-mix(in oklch, red, blue)) {
+  .panel {
+    background-color: color-mix(in oklch, #0969da 12%, #ffffff);
+  }
+}
+
+/* 확인용: 지원하지 않는 경우를 흉내 낸 안내 문구 */
+@supports not (background: color-mix(in oklch, red, blue)) {
+  .panel::after {
+    content: '기본 배경으로 표시 중입니다.';
+    display: block;
+    margin-top: 1rem;
+    font-size: 0.875rem;
+    color: #59636e;
+  }
+}
+```
+
+### 4. 실행
+
+브라우저에서 `index.html`을 연다.
+
+### 5. 확인
+
+- 최신 브라우저(Chrome, Edge)에서는 카드 배경이 옅은 파란빛 혼합색으로 보인다.
+- 개발자 도구의 `Rendering` 패널이나 `Console`에서 `CSS.supports('background', 'color-mix(in oklch, red, blue)')`를 실행하면 `true`가 반환된다.
+- `@supports not` 블록에 넣어 둔 안내 문구는 실제로는 보이지 않아야 한다(현재 브라우저가 지원하므로). 지원하지 않는 상황을 보려면 `@supports` 조건을 `(background: not-a-real-value)`처럼 항상 거짓이 되는 값으로 잠깐 바꿔 확인한다.
+
+</Steps>
+
+## 직접 해보기
+
+1. `@supports (display: grid) and (gap: 1rem)`처럼 `and`로 두 조건을 묶은 규칙을 만들어 본다.
+2. 브라우저 콘솔에서 `CSS.supports('selector(:has(a))')`를 실행해 `:has()` 지원 여부를 JS로도 확인할 수 있는지 본다.
+
+<details>
+<summary>정답 예시</summary>
+
+1. 아래처럼 두 조건을 모두 만족할 때만 그리드 레이아웃을 적용한다.
+
+```css
+@supports (display: grid) and (gap: 1rem) {
+  .panel {
+    display: grid;
+    gap: 1rem;
+  }
+}
+```
+
+2. `CSS.supports('selector(:has(a))')`는 선택자 지원 여부를 검사하는 특수 문법이다. 최신 브라우저에서는 `true`를 반환한다.
+
+</details>
+
+## 자주 하는 실수
+
+| 증상 | 원인 | 고치는 법 |
+|------|------|-----------|
+| `@supports` 안 조건이 항상 거짓으로 뜬다 | 속성명과 값을 실제 문법과 다르게 적었다(`grid-template-columns: subgrid` 대신 `subgrid: true` 같은 오타) | 실제로 쓸 선언을 그대로 괄호 안에 넣는다 |
+| 지원 브라우저에서도 기본 스타일이 이긴다 | `@supports` 블록을 기본 스타일보다 **위에** 적었다 | 기본 스타일 → `@supports` 향상 스타일 순서로 아래에 배치한다 |
+| Baseline 배지를 검색 결과 요약만 보고 판단했다 | 블로그 글이나 캐시된 정보는 날짜가 오래됐을 수 있다 | MDN 기능 페이지를 직접 열어 배지 원문과 날짜를 확인한다 |
+
+## 확인 문제
+
+<Quiz
+  questionNumber={1}
+  question="Baseline에서 Newly available 상태의 기능을 다룰 때 가장 적절한 태도는?"
+  options={['최신 브라우저에는 다 들어왔지만 구형 브라우저 대상이면 @supports 폴백을 함께 만든다', '아직 표준이 아니므로 실무에 절대 쓰지 않는다', 'Widely available과 동일하게 취급해 폴백 없이 바로 쓴다', '실험 단계이므로 벤더 프리픽스를 붙여야 한다']}
+  correctAnswer={1}
+  explanation="Newly available은 최신 브라우저에는 구현됐지만 30개월 기준을 채우지 못한 상태다. 대상 사용자층에 구형 브라우저가 있으면 폴백을 함께 만드는 것이 안전하다."
+  optionExplanations={['정답', 'Newly available은 이미 표준화되어 최신 브라우저에 구현된 기능이다', 'Widely available과 달리 구형 브라우저 지원이 아직 불완전하다', '벤더 프리픽스는 Baseline 배지와 별개의 오래된 관행이다']}
+/>
+
+<Quiz
+  questionNumber={2}
+  question="점진적 향상 순서로 올바른 것은?"
+  options={['기본 스타일을 먼저 적고 @supports 향상 스타일을 아래에 덧붙인다', '@supports 향상 스타일을 먼저 적고 기본 스타일을 아래에 덧붙인다', '순서는 상관없다, 캐스케이드가 자동으로 정리한다', '기본 스타일은 아예 적지 않고 @supports 안에만 넣는다']}
+  correctAnswer={1}
+  explanation="같은 우선순위라면 캐스케이드는 나중에 나온 선언을 적용하므로, 기본값을 먼저 적고 향상된 스타일을 뒤에 덧붙여야 지원 브라우저에서 향상 스타일이 이긴다."
+  optionExplanations={['정답', '순서를 반대로 하면 지원 브라우저에서도 기본값이 나중에 덮어쓸 수 있다', '캐스케이드는 소스 순서를 그대로 반영하므로 순서가 중요하다', '기본값이 없으면 미지원 브라우저에서 스타일이 아예 빠진다']}
+/>
+
+<Quiz
+  questionNumber={3}
+  question="webstatus.dev의 역할로 가장 적절한 것은?"
+  options={['기능별 Baseline 상태와 브라우저 지원을 실시간으로 조회하는 공식 대시보드', 'CSS 코드를 자동으로 압축해 주는 빌드 도구', 'MDN 문서를 한국어로 번역해 주는 서비스', 'CSS 선택자의 명시도를 계산해 주는 계산기']}
+  correctAnswer={1}
+  explanation="webstatus.dev는 web.dev와 MDN이 함께 운영하는 Baseline 상태 조회 대시보드로, 기능 이름으로 검색하면 브라우저별 지원 시점을 확인할 수 있다."
+  optionExplanations={['정답', '빌드 압축 도구가 아니다', '번역 서비스가 아니라 지원 상태 조회 도구다', '명시도 계산기가 아니다']}
+/>
+
+## 참고 자료
+
+- [web.dev — Baseline](https://web.dev/baseline) — Baseline newly/widely available 개념과 판단 기준
+- [webstatus.dev](https://webstatus.dev/) — 기능별 Baseline 상태·브라우저 지원 실시간 조회
+- [MDN — @supports](https://developer.mozilla.org/en-US/docs/Web/CSS/@supports) — 기능 쿼리 문법(`and`/`or`/`not`)과 점진적 향상 패턴

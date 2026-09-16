@@ -1,0 +1,217 @@
+---
+title: '07. details name으로 만드는 FAQ 아코디언'
+description: 'contact.html에 details와 name 속성으로 하나만 열리는 FAQ 아코디언을 추가한다'
+---
+
+<Callout type="info">
+  **이번 편의 결과물:** `contact.html`에 FAQ 섹션이 생기고, 하나를 열면 열려 있던 다른 항목이 자동으로 닫힙니다. · **다루는 개념:** `<details>`/`<summary>` 전통 동작 요약, `name` 속성 기반 exclusive accordion, 구형 브라우저 폴백
+</Callout>
+
+## 이 편에서 만드는 파일
+
+```text
+web-practice/portfolio/
+└── contact.html   ~ (FAQ 섹션 추가)
+```
+
+## 개념 정리
+
+### `<details>`/`<summary>` 복습
+
+`<details>`는 클릭하면 펼쳐지고 접히는 요소이고, 그 안의 `<summary>`가 항상 보이는 제목입니다. 자바스크립트 없이 동작하며 `open` 속성 유무로 펼침 상태를 나타냅니다. 이 기본 동작은 `html_fundamentals`에서 다뤘으므로 여기서는 반복하지 않습니다.
+
+### `name` 속성 — 하나만 열리는 아코디언
+
+같은 `name` 값을 가진 `<details>` 여러 개는 라디오 버튼처럼 묶여서, 하나를 열면 같은 그룹의 나머지가 자동으로 닫힙니다.
+
+```html
+<details name="faq">
+  <summary>질문 1</summary>
+  <p>답변 1</p>
+</details>
+<details name="faq">
+  <summary>질문 2</summary>
+  <p>답변 2</p>
+</details>
+```
+
+`name`이 같은 두 `<details>`는 exclusive accordion(하나만 열리는 아코디언)으로 묶입니다. 예전에는 이 동작을 위해 모든 `<details>`의 `toggle` 이벤트를 감시하다가 나머지를 강제로 닫는 자바스크립트가 필요했습니다.
+
+<Callout type="warning">
+  **폴백:** `name` 속성을 지원하지 않는 아주 오래된 브라우저에서는 그냥 각 `<details>`가 독립적으로 열리고 닫힙니다(여러 개가 동시에 열릴 수 있음). 기능이 없을 뿐 오류는 나지 않으므로 별도 처리를 하지 않아도 안전합니다.
+</Callout>
+
+## 실습
+
+<Steps>
+
+### 1. contact.html 열기
+
+`web-practice/portfolio/contact.html`에서 연락처 정보 섹션 다음에 FAQ 섹션을 추가할 자리를 찾습니다. 이 편 이전까지 `contact.html`은 html_fundamentals가 만든 전통 폼(`class="contact-form"`, 필드마다 `class="field"` 래퍼, `id`는 `name`·`email`·`topic`·`message`·`agree`)만 있는 상태입니다.
+
+### 2. 코드 작성
+
+```html
+<!-- web-practice/portfolio/contact.html -->
+<!doctype html>
+<html lang="ko">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>연락 · Zeno Kim</title>
+  <link rel="icon" href="favicon.svg" type="image/svg+xml" />
+  <link rel="stylesheet" href="css/tokens.css" />
+  <link rel="stylesheet" href="css/styles.css" />
+</head>
+<body>
+  <header class="site-header">
+    <a class="logo" href="index.html">Zeno Kim</a>
+    <button type="button" class="menu-toggle" popovertarget="mobile-menu" popovertargetaction="toggle" aria-label="메뉴 열기">
+      메뉴
+    </button>
+    <nav id="mobile-menu" class="site-nav" popover aria-label="주요 메뉴">
+      <ul>
+        <li><a href="index.html">소개</a></li>
+        <li><a href="projects.html">프로젝트</a></li>
+        <li><a href="contact.html" aria-current="page">연락</a></li>
+      </ul>
+    </nav>
+  </header>
+
+  <main>
+    <h1>연락</h1>
+    <p>협업·채용 제안은 아래 폼으로 보내 주세요. 보통 2일 안에 답합니다.</p>
+
+    <form class="contact-form">
+      <div class="field">
+        <label for="name">이름</label>
+        <input type="text" id="name" name="name" required />
+      </div>
+      <div class="field">
+        <label for="email">이메일</label>
+        <input type="email" id="email" name="email" required />
+        <p class="help">답장을 받을 주소를 적어 주세요.</p>
+      </div>
+      <div class="field">
+        <label for="topic">문의 유형</label>
+        <select id="topic" name="topic">
+          <option value="collab">협업 제안</option>
+          <option value="hire">채용 제안</option>
+          <option value="etc">기타</option>
+        </select>
+      </div>
+      <div class="field">
+        <label for="message">메시지</label>
+        <textarea id="message" name="message" minlength="10" required></textarea>
+        <p class="help">프로젝트 내용이나 일정을 간단히 적어 주세요.</p>
+      </div>
+      <div class="field field-checkbox">
+        <input type="checkbox" id="agree" name="agree" required />
+        <label for="agree">개인정보 수집·이용에 동의합니다</label>
+      </div>
+      <button type="submit">보내기</button>
+    </form>
+
+    <section class="contact-info">
+      <h2>연락처 정보</h2>
+      <ul>
+        <li>이메일: hello@zeno.example</li>
+        <li>위치: 서울, 대한민국</li>
+        <li>업무 시간: 평일 10:00 – 18:00 (KST)</li>
+      </ul>
+    </section>
+
+    <section class="faq">
+      <h2>자주 묻는 질문</h2>
+      <details name="faq">
+        <summary>프리랜서 작업도 받나요?</summary>
+        <p>네, 2주 이상 일정이면 가능합니다.</p>
+      </details>
+      <details name="faq">
+        <summary>원격 근무가 가능한가요?</summary>
+        <p>네, 지금까지 프로젝트의 대부분을 원격으로 진행했습니다.</p>
+      </details>
+      <details name="faq">
+        <summary>사용하는 도구는 무엇인가요?</summary>
+        <p>VS Code, Figma, GitHub를 주로 씁니다.</p>
+      </details>
+    </section>
+  </main>
+
+  <footer class="site-footer">
+    <p>© 2026 Zeno Kim. 이 사이트는 학습용으로 제작되었습니다.</p>
+    <ul>
+      <li><a href="https://github.com/example">GitHub</a></li>
+      <li><a href="https://www.linkedin.com/in/example">LinkedIn</a></li>
+      <li><a href="https://blog.example.com">Blog</a></li>
+    </ul>
+  </footer>
+
+  <script type="module" src="js/main.js"></script>
+</body>
+</html>
+```
+
+### 3. 실행
+
+Live Server로 `contact.html`을 엽니다.
+
+### 4. 확인
+
+- FAQ 세 항목이 모두 접힌 채로 보인다
+- 첫 번째 질문을 클릭해 펼친 뒤 두 번째 질문을 클릭하면, 첫 번째가 자동으로 접히고 두 번째만 펼쳐진다
+- 키보드로 `Tab`을 눌러 `<summary>`에 포커스를 옮기고 `Enter`를 눌러도 같은 방식으로 동작한다
+
+</Steps>
+
+## 직접 해보기
+
+세 번째 `<details>`의 `name="faq"`만 지우고 나머지 두 개는 그대로 둔 채 테스트해 봅니다. 어떤 조합으로 열고 닫히나요?
+
+<details>
+<summary>정답 보기</summary>
+
+`name`이 없는 세 번째 항목은 독립적으로 동작해 다른 항목과 상관없이 열리고 닫힙니다. 반면 `name="faq"`가 남아 있는 첫 번째·두 번째 항목은 여전히 서로 배타적으로 묶여, 그 두 개 사이에서만 하나가 열리면 나머지가 닫힙니다.
+
+</details>
+
+## 자주 하는 실수
+
+| 증상 | 원인 | 고치는 법 |
+|------|------|-----------|
+| 하나만 열려야 하는데 여러 개가 동시에 열린다 | `name` 값의 철자가 서로 다르다(`faq`와 `Faq` 등) | 그룹으로 묶을 `<details>`의 `name` 값을 정확히 똑같게 맞춘다 |
+| 처음부터 펼쳐진 항목이 있다 | `open` 속성이 붙어 있다 | 접힌 상태로 시작하려면 `open`을 빼거나 지운다 |
+| 그룹 밖의 다른 아코디언까지 같이 닫힌다 | 서로 다른 용도의 `<details>`에 같은 `name`을 재사용했다 | 용도별로 `name` 값을 다르게 쓴다(예: FAQ는 `faq`, 다른 섹션은 별도 이름) |
+
+## 확인 문제
+
+<Quiz
+  questionNumber={1}
+  question="같은 name 값을 가진 details 여러 개의 동작으로 옳은 것은?"
+  options={['모두 동시에 열릴 수 있다', '하나를 열면 같은 그룹의 나머지가 자동으로 닫힌다', 'name이 같으면 클릭해도 열리지 않는다', 'name은 접근성 트리에만 영향을 준다']}
+  correctAnswer={2}
+  explanation="name 속성이 같은 details는 exclusive accordion으로 묶여 하나만 열리도록 브라우저가 관리합니다."
+  optionExplanations={['exclusive accordion으로 묶이면 하나만 열립니다', '이것이 정답입니다', '정상적으로 클릭하면 열립니다', 'name은 실제 열림/닫힘 동작에 영향을 줍니다']}
+/>
+
+<Quiz
+  questionNumber={2}
+  question="name 속성을 지원하지 않는 오래된 브라우저에서 일어나는 일로 가장 적절한 것은?"
+  options={['페이지가 깨져 아무것도 표시되지 않는다', '각 details가 독립적으로 열리고 닫혀 여러 개가 동시에 열릴 수 있다', 'details 자체가 사라진다', '자동으로 최신 브라우저로 안내하는 메시지가 뜬다']}
+  correctAnswer={2}
+  explanation="name을 모르는 브라우저는 그 속성을 무시할 뿐 details 자체는 정상 동작하므로, 배타적 그룹 동작만 없어지고 여러 개가 동시에 열릴 수 있습니다."
+  optionExplanations={['페이지가 깨지지 않습니다', '이것이 정답입니다', 'details 요소 자체는 그대로 남아 동작합니다', '그런 안내는 브라우저가 자동으로 하지 않습니다']}
+/>
+
+<Quiz
+  questionNumber={3}
+  question="details 안 summary 요소의 역할로 옳은 것은?"
+  options={['펼쳤을 때만 보이는 본문 내용을 담는다', '항상 보이며 클릭하면 펼침 상태를 토글하는 제목 역할을 한다', '스타일을 지정하는 역할만 한다', 'details의 open 속성값을 자동으로 계산한다']}
+  correctAnswer={2}
+  explanation="summary는 항상 보이는 제목이며, 클릭하거나 키보드로 활성화하면 details의 펼침 상태가 토글됩니다."
+  optionExplanations={['본문 내용은 summary 다음에 오는 나머지 자식 요소입니다', '이것이 정답입니다', '스타일 전용 요소가 아니라 실제 상호작용을 담당합니다', 'open 속성은 사용자 조작이나 직접 설정으로 바뀝니다']}
+/>
+
+## 참고 자료
+
+- [MDN Blog — HTML details exclusive accordions](https://developer.mozilla.org/en-US/blog/html-details-exclusive-accordions)

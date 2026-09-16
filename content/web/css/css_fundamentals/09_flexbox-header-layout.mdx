@@ -1,0 +1,180 @@
+---
+title: '09. Flexbox로 헤더 레이아웃 완성하기'
+description: '로고와 내비게이션을 Flexbox로 한 줄 헤더 안에 시안대로 배치한다'
+---
+
+<Callout type="info">
+  **이번 편의 결과물:** 로고와 내비게이션이 헤더 안에서 좌우로 나뉘어 시안대로 한 줄에 배치됩니다. · **다루는 개념:** `flex-wrap`, 자동 마진으로 밀어내기, `align-self`
+</Callout>
+
+## 이 편에서 만드는 파일
+
+```text
+web-practice/portfolio/
+└ css/
+  └ styles.css   ~ (.site-header, .logo, .site-nav 규칙 추가)
+```
+
+## 개념 정리
+
+08편에서 `.site-nav`를 flex 컨테이너로 만들어 링크 3개를 가로로 정렬했습니다. 이번 편은 그 `.site-nav`를 `.logo`와 함께 **헤더 한 줄** 안에 배치합니다. 헤더 자체도 flex 컨테이너로 만들고, 로고는 왼쪽 끝에 내비게이션은 오른쪽 끝에 붙입니다.
+
+| 속성 | 역할 |
+|------|------|
+| `flex-wrap: nowrap` (기본값) | 아이템이 넘쳐도 한 줄을 유지하며 크기가 줄어든다 |
+| `flex-wrap: wrap` | 한 줄에 다 안 들어가면 다음 줄로 넘긴다 |
+| `margin-left: auto` | 그 아이템과 앞 아이템 사이의 남는 공간을 전부 마진으로 차지해 뒤로 밀어낸다 |
+| `align-self` | 컨테이너의 `align-items` 값을 특정 아이템 하나만 덮어쓴다 |
+
+로고와 내비를 좌우로 벌리는 방법은 두 가지입니다. `justify-content: space-between`을 헤더에 주거나, 내비 하나에만 `margin-left: auto`를 주는 방법입니다. 아이템이 두 개뿐일 때는 결과가 같지만, 나중에 헤더 안에 항목이 하나 더 들어와도(예: 로그인 버튼) `margin-left: auto`는 그 항목 앞에서만 밀어내므로 더 유연합니다. 이 과목에서는 `margin-left: auto` 방식을 씁니다.
+
+`align-self`는 헤더의 `align-items: center`를 기본으로 쓰되, 특정 아이템만 다른 정렬이 필요할 때 그 아이템에만 적용합니다. 지금 헤더 구성에서는 모든 아이템이 세로 중앙 정렬이면 충분하므로, `align-self`는 "직접 해보기"에서 다뤄봅니다.
+
+**자주 하는 오해:** `flex-wrap`을 주지 않으면 화면이 아주 좁아졌을 때 로고와 내비가 겹치거나 화면 밖으로 밀려납니다. 완전한 모바일 대응은 13편에서 미디어 쿼리로 처리하지만, `flex-wrap: wrap`을 미리 걸어 두면 그 전까지도 최소한 줄바꿈으로 안전하게 대응합니다.
+
+## 실습
+
+<Steps>
+
+### 1. 기존 마크업 확인하기
+
+`index.html`·`projects.html`·`contact.html` 세 파일 모두 헤더 구조가 같습니다. 이 편에서는 마크업을 고치지 않고 아래 구조를 그대로 참고만 합니다.
+
+```html
+<!-- 세 파일 공통 (수정하지 않음) -->
+<header class="site-header">
+  <a class="logo" href="index.html">Zeno Kim</a>
+  <nav class="site-nav">
+    <a href="index.html" aria-current="page">소개</a>
+    <a href="projects.html">프로젝트</a>
+    <a href="contact.html">연락</a>
+  </nav>
+</header>
+```
+
+### 2. css/styles.css에 헤더 레이아웃 규칙 작성하기
+
+08편에서 만든 `.site-nav` 규칙 아래에 `.site-header`와 `.logo` 규칙을 추가합니다.
+
+```css
+/* css/styles.css (일부) */
+.site-header {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  padding: var(--space-4) var(--space-6);
+  height: var(--header-height);
+}
+
+.logo {
+  font-size: var(--text-lg);
+  font-weight: 700;
+  color: var(--color-text);
+  text-decoration: none;
+}
+
+.site-nav {
+  display: flex;
+  align-items: center;
+  gap: var(--space-6);
+  margin-left: auto;
+}
+
+.site-nav a {
+  color: var(--color-text-muted);
+  text-decoration: none;
+}
+
+.site-nav a[aria-current='page'] {
+  color: var(--color-primary);
+  font-weight: 600;
+}
+```
+
+`.site-nav`에는 08편에서 만든 `display: flex`와 `gap`이 이미 있다면 중복으로 적지 않고, 이번 편에서 추가하는 `margin-left: auto` 한 줄만 더합니다.
+
+### 3. 실행
+
+`index.html` 파일을 브라우저로 엽니다(VS Code의 Live Server 확장을 쓰면 저장할 때마다 자동 새로고침됩니다).
+
+```text
+VS Code 좌측 탐색기 → index.html 우클릭 → Open with Live Server
+```
+
+### 4. 확인
+
+- 로고 "Zeno Kim"이 헤더 왼쪽 끝에, 내비게이션 3개 링크가 오른쪽 끝에 붙어 있습니다.
+- 로고와 내비 모두 세로 중앙 정렬되어 높이가 어긋나지 않습니다.
+- 현재 페이지 링크(`aria-current="page"`)만 강조 색으로 표시됩니다. `index.html`에서는 "소개"가, `projects.html`에서는 "프로젝트"가 강조됩니다.
+- 브라우저 창 폭을 아주 좁게 줄여도 요소끼리 겹치지 않고 다음 줄로 넘어갑니다(완전한 모바일 배치는 13편).
+
+</Steps>
+
+## 직접 해보기
+
+1. `.site-nav`의 링크 3개 중 가운데 하나에만 `align-self: flex-end`를 적용해 봅니다. 다른 두 링크와 세로 위치가 어떻게 달라지는지 확인한 뒤 원래대로 되돌립니다.
+2. `margin-left: auto`를 지우고 대신 `.site-header`에 `justify-content: space-between`을 넣어 봅니다. 화면에 보이는 결과가 같은지 비교합니다.
+
+<details>
+<summary>답 보기</summary>
+
+```css
+.site-nav a:nth-child(2) {
+  align-self: flex-end; /* 확인용 임시 실습. 확인 후 제거 */
+}
+```
+
+`justify-content: space-between`으로 바꾸면 아이템이 두 개(로고, 내비)뿐이므로 결과는 `margin-left: auto`와 동일하게 양 끝으로 벌어집니다. 차이는 아이템이 세 개 이상으로 늘어날 때 드러납니다.
+
+</details>
+
+## 자주 하는 실수
+
+| 증상 | 원인 | 고치는 법 |
+|------|------|-----------|
+| 로고와 내비가 세로로 쌓인다 | `.site-header`에 `display: flex`를 빠뜨림 | `.site-header { display: flex; }` 확인 |
+| 로고와 내비 사이가 벌어지지 않는다 | `margin-left: auto`를 헤더가 아니라 다른 요소에 넣음 | `.site-nav`에 직접 적용했는지 확인 |
+| 좁은 화면에서 요소가 겹친다 | `flex-wrap`을 지정하지 않음(기본값 `nowrap`) | `.site-header`에 `flex-wrap: wrap` 추가 |
+| 로고 밑줄이 그대로 보인다 | `<a>` 기본 스타일 미해제 | `.logo`에 `text-decoration: none` 확인 |
+
+## 확인 문제
+
+<Quiz
+  questionNumber={1}
+  question="로고와 내비게이션을 헤더 양 끝으로 벌리기 위해 내비게이션에 준 속성은"
+  options={['flex-wrap: wrap', 'margin-left: auto', 'align-self: stretch', 'gap: var(--space-6)']}
+  correctAnswer={2}
+  explanation="margin-left: auto는 그 아이템 앞의 남는 공간을 전부 차지해 뒤로 밀어냅니다. 로고 다음 아이템인 내비게이션에 적용하면 내비게이션이 오른쪽 끝으로 붙습니다."
+  optionExplanations={['flex-wrap은 줄바꿈 여부를 결정할 뿐 좌우 배치와는 무관합니다.', '정답입니다.', 'align-self는 세로(교차축) 정렬을 담당합니다.', 'gap은 아이템 사이 간격이지 양 끝 정렬과는 다릅니다.']}
+/>
+
+<Quiz
+  questionNumber={2}
+  question="flex-wrap: wrap을 헤더에 지정하지 않으면 좁은 화면에서 생기는 문제는"
+  options={['헤더 배경색이 사라진다', '아이템이 줄어들거나 겹치며 한 줄을 유지하려 한다', '내비게이션 링크가 클릭되지 않는다', 'CSS 전체가 무시된다']}
+  correctAnswer={2}
+  explanation="기본값 nowrap에서는 flex 아이템이 넘쳐도 줄바꿈하지 않고 한 줄 안에서 크기를 줄이거나 겹칩니다. wrap을 지정하면 넘칠 때 다음 줄로 넘어갑니다."
+  optionExplanations={['배경색과 flex-wrap은 무관합니다.', '정답입니다.', '클릭 가능 여부와는 무관합니다.', 'flex-wrap 하나가 없다고 CSS 전체가 무시되지 않습니다.']}
+/>
+
+<Quiz
+  questionNumber={3}
+  question="align-self의 역할로 옳은 것은"
+  options={['flex 컨테이너의 justify-content 값을 덮어쓴다', '특정 flex 아이템 하나의 교차축 정렬을 컨테이너의 align-items 값과 다르게 지정한다', '아이템 사이의 간격을 지정한다', '아이템의 줄바꿈 여부를 지정한다']}
+  correctAnswer={2}
+  explanation="align-self는 컨테이너 전체에 적용되는 align-items 값을 개별 아이템 하나만 예외로 바꿀 때 씁니다."
+  optionExplanations={['justify-content는 컨테이너 속성이며 align-self로 덮어쓸 수 없습니다.', '정답입니다.', '간격은 gap의 역할입니다.', '줄바꿈은 flex-wrap의 역할입니다.']}
+/>
+
+<Quiz
+  questionNumber={4}
+  question="margin-left: auto와 justify-content: space-between이 아이템 두 개일 때 결과가 같은 이유는"
+  options={['두 속성이 문법적으로 동일한 속성이기 때문이다', '아이템이 두 개뿐이면 남는 공간을 처리하는 지점이 하나뿐이라 결과가 같아 보이기 때문이다', 'auto 마진은 항상 space-between으로 자동 변환되기 때문이다', 'space-between은 flex 아이템이 두 개일 때만 작동하기 때문이다']}
+  correctAnswer={2}
+  explanation="아이템이 두 개면 첫 아이템과 둘째 아이템 사이 한 곳에만 남는 공간이 생기므로, 그 한 곳을 auto 마진으로 밀어내든 space-between으로 분배하든 같은 결과가 나옵니다. 아이템이 늘어나면 두 방식의 결과가 달라집니다."
+  optionExplanations={['두 속성은 서로 다른 문법과 동작 방식을 가집니다.', '정답입니다.', '그런 자동 변환은 없습니다.', 'space-between은 아이템 개수와 무관하게 작동합니다.']}
+/>
+
+## 참고 자료
+
+- [MDN — Basic concepts of flexbox](https://developer.mozilla.org/en-US/docs/Web/CSS/Guides/Flexible_box_layout/Basic_concepts)

@@ -1,0 +1,189 @@
+---
+title: '11. 폼 입력 타입과 위젯 채우기'
+description: 'text·email·checkbox·radio 입력 타입과 select·textarea·button으로 연락 폼을 완성한다'
+---
+
+<Callout type="info">
+  **이번 편의 결과물:** `contact.html` 폼의 이름·이메일·문의 유형(select)·메시지(textarea)·제출 버튼이 전부 채워집니다. · **다루는 개념:** `text`/`email`/`checkbox`/`radio` 입력 타입, `select`/`option`, `textarea`, `button`의 `type`
+</Callout>
+
+## 이 편에서 만드는 파일
+
+```text
+web-practice/portfolio/
+└ contact.html   ~ (select의 option, input 속성 보강)
+```
+
+## 개념 정리
+
+`<input>`은 `type` 속성 값에 따라 완전히 다른 입력 위젯이 됩니다. 이 편에서는 이 과목의 범위인 **전통적 타입**만 다룹니다. `date`·`color`·`range` 같은 최신 타입과 `pattern` 검증은 `modern_html` 과목의 몫입니다.
+
+| type | 위젯 | 이 폼에서의 용도 |
+|------|------|-------------------|
+| `text` | 한 줄 자유 텍스트 | 이름 |
+| `email` | 이메일 형식 한 줄 텍스트(브라우저가 `@` 포함 여부를 기본 검증) | 이메일 |
+| `checkbox` | 켜기/끄기 토글, 여러 개 동시 선택 가능 | 개인정보 동의 |
+| `radio` | 여러 개 중 하나만 선택(`name` 값을 같게 묶음) | 이 폼에서는 사용하지 않음 |
+
+`select`·`option`은 여러 선택지 중 하나를 고르는 드롭다운입니다. `option`의 `value`가 실제 제출되는 값이고, 태그 사이 텍스트는 화면에 보이는 문구입니다. 둘이 다를 수 있다는 점이 핵심입니다.
+
+```html
+<select id="inquiry-type" name="inquiryType">
+  <option value="collab">협업 제안</option>
+  <option value="hiring">채용 제안</option>
+  <option value="etc">기타</option>
+</select>
+```
+
+`textarea`는 여러 줄 텍스트 입력입니다. `input type="text"`와 달리 닫는 태그가 있고, 태그 사이의 텍스트가 **초깃값**이 됩니다(`value` 속성이 아닙니다).
+
+`button`의 `type`은 세 가지입니다.
+
+| type | 동작 |
+|------|------|
+| `submit` | 폼 제출(기본값) |
+| `reset` | 모든 필드를 초깃값으로 되돌림 |
+| `button` | 아무 동작도 하지 않음(JavaScript로 직접 동작을 붙일 때 씀) |
+
+`<button>`을 `<form>` 안에 넣으면 `type`을 명시하지 않아도 기본값이 `submit`입니다. 이 때문에 폼 안에 "취소" 버튼을 무심코 `<button>취소</button>`로만 적으면 클릭 시 폼이 제출되어 버립니다. **폼 제출이 목적이 아닌 버튼은 반드시 `type`을 명시**해야 합니다.
+
+**자주 하는 오해:** `checkbox`와 `radio`를 같은 것으로 혼동합니다. `checkbox`는 각 항목이 독립적으로 켜지고 꺼지지만, `radio`는 같은 `name`을 가진 항목들 중 하나만 선택됩니다. 이 폼은 동의 여부 하나만 물으므로 `checkbox`가 맞습니다.
+
+## 실습
+
+<Steps>
+
+### 1. select에 option 채우기
+
+10편에서 비워 둔 `select`에 `copy.md`의 문의 유형 3개를 채웁니다.
+
+```html
+<!-- contact.html (form-field 중 문의 유형) -->
+<div class="form-field">
+  <label for="inquiry-type">문의 유형</label>
+  <select id="inquiry-type" name="inquiryType">
+    <option value="collab">협업 제안</option>
+    <option value="hiring">채용 제안</option>
+    <option value="etc" selected>기타</option>
+  </select>
+</div>
+```
+
+`selected` 속성을 붙인 `option`이 페이지 로드 시 기본 선택 값이 됩니다. 여기서는 "기타"를 기본값으로 둡니다.
+
+### 2. 이름·이메일·메시지 입력에 속성 보강하기
+
+이름과 이메일은 `required`(필수 입력), 메시지는 `minlength`(최소 글자 수)를 추가합니다. `required`·`minlength`는 브라우저가 자동으로 검사하는 **제약 검증**(constraint validation) 속성입니다. 세부 동작과 오류 메시지 커스터마이징은 `modern_html` 과목이 다루므로, 여기서는 속성만 붙이고 동작만 확인합니다.
+
+```html
+<!-- contact.html (form-field 전체) -->
+<div class="form-field">
+  <label for="name">이름</label>
+  <input type="text" id="name" name="name" required />
+</div>
+
+<div class="form-field">
+  <label for="email">이메일</label>
+  <input type="email" id="email" name="email" required />
+  <p class="form-help">답장을 받을 주소를 적어 주세요.</p>
+</div>
+
+<div class="form-field">
+  <label for="message">메시지</label>
+  <textarea id="message" name="message" minlength="10" required></textarea>
+  <p class="form-help">프로젝트 내용이나 일정을 간단히 적어 주세요.</p>
+</div>
+```
+
+### 3. 체크박스와 제출 버튼에 type 명시하기
+
+```html
+<!-- contact.html (동의 및 버튼) -->
+<div class="form-field">
+  <label for="agree">
+    <input type="checkbox" id="agree" name="agree" required />
+    개인정보 수집·이용에 동의합니다
+  </label>
+</div>
+
+<button type="submit">보내기</button>
+```
+
+### 4. 실행
+
+`contact.html`을 저장하고 브라우저에서 새로고침합니다.
+
+### 5. 확인
+
+- 이름 칸을 비운 채 "보내기"를 누르면 브라우저가 자동으로 "이 필드를 작성하세요" 같은 경고를 띄우고 제출을 막습니다.
+- 이메일 칸에 `@`가 없는 문자열을 입력하고 제출을 누르면 형식 오류 경고가 뜹니다.
+- 메시지 칸에 9자 이하를 입력하고 제출하면 "10자 이상 입력하세요" 경고가 뜹니다.
+- 문의 유형 드롭다운을 열면 협업 제안·채용 제안·기타 세 항목이 보이고, 기본값이 "기타"로 선택되어 있습니다.
+- 개인정보 동의 체크박스를 비워 두고 제출하면 경고가 뜨고, 체크하면 통과합니다.
+
+</Steps>
+
+## 직접 해보기
+
+1. 문의 유형에 "기타"를 기본 선택값이 아니라 "협업 제안"이 기본 선택되도록 `selected` 위치를 옮겨 봅니다.
+2. 메시지 `textarea`에 안내 문구를 초깃값으로 넣어 봅니다(예: `"안녕하세요, "`로 시작).
+
+<details>
+<summary>답 보기</summary>
+
+```html
+<select id="inquiry-type" name="inquiryType">
+  <option value="collab" selected>협업 제안</option>
+  <option value="hiring">채용 제안</option>
+  <option value="etc">기타</option>
+</select>
+```
+
+```html
+<textarea id="message" name="message" minlength="10" required>안녕하세요, </textarea>
+```
+
+`textarea`의 초깃값은 여는 태그와 닫는 태그 사이에 직접 적습니다.
+
+</details>
+
+## 자주 하는 실수
+
+| 증상 | 원인 | 고치는 법 |
+|------|------|-----------|
+| 폼 안의 버튼을 누르면 원치 않는데 제출된다 | `<button>`의 기본 `type`이 `submit`임을 몰랐음 | 제출 목적이 아니면 `type="button"`을 명시한다 |
+| `textarea`에 `value="..."`를 씀 | `input`과 헷갈림 | `textarea`는 태그 사이 텍스트가 초깃값이다 |
+| `option`의 표시 문구와 실제 값이 같아야 한다고 생각함 | `value`와 텍스트 콘텐츠 구분 못함 | `value`는 제출용, 텍스트는 화면 표시용으로 서로 다르게 쓸 수 있다 |
+
+## 확인 문제
+
+<Quiz
+  questionNumber={1}
+  question="폼 안의 button 태그에 type을 명시하지 않으면 기본으로 동작하는 것은"
+  options={['reset', 'submit', 'button', '아무 동작도 하지 않는다']}
+  correctAnswer={2}
+  explanation="form 안의 button은 type을 생략하면 기본값이 submit이라 클릭 시 폼이 제출됩니다."
+  optionExplanations={['reset이 기본값이 아닙니다.', '정답입니다.', 'button이 기본값이 아니라 명시해야 하는 값입니다.', '기본 동작이 없다는 설명은 틀렸습니다.']}
+/>
+
+<Quiz
+  questionNumber={2}
+  question="select의 option에서 value와 태그 사이 텍스트의 관계는"
+  options={['항상 같아야 한다', 'value는 제출되는 값, 텍스트는 화면에 보이는 문구로 서로 다를 수 있다', 'value가 없으면 select 자체가 동작하지 않는다', '텍스트만 있으면 value는 무시된다']}
+  correctAnswer={2}
+  explanation="option의 value는 폼 제출 시 서버로 전달되는 실제 값이고, 태그 사이 텍스트는 사용자에게 보이는 화면 문구입니다. 둘은 다르게 설정할 수 있습니다."
+  optionExplanations={['같을 필요는 없습니다.', '정답입니다.', 'value가 없으면 텍스트 콘텐츠가 대신 제출값으로 쓰입니다.', 'value가 있으면 그 값이 우선 제출됩니다.']}
+/>
+
+<Quiz
+  questionNumber={3}
+  question="checkbox와 radio의 차이로 옳은 것은"
+  options={['checkbox는 하나만, radio는 여러 개 선택 가능하다', 'checkbox는 각 항목이 독립적으로 켜지고 꺼지지만 radio는 같은 name을 가진 항목 중 하나만 선택된다', '둘은 완전히 동일하게 동작한다', 'radio만 label과 연결할 수 있다']}
+  correctAnswer={2}
+  explanation="checkbox는 항목마다 독립적으로 켜고 끌 수 있고, radio는 같은 name으로 묶인 그룹에서 하나만 선택되도록 동작합니다."
+  optionExplanations={['설명이 반대로 되어 있습니다.', '정답입니다.', '두 타입의 선택 동작은 명확히 다릅니다.', 'checkbox도 label과 연결할 수 있습니다.']}
+/>
+
+## 참고 자료
+
+- [MDN — Your first form](https://developer.mozilla.org/en-US/docs/Learn_web_development/Extensions/Forms/Your_first_form)

@@ -1,0 +1,260 @@
+---
+title: '10. 상태 끌어올리기와 불변 업데이트'
+description: '책 목록 상태를 App으로 올려 폼·목록·카드가 하나의 배열을 공유하게 만든다'
+---
+
+<Callout type="info">
+  **이번 편의 결과물:** `BookForm`으로 추가한 책이 실제 `BookList`에 나타나고, 삭제·별점 변경·상태 토글도 전역 목록에 반영됩니다. **다루는 개념:** 상태 끌어올리기(lifting state up), 배열 상태의 불변 업데이트, 자식 → 부모 콜백 props
+</Callout>
+
+## 이 편에서 만드는 파일
+
+```
+bookshelf/src/
+├── App.jsx                    ~ books 상태를 소유, 콜백 함수 전달
+└── components/
+    ├── BookForm.jsx           ~ onAddBook prop 호출로 변경
+    ├── BookList.jsx           ~ books, 콜백 props 전달
+    ├── BookCard.jsx           ~ 로컬 상태 제거, props+콜백으로 전환
+    └── StatusBadge.jsx          (07편 상태 유지)
+```
+
+## 개념 정리
+
+08편에서 `BookCard`는 별점과 상태를 **카드 안에서만** 관리했습니다. 09편의 `BookForm`도 입력값을 폼 안에서만 관리했습니다. 서로 다른 컴포넌트가 같은 데이터(책 목록)를 봐야 하는데 각자 따로 상태를 갖고 있으면 데이터가 어긋납니다.
+
+해법은 **상태 끌어올리기**입니다. 여러 컴포넌트가 공유해야 하는 상태를 그 컴포넌트들의 가장 가까운 공통 부모로 옮깁니다. 이 앱에서는 `App`이 `books` 배열 하나를 소유하는 **단일 진실 공급원**(single source of truth)이 됩니다.
+
+| 위치 | 끌어올리기 전 | 끌어올리기 후 |
+|------|----------------|----------------|
+| 책 목록 | `BookList`가 props로 받은 배열을 그대로 렌더링만 함 | `App`이 `useState`로 소유, `BookList`에는 여전히 props로 전달 |
+| 별점·상태 | `BookCard` 내부 `useState` | `App`의 배열 안 항목을 변경, `BookCard`는 props만 받음 |
+| 새 책 추가 | `BookForm` 내부에서 `console.log`만 | `App`의 `onAddBook` 함수를 호출해 배열에 추가 |
+
+자식이 부모의 상태를 바꾸려면 부모가 **함수를 props로 내려주고**, 자식은 그 함수를 이벤트 핸들러에서 호출합니다. 데이터는 위에서 아래로(props), 변경 요청은 아래에서 위로(콜백 함수) 흐릅니다.
+
+배열이나 객체 state는 직접 수정하면 안 됩니다. `books.push(newBook)`처럼 원본을 바꾸면 React가 참조(reference)가 같다고 판단해 리렌더를 건너뛸 수 있습니다. 항상 새 배열/객체를 만들어 `set` 함수에 넘깁니다.
+
+| 하고 싶은 일 | 불변 업데이트 |
+|--------------|----------------|
+| 추가 | `setBooks([...books, newBook])` |
+| 삭제 | `setBooks(books.filter(b => b.id !== id))` |
+| 항목 하나 수정 | `setBooks(books.map(b => b.id === id ? { ...b, rating } : b))` |
+
+## 실습
+
+<Steps>
+
+### 1. 파일 열기
+
+`App.jsx`, `BookForm.jsx`, `BookList.jsx`, `BookCard.jsx`를 순서대로 엽니다.
+
+### 2. 코드 작성
+
+`App.jsx`가 `books` 상태와 세 가지 변경 함수를 소유합니다.
+
+```jsx
+// src/App.jsx
+import { useState } from 'react';
+import BookList from './components/BookList.jsx';
+import BookForm from './components/BookForm.jsx';
+import initialBooks from './data/books.seed.json';
+
+function App() {
+  const [books, setBooks] = useState(initialBooks);
+
+  function handleAddBook(newBook) {
+    setBooks([...books, newBook]);
+  }
+
+  function handleDeleteBook(id) {
+    setBooks(books.filter((book) => book.id !== id));
+  }
+
+  function handleRateBook(id, rating) {
+    setBooks(books.map((book) => (book.id === id ? { ...book, rating } : book)));
+  }
+
+  function handleToggleStatus(id, status) {
+    setBooks(books.map((book) => (book.id === id ? { ...book, status } : book)));
+  }
+
+  return (
+    <div className="app">
+      <h1>bookshelf</h1>
+      <p>총 {books.length}권</p>
+      <BookList
+        books={books}
+        onDelete={handleDeleteBook}
+        onRate={handleRateBook}
+        onToggleStatus={handleToggleStatus}
+      />
+      <BookForm onAddBook={handleAddBook} />
+    </div>
+  );
+}
+
+export default App;
+```
+
+`BookList`는 받은 props를 그대로 각 `BookCard`에 전달합니다.
+
+```jsx
+// src/components/BookList.jsx
+import BookCard from './BookCard.jsx';
+
+function BookList({ books, onDelete, onRate, onToggleStatus }) {
+  if (books.length === 0) {
+    return <p className="empty-state">아직 등록된 책이 없습니다.</p>;
+  }
+
+  return (
+    <ul className="book-list">
+      {books.map((book) => (
+        <li key={book.id}>
+          <BookCard
+            book={book}
+            onDelete={onDelete}
+            onRate={onRate}
+            onToggleStatus={onToggleStatus}
+          />
+        </li>
+      ))}
+    </ul>
+  );
+}
+
+export default BookList;
+```
+
+`BookCard`는 08편의 로컬 `useState`를 지우고, 클릭 시 부모가 내려준 콜백을 호출합니다.
+
+```jsx
+// src/components/BookCard.jsx
+import StatusBadge from './StatusBadge.jsx';
+import StarRating from './StarRating.jsx';
+
+function BookCard({ book, onDelete, onRate, onToggleStatus }) {
+  return (
+    <div className="book-card" style={{ borderTop: `6px solid ${book.coverColor}` }}>
+      <StatusBadge status={book.status} onToggle={(nextStatus) => onToggleStatus(book.id, nextStatus)} />
+      <h2>{book.title}</h2>
+      <p>{book.author}</p>
+      <p className="book-pages">{book.pages}쪽</p>
+      <StarRating rating={book.rating} onChange={(rating) => onRate(book.id, rating)} />
+      <button type="button" onClick={() => onDelete(book.id)}>
+        삭제
+      </button>
+    </div>
+  );
+}
+
+export default BookCard;
+```
+
+`StatusBadge`(07·08편)와 `StarRating`(08편)은 그대로 재사용합니다. 달라진 것은 두 컴포넌트가 값을 스스로 관리하지 않고, 클릭 결과를 `onToggle`·`onChange` 콜백으로 알려주면 `BookCard`가 그 값을 그대로 부모의 `onToggleStatus`·`onRate`에 넘긴다는 점입니다. `BookForm`은 `console.log` 대신 `onAddBook`을 호출합니다. 입력창을 비우는 코드는 그대로 둡니다.
+
+```jsx
+// src/components/BookForm.jsx (handleSubmit만 변경)
+function handleSubmit(e) {
+  e.preventDefault();
+
+  if (title.trim() === '' || author.trim() === '') {
+    return;
+  }
+
+  const newBook = {
+    id: crypto.randomUUID(),
+    title: title.trim(),
+    author: author.trim(),
+    status: 'wish',
+    rating: 0,
+    pages: pages === '' ? 0 : Number(pages),
+    coverColor: COVER_COLORS[Math.floor(Math.random() * COVER_COLORS.length)],
+    startedAt: null,
+    finishedAt: null,
+    memo: memo.trim(),
+  };
+
+  onAddBook(newBook);
+
+  setTitle('');
+  setAuthor('');
+  setPages('');
+  setMemo('');
+}
+```
+
+함수 시그니처도 `onAddBook`을 받도록 바꿉니다: `function BookForm({ onAddBook })`.
+
+### 3. 실행
+
+```
+npm run dev
+```
+
+### 4. 확인
+
+- 폼에 제목·저자를 입력하고 추가하면 목록 맨 아래에 새 카드가 즉시 보입니다.
+- 카드의 삭제 버튼을 누르면 목록에서 사라지고, 상단 "총 N권"이 줄어듭니다.
+- 별을 클릭하면 그 카드의 별점만 바뀌고 다른 카드는 그대로입니다.
+- 상태 배지를 클릭하면 wish → reading → done → wish 순서로 바뀝니다.
+- 책을 모두 삭제하면 "아직 등록된 책이 없습니다." 메시지가 보입니다.
+
+</Steps>
+
+## 직접 해보기
+
+1. `handleDeleteBook`을 `filter` 대신 `splice`로 구현하면 왜 문제가 되는지 콘솔에서 직접 확인해 보세요(리렌더가 안 되거나 엉뚱한 항목이 지워질 수 있습니다).
+2. 별점을 다시 같은 값으로 클릭하면 0점으로 취소되도록 `handleRateBook` 호출부를 수정해 보세요.
+
+<details>
+<summary>풀이 보기</summary>
+
+`splice`는 원본 배열을 제자리에서 바꾸므로 `setBooks`에 넘겨도 참조가 이전과 같을 수 있어 React가 변경을 못 알아챌 수 있습니다. 항상 `filter`처럼 새 배열을 반환하는 방식을 씁니다.
+
+별점 취소는 `BookCard`에서 `StarRating`에 넘기는 `onChange` 콜백을 `(rating) => onRate(book.id, rating === book.rating ? 0 : rating)`로 바꾸면 됩니다.
+
+</details>
+
+## 자주 하는 실수
+
+| 증상 | 원인 | 고치는 법 |
+|------|------|-----------|
+| 추가한 책이 화면에 안 보임 | `BookForm`이 여전히 `console.log`만 호출 | `onAddBook(newBook)`으로 교체했는지 확인 |
+| 별점을 눌러도 다른 카드까지 바뀜 | `map`에서 `id` 비교 없이 전체를 수정 | `book.id === id`일 때만 새 객체를 만들도록 조건 확인 |
+| 삭제 후 엉뚱한 카드가 지워짐 | `key`로 배열 인덱스를 쓰고 있음 | `key`는 반드시 `book.id`처럼 고유하고 안정적인 값을 사용 |
+| state 변경 후 화면이 그대로임 | 배열/객체를 직접 mutate | 스프레드(`...`)나 `filter`/`map`으로 새 배열을 만들어 `set` 함수에 전달 |
+
+## 확인 문제
+
+<Quiz
+  questionNumber={1}
+  question="여러 컴포넌트가 같은 데이터를 공유해야 할 때 React가 권장하는 방식은 무엇인가"
+  options={['각 컴포넌트가 독립적으로 useState를 호출한다', '가장 가까운 공통 부모로 상태를 끌어올린다', 'localStorage로 컴포넌트끼리 직접 통신한다', '전역 변수에 값을 저장한다']}
+  correctAnswer={2}
+  explanation="공통 부모가 상태를 소유하고 props로 내려주면 모든 자식이 같은 값을 보게 되어 단일 진실 공급원이 유지됩니다."
+  optionExplanations={['각자 상태를 가지면 데이터가 어긋납니다', '정답입니다', 'localStorage는 영속성 저장용이지 상태 공유 수단이 아닙니다', '전역 변수는 리렌더를 유발하지 않습니다']}
+/>
+
+<Quiz
+  questionNumber={2}
+  question="배열 state에서 항목 하나를 삭제하는 불변 업데이트 방식으로 올바른 것은 무엇인가"
+  options={['books.splice(index, 1)', 'books.pop()', 'books.filter(book => book.id !== id)를 setBooks에 전달', 'books[index] = null']}
+  correctAnswer={3}
+  explanation="filter는 조건에 맞는 항목만 남긴 새 배열을 반환하므로 원본을 바꾸지 않고 상태를 갱신할 수 있습니다."
+  optionExplanations={['원본 배열을 직접 바꿉니다', '원본 배열을 직접 바꿉니다', '정답입니다', '원본을 직접 수정하며 배열 길이도 그대로라 삭제가 아닙니다']}
+/>
+
+<Quiz
+  questionNumber={3}
+  question="자식 컴포넌트가 부모의 상태를 변경하고 싶을 때 사용하는 방법은 무엇인가"
+  options={['부모의 useState를 직접 import한다', '부모가 props로 내려준 함수를 호출한다', 'window 객체에 값을 저장한다', '자식이 부모의 state 변수를 재선언한다']}
+  correctAnswer={2}
+  explanation="부모가 정의한 상태 변경 함수를 props로 내려주고, 자식은 이벤트 핸들러에서 그 함수를 호출하는 방식으로 변경을 요청합니다."
+  optionExplanations={['useState는 컴포넌트 내부에 갇혀 있어 다른 컴포넌트가 직접 접근할 수 없습니다', '정답입니다', '전역 객체는 리렌더를 유발하지 않습니다', 'state는 선언한 컴포넌트 안에서만 유효합니다']}
+/>
+
+## 참고 자료
+
+- [React 공식 - Sharing State Between Components](https://react.dev/learn/sharing-state-between-components)

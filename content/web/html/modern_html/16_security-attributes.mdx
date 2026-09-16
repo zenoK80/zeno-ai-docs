@@ -1,0 +1,157 @@
+---
+title: '16. 문서에 보안 속성 붙이기'
+description: '외부 링크와 임베드에 rel·crossorigin·referrerpolicy를 붙이고 CSP meta로 인라인 스크립트를 제한한다'
+---
+
+<Callout type="info">
+  **이번 편의 결과물:** 외부로 나가는 링크·임베드에 보안 속성이 붙고, CSP `<meta>`로 인라인 스크립트 실행이 제한된다. · **다루는 개념:** `rel="noopener"`/`noreferrer`, CSP `<meta>` 태그의 한계, `crossorigin`/`referrerpolicy`
+</Callout>
+
+## 이 편에서 만드는 파일
+
+```
+web-practice/portfolio/
+├── index.html          ~ (외부 링크 rel 속성, CSP meta)
+├── projects.html        ~ (외부 링크 rel 속성, CSP meta)
+└── contact.html          ~ (외부 링크 rel 속성, CSP meta)
+```
+
+## 개념 정리
+
+`target="_blank"`로 여는 외부 링크는 새 탭이 `window.opener`를 통해 원래 탭의 `window` 객체에 접근할 수 있다. 악성 페이지라면 이 통로로 원래 탭을 피싱 페이지로 바꿔치기할 수 있다. `rel="noopener"`는 이 접근 통로를 끊는다. `rel="noreferrer"`는 `noopener`의 효과에 더해, 이동한 페이지에 `Referer` 헤더로 원래 페이지 주소를 넘기지 않는다.
+
+| 속성 | 막는 것 |
+|------|---------|
+| `rel="noopener"` | 새 탭이 `window.opener`로 원래 탭을 조작하는 것 |
+| `rel="noreferrer"` | 위 효과 + 이동 대상에게 출처 URL을 넘기는 것 |
+| `crossorigin` | 다른 출처 리소스를 자격 증명 없이(또는 포함해) 요청하도록 지정 |
+| `referrerpolicy` | 요청 시 `Referer` 헤더에 얼마나 많은 정보를 담을지 지정 |
+
+CSP(Content Security Policy, 콘텐츠 보안 정책)는 어떤 출처의 스크립트·스타일·이미지만 실행·로드를 허용할지 정하는 정책이다. `<meta http-equiv="Content-Security-Policy">`로도 걸 수 있지만, HTTP 응답 헤더로 거는 것보다 약하다. `meta` 방식은 `frame-ancestors`, `report-uri` 같은 일부 지시문을 지원하지 않고, 문서가 파싱을 시작한 뒤에야 적용되어 그 이전에 삽입된 인라인 스크립트는 막지 못할 수 있다. 이 과목은 정적 파일만 다루므로 서버 헤더를 설정할 수 없어 `meta` 방식으로 실습하되, 실제 서비스에서는 HTTP 헤더가 우선이라는 점을 명시한다.
+
+## 실습
+
+<Steps>
+
+### 1. 외부 링크에 rel·referrerpolicy 붙이기
+
+```html
+<!-- index.html, contact.html 공통: 푸터 SNS 링크 -->
+<footer class="site-footer">
+  <p>&copy; 2026 Zeno Kim. 이 사이트는 학습용으로 제작되었습니다.</p>
+  <ul>
+    <li>
+      <a href="https://github.com/example" target="_blank" rel="noopener noreferrer">
+        GitHub
+      </a>
+    </li>
+    <li>
+      <a
+        href="https://www.linkedin.com/in/example"
+        target="_blank"
+        rel="noopener noreferrer"
+      >
+        LinkedIn
+      </a>
+    </li>
+    <li>
+      <a href="https://blog.example.com" target="_blank" rel="noopener noreferrer">
+        Blog
+      </a>
+    </li>
+  </ul>
+</footer>
+```
+
+`projects.html`의 각 프로젝트 카드 외부 링크(`https://example.com/...`)도 같은 방식으로 `target="_blank" rel="noopener noreferrer"`를 붙인다.
+
+### 2. CSP meta 태그 추가하기
+
+```html
+<!-- index.html, projects.html, contact.html 공통 head -->
+<meta
+  http-equiv="Content-Security-Policy"
+  content="default-src 'self'; img-src 'self' https:; script-src 'self'; style-src 'self' https://fonts.googleapis.com; font-src https://fonts.gstatic.com"
+/>
+```
+
+`default-src 'self'`는 별도로 지정하지 않은 리소스는 이 문서와 같은 출처만 허용한다는 뜻이다. `script-src 'self'`는 인라인 `<script>` 블록의 실행을 막고, `js/main.js`처럼 파일로 분리된 스크립트만 허용한다. 15편에서 넣은 JSON-LD `script` 태그는 `application/ld+json` 타입이라 스크립트 실행으로 취급되지 않으므로 이 정책에 막히지 않는다.
+
+### 3. 폰트 preconnect에 crossorigin 다시 확인하기
+
+13편에서 넣은 폰트 `preconnect`가 `crossorigin`을 포함하는지 다시 확인한다.
+
+```html
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+```
+
+CSP의 `font-src https://fonts.gstatic.com`과 이 `crossorigin` 속성이 함께 있어야 폰트가 정책에 막히지 않고 로드된다.
+
+### 4. 실행
+
+```text
+npx serve web-practice/portfolio
+```
+
+### 5. 확인
+
+- 개발자 도구 콘솔에서 CSP 위반 메시지(`Refused to execute inline script...`)가 없다. 만약 뜬다면 인라인 `<script>` 블록이 남아 있다는 뜻이므로 파일로 옮긴다.
+- 외부 링크를 새 탭으로 열고 콘솔에서 `window.opener`를 확인하면 `null`이다.
+- Network 탭에서 폰트 요청이 정상적으로 200 상태로 완료된다(CSP 오류로 막히면 상태가 차단됨으로 표시된다).
+
+</Steps>
+
+## 직접 해보기
+
+1. CSP의 `script-src 'self'`를 잠깐 지우고, `index.html`에 `<script>alert(1)</script>` 인라인 스크립트를 넣어 콘솔 경고 유무를 비교해 본다. 확인 후 반드시 정책을 되돌리고 스크립트를 지운다.
+2. `rel="noopener"`만 쓰고 `noreferrer`는 빼 본 뒤, Network 탭에서 이동 대상 요청의 `Referer` 헤더에 원래 페이지 주소가 담기는지 확인한다.
+
+<details>
+<summary>답 확인</summary>
+
+1. CSP가 `script-src 'self'`로 걸려 있으면 인라인 스크립트는 콘솔에 `Refused to execute inline script` 오류를 남기고 실행되지 않는다. 정책을 지우면 같은 코드가 그대로 실행돼 경고창이 뜬다. 이 차이가 CSP가 인라인 스크립트 삽입 공격을 막는 방식이다.
+2. `noopener`만 쓰면 `window.opener` 접근은 막히지만 `Referer` 헤더에는 여전히 원래 페이지 주소가 담겨 이동한다. 출처 정보까지 감추려면 `noreferrer`를 함께 써야 한다.
+
+</details>
+
+## 자주 하는 실수
+
+| 증상 | 원인 | 고치는 법 |
+|------|------|-----------|
+| 새 탭에서 원래 탭이 이상한 페이지로 바뀐다 | `target="_blank"`에 `rel="noopener"`를 빠뜨렸다 | 외부로 여는 링크에는 항상 `rel="noopener noreferrer"`를 붙인다 |
+| 폰트가 로드되지 않는다 | CSP의 `font-src`에 폰트 도메인을 추가하지 않았다 | 실제 쓰는 외부 도메인을 CSP 지시문에 명시한다 |
+| CSP meta를 걸었는데 별 효과가 없다고 생각한다 | `meta` 방식의 한계(일부 지시문 미지원, 파싱 이전 삽입 스크립트는 막지 못함)를 모르고 HTTP 헤더와 동일하다고 오해했다 | 실제 서비스에서는 서버 HTTP 헤더로 CSP를 걸어야 한다는 점을 문서에 명시한다 |
+| 이미지가 CSP에 막힌다 | `img-src`에 허용 출처를 안 넣었다 | 실제 쓰는 이미지 출처를 `img-src`에 추가한다 |
+
+## 확인 문제
+
+<Quiz
+  questionNumber={1}
+  question="target=_blank로 여는 외부 링크에 rel=noopener를 붙이는 이유는?"
+  options={['페이지 로딩 속도를 높이기 위해서', '새 탭이 window.opener로 원래 탭을 조작하지 못하게 막기 위해서', '링크 텍스트에 밑줄을 없애기 위해서', '검색 엔진 색인에서 제외되도록 하기 위해서']}
+  correctAnswer={2}
+  explanation="target=_blank로 열린 새 탭은 window.opener를 통해 원래 탭을 조작할 수 있는 통로를 가진다. rel=noopener는 이 통로 자체를 끊어 악성 페이지가 원래 탭을 바꿔치기하는 것을 막는다."
+  optionExplanations={['noopener는 성능이 아니라 보안 목적의 속성이다.', '정답이다. window.opener 접근을 막는 것이 목적이다.', '밑줄은 CSS로 제어하며 rel 속성과 관련이 없다.', '검색 엔진 색인 제외는 rel=nofollow의 역할이며 noopener와는 다르다.']}
+/>
+
+<Quiz
+  questionNumber={2}
+  question="HTTP 헤더 방식과 비교했을 때 CSP meta 태그의 한계로 옳은 것은?"
+  options={['meta 방식은 script-src 지시문 자체를 지원하지 않는다', 'meta 방식은 frame-ancestors 같은 일부 지시문을 지원하지 않는다', 'meta 방식은 CSS 로딩을 완전히 차단한다', 'meta 방식은 HTTPS 사이트에서만 동작한다']}
+  correctAnswer={2}
+  explanation="CSP를 meta 태그로 걸면 frame-ancestors, report-uri처럼 문서 자체보다 상위 계층을 다루는 일부 지시문을 지원하지 않는다. 또한 문서 파싱이 시작된 뒤 적용되어 그 이전 인라인 스크립트는 막지 못할 수 있다."
+  optionExplanations={['script-src는 meta 방식에서도 지원되는 지시문이다.', '정답이다. frame-ancestors 등 일부 지시문은 meta 방식에서 지원되지 않는다.', 'CSS 로딩 차단 여부는 style-src 설정에 달려 있으며 방식 자체의 한계가 아니다.', 'HTTPS 여부와 meta 태그 지원은 직접적인 관련이 없다.']}
+/>
+
+<Quiz
+  questionNumber={3}
+  question="rel=noreferrer가 noopener와 비교해 추가로 하는 일은?"
+  options={['새 탭의 로딩 속도를 높인다', '이동 대상에게 Referer 헤더로 출처 URL을 넘기지 않는다', '링크를 새 탭이 아닌 같은 탭에서 열리게 강제한다', '외부 링크의 색상을 자동으로 바꾼다']}
+  correctAnswer={2}
+  explanation="noreferrer는 noopener의 window.opener 차단 효과에 더해, 이동한 페이지로 넘어가는 Referer 헤더에서 원래 페이지의 출처 정보를 제거한다."
+  optionExplanations={['로딩 속도와는 관련이 없다.', '정답이다. Referer 헤더의 출처 정보를 제거하는 것이 추가 효과다.', 'target 속성과는 별개이며 새 탭 여부를 바꾸지 않는다.', '색상은 CSS가 담당하며 rel 속성과 관련이 없다.']}
+/>
+
+## 참고 자료
+
+- [MDN — Referrer-Policy 헤더](https://developer.mozilla.org/en-US/docs/Web/HTTP/Headers/Referrer-Policy)

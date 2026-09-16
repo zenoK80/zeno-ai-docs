@@ -1,0 +1,751 @@
+---
+title: '19. 종합 점검: 완성된 포트폴리오 리뷰'
+description: '01편 완료 기준 5가지를 점검하고, modern_html이 끝난 시점의 포트폴리오 정본 코드 전체를 확인한다'
+---
+
+<Callout type="info">
+  **이번 편의 결과물:** 완성된 포트폴리오가 `01_학습방향.md`의 완료 기준 5가지를 모두 통과한다 · **다루는 개념:** 전체 기능 자가 점검, `template`/`slot`/Declarative Shadow DOM은 `javascript/web_component`가 이어받는다는 안내, 다음 과목(`css/css_fundamentals`) 안내
+</Callout>
+
+## 이 편에서 만드는 파일
+
+새 파일은 없다. `index.html`·`projects.html`·`contact.html`·`js/main.js` 네 파일이 03~18편의 모든 기능을 담은 최종 상태인지 아래 정본 코드와 비교해 확인한다.
+
+## 완료 기준 자가 점검
+
+`01_학습방향.md`가 정한 다섯 가지 기준을 하나씩 점검한다.
+
+| # | 확인할 것 | 어느 편에서 만들었나 |
+|---|-----------|----------------------|
+| 1 | 프로젝트 카드를 클릭하면 `dialog` 상세 모달이 포커스 트랩과 함께 열리고, 내비게이션 popover 드롭다운/툴팁이 라이트 디스미스로 동작한다 | 03, 04, 05, 06 |
+| 2 | FAQ가 `details name`으로 하나만 열리는 아코디언으로 동작하고, `search`+`hidden="until-found"`로 프로젝트 목록을 걸러낸다 | 07, 08 |
+| 3 | 프로젝트 썸네일이 최적화되어 로드되고, 자막이 붙은 소개 영상이 재생된다 | 09, 10 |
+| 4 | 문의 폼이 새 입력 타입과 Constraint Validation API로 오류 메시지를 보여주고, `inputmode`/`autocomplete`로 모바일 입력이 편해진다 | 11, 12 |
+| 5 | 문서에 Open Graph·manifest·JSON-LD·보안 속성·국제화 속성이 근거를 갖고 붙어 있고, 어떤 기능을 프로덕션에 써도 되는지 스스로 판단할 수 있다 | 13, 14, 15, 16, 17, 18, 02 |
+
+각 항목을 확인하는 방법은 해당 편의 "확인" 단계와 같다. 다섯 개 모두 통과하면 이 과목을 마친 것이다.
+
+## 정본 코드 — modern_html 완료 시점
+
+아래 네 파일은 03편부터 18편까지 쌓인 모든 기능을 담은 최종 상태다. `js/utils.js`는 13편에서 만든 `qs`/`qsa`/`announce` 그대로다. 지금까지 만든 파일과 다른 부분이 있다면 이 코드를 기준으로 맞춘다.
+
+```html
+<!-- index.html -->
+<!doctype html>
+<html lang="ko">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>소개 · Zeno Kim</title>
+  <link rel="icon" href="favicon.svg" type="image/svg+xml" />
+
+  <!-- 16편: 인라인 스크립트를 막고 출처를 좁히는 CSP -->
+  <meta http-equiv="Content-Security-Policy" content="default-src 'self'; img-src 'self' https:; script-src 'self'; style-src 'self' https://fonts.googleapis.com; font-src https://fonts.gstatic.com" />
+
+  <!-- 14편: Open Graph와 설치 메타데이터 -->
+  <meta name="theme-color" content="#0969da" />
+  <link rel="manifest" href="manifest.webmanifest" />
+  <meta property="og:type" content="profile" />
+  <meta property="og:title" content="Zeno Kim — 웹을 만드는 개발자" />
+  <meta property="og:description" content="HTML·CSS·JavaScript로 누구나 쓸 수 있는 화면을 만드는 개발자 Zeno Kim의 포트폴리오입니다." />
+  <meta property="og:image" content="https://zenokim.example/images/og-image.svg" />
+  <meta property="og:url" content="https://zenokim.example/index.html" />
+
+  <!-- 13편: 리소스 힌트와 importmap -->
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link rel="dns-prefetch" href="https://fonts.googleapis.com" />
+  <link rel="preload" href="videos/intro.mp4" as="video" type="video/mp4" />
+  <link rel="prefetch" href="projects.html" />
+  <script type="importmap">
+    {
+      "imports": {
+        "utils": "./js/utils.js"
+      }
+    }
+  </script>
+
+  <link rel="stylesheet" href="css/tokens.css" />
+  <link rel="stylesheet" href="css/styles.css" />
+
+  <!-- 15편: 구조화 데이터 -->
+  <script type="application/ld+json">
+  {
+    "@context": "https://schema.org",
+    "@type": "Person",
+    "name": "Zeno Kim",
+    "jobTitle": "프론트엔드 개발자",
+    "description": "HTML·CSS·JavaScript로 누구나 쓸 수 있는 화면을 만드는 개발자입니다.",
+    "url": "https://zenokim.example/index.html",
+    "sameAs": ["https://github.com/example", "https://www.linkedin.com/in/example", "https://blog.example.com"]
+  }
+  </script>
+</head>
+<body>
+  <header class="site-header">
+    <a class="logo" href="index.html">Zeno Kim</a>
+    <button type="button" class="menu-toggle" popovertarget="mobile-menu" popovertargetaction="toggle" aria-label="메뉴 열기">
+      메뉴
+    </button>
+    <nav id="mobile-menu" class="site-nav" popover aria-label="주요 메뉴">
+      <ul>
+        <li><a href="index.html" aria-current="page">소개</a></li>
+        <li><a href="projects.html">프로젝트</a></li>
+        <li><a href="contact.html">연락</a></li>
+      </ul>
+    </nav>
+  </header>
+
+  <main>
+    <section class="hero">
+      <h1>웹을 만드는 개발자, Zeno Kim입니다.</h1>
+      <p>HTML·CSS·JavaScript로 누구나 쓸 수 있는 화면을 만듭니다.</p>
+      <a href="projects.html" class="button-primary">프로젝트 보기</a>
+      <a href="contact.html" class="button-secondary">연락하기</a>
+    </section>
+
+    <section class="about">
+      <h2>소개</h2>
+      <img src="images/profile.svg" width="400" height="400" fetchpriority="high" alt="Zeno Kim 프로필 이미지" />
+      <p>저는 3년째 프론트엔드를 공부하고 만들고 있습니다. 화면이 예뻐 보이는 것보다 <strong>누가 봐도 쓸 수 있는가</strong>를 먼저 생각합니다.</p>
+      <!-- 17편: 문장 안 영단어 lang 지정 -->
+      <p>처음에는 디자인 툴로 화면을 그리다가, 직접 만들어 보고 싶어서 HTML과 CSS를 배웠습니다. 지금은 <span lang="en">React</span>로 서비스 화면을 만들고 있습니다.</p>
+      <p>접근성과 웹 표준을 좋아합니다. 스크린 리더로 제 사이트를 읽어 보는 일이 습관이 됐습니다.</p>
+
+      <!-- 10편: 자막 있는 소개 영상 -->
+      <video controls width="640" height="360" poster="images/og-image.svg" preload="metadata">
+        <source src="videos/intro.mp4" type="video/mp4" />
+        <track kind="subtitles" src="captions/intro-ko.vtt" srclang="ko" label="한국어" default />
+        영상을 재생할 수 없습니다. 브라우저가 video 태그를 지원하지 않습니다.
+      </video>
+    </section>
+
+    <section class="skills">
+      <h2>기술 스택</h2>
+      <ul>
+        <li>마크업·스타일: HTML, CSS, Sass</li>
+        <li>언어: <span lang="en">JavaScript</span>, <span lang="en">TypeScript</span></li>
+        <li>프레임워크: <span lang="en">React</span>, <span lang="en">Next.js</span></li>
+        <li>도구: Git, <ruby>Vite<rp>(</rp><rt>비트</rt><rp>)</rp></ruby>, Figma</li>
+      </ul>
+    </section>
+
+    <section class="career">
+      <h2>경력</h2>
+      <table>
+        <thead>
+          <tr><th>기간</th><th>회사</th><th>역할</th><th>주요 업무</th></tr>
+        </thead>
+        <tbody>
+          <tr><td>2024.03 – 현재</td><td>스튜디오 파도</td><td>프론트엔드 개발자</td><td>디자인 시스템 컴포넌트 구현, 접근성 개선</td></tr>
+          <tr><td>2023.01 – 2024.02</td><td>오늘의 기록</td><td>주니어 개발자</td><td>기록 서비스 웹 화면 개발, 반응형 전환</td></tr>
+          <tr><td>2022.06 – 2022.12</td><td>코드포올 부트캠프</td><td>수료생</td><td>팀 프로젝트 3건, 발표 우수상</td></tr>
+        </tbody>
+      </table>
+    </section>
+  </main>
+
+  <footer class="site-footer">
+    <p>© 2026 Zeno Kim. 이 사이트는 학습용으로 제작되었습니다.</p>
+    <!-- 16편: 외부 링크 보안 속성 -->
+    <ul>
+      <li><a href="https://github.com/example" target="_blank" rel="noopener noreferrer">GitHub</a></li>
+      <li><a href="https://www.linkedin.com/in/example" target="_blank" rel="noopener noreferrer">LinkedIn</a></li>
+      <li><a href="https://blog.example.com" target="_blank" rel="noopener noreferrer">Blog</a></li>
+    </ul>
+  </footer>
+
+  <script type="module" src="js/main.js"></script>
+</body>
+</html>
+```
+
+```html
+<!-- projects.html -->
+<!doctype html>
+<html lang="ko">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>프로젝트 · Zeno Kim</title>
+  <link rel="icon" href="favicon.svg" type="image/svg+xml" />
+  <meta http-equiv="Content-Security-Policy" content="default-src 'self'; img-src 'self' https:; script-src 'self'; style-src 'self' https://fonts.googleapis.com; font-src https://fonts.gstatic.com" />
+
+  <!-- 14편: 설치·공유 메타데이터 -->
+  <meta name="theme-color" content="#0969da" />
+  <link rel="manifest" href="manifest.webmanifest" />
+  <meta property="og:type" content="website" />
+  <meta property="og:title" content="Zeno Kim — 프로젝트" />
+  <meta property="og:description" content="Zeno Kim이 직접 만들고 배운 프로젝트 6개를 모았습니다." />
+  <meta property="og:image" content="https://zenokim.example/images/og-image.svg" />
+  <meta property="og:url" content="https://zenokim.example/projects.html" />
+
+  <!-- 13편: 리소스 힌트와 importmap -->
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link rel="dns-prefetch" href="https://fonts.googleapis.com" />
+  <link rel="prefetch" href="contact.html" />
+  <script type="importmap">
+    {
+      "imports": {
+        "utils": "./js/utils.js"
+      }
+    }
+  </script>
+
+  <link rel="stylesheet" href="css/tokens.css" />
+  <link rel="stylesheet" href="css/styles.css" />
+
+  <!-- 15편: 프로젝트 목록 구조화 데이터 -->
+  <script type="application/ld+json">
+  {
+    "@context": "https://schema.org",
+    "@type": "ItemList",
+    "itemListElement": [
+      { "@type": "CreativeWork", "position": 1, "name": "오늘의 날씨", "description": "위치 기반 날씨를 카드로 보여주는 웹앱입니다.", "keywords": "JavaScript, PWA", "url": "https://example.com/weather" },
+      { "@type": "CreativeWork", "position": 2, "name": "독서 기록 bookshelf", "description": "읽은 책과 별점을 기록하고 통계를 보는 React 앱입니다.", "keywords": "React, Vite", "url": "https://example.com/bookshelf" },
+      { "@type": "CreativeWork", "position": 3, "name": "메모 앱 notes", "description": "브라우저 저장소만으로 동작하는 메모 앱입니다.", "keywords": "Web APIs, IndexedDB", "url": "https://example.com/notes" },
+      { "@type": "CreativeWork", "position": 4, "name": "접근성 체크리스트", "description": "WCAG 항목을 하나씩 점검하는 정적 사이트입니다.", "keywords": "HTML, 접근성", "url": "https://example.com/a11y" },
+      { "@type": "CreativeWork", "position": 5, "name": "디자인 토큰 미리보기", "description": "CSS 변수로 만든 색·간격 토큰을 한 화면에서 비교합니다.", "keywords": "CSS, 디자인 시스템", "url": "https://example.com/tokens" },
+      { "@type": "CreativeWork", "position": 6, "name": "todo-cli", "description": "터미널에서 쓰는 할 일 관리 도구입니다.", "keywords": "Node.js", "url": "https://example.com/todo-cli" }
+    ]
+  }
+  </script>
+</head>
+<body>
+  <header class="site-header">
+    <a class="logo" href="index.html">Zeno Kim</a>
+    <button type="button" class="menu-toggle" popovertarget="mobile-menu" popovertargetaction="toggle" aria-label="메뉴 열기">
+      메뉴
+    </button>
+    <nav id="mobile-menu" class="site-nav" popover aria-label="주요 메뉴">
+      <ul>
+        <li><a href="index.html">소개</a></li>
+        <li><a href="projects.html" aria-current="page">프로젝트</a></li>
+        <li><a href="contact.html">연락</a></li>
+      </ul>
+    </nav>
+  </header>
+
+  <main>
+    <h1>프로젝트</h1>
+    <p>직접 만들고 배운 것들을 모았습니다.</p>
+
+    <!-- 08편: 검색 랜드마크 -->
+    <search>
+      <label for="project-search">프로젝트 이름으로 찾기</label>
+      <input type="search" id="project-search" placeholder="예: bookshelf" />
+    </search>
+
+    <!-- 18편: Customizable select(폴백 포함) -->
+    <label for="tag-filter">태그로 거르기</label>
+    <select id="tag-filter">
+      <button type="button">
+        <selectedcontent></selectedcontent>
+      </button>
+      <option value="all">전체</option>
+      <option value="JavaScript">JavaScript</option>
+      <option value="React">React</option>
+      <option value="Web APIs">Web APIs</option>
+      <option value="HTML">HTML</option>
+      <option value="CSS">CSS</option>
+      <option value="Node.js">Node.js</option>
+    </select>
+
+    <div class="project-grid">
+      <article class="project-card" data-tags="JavaScript,PWA">
+        <img
+          srcset="images/project-01.svg?w=480 480w, images/project-01.svg?w=960 960w, images/project-01.svg?w=1200 1200w"
+          sizes="(min-width: 1024px) 33vw, (min-width: 768px) 50vw, 100vw"
+          src="images/project-01.svg" width="1200" height="800" loading="lazy" decoding="async"
+          alt="오늘의 날씨 프로젝트 화면" />
+        <h3>오늘의 날씨</h3>
+        <p>위치 기반 날씨를 카드로 보여주는 웹앱입니다. 오프라인에서도 마지막 데이터를 보여줍니다.</p>
+        <ul class="tags">
+          <li>
+            <button type="button" class="tag" popovertarget="tip-weather-js">JavaScript</button>
+            <div id="tip-weather-js" class="tooltip" popover role="tooltip">순수 자바스크립트로 위치 조회와 화면 갱신을 구현했습니다.</div>
+          </li>
+          <li>
+            <button type="button" class="tag" popovertarget="tip-weather-pwa">PWA</button>
+            <div id="tip-weather-pwa" class="tooltip" popover role="tooltip">Service Worker로 오프라인에서도 마지막 데이터를 보여줍니다.</div>
+          </li>
+        </ul>
+        <button type="button" class="btn-detail" data-project-id="weather">자세히</button>
+      </article>
+
+      <article class="project-card" data-tags="React,Vite">
+        <img
+          srcset="images/project-02.svg?w=480 480w, images/project-02.svg?w=960 960w, images/project-02.svg?w=1200 1200w"
+          sizes="(min-width: 1024px) 33vw, (min-width: 768px) 50vw, 100vw"
+          src="images/project-02.svg" width="1200" height="800" loading="lazy" decoding="async"
+          alt="독서 기록 bookshelf 프로젝트 화면" />
+        <h3>독서 기록 <ruby>bookshelf<rp>(</rp><rt>북셸프</rt><rp>)</rp></ruby></h3>
+        <p>읽은 책과 별점을 기록하고 통계를 보는 React 앱입니다.</p>
+        <ul class="tags">
+          <li>
+            <button type="button" class="tag" popovertarget="tip-bookshelf-react">React</button>
+            <div id="tip-bookshelf-react" class="tooltip" popover role="tooltip">컴포넌트 단위로 책 목록과 상세 화면을 구성했습니다.</div>
+          </li>
+          <li>
+            <button type="button" class="tag" popovertarget="tip-bookshelf-vite">Vite</button>
+            <div id="tip-bookshelf-vite" class="tooltip" popover role="tooltip">개발 서버와 번들링에 Vite를 사용했습니다.</div>
+          </li>
+        </ul>
+        <button type="button" class="btn-detail" data-project-id="bookshelf">자세히</button>
+      </article>
+
+      <article class="project-card" data-tags="Web APIs,IndexedDB">
+        <img
+          srcset="images/project-03.svg?w=480 480w, images/project-03.svg?w=960 960w, images/project-03.svg?w=1200 1200w"
+          sizes="(min-width: 1024px) 33vw, (min-width: 768px) 50vw, 100vw"
+          src="images/project-03.svg" width="1200" height="800" loading="lazy" decoding="async"
+          alt="메모 앱 notes 프로젝트 화면" />
+        <h3>메모 앱 <ruby>notes<rp>(</rp><rt>노츠</rt><rp>)</rp></ruby></h3>
+        <p>브라우저 저장소만으로 동작하는 메모 앱입니다. 검색은 Worker가 담당합니다.</p>
+        <ul class="tags">
+          <li>
+            <button type="button" class="tag" popovertarget="tip-notes-webapis">Web APIs</button>
+            <div id="tip-notes-webapis" class="tooltip" popover role="tooltip">IndexedDB와 Worker로 동작합니다.</div>
+          </li>
+          <li>
+            <button type="button" class="tag" popovertarget="tip-notes-idb">IndexedDB</button>
+            <div id="tip-notes-idb" class="tooltip" popover role="tooltip">메모를 브라우저 안에 영구 저장합니다.</div>
+          </li>
+        </ul>
+        <button type="button" class="btn-detail" data-project-id="notes">자세히</button>
+      </article>
+
+      <article class="project-card" data-tags="HTML,접근성">
+        <img
+          srcset="images/project-04.svg?w=480 480w, images/project-04.svg?w=960 960w, images/project-04.svg?w=1200 1200w"
+          sizes="(min-width: 1024px) 33vw, (min-width: 768px) 50vw, 100vw"
+          src="images/project-04.svg" width="1200" height="800" loading="lazy" decoding="async"
+          alt="접근성 체크리스트 프로젝트 화면" />
+        <h3>접근성 체크리스트</h3>
+        <p>WCAG 항목을 하나씩 점검하는 정적 사이트입니다.</p>
+        <ul class="tags">
+          <li>
+            <button type="button" class="tag" popovertarget="tip-a11y-html">HTML</button>
+            <div id="tip-a11y-html" class="tooltip" popover role="tooltip">시맨틱 마크업만으로 만들었습니다.</div>
+          </li>
+          <li>
+            <button type="button" class="tag" popovertarget="tip-a11y-a11y">접근성</button>
+            <div id="tip-a11y-a11y" class="tooltip" popover role="tooltip">항목마다 스크린 리더 확인 방법을 함께 적었습니다.</div>
+          </li>
+        </ul>
+        <button type="button" class="btn-detail" data-project-id="a11y">자세히</button>
+      </article>
+
+      <article class="project-card" data-tags="CSS,디자인 시스템">
+        <img
+          srcset="images/project-05.svg?w=480 480w, images/project-05.svg?w=960 960w, images/project-05.svg?w=1200 1200w"
+          sizes="(min-width: 1024px) 33vw, (min-width: 768px) 50vw, 100vw"
+          src="images/project-05.svg" width="1200" height="800" loading="lazy" decoding="async"
+          alt="디자인 토큰 미리보기 프로젝트 화면" />
+        <h3>디자인 토큰 미리보기</h3>
+        <p>CSS 변수로 만든 색·간격 토큰을 한 화면에서 비교합니다.</p>
+        <ul class="tags">
+          <li>
+            <button type="button" class="tag" popovertarget="tip-tokens-css">CSS</button>
+            <div id="tip-tokens-css" class="tooltip" popover role="tooltip">CSS 커스텀 속성만으로 구현했습니다.</div>
+          </li>
+          <li>
+            <button type="button" class="tag" popovertarget="tip-tokens-design">디자인 시스템</button>
+            <div id="tip-tokens-design" class="tooltip" popover role="tooltip">CSS 변수를 읽어 표로 렌더링합니다.</div>
+          </li>
+        </ul>
+        <button type="button" class="btn-detail" data-project-id="tokens">자세히</button>
+      </article>
+
+      <article class="project-card" data-tags="Node.js">
+        <img
+          srcset="images/project-06.svg?w=480 480w, images/project-06.svg?w=960 960w, images/project-06.svg?w=1200 1200w"
+          sizes="(min-width: 1024px) 33vw, (min-width: 768px) 50vw, 100vw"
+          src="images/project-06.svg" width="1200" height="800" loading="lazy" decoding="async"
+          alt="todo-cli 프로젝트 화면" />
+        <h3><ruby>todo-cli<rp>(</rp><rt>투두 씨엘아이</rt><rp>)</rp></ruby></h3>
+        <p>터미널에서 쓰는 할 일 관리 도구입니다. 파일에 저장하고 통계를 냅니다.</p>
+        <ul class="tags">
+          <li>
+            <button type="button" class="tag" popovertarget="tip-todo-node">Node.js</button>
+            <div id="tip-todo-node" class="tooltip" popover role="tooltip">Node.js 파일 시스템 API로 저장합니다.</div>
+          </li>
+        </ul>
+        <button type="button" class="btn-detail" data-project-id="todo-cli">자세히</button>
+      </article>
+    </div>
+
+    <!-- 03, 04편: 공유 프로젝트 상세 모달 -->
+    <dialog id="project-dialog" class="project-dialog">
+      <form method="dialog">
+        <button type="submit" value="closed" class="dialog-close" aria-label="닫기">×</button>
+      </form>
+      <h2 class="dialog-title"></h2>
+      <p class="dialog-background"></p>
+      <p class="dialog-role"></p>
+      <p class="dialog-learned"></p>
+    </dialog>
+  </main>
+
+  <footer class="site-footer">
+    <p>© 2026 Zeno Kim. 이 사이트는 학습용으로 제작되었습니다.</p>
+    <ul>
+      <li><a href="https://github.com/example" target="_blank" rel="noopener noreferrer">GitHub</a></li>
+      <li><a href="https://www.linkedin.com/in/example" target="_blank" rel="noopener noreferrer">LinkedIn</a></li>
+      <li><a href="https://blog.example.com" target="_blank" rel="noopener noreferrer">Blog</a></li>
+    </ul>
+  </footer>
+
+  <script type="module" src="js/main.js"></script>
+</body>
+</html>
+```
+
+```html
+<!-- contact.html -->
+<!doctype html>
+<html lang="ko">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>연락 · Zeno Kim</title>
+  <link rel="icon" href="favicon.svg" type="image/svg+xml" />
+  <meta http-equiv="Content-Security-Policy" content="default-src 'self'; img-src 'self' https:; script-src 'self'; style-src 'self' https://fonts.googleapis.com; font-src https://fonts.gstatic.com" />
+
+  <meta name="theme-color" content="#0969da" />
+  <link rel="manifest" href="manifest.webmanifest" />
+  <meta property="og:type" content="website" />
+  <meta property="og:title" content="Zeno Kim — 연락" />
+  <meta property="og:description" content="협업·채용 제안은 문의 폼으로 보내 주세요." />
+  <meta property="og:image" content="https://zenokim.example/images/og-image.svg" />
+  <meta property="og:url" content="https://zenokim.example/contact.html" />
+
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link rel="dns-prefetch" href="https://fonts.googleapis.com" />
+  <script type="importmap">
+    {
+      "imports": {
+        "utils": "./js/utils.js"
+      }
+    }
+  </script>
+
+  <link rel="stylesheet" href="css/tokens.css" />
+  <link rel="stylesheet" href="css/styles.css" />
+</head>
+<body>
+  <header class="site-header">
+    <a class="logo" href="index.html">Zeno Kim</a>
+    <button type="button" class="menu-toggle" popovertarget="mobile-menu" popovertargetaction="toggle" aria-label="메뉴 열기">
+      메뉴
+    </button>
+    <nav id="mobile-menu" class="site-nav" popover aria-label="주요 메뉴">
+      <ul>
+        <li><a href="index.html">소개</a></li>
+        <li><a href="projects.html">프로젝트</a></li>
+        <li><a href="contact.html" aria-current="page">연락</a></li>
+      </ul>
+    </nav>
+  </header>
+
+  <main>
+    <h1>연락</h1>
+    <p>협업·채용 제안은 아래 폼으로 보내 주세요. 보통 2일 안에 답합니다.</p>
+
+    <!-- 11, 12편: 현대적 입력 타입 + Constraint Validation -->
+    <form class="contact-form" novalidate>
+      <div class="field">
+        <label for="name">이름</label>
+        <input type="text" id="name" name="name" autocomplete="name" required aria-describedby="name-error" />
+        <p class="error" id="name-error" aria-live="polite"></p>
+      </div>
+      <div class="field">
+        <label for="email">이메일</label>
+        <input type="email" id="email" name="email" inputmode="email" autocomplete="email" required aria-describedby="email-help email-error" />
+        <p class="help" id="email-help">답장을 받을 주소를 적어 주세요.</p>
+        <p class="error" id="email-error" aria-live="polite"></p>
+      </div>
+      <div class="field">
+        <label for="phone">전화번호(선택)</label>
+        <input type="tel" id="phone" name="phone" inputmode="tel" autocomplete="tel" pattern="[0-9\-]{9,13}" placeholder="010-1234-5678" />
+      </div>
+      <div class="field">
+        <label for="portfolio-url">참고 링크(선택)</label>
+        <input type="url" id="portfolio-url" name="portfolioUrl" inputmode="url" autocomplete="url" placeholder="https://example.com" />
+      </div>
+      <div class="field">
+        <label for="topic">문의 유형</label>
+        <select id="topic" name="topic" autocomplete="off">
+          <option value="collab">협업 제안</option>
+          <option value="hire">채용 제안</option>
+          <option value="etc">기타</option>
+        </select>
+      </div>
+      <div class="field">
+        <label for="message">메시지</label>
+        <textarea id="message" name="message" minlength="10" enterkeyhint="send" required aria-describedby="message-help message-error"></textarea>
+        <p class="help" id="message-help">프로젝트 내용이나 일정을 간단히 적어 주세요.</p>
+        <p class="error" id="message-error" aria-live="polite"></p>
+      </div>
+      <div class="field field-checkbox">
+        <input type="checkbox" id="agree" name="agree" required aria-describedby="agree-error" />
+        <label for="agree">개인정보 수집·이용에 동의합니다</label>
+        <p class="error" id="agree-error" aria-live="polite"></p>
+      </div>
+      <button type="submit">보내기</button>
+    </form>
+
+    <section class="contact-info">
+      <h2>연락처 정보</h2>
+      <ul>
+        <li>이메일: hello@zeno.example</li>
+        <li>위치: 서울, 대한민국</li>
+        <li>업무 시간: 평일 10:00 – 18:00 (<span lang="en">KST</span>)</li>
+      </ul>
+    </section>
+
+    <!-- 07편: exclusive accordion -->
+    <section class="faq">
+      <h2>자주 묻는 질문</h2>
+      <details name="faq">
+        <summary>프리랜서 작업도 받나요?</summary>
+        <p>네, 2주 이상 일정이면 가능합니다.</p>
+      </details>
+      <details name="faq">
+        <summary>원격 근무가 가능한가요?</summary>
+        <p>네, 지금까지 프로젝트의 대부분을 원격으로 진행했습니다.</p>
+      </details>
+      <details name="faq">
+        <summary>사용하는 도구는 무엇인가요?</summary>
+        <p><span lang="en">VS Code</span>, <span lang="en">Figma</span>, <span lang="en">GitHub</span>를 주로 씁니다.</p>
+      </details>
+    </section>
+  </main>
+
+  <footer class="site-footer">
+    <p>© 2026 Zeno Kim. 이 사이트는 학습용으로 제작되었습니다.</p>
+    <ul>
+      <li><a href="https://github.com/example" target="_blank" rel="noopener noreferrer">GitHub</a></li>
+      <li><a href="https://www.linkedin.com/in/example" target="_blank" rel="noopener noreferrer">LinkedIn</a></li>
+      <li><a href="https://blog.example.com" target="_blank" rel="noopener noreferrer">Blog</a></li>
+    </ul>
+  </footer>
+
+  <script type="module" src="js/main.js"></script>
+</body>
+</html>
+```
+
+```js
+// js/main.js
+import { qs, qsa, announce } from './utils.js'
+
+// 03, 04편: 프로젝트 상세 모달
+const projectDialog = qs('#project-dialog')
+
+const projectDetails = {
+  weather: {
+    title: '오늘의 날씨',
+    background: '위치 기반 날씨 정보를 빠르게 확인할 수 있는 화면이 필요해서 시작한 프로젝트입니다.',
+    role: 'fetch로 외부 날씨 API를 호출하고, Service Worker로 마지막 응답을 캐시했습니다.',
+    learned: '네트워크가 끊겨도 마지막 데이터를 보여주는 오프라인 우선 설계를 배웠습니다.',
+  },
+  bookshelf: {
+    title: '독서 기록 bookshelf',
+    background: '읽은 책과 별점을 기록할 곳이 마땅치 않아 직접 만든 React 앱입니다.',
+    role: '컴포넌트를 상태별로 나누고, Context로 테마를 전역에서 관리했습니다.',
+    learned: 'props와 state를 분리하는 기준, 리스트 렌더링 최적화를 배웠습니다.',
+  },
+  notes: {
+    title: '메모 앱 notes',
+    background: '서버 없이 브라우저 저장소만으로 동작하는 메모 앱을 만들어 보고 싶었습니다.',
+    role: 'IndexedDB로 메모를 저장하고, 검색은 Worker 스레드로 분리했습니다.',
+    learned: '메인 스레드를 막지 않고 무거운 검색을 처리하는 방법을 배웠습니다.',
+  },
+  a11y: {
+    title: '접근성 체크리스트',
+    background: 'WCAG 항목을 하나씩 점검할 수 있는 정적 사이트가 필요했습니다.',
+    role: '시맨틱 요소와 ARIA 속성만으로 체크리스트 UI를 구성했습니다.',
+    learned: '시맨틱 마크업이 접근성의 기본 토대라는 것을 실감했습니다.',
+  },
+  tokens: {
+    title: '디자인 토큰 미리보기',
+    background: 'CSS 변수로 만든 색·간격 토큰을 한눈에 비교하고 싶어 만들었습니다.',
+    role: 'CSS 커스텀 속성을 값별로 나열하고, 배경색을 그대로 미리보기로 썼습니다.',
+    learned: '디자인 토큰을 코드로 관리하면 일관성을 지키기 쉽다는 것을 배웠습니다.',
+  },
+  'todo-cli': {
+    title: 'todo-cli',
+    background: '터미널에서 바로 쓸 수 있는 할 일 관리 도구가 필요해 만들었습니다.',
+    role: 'Node.js로 파일 저장소를 구현하고, 명령어별로 모듈을 나눴습니다.',
+    learned: '파일 I/O를 비동기로 다루는 법과 CLI 인자 파싱을 배웠습니다.',
+  },
+}
+
+let lastTrigger = null
+
+qsa('[data-project-id]').forEach((button) => {
+  button.addEventListener('click', () => {
+    const detail = projectDetails[button.dataset.projectId]
+    projectDialog.querySelector('.dialog-title').textContent = detail.title
+    projectDialog.querySelector('.dialog-background').textContent = detail.background
+    projectDialog.querySelector('.dialog-role').textContent = detail.role
+    projectDialog.querySelector('.dialog-learned').textContent = detail.learned
+
+    lastTrigger = button
+    projectDialog.showModal()
+  })
+})
+
+// 06편: 모달이 열리면 배경(header)은 브라우저가 자동으로 inert 처리한다. 별도 코드가 필요 없다.
+projectDialog?.addEventListener('close', () => {
+  lastTrigger?.focus()
+})
+
+// 08편: 검색어로 카드 걸러내기(hidden=until-found로 브라우저 찾기와 연동)
+const searchInput = qs('#project-search')
+const projectCards = qsa('.project-card')
+
+function filterProjects(keyword) {
+  const visible = projectCards.filter((card) => {
+    const match = card.textContent.toLowerCase().includes(keyword.toLowerCase())
+    card.hidden = keyword.length > 0 && !match ? 'until-found' : false
+    return match
+  })
+  announce(`${visible.length}개의 프로젝트를 찾았습니다.`)
+}
+
+searchInput?.addEventListener('input', () => {
+  filterProjects(searchInput.value.trim())
+})
+
+projectCards.forEach((card) => {
+  card.addEventListener('beforematch', () => {
+    console.log('beforematch: 검색으로 숨겨졌던 카드가 찾기로 다시 펼쳐집니다 —', card.querySelector('h3').textContent)
+  })
+})
+
+// 18편: 태그 select로 필터링, Customizable select 지원 여부 감지
+const tagFilter = qs('#tag-filter')
+
+tagFilter?.addEventListener('change', () => {
+  const tag = tagFilter.value
+  projectCards.forEach((card) => {
+    const tags = (card.dataset.tags || '').split(',')
+    card.hidden = tag !== 'all' && !tags.includes(tag)
+  })
+})
+
+if (window.CSS?.supports?.('appearance', 'base-select')) {
+  document.documentElement.classList.add('supports-base-select')
+}
+
+// 12편: Constraint Validation API로 한국어 오류 메시지
+const contactForm = qs('.contact-form')
+
+const messages = {
+  name: { valueMissing: '이름을 입력해 주세요.' },
+  email: {
+    valueMissing: '이메일을 입력해 주세요.',
+    typeMismatch: '올바른 이메일 형식이 아닙니다.',
+  },
+  phone: { patternMismatch: '010-1234-5678 형식으로 입력해 주세요.' },
+  message: {
+    valueMissing: '메시지를 입력해 주세요.',
+    tooShort: '메시지는 10자 이상 입력해 주세요.',
+  },
+  agree: { valueMissing: '개인정보 수집·이용에 동의해야 제출할 수 있습니다.' },
+}
+
+function validateField(field) {
+  field.setCustomValidity('')
+
+  const rules = messages[field.name]
+  if (!rules) return
+
+  const validity = field.validity
+  let text = ''
+
+  for (const [key, msg] of Object.entries(rules)) {
+    if (validity[key]) {
+      text = msg
+      break
+    }
+  }
+
+  field.setCustomValidity(text)
+
+  const errorEl = document.getElementById(`${field.id}-error`)
+  if (errorEl) {
+    errorEl.textContent = text
+  }
+}
+
+if (contactForm) {
+  const fields = contactForm.querySelectorAll('input[name], textarea[name]')
+
+  fields.forEach((field) => {
+    field.addEventListener('input', () => validateField(field))
+    field.addEventListener('blur', () => validateField(field))
+  })
+
+  contactForm.addEventListener('submit', (event) => {
+    fields.forEach((field) => validateField(field))
+
+    if (!contactForm.checkValidity()) {
+      event.preventDefault()
+      contactForm.reportValidity()
+    }
+  })
+}
+```
+
+## 다음 과목으로 넘어가기 전에
+
+- `<template>`/`<slot>`/Declarative Shadow DOM은 이 과목에서 다루지 않았다. 재사용 가능한 커스텀 요소를 직접 만들고 싶다면 `javascript/web_component` 과목에서 API 전체를 배운다.
+- 지금까지 만든 포트폴리오는 시맨틱 마크업과 표준 HTML 기능만으로 동작하지만 아직 CSS가 거의 없다. 다음 과목 `css/css_fundamentals`에서 이 사이트를 디자인 시안대로 스타일링한다.
+- 실험적 기능(Customizable select)처럼 지원 상태가 바뀌는 항목은 이후에도 02편에서 배운 방법으로 주기적으로 재확인한다.
+
+## 자주 하는 실수
+
+| 증상 | 원인 | 고치는 법 |
+|------|------|-----------|
+| 점검 항목 중 일부가 실패함 | 앞선 편의 코드를 일부만 반영함 | 위 정본 코드와 파일을 한 줄씩 비교해 누락된 속성을 채운다 |
+| 모달을 닫았는데 배경이 계속 비활성화된 것처럼 보임 | `showModal()` 대신 `show()`로 열었거나 03편의 dialog 마크업이 바뀜 | 06편에서 확인한 대로 `showModal()`은 배경을 자동으로 `inert` 처리하므로 별도 코드 없이 03·04편 구조를 그대로 유지한다 |
+| `appearance: base-select`가 모든 브라우저에서 다르게 보임 | `@supports` 분기 없이 적용 | 18편의 `@supports (appearance: base-select)` 패턴을 그대로 쓴다 |
+
+## 확인 문제
+
+<Quiz
+  questionNumber={1}
+  question="이 과목을 마쳤다고 볼 수 있는 기준으로 알맞지 않은 것은?"
+  options={['프로젝트 카드 클릭 시 dialog 모달이 포커스 트랩과 함께 열린다', 'FAQ가 details name으로 하나만 열리는 아코디언으로 동작한다', 'Shadow DOM으로 만든 커스텀 요소가 페이지 전체에 쓰이고 있다', '문의 폼이 Constraint Validation API로 커스텀 오류 메시지를 보여준다']}
+  correctAnswer={3}
+  explanation="Shadow DOM과 Custom Elements는 이 과목의 범위가 아니라 javascript/web_component 과목에서 다룬다."
+  optionExplanations={['01_학습방향.md 완료 기준 1번이다', '완료 기준 2번이다', '정답이다. 이 과목의 범위 밖이다', '완료 기준 4번이다']}
+/>
+
+<Quiz
+  questionNumber={2}
+  question="모달이 열려 있는 동안 배경 내비게이션이 inert 상태가 되게 하려면 main.js에 추가로 필요한 코드는?"
+  options={['header에 inert 속성을 붙였다 떼는 이벤트 리스너', 'dialog의 open 속성을 감시하는 MutationObserver', '없다. showModal()이 배경을 자동으로 inert 처리한다', 'window resize 이벤트 리스너']}
+  correctAnswer={3}
+  explanation="06편에서 확인했듯 showModal()로 연 dialog는 배경 전체를 브라우저가 자동으로 inert 취급한다. 직접 속성을 토글하는 코드가 필요 없다."
+  optionExplanations={['직접 토글할 필요가 없다', 'MutationObserver 없이도 브라우저가 처리한다', '정답이다', '창 크기 변화는 모달의 inert 처리와 무관하다']}
+/>
+
+<Quiz
+  questionNumber={3}
+  question="다음 과목 css_fundamentals에서 이어받을 포트폴리오의 상태로 알맞은 것은?"
+  options={['CSS가 이미 완성되어 색만 바꾸면 되는 상태', '시맨틱 마크업과 표준 HTML 기능은 갖췄지만 CSS가 거의 없는 상태', 'JavaScript 프레임워크가 이미 도입된 상태', '모바일 대응이 전혀 안 되어 있어 마크업부터 다시 짜야 하는 상태']}
+  correctAnswer={2}
+  explanation="modern_html은 마크업과 표준 기능을 완성하는 과목이고, 디자인 시안대로 스타일링하는 작업은 css_fundamentals의 몫이다."
+  optionExplanations={['CSS는 아직 거의 적용되지 않았다', '정답이다', '이 과목은 바닐라 HTML/JS 범위이며 프레임워크를 도입하지 않았다', '마크업 자체는 이미 완성되어 있다']}
+/>
+
+## 참고 자료
+
+- [MDN — dialog 요소](https://developer.mozilla.org/en-US/docs/Web/HTML/Reference/Elements/dialog)
+- [MDN — inert 전역 속성](https://developer.mozilla.org/en-US/docs/Web/HTML/Reference/Global_attributes/inert)

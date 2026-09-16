@@ -1,0 +1,135 @@
+---
+title: '02. 클라이언트 사이드 라우팅 개념'
+description: 'URL과 화면 상태를 동기화하는 원리와 React Router가 해결하는 문제를 정리합니다.'
+---
+
+<Callout type="info">
+  **이번 편의 결과물:** 코드 변경 없음 — 개념만 정리하고 03편부터 적용합니다. · **다루는 개념:** URL과 화면 상태의 관계, History API, 라우터가 없을 때의 한계, React Router의 역할
+</Callout>
+
+## 개념 정리
+
+### URL은 화면 상태의 일부다
+
+지금 `bookshelf`는 페이지가 하나라서 "지금 무엇을 보고 있는지"가 오직 React state(`filter`, 선택한 책 등)에만 있습니다. 문제는 이 상태가 주소창의 URL에는 반영되지 않는다는 점입니다.
+
+| 상황 | URL만으로 상태를 복원 | 새로고침 후 상태 |
+|------|------------------------|-------------------|
+| 라우터 없이 state로만 화면 전환 | 불가능(URL이 항상 동일) | 초기 화면으로 초기화됨 |
+| URL에 라우트를 반영(`/books/3`) | 가능(URL만 보고 3번 책 상세를 알 수 있음) | 같은 상세 화면이 다시 렌더됨 |
+
+URL이 화면 상태를 담으면 새로고침·뒤로 가기·북마크·링크 공유가 모두 같은 화면을 가리킵니다. 이것이 라우팅의 핵심 목적입니다.
+
+### History API — 브라우저가 이미 제공하는 것
+
+브라우저는 페이지를 다시 불러오지 않고 주소창 URL과 방문 기록을 조작하는 History API(`history.pushState`, `history.replaceState`, `popstate` 이벤트)를 내장하고 있습니다.
+
+| 메서드/이벤트 | 역할 |
+|----------------|------|
+| `history.pushState(state, '', url)` | 새로고침 없이 URL을 바꾸고 방문 기록에 새 항목을 추가 |
+| `history.replaceState(state, '', url)` | 현재 방문 기록 항목을 바꿈(새 항목 추가 안 함) |
+| `popstate` 이벤트 | 사용자가 뒤로/앞으로 가기를 눌렀을 때 발생 |
+
+아래 예제로 `pushState`가 URL만 바꾸고 페이지는 다시 불러오지 않는다는 점을 확인합니다.
+
+<CodePlayground
+  template="vanilla"
+  activeFile="/index.html"
+  showConsole
+  label="pushState로 URL만 바꾸기"
+  files={{
+    '/index.html': `<button id="go">/books/3으로 이동</button>
+<p id="path"></p>
+<script src="/main.js"></script>`,
+    '/main.js': `const pathEl = document.getElementById('path');
+
+function render() {
+  pathEl.textContent = '현재 경로: ' + location.pathname;
+}
+
+document.getElementById('go').addEventListener('click', () => {
+  history.pushState({}, '', '/books/3');
+  render(); // pushState는 화면을 다시 그려주지 않는다 — 직접 호출해야 한다
+});
+
+window.addEventListener('popstate', render);
+render();
+`,
+  }}
+/>
+
+버튼을 누르면 URL은 `/books/3`으로 바뀌지만 화면은 `render()`를 직접 호출해야만 바뀝니다. `pushState` 자체는 렌더링과 무관합니다.
+
+### 라우터 없이 직접 구현할 때의 한계
+
+위 예제처럼 `pushState`와 `popstate`만으로 라우팅을 만들 수는 있습니다. 하지만 페이지가 늘어나면 다음을 전부 직접 관리해야 합니다.
+
+- URL 패턴(`/books/:bookId`)에서 파라미터를 뽑아내는 로직
+- 중첩된 화면(목록 안의 상세, 상세 안의 편집)을 URL 세그먼트와 맞추는 로직
+- 페이지 진입 전에 필요한 데이터를 미리 준비하는 로직
+- 뒤로 가기·앞으로 가기·직접 URL 입력까지 전부 같은 화면을 그리는 일관성
+
+### React Router의 역할
+
+React Router는 History API 위에 이 로직들을 표준화해 올립니다. 라우트를 객체 배열로 선언하면 URL 매칭, 파라미터 추출, 중첩 렌더링, 진입 전 데이터 준비(`loader`)까지 라이브러리가 맡습니다. 03편부터 `createBrowserRouter`로 이 라우트 객체를 정의합니다.
+
+## 자주 하는 실수
+
+| 증상 | 원인 | 고치는 법 |
+|------|------|-----------|
+| `pushState` 호출 후 화면이 안 바뀜 | `pushState`는 렌더링을 유발하지 않음 | 위 예제처럼 URL 변경 뒤 직접 다시 렌더하거나, React Router처럼 URL 변화를 감지해 렌더하는 도구를 쓴다 |
+| `<a href="/books/3">`를 그냥 씀 | 브라우저 기본 동작은 페이지를 새로 요청함 | SPA 안에서는 라우터가 제공하는 `Link` 컴포넌트를 써서 새로고침 없이 이동한다(03편) |
+| 뒤로 가기를 눌러도 화면이 그대로임 | `popstate` 이벤트를 처리하지 않음 | 라이브러리를 쓰면 이 처리가 내장되어 있다 |
+
+## 확인 문제
+
+<Quiz
+  questionNumber={1}
+  question="history.pushState를 호출했을 때 일어나는 일로 옳은 것은?"
+  options={['서버에 새 페이지를 요청하고 화면을 새로 그린다', '주소창 URL과 방문 기록만 바뀌고 화면은 자동으로 바뀌지 않는다', '현재 페이지를 새로고침한다', 'popstate 이벤트가 즉시 발생한다']}
+  correctAnswer={2}
+  explanation="pushState는 URL과 방문 기록만 바꿉니다. 화면을 바꾸려면 별도로 다시 렌더하는 코드가 필요합니다."
+  optionExplanations={['서버 요청 없이 동작하는 것이 핵심입니다', '정답입니다', '새로고침을 일으키지 않는 것이 이 API의 목적입니다', 'popstate는 뒤로/앞으로 가기에서만 발생합니다']}
+/>
+
+<Quiz
+  questionNumber={2}
+  question="SPA에서 URL에 현재 화면 상태를 반영해야 하는 가장 중요한 이유는?"
+  options={['URL이 길어야 검색 엔진에 잘 노출돼서', '새로고침·뒤로 가기·링크 공유가 같은 화면을 가리키게 하기 위해서', 'React state보다 URL이 더 빠르게 갱신돼서', 'CSS 선택자에서 URL을 참조하기 위해서']}
+  correctAnswer={2}
+  explanation="URL이 화면 상태를 담아야 새로고침, 뒤로 가기, 북마크, 링크 공유가 모두 같은 화면을 재현할 수 있습니다."
+  optionExplanations={['SEO는 이 논의의 핵심이 아닙니다', '정답입니다', '속도 비교의 문제가 아닙니다', 'CSS와는 무관합니다']}
+/>
+
+<Quiz
+  questionNumber={3}
+  question="popstate 이벤트가 발생하는 시점은?"
+  options={['컴포넌트가 마운트될 때', '사용자가 브라우저의 뒤로/앞으로 가기를 눌렀을 때', 'fetch 요청이 끝났을 때', 'pushState를 호출한 직후 항상 자동으로']}
+  correctAnswer={2}
+  explanation="popstate는 사용자가 방문 기록을 이동(뒤로/앞으로 가기)할 때 발생합니다."
+  optionExplanations={['마운트와는 무관한 브라우저 이벤트입니다', '정답입니다', 'fetch와는 관련이 없습니다', 'pushState 자체는 popstate를 발생시키지 않습니다']}
+/>
+
+<Quiz
+  questionNumber={4}
+  question="라우터 없이 pushState/popstate만으로 여러 페이지를 직접 구현할 때 개발자가 떠안는 부담이 아닌 것은?"
+  options={['URL 패턴에서 파라미터를 추출하는 로직', '중첩 화면을 URL 세그먼트와 맞추는 로직', 'JavaScript 엔진이 변수를 파싱하는 방식', '진입 전 데이터를 준비하는 로직']}
+  correctAnswer={3}
+  explanation="JavaScript 파싱은 엔진의 역할이며 라우팅 구현과 무관합니다. 나머지는 라우터가 없을 때 직접 관리해야 하는 부담입니다."
+  optionExplanations={['직접 관리해야 하는 부담입니다', '직접 관리해야 하는 부담입니다', '정답입니다', '직접 관리해야 하는 부담입니다']}
+/>
+
+<Quiz
+  questionNumber={5}
+  question="React Router가 History API 위에서 표준화해 제공하는 것은?"
+  options={['CSS 애니메이션 타이밍', 'URL 매칭·파라미터 추출·중첩 렌더링·진입 전 데이터 준비', 'localStorage 용량 관리', '브라우저 렌더링 엔진 자체 교체']}
+  correctAnswer={2}
+  explanation="React Router는 URL 매칭, 파라미터 추출, 중첩 렌더링, loader를 통한 데이터 준비를 표준화된 API로 제공합니다."
+  optionExplanations={['CSS와는 무관합니다', '정답입니다', 'localStorage 관리는 라우터의 역할이 아닙니다', '렌더링 엔진을 교체하지 않습니다']}
+/>
+
+## 참고 자료
+
+- [React Router 공식 문서 - Routing](https://reactrouter.com/start/data/routing)
+- [React Router 공식 문서 - Navigating](https://reactrouter.com/start/framework/navigating)
+- [MDN - Working with the History API](https://developer.mozilla.org/en-US/docs/Web/API/History_API/Working_with_the_History_API)

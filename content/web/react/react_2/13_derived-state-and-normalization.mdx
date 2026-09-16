@@ -1,0 +1,321 @@
+---
+title: '13. 상태 설계: 파생 상태와 정규화'
+description: 'books 상태를 배열에서 byId·allIds 구조로 정규화하고 파생 값은 렌더 중 계산합니다'
+---
+
+<Callout type="info">
+  **이번 편의 결과물:** `books` 상태가 `{ byId, allIds }` 정규화 구조로 바뀌고, 목록·상세 페이지가 이 구조를 읽습니다. · **다루는 개념:** 파생 상태, 정규화, `byId` 조회
+</Callout>
+
+## 이 편에서 만드는 파일
+
+```
+bookshelf/src/
+├── reducers/
+│   └── booksReducer.js        ~ (정규화 구조로 재작성)
+├── utils/
+│   └── booksStorage.js        + (loader와 훅이 함께 쓰는 읽기·쓰기 함수)
+├── hooks/
+│   └── useBooks.js            + (reducer + 영속화를 묶은 훅)
+└── pages/
+    ├── BookListPage.jsx       ~ (allIds 기반 렌더, 파생 필터링)
+    ├── BookDetailPage.jsx     ~ (byId 조회로 loader 단순화)
+    └── NewBookPage.jsx        ~ (useLocalStorage 대신 useBooks 사용)
+```
+
+## 개념 정리
+
+**파생 상태**는 다른 state나 props에서 계산 가능한 값입니다. 이런 값을 별도 state로 두면 원본이 바뀔 때 손으로 동기화해야 하고, 동기화를 빼먹으면 화면이 실제 데이터와 어긋납니다.
+
+| 파생 값 예 | 잘못된 방식 | 올바른 방식 |
+|---|---|---|
+| 검색 결과 개수 | `useState`로 `resultCount` 저장 후 검색할 때마다 `setResultCount` | 렌더 중 `visibleIds.length` 계산 |
+| 완독한 책 목록 | `useEffect`로 `doneBooks` state 갱신 | 렌더 중 `bookIds.filter(...)` |
+| 폼 입력이 유효한지 | 제출 시점에만 `isValid` state로 저장 | 렌더마다 검증 함수 호출 |
+
+지금까지 `books`는 배열이었습니다. 배열에서 책 하나를 찾거나 수정하려면 `find`·`map`으로 전체를 훑어야 합니다(`O(n)`). **정규화**는 배열을 두 부분으로 나눕니다.
+
+| 구조 | 조회 | 순서 유지 | 수정 |
+|---|---|---|---|
+| 배열 `[{...}, {...}]` | `O(n)` (`find`) | 배열 순서 그대로 | `map`으로 새 배열 생성 |
+| 정규화 `{ byId, allIds }` | `O(1)` (`byId[id]`) | `allIds` 배열이 별도로 유지 | `byId`만 얕은 복사 |
+
+`byId`는 아이디를 키로 하는 객체이고, `allIds`는 아이디만 담은 배열입니다. 렌더할 목록 순서는 `allIds`가 결정하고, 각 항목의 실제 데이터는 `byId`에서 찾습니다. 상세 페이지처럼 아이디 하나로 데이터 하나를 찾는 화면에서 정규화 효과가 가장 크게 드러납니다.
+
+**흔한 오해:** "책이 몇 권 안 되니 정규화가 필요 없다"고 생각하기 쉽지만, 이 편의 목적은 성능이 아니라 **불변 업데이트를 단순하게 만드는 것**입니다. 배열은 `map`으로 전체를 순회해야 하지만, `byId`는 바꿀 항목만 교체하면 됩니다.
+
+## 실습
+
+<Steps>
+
+### 1. 파일 만들기 / 열기
+
+`src/utils/booksStorage.js`를 새로 만들고, `src/reducers/booksReducer.js`를 엽니다.
+
+### 2. 코드 작성
+
+```js
+// src/utils/booksStorage.js
+const STORAGE_KEY = 'bookshelf-books';
+
+function normalize(list) {
+  const byId = {};
+  const allIds = [];
+  for (const book of list) {
+    byId[book.id] = book;
+    allIds.push(book.id);
+  }
+  return { byId, allIds };
+}
+
+export function readBooksState() {
+  const raw = localStorage.getItem(STORAGE_KEY);
+  if (!raw) return { byId: {}, allIds: [] };
+  const parsed = JSON.parse(raw);
+  // 이전 배열 형태와 호환: 배열로 저장돼 있으면 정규화해서 돌려준다
+  if (Array.isArray(parsed)) return normalize(parsed);
+  return parsed;
+}
+
+export function writeBooksState(state) {
+  localStorage.setItem(STORAGE_KEY, JSON.stringify(state));
+}
+```
+
+```js
+// src/reducers/booksReducer.js
+export const initialBooksState = { byId: {}, allIds: [] };
+
+export function booksReducer(state, action) {
+  switch (action.type) {
+    case 'books/hydrated': {
+      return action.payload;
+    }
+    case 'books/added': {
+      const book = action.payload;
+      return {
+        byId: { ...state.byId, [book.id]: book },
+        allIds: [...state.allIds, book.id],
+      };
+    }
+    case 'books/updated': {
+      const { id, changes } = action.payload;
+      const prev = state.byId[id];
+      if (!prev) return state;
+      return { ...state, byId: { ...state.byId, [id]: { ...prev, ...changes } } };
+    }
+    case 'books/toggled': {
+      const prev = state.byId[action.payload.id];
+      if (!prev) return state;
+      const status = prev.status === 'done' ? 'reading' : 'done';
+      return { ...state, byId: { ...state.byId, [prev.id]: { ...prev, status } } };
+    }
+    case 'books/deleted': {
+      const { id } = action.payload;
+      const nextById = { ...state.byId };
+      delete nextById[id];
+      return { byId: nextById, allIds: state.allIds.filter((bookId) => bookId !== id) };
+    }
+    default: {
+      throw new Error('알 수 없는 액션 타입입니다: ' + action.type);
+    }
+  }
+}
+```
+
+```js
+// src/hooks/useBooks.js
+import { useReducer, useEffect, useCallback } from 'react';
+import { booksReducer, initialBooksState } from '../reducers/booksReducer';
+import { readBooksState, writeBooksState } from '../utils/booksStorage';
+
+export function useBooks() {
+  const [state, dispatch] = useReducer(booksReducer, initialBooksState, readBooksState);
+
+  useEffect(() => {
+    writeBooksState(state);
+  }, [state]);
+
+  const addBook = useCallback((book) => dispatch({ type: 'books/added', payload: book }), []);
+  const updateBook = useCallback(
+    (id, changes) => dispatch({ type: 'books/updated', payload: { id, changes } }),
+    []
+  );
+  const toggleBook = useCallback((id) => dispatch({ type: 'books/toggled', payload: { id } }), []);
+  const deleteBook = useCallback((id) => dispatch({ type: 'books/deleted', payload: { id } }), []);
+
+  return { booksById: state.byId, bookIds: state.allIds, addBook, updateBook, toggleBook, deleteBook };
+}
+```
+
+```jsx
+// src/pages/BookListPage.jsx
+import { useMemo, useState } from 'react';
+import { Link } from 'react-router';
+import { useBooks } from '../hooks/useBooks';
+import { useDebounce } from '../hooks/useDebounce';
+import BookCard from '../components/BookCard';
+
+export default function BookListPage() {
+  const { booksById, bookIds, toggleBook, deleteBook } = useBooks();
+  const [keyword, setKeyword] = useState('');
+  const debouncedKeyword = useDebounce(keyword, 300);
+
+  // 파생 값: 검색어에 맞는 아이디 목록을 렌더마다 계산한다. state로 만들지 않는다.
+  const visibleIds = useMemo(() => {
+    const term = debouncedKeyword.trim().toLowerCase();
+    if (!term) return bookIds;
+    return bookIds.filter((id) => {
+      const book = booksById[id];
+      return book.title.toLowerCase().includes(term) || book.author.toLowerCase().includes(term);
+    });
+  }, [bookIds, booksById, debouncedKeyword]);
+
+  return (
+    <section>
+      <h1>내 책장</h1>
+      {/* ...기존 ThemeToggle 유지 */}
+      <input
+        type="search"
+        value={keyword}
+        onChange={(event) => setKeyword(event.target.value)}
+        placeholder="제목 또는 저자 검색"
+        aria-label="책 검색"
+      />
+      <p>{visibleIds.length}권 표시 중 (전체 {bookIds.length}권)</p>
+      <ul>
+        {visibleIds.map((id) => (
+          <li key={id}>
+            <BookCard book={booksById[id]} onToggle={() => toggleBook(id)} onDelete={() => deleteBook(id)} />
+          </li>
+        ))}
+      </ul>
+      <Link to="/books/new">새 책 추가</Link>
+    </section>
+  );
+}
+```
+
+```jsx
+// src/pages/BookDetailPage.jsx
+import { useLoaderData } from 'react-router';
+import { readBooksState } from '../utils/booksStorage';
+
+export async function bookDetailLoader({ params }) {
+  const { byId } = readBooksState();
+  const book = byId[params.bookId];
+  if (!book) {
+    throw new Response('책을 찾을 수 없습니다', { status: 404 });
+  }
+  return book;
+}
+
+export default function BookDetailPage() {
+  const book = useLoaderData();
+
+  return (
+    <article>
+      <h1>{book.title}</h1>
+      <p>저자: {book.author}</p>
+      <p>상태: {book.status}</p>
+    </article>
+  );
+}
+```
+
+`NewBookPage.jsx`도 `useLocalStorage` 대신 `useBooks`를 씁니다. `const { bookIds, booksById, addBook } = useBooks();`로 바꾸고, 중복 제목 검사는 `bookIds.map((id) => booksById[id].title)`로, 추가는 `addBook({ ...새책, id: Date.now() })`로 바꿉니다.
+
+### 3. 실행
+
+```
+npm run dev
+```
+
+### 4. 확인
+
+- 목록 페이지에서 검색창에 아무것도 입력하지 않으면 전체 권수가 표시됩니다.
+- 검색어를 입력하면 표시 중인 권수만 줄어들고, 전체 권수는 그대로입니다(파생 값이 각각 따로 계산됨).
+- 브라우저 개발자 도구 → Application → Local Storage에서 `bookshelf-books` 값이 `{"byId":...,"allIds":[...]}` 형태(기존 배열 형태에서 정규화된 구조)로 바뀌어 있는지 확인합니다.
+- 상세 페이지 URL의 `bookId`를 존재하지 않는 값으로 바꾸면 404 응답이 발생합니다.
+
+</Steps>
+
+## 직접 해보기
+
+1. `allIds` 순서는 그대로 두고, 목록 페이지에 "제목순 정렬" 체크박스를 추가해 정렬된 아이디 배열을 파생 값으로 계산해보세요. `allIds` 자체는 바꾸지 않습니다.
+
+<details>
+<summary>답 보기</summary>
+
+```jsx
+const sortedIds = useMemo(() => {
+  const ids = [...visibleIds];
+  if (!sortByTitle) return ids;
+  return ids.sort((a, b) => booksById[a].title.localeCompare(booksById[b].title));
+}, [visibleIds, booksById, sortByTitle]);
+```
+
+정렬 결과는 `allIds`에 저장하지 않고 렌더마다 새로 계산합니다.
+
+</details>
+
+2. `books/updated` 액션으로 메모(`memo` 필드)를 수정하는 작은 폼을 상세 페이지에 추가해보세요.
+
+<details>
+<summary>답 보기</summary>
+
+`updateBook(book.id, { memo: event.target.value })`를 `onBlur`에서 호출합니다. `byId`의 해당 항목만 교체되어 다른 책은 참조가 유지됩니다.
+
+</details>
+
+## 자주 하는 실수
+
+| 증상 | 원인 | 고치는 법 |
+|---|---|---|
+| 책 삭제 후에도 목록에 빈 칸이 보임 | `byId`에서만 지우고 `allIds`에서 아이디를 안 지움 | `deleted` 액션에서 두 필드를 함께 갱신 |
+| 목록이 정규화 후 렌더되지 않음 | 컴포넌트가 여전히 `books.map`을 씀 | `bookIds.map`으로 바꾸고 `booksById[id]`로 조회 |
+| 검색 결과 개수가 한 박자 늦게 바뀜 | 결과 개수를 `useState`로 따로 저장 | state를 없애고 렌더 중 `.length` 계산 |
+| 상세 페이지가 새로고침 후 빈 화면 | loader가 컴포넌트 훅(`useBooks`)을 호출하려 함 | loader는 훅 대신 `readBooksState` 같은 순수 함수만 사용 |
+
+## 확인 문제
+
+<Quiz
+  questionNumber={1}
+  question="파생 상태를 별도 state로 만들지 않아야 하는 이유로 가장 알맞은 것은?"
+  options={['렌더링 속도가 항상 더 빨라지기 때문이다', '원본 값과 동기화를 손으로 관리하다 어긋날 수 있기 때문이다', 'useState를 많이 쓰면 빌드 오류가 나기 때문이다', 'React가 파생 state를 아예 지원하지 않기 때문이다']}
+  correctAnswer={2}
+  explanation="파생 값을 state로 따로 두면 원본이 바뀔 때마다 갱신 코드를 빼먹지 않아야 하는 부담이 생깁니다. 렌더 중 계산하면 항상 최신 값이 보장됩니다."
+  optionExplanations={['속도보다 정합성이 핵심 이유입니다', '정답입니다', 'useState 개수와 빌드 오류는 무관합니다', 'React는 파생 state 자체를 막지 않습니다. 다만 권장하지 않을 뿐입니다']}
+/>
+
+<Quiz
+  questionNumber={2}
+  question="배열 대신 { byId, allIds } 구조를 쓰는 가장 큰 이유는?"
+  options={['배열보다 JSON 용량이 작아서', '아이디로 항목을 찾을 때 전체를 순회하지 않아도 되어서', 'React가 배열 렌더링을 지원하지 않아서', '정렬이 자동으로 되어서']}
+  correctAnswer={2}
+  explanation="byId는 객체이므로 키로 바로 접근할 수 있습니다(O(1)). 배열은 find나 map으로 전체를 훑어야 합니다."
+  optionExplanations={['용량 차이는 이 선택의 이유가 아닙니다', '정답입니다', 'React는 배열 렌더링을 문제없이 지원합니다', '정렬은 allIds를 어떻게 채우느냐에 달렸고 자동으로 되지 않습니다']}
+/>
+
+<Quiz
+  questionNumber={3}
+  question="이 편의 booksReducer에서 books/deleted 액션이 하는 일은?"
+  options={['byId에서 항목을 지우기만 한다', 'allIds에서 아이디를 지우기만 한다', 'byId와 allIds에서 함께 지운다', '아무 것도 지우지 않고 상태를 그대로 반환한다']}
+  correctAnswer={3}
+  explanation="정규화된 두 필드는 항상 같이 갱신해야 데이터가 어긋나지 않습니다. deleted 액션은 byId 복사본에서 delete하고 allIds는 filter로 새 배열을 만듭니다."
+  optionExplanations={['allIds도 함께 지워야 합니다', 'byId도 함께 지워야 합니다', '정답입니다', '실제로는 두 필드 모두 갱신합니다']}
+/>
+
+<Quiz
+  questionNumber={4}
+  question="BookDetailPage의 loader 함수 안에서 하면 안 되는 것은?"
+  options={['localStorage에서 데이터를 읽는 것', 'params.bookId 값을 사용하는 것', 'useBooks 같은 React 훅을 호출하는 것', '조건에 맞지 않으면 Response를 throw하는 것']}
+  correctAnswer={3}
+  explanation="loader는 컴포넌트 렌더 트리 밖에서 실행되는 일반 함수입니다. useState·useReducer 같은 훅은 컴포넌트 본문에서만 호출할 수 있으므로 loader 안에서는 순수 함수(readBooksState)만 사용합니다."
+  optionExplanations={['loader에서 흔히 하는 일입니다', 'params로 라우트 파라미터를 받는 것은 정상입니다', '정답입니다', 'React Router는 loader의 throw Response를 에러 경계로 처리합니다']}
+/>
+
+## 참고 자료
+
+- [React 공식 문서 - Choosing the State Structure](https://react.dev/learn/choosing-the-state-structure)
+- [Redux 공식 문서 - Normalizing State Shape](https://redux.js.org/usage/structuring-reducers/normalizing-state-shape)

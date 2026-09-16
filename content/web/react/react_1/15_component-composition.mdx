@@ -1,0 +1,292 @@
+---
+title: '15. 컴포넌트 설계: children과 합성'
+description: 'children prop으로 Layout과 Modal을 만들어 재사용 가능한 합성 패턴을 익힌다'
+---
+
+<Callout type="info">
+  **이번 편의 결과물:** `Layout`으로 헤더·본문 구조를 감싸고, `Modal`로 책 상세 정보를 팝업으로 볼 수 있습니다. · **다루는 개념:** `children` prop, 컴포넌트 합성(composition), 재사용 가능한 레이아웃 패턴
+</Callout>
+
+## 이 편에서 만드는 파일
+
+```
+bookshelf/src/
+├── components/
+│   ├── Layout.jsx        + 신규
+│   ├── Modal.jsx          + 신규
+│   └── BookCard.jsx       ~ 수정 (클릭 시 상세 열기)
+└── App.jsx                 ~ 수정 (Layout·Modal 배치)
+```
+
+## 개념 정리
+
+5편에서 `props`로 데이터를 전달하는 법을 배웠습니다. `children`은 조금 특별한 props입니다 — 컴포넌트를 여는 태그와 닫는 태그 **사이에 넣은 JSX**가 자동으로 `children`이라는 이름의 prop이 됩니다.
+
+```jsx
+<Card>
+  <p>이 문단이 Card의 children이 됩니다.</p>
+</Card>
+```
+
+```jsx
+function Card({ children }) {
+  return <div className="card">{children}</div>;
+}
+```
+
+`children`이 중요한 이유는 **컴포넌트를 미리 정해진 props 목록이 아니라, 감쌀 내용으로 설계**할 수 있게 해주기 때문입니다. 이 방식을 **합성**(composition, 컴포지션)이라고 부릅니다.
+
+| 방식 | 예시 | 특징 |
+|------|------|------|
+| props 나열 | `<Card title="..." body="..." footer="..." />` | 내용이 정해진 형태에 고정됨 |
+| children 합성 | `<Card><h2>...</h2><p>...</p></Card>` | 내용이 자유로운 JSX — 무엇이든 감쌀 수 있음 |
+
+합성이 유리한 대표적인 두 패턴이 있습니다.
+
+- **레이아웃 패턴**: 헤더·여백·정렬 같은 "껍데기" 구조를 컴포넌트로 만들고, 안에 무엇을 넣을지는 사용하는 쪽이 결정합니다(`Layout`).
+- **오버레이 패턴**: 화면 위에 뜨는 배경·닫기 버튼 같은 "틀"을 컴포넌트가 담당하고, 안의 내용은 상황마다 다릅니다(`Modal`).
+
+두 경우 모두 `Layout`이나 `Modal`은 안에 책 카드가 들어갈지 폼이 들어갈지 전혀 몰라도 됩니다. 이것이 `children`이 props 나열보다 유연한 이유입니다.
+
+## 실습
+
+<Steps>
+
+### 1. Layout 컴포넌트 만들기
+
+```jsx
+// src/components/Layout.jsx
+function Layout({ children }) {
+  return (
+    <div className="layout">
+      <main className="layout-main">{children}</main>
+    </div>
+  );
+}
+
+export default Layout;
+```
+
+### 2. Modal 컴포넌트 만들기
+
+```jsx
+// src/components/Modal.jsx
+function Modal({ isOpen, onClose, children }) {
+  if (!isOpen) {
+    return null;
+  }
+
+  return (
+    <div className="modal-backdrop" onClick={onClose}>
+      <div className="modal-content" onClick={(event) => event.stopPropagation()}>
+        <button type="button" className="modal-close" onClick={onClose}>
+          닫기
+        </button>
+        {children}
+      </div>
+    </div>
+  );
+}
+
+export default Modal;
+```
+
+`isOpen`이 `false`면 `null`을 반환해 아무것도 렌더링하지 않습니다. 배경(`modal-backdrop`) 클릭 시 `onClose`를 부르되, 내용(`modal-content`) 클릭은 `stopPropagation`으로 막아 배경 클릭과 구분합니다. `Modal`은 안에 무엇이 들어올지 전혀 모릅니다 — 책 상세든 다른 무엇이든 `children`으로 받을 뿐입니다.
+
+### 3. BookCard에서 상세 보기 연결하기
+
+```jsx
+// src/components/BookCard.jsx
+import StatusBadge from './StatusBadge.jsx';
+import StarRating from './StarRating.jsx';
+
+function BookCard({ book, onDelete, onRate, onToggleStatus, onOpenDetail }) {
+  return (
+    <div className="book-card" style={{ borderTop: `6px solid ${book.coverColor}` }}>
+      <StatusBadge status={book.status} onToggle={(nextStatus) => onToggleStatus(book.id, nextStatus)} />
+      <button type="button" className="book-card-title" onClick={() => onOpenDetail(book)}>
+        {book.title}
+      </button>
+      <p>{book.author}</p>
+      <p className="book-pages">{book.pages}쪽</p>
+      <StarRating rating={book.rating} onChange={(rating) => onRate(book.id, rating)} />
+      <button type="button" onClick={() => onDelete(book.id)}>
+        삭제
+      </button>
+    </div>
+  );
+}
+
+export default BookCard;
+```
+
+제목을 버튼으로 바꿔 클릭하면 `onOpenDetail(book)`을 호출합니다. `BookCard`의 나머지 props(`onDelete`, `onRate`, `onToggleStatus`)와 루트 요소(`<div className="book-card">`)는 10편 그대로입니다. `BookList`도 이 콜백을 그대로 한 층 아래로 전달해야 합니다(`BookList`에 `onOpenDetail` prop을 추가하고 `BookCard`로 넘기는 한 줄만 더합니다).
+
+### 4. App.jsx에서 Layout·Modal 배치하기
+
+```jsx
+// src/App.jsx (관련 부분만 발췌 — 나머지 useReducer 로직은 14편 그대로 유지)
+import { useState } from 'react';
+import Layout from './components/Layout';
+import Modal from './components/Modal';
+// ...기존 import 유지
+
+function App() {
+  // ...기존 useReducer·useEffect·useRef 유지
+  const [selectedBook, setSelectedBook] = useState(null);
+
+  function handleOpenDetail(book) {
+    setSelectedBook(book);
+  }
+
+  function handleCloseDetail() {
+    setSelectedBook(null);
+  }
+
+  return (
+    <Layout>
+      <Header />
+      <p>총 {books.length}권</p>
+      <BookList
+        ref={scrollTargetRef}
+        books={books}
+        onDelete={handleDeleteBook}
+        onRate={handleRateBook}
+        onToggleStatus={handleToggleStatus}
+        onOpenDetail={handleOpenDetail}
+      />
+      <BookForm onAddBook={handleAddBook} />
+      <Modal isOpen={selectedBook !== null} onClose={handleCloseDetail}>
+        {selectedBook && (
+          <div className="book-detail">
+            <h2>{selectedBook.title}</h2>
+            <p>{selectedBook.author}</p>
+            <p>{selectedBook.pages}쪽</p>
+            <p>{selectedBook.memo || '메모가 없습니다.'}</p>
+          </div>
+        )}
+      </Modal>
+    </Layout>
+  );
+}
+
+export default App;
+```
+
+`Layout`은 `Header`, `BookForm`, `BookList`가 무엇인지 모른 채 그대로 감싸고, `Modal`은 책 상세 `div`가 무엇인지 모른 채 그대로 감쌉니다. 두 컴포넌트 모두 **구조만 제공하고 내용은 관여하지 않는** 합성의 전형입니다.
+
+### 5. 실행
+
+```text
+npm run dev
+```
+
+### 6. 확인
+
+- 책 카드의 제목을 클릭하면 화면 중앙에 모달이 뜨고, 제목·저자·쪽수·메모가 보입니다.
+- "닫기" 버튼이나 모달 바깥(배경)을 클릭하면 모달이 닫힙니다.
+- 모달 내용(흰 박스) 안을 클릭해도 모달이 닫히지 않습니다(`stopPropagation` 확인).
+- React DevTools Components 탭에서 `Modal`을 선택하면 `children`이 `book-detail` div 트리로 전달된 것을 확인할 수 있습니다.
+
+</Steps>
+
+## 직접 해보기
+
+1. `Layout`에 `title` prop을 추가로 받아, `children` 위에 페이지 제목을 표시해 보세요(props와 children을 함께 받는 컴포넌트 연습).
+2. `Modal`이 열려 있을 때 `Escape` 키를 누르면 닫히도록 `useEffect`로 `keydown` 이벤트를 등록해 보세요.
+
+<details>
+<summary>정답 보기</summary>
+
+```jsx
+// src/components/Layout.jsx
+function Layout({ title, children }) {
+  return (
+    <div className="layout">
+      {title && <h1 className="layout-title">{title}</h1>}
+      <main className="layout-main">{children}</main>
+    </div>
+  );
+}
+```
+
+```jsx
+// src/components/Modal.jsx (useEffect 추가)
+import { useEffect } from 'react';
+
+function Modal({ isOpen, onClose, children }) {
+  useEffect(() => {
+    if (!isOpen) return;
+    function handleKeyDown(event) {
+      if (event.key === 'Escape') onClose();
+    }
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, [isOpen, onClose]);
+
+  if (!isOpen) return null;
+  // ...나머지 동일
+}
+```
+
+</details>
+
+## 자주 하는 실수
+
+| 증상 | 원인 | 고치는 법 |
+|------|------|-----------|
+| 모달 안을 클릭해도 모달이 닫힘 | `modal-content`의 클릭 이벤트가 `modal-backdrop`까지 전파됨 | `event.stopPropagation()` 호출 확인 |
+| `children`이 항상 `undefined` | 컴포넌트를 자기 닫힘 태그(`<Layout />`)로 사용 | 여는 태그와 닫는 태그 사이에 내용을 넣기(`<Layout>...</Layout>`) |
+| `isOpen`이 `false`인데도 모달이 잠깐 보임 | `null` 반환 전에 다른 조건부 렌더링과 얽힘 | 컴포넌트 최상단에서 `if (!isOpen) return null;`을 가장 먼저 처리 |
+| props와 children을 같이 쓰다가 구조 분해를 빠뜨림 | `function Layout(props)`로 받고 `props.children` 대신 `props`를 그대로 렌더링 | `{ title, children }`으로 구조 분해 |
+
+## 확인 문제
+
+<Quiz
+  questionNumber={1}
+  question="React에서 children prop이 채워지는 방식은?"
+  options={['컴포넌트의 여는 태그와 닫는 태그 사이에 넣은 JSX가 자동으로 전달된다', 'children이라는 이름의 속성을 반드시 직접 명시해야 한다', 'children은 배열 형태로만 전달할 수 있다', 'children은 클래스 컴포넌트에서만 사용할 수 있다']}
+  correctAnswer={1}
+  explanation="태그 사이에 넣은 JSX는 별도로 명시하지 않아도 children prop으로 자동 전달된다."
+  optionExplanations={['정답 — 태그 사이 내용이 자동으로 children이 된다', '직접 명시할 필요 없이 자동으로 전달된다', '문자열·요소·배열 등 다양한 형태가 가능하다', '함수 컴포넌트에서도 동일하게 사용된다']}
+/>
+
+<Quiz
+  questionNumber={2}
+  question="props 나열 방식 대비 children 합성 방식의 장점으로 가장 알맞은 것은?"
+  options={['감쌀 내용을 미리 정해진 형태에 가두지 않고 자유로운 JSX로 채울 수 있다', 'children을 쓰면 컴포넌트가 항상 더 빠르게 렌더링된다', 'children 방식은 props를 전혀 사용하지 않는 방식이다', 'children을 쓰면 상태 관리가 필요 없어진다']}
+  correctAnswer={1}
+  explanation="합성은 내용의 형태를 고정하지 않고 사용하는 쪽이 자유롭게 JSX를 채우게 해준다. isOpen, onClose 같은 다른 props와 함께 사용할 수 있다."
+  optionExplanations={['정답 — 자유로운 내용 구성이 핵심 장점이다', '렌더링 속도와는 무관하다', 'Modal 예제처럼 isOpen 같은 다른 props와 함께 쓰인다', '상태 관리 필요 여부와는 무관한 주제다']}
+/>
+
+<Quiz
+  questionNumber={3}
+  question="Modal 컴포넌트에서 modal-content에 event.stopPropagation()을 호출하는 이유는?"
+  options={['내용 영역 클릭이 배경(backdrop)의 클릭 이벤트로 전파되어 모달이 닫히는 것을 막기 위해', '모달을 열기 위해 반드시 필요한 호출이기 때문에', '리렌더 횟수를 줄이기 위한 성능 최적화이기 때문에', 'children이 정상적으로 표시되게 하기 위해 필수적이기 때문에']}
+  correctAnswer={1}
+  explanation="클릭 이벤트는 자식에서 부모로 전파된다. stopPropagation이 없으면 내용 클릭도 배경의 onClick까지 전달되어 즉시 닫혀버린다."
+  optionExplanations={['정답 — 이벤트 전파를 막아 배경 클릭과 구분한다', '모달을 여는 것과는 무관하며 닫힘 방지 목적이다', '성능 최적화가 아니라 이벤트 전파 제어다', 'children 렌더링과는 무관하다']}
+/>
+
+<Quiz
+  questionNumber={4}
+  question="Layout, Modal 컴포넌트가 안에 어떤 내용이 들어갈지 몰라도 되는 이유는?"
+  options={['구조(레이아웃·오버레이 틀)만 담당하고 내용은 children으로 위임하기 때문', 'React가 모든 컴포넌트의 내용을 자동으로 추론하기 때문', 'props로 내용을 미리 문자열로 전달받기 때문', 'Layout과 Modal은 항상 빈 화면을 렌더링하기 때문']}
+  correctAnswer={1}
+  explanation="Layout과 Modal은 감싸는 틀(구조)만 책임지고, 실제 내용은 사용하는 쪽이 children으로 채운다. 이것이 합성 패턴의 핵심이다."
+  optionExplanations={['정답 — 구조만 제공하고 내용은 children에 위임한다', '자동 추론이 아니라 명시적인 children 전달이다', '문자열이 아니라 JSX 트리 그대로 전달된다', '실제로는 children 내용을 그대로 렌더링한다']}
+/>
+
+<Quiz
+  questionNumber={5}
+  question="Modal 컴포넌트에서 isOpen이 false일 때 if (!isOpen) return null;로 처리하는 이유는?"
+  options={['조건에 맞지 않으면 아무것도 렌더링하지 않기 위해', 'null을 반환하면 컴포넌트가 완전히 삭제되어 다시 마운트할 수 없기 때문', 'React는 반드시 null을 한 번 반환해야 하는 규칙이 있기 때문', 'isOpen이 false일 때 에러를 방지하기 위한 필수 문법이기 때문']}
+  correctAnswer={1}
+  explanation="함수 컴포넌트가 null을 반환하면 아무것도 렌더링하지 않는다. 조건부 렌더링(7편)의 한 형태로, isOpen이 false인 동안 모달을 화면에서 완전히 감춘다."
+  optionExplanations={['정답 — 조건에 안 맞으면 아무것도 그리지 않는 조건부 렌더링이다', 'isOpen이 다시 true가 되면 정상적으로 다시 렌더링된다', '그런 강제 규칙은 없다', '에러 방지가 아니라 의도적인 비표시를 위한 코드다']}
+/>
+
+## 참고 자료
+
+- [React 공식 - Passing Props to a Component](https://react.dev/learn/passing-props-to-a-component)

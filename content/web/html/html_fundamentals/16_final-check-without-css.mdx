@@ -1,0 +1,158 @@
+---
+title: '16. 최종 점검: CSS 없이 완성도 확인'
+description: '완료 기준 5가지를 자가 점검하고 css_fundamentals로 넘어갈 준비를 마친다'
+---
+
+<Callout type="info">
+  **이번 편의 결과물:** 3페이지 포트폴리오가 완료 기준 5가지를 모두 통과한 상태로 커밋할 준비가 끝난다. · **다루는 개념:** 완료 기준 자가 점검, 구조·접근성·유효성 재확인
+</Callout>
+
+## 이 편에서 만드는 파일
+
+```
+web-practice/portfolio/
+├ index.html        (변경 없음 — 점검만)
+├ projects.html     (변경 없음 — 점검만)
+└ contact.html      (변경 없음 — 점검만)
+```
+
+## 개념 정리
+
+새 개념은 없다. `01_학습방향.md`가 정한 완료 기준 다섯 가지를 순서대로 다시 확인하는 편이다. 지금까지 03편부터 15편까지 조각조각 만든 것을 한 번에 훑어 CSS 없이도 완성된 상태임을 스스로 증명한다.
+
+| 번호 | 완료 기준 | 담당 편 |
+|------|-----------|---------|
+| 1 | 세 페이지가 CSS 없이도 시맨틱 요소만으로 구조화되어 있다 | 03, 09 |
+| 2 | `contact.html` 폼이 `label`의 `for`와 입력의 `id`, `name`/`value`로 정확히 연결되어 제출 데이터를 예측할 수 있다 | 10, 11, 12 |
+| 3 | `index.html`의 표가 `caption`·`thead`/`tbody`/`tfoot`·`th scope`로 구성되어 있다 | 07 |
+| 4 | 모든 이미지가 장식용/정보성을 판단해 적절한 `alt`를 채우고 있다 | 06, 14 |
+| 5 | Nu HTML Checker에서 세 페이지 모두 오류 0건이다 | 15 |
+
+## 실습
+
+<Steps>
+
+### 1. 기준 1 — 시맨틱 구조 확인
+
+세 파일을 열어 각 페이지의 최상위 구조가 `header`(로고+`nav`) → `main` → `footer`(SNS `nav`)인지 확인한다.
+
+```text
+index.html:    header → main(hero, about, skills, career) → footer
+projects.html: header → main(h1, p, project-grid) → footer
+contact.html:  header → main(h1, p, form, 연락처 섹션) → footer
+```
+
+`div`로만 감싼 곳이 있으면 목적에 맞는 시맨틱 요소로 바꿀 자리인지 다시 판단한다.
+
+### 2. 기준 2 — 폼 데이터 흐름 재확인
+
+`contact.html`을 브라우저에서 열고 각 필드에 값을 채운 뒤 제출한다. 12편에서 확인했던 대로 요청에 담기는 문자열을 다시 예측해 본다.
+
+```text
+name=김제노&email=zeno%40example.com&inquiryType=collab&message=...&agree=on
+```
+
+`&`로 필드가 구분되고 공백은 `+` 또는 `%20`으로 인코딩되는지 확인한다.
+
+### 3. 기준 3 — 표 구조 확인
+
+`index.html`의 경력 표를 열어 다음이 모두 있는지 확인한다.
+
+```text
+<table>
+  <caption>...</caption>
+  <thead><tr><th scope="col">...</th></tr></thead>
+  <tbody><tr><th scope="row">...</th><td>...</td></tr></tbody>
+</table>
+```
+
+### 4. 기준 4 — alt 전수 점검
+
+세 파일에서 `img` 태그를 모두 찾아 `alt` 값이 "이미지"·"사진" 같은 무의미한 문구가 아닌지 하나씩 확인한다.
+
+```text
+index.html:    profile.svg → "Zeno Kim의 프로필 사진"
+projects.html: project-01~06.svg → 각 프로젝트 화면을 설명하는 문구 6개
+```
+
+### 5. 기준 5 — 최종 검증
+
+세 파일을 다시 한 번 Nu HTML Checker에 올려 "No errors or warnings to show."를 확인한다.
+
+### 6. 확인
+
+- 다섯 기준을 모두 통과했다
+- `git status`로 변경된 세 파일이 커밋 대기 상태인 것을 확인한다(실제 커밋은 학습자 재량)
+- 브라우저에서 세 페이지를 CSS 없이 봤을 때도 제목·문단·표·폼이 순서대로 읽혀 무엇을 하는 페이지인지 알 수 있다
+
+</Steps>
+
+## 직접 해보기
+
+브라우저 확장 프로그램이나 개발자 도구의 "접근성 트리" 패널로 `contact.html`을 열어, 폼 필드마다 스크린 리더가 읽어줄 이름(accessible name)이 레이블 문구와 정확히 일치하는지 확인해 보자.
+
+<details>
+<summary>정답 보기</summary>
+
+접근성 트리에서 각 입력의 이름이 "이름"·"이메일"·"문의 유형"·"메시지"·"개인정보 수집·이용에 동의합니다."로 나오면 정상이다. 빈 문자열이거나 "textbox"처럼 역할만 나오면 `label`의 `for`/`id` 연결이 빠진 것이다.
+
+</details>
+
+## 자주 하는 실수
+
+| 증상 | 원인 | 고치는 법 |
+|------|------|-----------|
+| 점검할 때마다 새로운 오류가 발견된다 | 편별로 만들 때는 통과했지만 이후 편에서 구조를 고치며 깨짐 | 15편처럼 세 파일 전체를 다시 검증기에 돌린다 |
+| CSS 없이 보면 뭔가 부족해 보인다 | 스타일링과 구조를 혼동함 | 이 편의 점검 대상은 구조·접근성·유효성이지 시각적 완성도가 아니다 |
+| 커밋 전에 스타터 zip의 이미지 경로가 깨져 있다 | 파일 이동·이름 변경 후 경로 미수정 | `img src` 값과 실제 `images/` 폴더 파일명을 다시 대조한다 |
+
+## 확인 문제
+
+<Quiz
+  questionNumber={1}
+  question="이 편에서 새로 배우는 HTML 문법은 무엇인가?"
+  options={['새로운 태그 여러 개', '없음 — 지금까지 만든 것을 완료 기준에 맞춰 점검한다', 'CSS 기초 문법', 'JavaScript 이벤트 처리']}
+  correctAnswer={2}
+  explanation="16편은 새 문법이 아니라 01_학습방향.md의 완료 기준 5가지를 다시 확인하는 점검 편이다."
+  optionExplanations={['새 태그는 없다', '정답이다', 'CSS는 다음 과목의 몫이다', 'JS는 web_apis의 몫이다']}
+/>
+
+<Quiz
+  questionNumber={2}
+  question="완료 기준 중 index.html의 표에 요구되는 것은?"
+  options={['배경색과 테두리 스타일', 'caption·thead/tbody/tfoot·th scope 구조', 'JavaScript로 정렬 기능', '반응형 그리드 레이아웃']}
+  correctAnswer={2}
+  explanation="표의 완료 기준은 시각적 스타일이 아니라 caption·행 그룹·th scope로 구성된 접근성 있는 구조다."
+  optionExplanations={['스타일은 css_fundamentals의 몫이다', '정답이다', 'JS는 이 과목 범위 밖이다', '레이아웃도 CSS 과목 몫이다']}
+/>
+
+<Quiz
+  questionNumber={3}
+  question="contact.html 폼 제출 시 확인해야 할 것은?"
+  options={['제출 버튼의 색상', 'name=value 쌍이 &로 구분되어 인코딩되는 것', '폼 애니메이션 효과', '서버 응답 시간']}
+  correctAnswer={2}
+  explanation="완료 기준 2번은 name/value가 정확히 연결되어 제출 데이터를 예측할 수 있는지를 요구한다."
+  optionExplanations={['색상은 CSS 몫이다', '정답이다', '애니메이션은 이 과목 범위 밖이다', '응답 시간은 서버 쪽 문제다']}
+/>
+
+<Quiz
+  questionNumber={4}
+  question="CSS 없이 페이지를 봤을 때 이 편이 기대하는 상태는?"
+  options={['모든 요소가 예쁘게 정렬되어 보인다', '제목·문단·표·폼이 순서대로 읽혀 페이지 목적을 알 수 있다', '색상 대비가 WCAG AA를 충족한다', '애니메이션이 자연스럽게 재생된다']}
+  correctAnswer={2}
+  explanation="스타일링 이전에도 시맨틱 구조만으로 콘텐츠 순서와 목적이 전달되어야 한다는 것이 이 과목의 목표다."
+  optionExplanations={['정렬은 CSS의 몫이다', '정답이다', '색상 대비는 CSS 이후에 다룰 주제다', '애니메이션은 이 과목 범위 밖이다']}
+/>
+
+<Quiz
+  questionNumber={5}
+  question="이 편을 마친 뒤 다음 순서로 옳은 것은?"
+  options={['바로 modern_html으로 건너뛴다', '17편에서 css_fundamentals로 넘어갈 준비를 확인한다', 'JavaScript 과목부터 시작한다', '포트폴리오를 처음부터 다시 만든다']}
+  correctAnswer={2}
+  explanation="16편의 점검이 끝나면 17편에서 이 결과물이 css_fundamentals의 출발점이 되는 과정을 확인한다."
+  optionExplanations={['modern_html보다 css_fundamentals가 먼저다', '정답이다', 'JS 과목은 이 트랙과 별개 순서다', '처음부터 다시 만들 필요는 없다']}
+/>
+
+## 참고 자료
+
+- [MDN — HTML table basics](https://developer.mozilla.org/en-US/docs/Learn_web_development/Core/Structuring_content/HTML_table_basics)

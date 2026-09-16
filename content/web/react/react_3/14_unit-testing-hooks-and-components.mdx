@@ -1,0 +1,301 @@
+---
+title: '14. Vitest + RTL로 훅·컴포넌트 단위 테스트'
+description: '커스텀 훅과 zod 스키마, Zustand 스토어, 폼 컴포넌트에 단위 테스트를 붙여 react_2가 남긴 테스트 1개를 스위트로 확장합니다'
+---
+
+<Callout type="info">
+  **이번 편의 결과물:** `useBooks`, 책 등록 zod 스키마, 필터용 Zustand 스토어에 대한 단위 테스트가 추가되어 통과합니다. · **다루는 개념:** 커스텀 훅 테스트(`renderHook`), 폼 검증 로직 테스트, Zustand 스토어 테스트, RTL 쿼리·유저 이벤트
+</Callout>
+
+## 이 편에서 만드는 파일
+
+```
+bookshelf/src/
+├── test/
+│   ├── useBooks.test.jsx       (~) 서버 상태 훅 테스트로 재작성
+│   ├── bookSchema.test.js      (+) zod 스키마 단위 테스트
+│   ├── useUiStore.test.js      (+) Zustand 스토어 단위 테스트
+│   └── BookForm.test.jsx       (+) 폼 컴포넌트 RTL 테스트
+```
+
+## 개념 정리
+
+### 03편에서 정한 단위 테스트의 경계
+
+03편에서 테스트 피라미드의 각 층이 무엇을 보는지 정했습니다. 단위 테스트는 **네트워크를 타지 않는 순수 로직**만 봅니다. `useBooks`가 내부에서 TanStack Query를 쓰더라도, 이 편에서는 실제 요청을 MSW로 가로채지 않고 `queryFn`을 직접 주입하거나 짧은 목 함수로 대체합니다. 서버 응답과 함께 동작하는지는 15편(통합 테스트)의 몫입니다.
+
+| 대상 | 도구 | 확인하는 것 |
+|------|------|--------------|
+| 커스텀 훅 | `renderHook`(`@testing-library/react`) | 반환값과 상태 전이가 기대한 대로 바뀌는가 |
+| zod 스키마 | `schema.safeParse()` | 올바른 입력은 통과, 잘못된 입력은 각 필드에 에러가 붙는가 |
+| Zustand 스토어 | 스토어를 직접 `import`해 액션 호출 | 액션 호출 후 상태가 기대한 값으로 바뀌는가 |
+| 폼 컴포넌트 | RTL `render` + `userEvent` | 사용자가 타이핑·클릭했을 때 화면에 보이는 결과 |
+
+### renderHook은 훅을 컴포넌트 없이 실행하는 도구다
+
+훅은 컴포넌트 안에서만 호출할 수 있습니다. `renderHook(() => useBooks())`은 보이지 않는 테스트 전용 컴포넌트 안에서 훅을 실행하고, `result.current`로 반환값을 확인하게 해줍니다. `useBooks`가 TanStack Query를 쓰므로, `wrapper` 옵션으로 `QueryClientProvider`를 감싸줘야 합니다.
+
+### Zustand 스토어는 테스트마다 초기화해야 한다
+
+Zustand 스토어는 모듈 스코프에 상태를 유지합니다. 한 테스트에서 값을 바꾸면 다음 테스트에도 그대로 남아 있어 테스트 간 간섭이 생깁니다. `beforeEach`에서 스토어를 초기 상태로 되돌리는 리셋 함수를 마련합니다.
+
+## 실습
+
+<Steps>
+
+### 1. Zustand 스토어 확인
+
+09·11편이 만든 `store/useUiStore.js`는 `statusFilter`·`sortBy`·`sortOrder`·`searchQuery`·`page`·`isSidebarOpen`과 `resetFilters` 액션을 갖고 있습니다. 이 편은 그 구조를 그대로 테스트합니다. 새로 만들 필요는 없습니다.
+
+### 2. useBooks 훅 테스트 작성
+
+```js
+// bookshelf/src/test/useBooks.test.jsx
+import { describe, it, expect, vi } from 'vitest';
+import { renderHook, waitFor } from '@testing-library/react';
+import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
+import { useBooks } from '../hooks/useBooks.js';
+import * as booksApi from '../api/books.js';
+
+function createWrapper() {
+  const queryClient = new QueryClient({
+    defaultOptions: { queries: { retry: false } },
+  });
+  return function Wrapper({ children }) {
+    return <QueryClientProvider client={queryClient}>{children}</QueryClientProvider>;
+  };
+}
+
+describe('useBooks', () => {
+  it('조회에 성공하면 books 배열을 반환한다', async () => {
+    vi.spyOn(booksApi, 'getBooks').mockResolvedValue([
+      { id: 1, title: '클린 코드', status: 'done' },
+    ]);
+
+    const { result } = renderHook(() => useBooks(), { wrapper: createWrapper() });
+
+    await waitFor(() => expect(result.current.isSuccess).toBe(true));
+    expect(result.current.data).toHaveLength(1);
+    expect(result.current.data[0].title).toBe('클린 코드');
+  });
+
+  it('조회에 실패하면 isError가 true다', async () => {
+    vi.spyOn(booksApi, 'getBooks').mockRejectedValue(new Error('요청 실패'));
+
+    const { result } = renderHook(() => useBooks(), { wrapper: createWrapper() });
+
+    await waitFor(() => expect(result.current.isError).toBe(true));
+  });
+});
+```
+
+### 3. zod 스키마 테스트 작성
+
+```js
+// bookshelf/src/test/bookSchema.test.js
+import { describe, it, expect } from 'vitest';
+import { bookSchema } from '../schemas/bookSchema.js';
+
+describe('bookSchema', () => {
+  it('필수 필드를 모두 채우면 통과한다', () => {
+    const result = bookSchema.safeParse({
+      title: '리팩터링 2판',
+      author: '마틴 파울러',
+      status: 'reading',
+      pages: 550,
+    });
+
+    expect(result.success).toBe(true);
+  });
+
+  it('title이 비어 있으면 title 필드에 에러가 붙는다', () => {
+    const result = bookSchema.safeParse({
+      title: '',
+      author: '마틴 파울러',
+      status: 'reading',
+      pages: 550,
+    });
+
+    expect(result.success).toBe(false);
+    expect(result.error.issues.some((issue) => issue.path[0] === 'title')).toBe(true);
+  });
+
+  it('pages가 음수면 실패한다', () => {
+    const result = bookSchema.safeParse({
+      title: '리팩터링 2판',
+      author: '마틴 파울러',
+      status: 'reading',
+      pages: -10,
+    });
+
+    expect(result.success).toBe(false);
+  });
+});
+```
+
+### 4. Zustand 스토어 테스트 작성
+
+```js
+// bookshelf/src/test/useUiStore.test.js
+import { describe, it, expect, beforeEach } from 'vitest';
+import { useUiStore } from '../store/useUiStore.js';
+
+beforeEach(() => {
+  useUiStore.getState().resetFilters();
+});
+
+describe('useUiStore', () => {
+  it('setStatusFilter를 호출하면 필터가 바뀌고 페이지가 1로 리셋된다', () => {
+    useUiStore.getState().setPage(3);
+    useUiStore.getState().setStatusFilter('reading');
+
+    expect(useUiStore.getState().statusFilter).toBe('reading');
+    expect(useUiStore.getState().page).toBe(1);
+  });
+
+  it('같은 컬럼으로 setSort를 두 번 호출하면 방향이 뒤집힌다', () => {
+    useUiStore.getState().setSort('title');
+    expect(useUiStore.getState().sortOrder).toBe('desc');
+
+    useUiStore.getState().setSort('title');
+    expect(useUiStore.getState().sortOrder).toBe('asc');
+  });
+
+  it('resetFilters를 호출하면 초기값으로 돌아간다', () => {
+    useUiStore.getState().setStatusFilter('done');
+    useUiStore.getState().setSort('rating');
+
+    useUiStore.getState().resetFilters();
+
+    expect(useUiStore.getState().statusFilter).toBe('all');
+    expect(useUiStore.getState().sortBy).toBe('title');
+  });
+});
+```
+
+### 5. 폼 컴포넌트 RTL 테스트 작성
+
+```jsx
+// bookshelf/src/test/BookForm.test.jsx
+import { describe, it, expect, vi } from 'vitest';
+import { render, screen } from '@testing-library/react';
+import userEvent from '@testing-library/user-event';
+import BookForm from '../components/BookForm.jsx';
+
+describe('BookForm', () => {
+  it('제목을 비운 채 제출하면 에러 메시지가 보인다', async () => {
+    const user = userEvent.setup();
+    const handleSubmitBook = vi.fn();
+    render(<BookForm onSubmitBook={handleSubmitBook} submitLabel="등록" />);
+
+    await user.click(screen.getByRole('button', { name: '등록' }));
+
+    expect(await screen.findByText('제목을 입력하세요')).toBeInTheDocument();
+    expect(handleSubmitBook).not.toHaveBeenCalled();
+  });
+
+  it('필수 값을 채우면 onSubmitBook이 입력값과 함께 호출된다', async () => {
+    const user = userEvent.setup();
+    const handleSubmitBook = vi.fn();
+    render(<BookForm onSubmitBook={handleSubmitBook} submitLabel="등록" />);
+
+    await user.type(screen.getByLabelText('제목'), '함께 자라기');
+    await user.type(screen.getByLabelText('저자'), '김창준');
+    await user.type(screen.getByLabelText('쪽수'), '224');
+    await user.click(screen.getByRole('button', { name: '등록' }));
+
+    expect(handleSubmitBook).toHaveBeenCalledWith(
+      expect.objectContaining({ title: '함께 자라기', author: '김창준', pages: 224 }),
+      expect.anything(),
+    );
+  });
+});
+```
+
+### 6. 실행
+
+```bash
+npx vitest run
+```
+
+### 7. 확인
+
+```text
+✓ src/test/useBooks.test.jsx (2)
+✓ src/test/bookSchema.test.js (3)
+✓ src/test/useUiStore.test.js (2)
+✓ src/test/BookForm.test.jsx (2)
+
+Test Files  4 passed (4)
+     Tests  9 passed (9)
+```
+
+</Steps>
+
+## 직접 해보기
+
+<details>
+<summary>setSort('rating') 호출 전후로 page가 1로 리셋되는지 확인하는 테스트를 추가해 보세요.</summary>
+
+`useUiStore.getState().setPage(3)`으로 먼저 3페이지로 옮긴 뒤 `setSort('rating')`을 호출하고, `page`가 `1`로 돌아왔는지 `expect`합니다. 11편에서 `setSort`가 `page: 1`을 함께 반환하도록 설계했으므로, 이 테스트는 그 설계를 그대로 검증합니다.
+</details>
+
+## 자주 하는 실수
+
+| 증상 | 원인 | 고치는 법 |
+|------|------|-----------|
+| `renderHook` 호출 시 "queryClient를 찾을 수 없다" 에러 | `QueryClientProvider` 없이 훅을 실행 | `wrapper` 옵션으로 Provider를 감싼 컴포넌트 전달 |
+| Zustand 테스트가 실행 순서에 따라 실패했다 성공했다 한다 | 스토어 상태가 테스트 간에 공유됨 | `beforeEach`에서 `resetFilters()` 같은 리셋 액션 호출 |
+| `getByText`가 여러 개 매치돼 에러난다 | 같은 문구가 화면에 두 번 이상 있음 | `getByRole`이나 `getByLabelText`로 더 구체적인 쿼리 사용 |
+| 비동기 상태 확인 전에 단언이 먼저 실행돼 실패한다 | `waitFor` 없이 바로 `expect` 호출 | 상태 전이를 기다리는 `waitFor`나 `findBy*` 쿼리 사용 |
+
+## 확인 문제
+
+<Quiz
+  questionNumber={1}
+  question="renderHook에서 wrapper 옵션이 필요한 경우는 언제입니까"
+  options={['모든 훅 테스트에 항상 필요하다', '훅이 Context나 Provider에 의존할 때', 'CSS를 적용할 때만 필요하다', '훅 이름이 use로 시작하지 않을 때']}
+  correctAnswer={2}
+  explanation="QueryClientProvider처럼 훅이 특정 Context 값에 의존하면, 그 Provider로 감싼 wrapper를 renderHook에 전달해야 합니다."
+  optionExplanations={['Context가 필요 없는 훅에는 불필요합니다', '정답입니다', 'CSS와는 무관합니다', '훅 이름 규칙과는 무관합니다']}
+/>
+
+<Quiz
+  questionNumber={2}
+  question="zod 스키마 단위 테스트에서 주로 확인하는 것은 무엇입니까"
+  options={['네트워크 응답 시간', '올바른 입력은 통과하고 잘못된 입력은 필드별 에러가 붙는지', '컴포넌트의 렌더링 속도', 'CSS 클래스 적용 여부']}
+  correctAnswer={2}
+  explanation="스키마 테스트는 safeParse 결과의 success 여부와 에러가 붙는 필드 경로를 확인해 검증 규칙 자체를 검증합니다."
+  optionExplanations={['네트워크와는 무관합니다', '정답입니다', '렌더링 속도는 스키마 테스트 대상이 아닙니다', 'CSS와는 무관합니다']}
+/>
+
+<Quiz
+  questionNumber={3}
+  question="Zustand 스토어 테스트에서 beforeEach마다 초기화가 필요한 이유는 무엇입니까"
+  options={['테스트 속도를 높이기 위해', '스토어가 모듈 스코프 상태를 유지해 테스트 간에 값이 이어지기 때문에', 'Vitest의 필수 문법이라서', 'React 컴포넌트를 사용하지 않기 때문에']}
+  correctAnswer={2}
+  explanation="Zustand 스토어는 모듈이 로드된 동안 상태를 유지하므로, 리셋하지 않으면 이전 테스트의 상태 변경이 다음 테스트에 영향을 줍니다."
+  optionExplanations={['속도와는 무관합니다', '정답입니다', 'Vitest 필수 문법이 아닙니다', '컴포넌트 사용 여부와는 무관합니다']}
+/>
+
+<Quiz
+  questionNumber={4}
+  question="BookForm 테스트에서 userEvent를 쓰는 이유는 무엇입니까"
+  options={['CSS 애니메이션을 확인하기 위해', '실제 사용자의 타이핑·클릭에 가까운 방식으로 상호작용을 재현하기 위해', '네트워크 요청 속도를 측정하기 위해', '컴포넌트를 서버에서 렌더링하기 위해']}
+  correctAnswer={2}
+  explanation="userEvent는 fireEvent보다 실제 브라우저의 이벤트 순서(포커스, keydown, keyup 등)에 가깝게 상호작용을 시뮬레이션합니다."
+  optionExplanations={['애니메이션 확인용이 아닙니다', '정답입니다', '속도 측정 도구가 아닙니다', '서버 렌더링과는 무관합니다']}
+/>
+
+<Quiz
+  questionNumber={5}
+  question="이 편의 단위 테스트가 다루지 않는 것은 무엇입니까"
+  options={['zod 스키마의 검증 규칙', 'Zustand 스토어의 액션과 상태 전이', '실제 네트워크를 거친 로그인부터 책 등록까지의 전체 흐름', 'BookForm의 필수값 검증 메시지']}
+  correctAnswer={3}
+  explanation="네트워크를 통한 여러 화면의 연결 흐름은 15편(MSW 통합 테스트)의 범위이며, 이 편은 네트워크를 타지 않는 순수 로직만 다룹니다."
+  optionExplanations={['스키마 테스트에 포함됩니다', '스토어 테스트에 포함됩니다', '정답입니다', '폼 테스트에 포함됩니다']}
+/>
+
+## 참고 자료
+
+- [React Testing Library — Introduction](https://testing-library.com/docs/react-testing-library/intro/)

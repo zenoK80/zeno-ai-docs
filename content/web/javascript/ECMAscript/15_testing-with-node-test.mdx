@@ -1,0 +1,260 @@
+---
+title: '15. node:test로 단위 테스트 작성'
+description: 'Node 내장 테스트 러너로 TodoStore의 추가·필터·정렬·통계 로직을 검증합니다.'
+---
+
+<Callout type="info">
+  **이번 편의 결과물:** `test/todo-store.test.js`를 작성하고 `node --test`로 추가·필터·정렬·통계 로직 테스트를 통과시킵니다. · **다루는 개념:** `node:test`, `node:assert`, 테스트 구조화(`describe`/`test`)
+</Callout>
+
+## 이 편에서 만드는 파일
+
+```
+todo-cli/
+└── test/
+    └── todo-store.test.js   (+)
+```
+
+## 개념 정리
+
+### node:test 기본 구조
+
+Node 18부터 내장된 테스트 러너는 별도 패키지 설치 없이 `node:test`를 import해서 씁니다. 패키지를 추가하지 않아도 되는 점이 todo-cli처럼 의존성을 최소로 유지하는 프로젝트에 맞습니다.
+
+| 함수 | 역할 |
+|------|------|
+| `test(name, fn)` | 테스트 하나를 등록 |
+| `describe(name, fn)` | 관련 테스트를 묶는 그룹 |
+| `it(name, fn)` | `test`의 별칭, `describe` 안에서 자주 씀 |
+| `before`/`beforeEach` | 테스트(그룹) 실행 전 준비 작업 |
+
+### node:assert
+
+`node:assert`(또는 `node:assert/strict`)는 값이 예상과 같은지 확인하는 함수 모음입니다.
+
+| 함수 | 확인 내용 |
+|------|-----------|
+| `assert.equal(a, b)` | `a == b`(느슨한 비교) |
+| `assert.strictEqual(a, b)` | `a === b`(엄격한 비교, 권장) |
+| `assert.deepStrictEqual(a, b)` | 객체·배열의 내용까지 깊게 비교 |
+| `assert.throws(fn)` | `fn` 실행 시 에러가 던져지는지 확인 |
+
+`node:assert/strict`를 import하면 `assert.equal`도 `strictEqual`처럼 동작해 타입까지 엄격히 비교합니다. 이 프로젝트는 항상 `strict` 버전을 씁니다.
+
+### 왜 TodoStore부터 테스트하는가
+
+`TodoStore`는 파일 입출력이나 `console.log` 같은 부수 효과(side effect) 없이 메모리 안에서 데이터만 다루는 클래스입니다. 부수 효과가 없는 로직은 입력과 출력만 확인하면 되므로 테스트를 만들기 쉽습니다. `commands/*.js`처럼 콘솔 출력이나 파일 저장이 섞인 코드는 이번 편의 범위 밖입니다(17편에서 확장 아이디어로만 언급).
+
+## 실습
+
+<Steps>
+
+### 1. test 폴더 만들기
+
+`package.json`의 `scripts.test`는 이미 `"node --test"`로 되어 있습니다. `node --test`는 `test/` 폴더 아래 `*.test.js` 파일을 자동으로 찾아 실행합니다.
+
+### 2. 코드 작성
+
+```js
+// test/todo-store.test.js
+import { test, describe } from 'node:test';
+import assert from 'node:assert/strict';
+import { TodoStore } from '../src/models/TodoStore.js';
+
+function makeStore() {
+  const store = new TodoStore();
+  store.add('리포트 제출', { tags: ['work'], due: '2026-09-20' });
+  store.add('운동하기', { tags: ['health'], due: null });
+  store.add('검색 명령 추가', { tags: ['study', 'node'], due: '2026-09-22' });
+  store.findById(2).done = true;
+  return store;
+}
+
+describe('TodoStore.add', () => {
+  test('추가한 항목이 순서대로 저장된다', () => {
+    const store = makeStore();
+    assert.strictEqual(store.toArray().length, 3);
+    assert.strictEqual(store.findById(1).title, '리포트 제출');
+  });
+
+  test('id는 1부터 자동으로 증가한다', () => {
+    const store = makeStore();
+    const ids = [...store].map((todo) => todo.id);
+    assert.deepStrictEqual(ids, [1, 2, 3]);
+  });
+});
+
+describe('TodoStore.list (필터)', () => {
+  test('done 상태로 필터링한다', () => {
+    const store = makeStore();
+    const done = store.list({ filter: 'done' });
+    assert.strictEqual(done.length, 1);
+    assert.strictEqual(done[0].title, '운동하기');
+  });
+
+  test('pending 상태로 필터링한다', () => {
+    const store = makeStore();
+    const pending = store.list({ filter: 'pending' });
+    assert.strictEqual(pending.length, 2);
+  });
+});
+
+describe('TodoStore.list (정렬)', () => {
+  test('마감일 순으로 정렬하면 null은 맨 뒤로 간다', () => {
+    const store = makeStore();
+    const sorted = store.list({ sort: 'due' });
+    assert.deepStrictEqual(
+      sorted.map((todo) => todo.due),
+      ['2026-09-20', '2026-09-22', null],
+    );
+  });
+});
+
+describe('완료율 계산', () => {
+  test('완료율을 백분율로 계산한다', () => {
+    const store = makeStore();
+    const all = store.toArray();
+    const done = all.filter((todo) => todo.done).length;
+    const rate = Math.round((done / all.length) * 100);
+    assert.strictEqual(all.length, 3);
+    assert.strictEqual(done, 1);
+    assert.strictEqual(rate, 33);
+  });
+
+  test('항목이 없으면 완료율은 0으로 계산해야 한다', () => {
+    const store = new TodoStore();
+    const all = store.toArray();
+    const rate = all.length === 0 ? 0 : Math.round((all.filter((todo) => todo.done).length / all.length) * 100);
+    assert.strictEqual(rate, 0);
+  });
+});
+
+describe('TodoStore.remove', () => {
+  test('존재하는 id를 삭제하면 true를 반환하고 크기가 줄어든다', () => {
+    const store = makeStore();
+    const removed = store.remove(2);
+    assert.strictEqual(removed, true);
+    assert.strictEqual(store.toArray().length, 2);
+  });
+
+  test('존재하지 않는 id를 삭제하면 false를 반환한다', () => {
+    const store = makeStore();
+    assert.strictEqual(store.remove(999), false);
+  });
+});
+```
+
+각 `describe`는 `TodoStore`의 메서드 하나를 기준으로 묶었습니다. `makeStore()`는 매 테스트마다 새 스토어를 만들어, 한 테스트에서 데이터를 바꿔도 다른 테스트에 영향을 주지 않게 합니다(테스트 격리). "완료" 상태는 `add`가 지원하지 않으므로 `findById`로 찾은 뒤 `done` 필드를 직접 `true`로 바꿉니다(14편의 `runDone`과 같은 방식).
+
+### 3. 실행
+
+```text
+node --test
+```
+
+</Steps>
+
+## 확인
+
+- 콘솔에 각 `describe`/`test` 이름과 함께 통과 여부가 나옵니다.
+
+```text
+▶ TodoStore.add
+  ✔ 추가한 항목이 순서대로 저장된다
+  ✔ id는 1부터 자동으로 증가한다
+▶ TodoStore.add (2ms)
+...
+# pass 8
+# fail 0
+```
+
+- `fail 0`이면 전체 통과입니다. 실패한 테스트가 있으면 어떤 `assert`가 무엇을 기대했고 실제로 무엇이 나왔는지가 함께 출력됩니다.
+
+## 직접 해보기
+
+1. `TodoStore`의 `#makeComparator`에 `title` 정렬 분기를 추가한 뒤, `store.list({ sort: 'title' })`(제목순 정렬)에 대한 테스트를 추가해봅니다.
+2. 일부러 `assert.strictEqual(store.toArray().length, 4)`처럼 틀린 값을 넣어 실행하고, 실패 메시지에 기대값(`expected`)과 실제값(`actual`)이 어떻게 표시되는지 확인한 뒤 되돌립니다.
+
+<details>
+<summary>정답 보기(1번)</summary>
+
+```js
+// src/models/TodoStore.js (#makeComparator만 발췌)
+static #makeComparator(sortKey) {
+  if (sortKey === 'due') {
+    return (a, b) => {
+      if (a.due === null && b.due === null) return 0;
+      if (a.due === null) return 1;
+      if (b.due === null) return -1;
+      return a.due.localeCompare(b.due);
+    };
+  }
+  if (sortKey === 'title') {
+    return (a, b) => a.title.localeCompare(b.title);
+  }
+  return (a, b) => a.createdAt.localeCompare(b.createdAt);
+}
+```
+
+```js
+test('제목순으로 정렬한다', () => {
+  const store = makeStore();
+  const sorted = store.list({ sort: 'title' });
+  assert.deepStrictEqual(
+    sorted.map((todo) => todo.title),
+    ['검색 명령 추가', '리포트 제출', '운동하기'],
+  );
+});
+```
+
+</details>
+
+## 자주 하는 실수
+
+| 증상 | 원인 | 고치는 법 |
+|------|------|-----------|
+| `node --test`가 아무 테스트도 못 찾음 | 파일명이 `*.test.js` 규칙을 안 따름 | `test/` 폴더 아래 `이름.test.js`로 저장 |
+| 테스트마다 결과가 다르게 나옴 | 스토어를 테스트 밖에서 한 번만 만들어 공유함 | `makeStore()`로 테스트마다 새 인스턴스 생성 |
+| `assert.equal(a, b)`가 타입이 달라도 통과함 | `node:assert`(비엄격)를 import함 | `node:assert/strict`를 import |
+
+## 확인 문제
+
+<Quiz
+  questionNumber={1}
+  question="node:test를 쓰기 위해 별도로 설치해야 하는 패키지는?"
+  options={['jest', 'mocha', 'vitest', '설치할 필요 없음(Node 내장)']}
+  correctAnswer={4}
+  explanation="node:test는 Node.js 18부터 내장된 테스트 러너라 별도 패키지 설치 없이 import만으로 사용합니다."
+  optionExplanations={['서드파티 프레임워크입니다', '서드파티 프레임워크입니다', '서드파티 프레임워크입니다', '정답입니다']}
+/>
+
+<Quiz
+  questionNumber={2}
+  question="assert.strictEqual(a, b)와 assert.equal(a, b)의 차이는?"
+  options={['차이가 없다', 'strictEqual은 === 비교, equal은 == 비교(node:assert/strict를 쓰면 둘 다 엄격)', 'strictEqual은 비동기 전용이다', 'equal이 더 정확하다']}
+  correctAnswer={2}
+  explanation="일반 node:assert에서 equal은 == 느슨한 비교이고 strictEqual은 === 엄격한 비교입니다. node:assert/strict를 쓰면 equal도 엄격 비교로 동작합니다."
+  optionExplanations={['비교 방식이 다릅니다', '정답입니다', '동기 함수입니다', '엄격도가 다를 뿐 정확도 문제가 아닙니다']}
+/>
+
+<Quiz
+  questionNumber={3}
+  question="각 테스트마다 makeStore()로 새 TodoStore를 만드는 이유는?"
+  options={['코드 줄 수를 줄이기 위해서다', '테스트끼리 상태를 공유하지 않도록 격리하기 위해서다', 'TodoStore는 한 번만 생성할 수 있어서다', '성능을 높이기 위해서다']}
+  correctAnswer={2}
+  explanation="테스트마다 새 인스턴스를 만들면 한 테스트에서 데이터를 바꿔도 다른 테스트 결과에 영향을 주지 않습니다."
+  optionExplanations={['그 목적이 아닙니다', '정답입니다', '여러 번 생성할 수 있습니다', '격리가 목적이지 성능이 목적이 아닙니다']}
+/>
+
+<Quiz
+  questionNumber={4}
+  question="TodoStore를 먼저 테스트 대상으로 삼은 이유로 가장 알맞은 것은?"
+  options={['가장 코드가 짧아서다', '파일 입출력·콘솔 출력 같은 부수 효과가 없어 입력과 출력만 확인하면 되기 때문이다', '가장 나중에 만든 클래스라서다', 'node:test가 클래스만 테스트할 수 있어서다']}
+  correctAnswer={2}
+  explanation="부수 효과가 없는 순수한 로직은 같은 입력에 항상 같은 출력을 내므로 테스트를 작성하고 검증하기 쉽습니다."
+  optionExplanations={['코드 길이가 기준이 아닙니다', '정답입니다', '생성 순서가 기준이 아닙니다', 'node:test는 함수도 테스트할 수 있습니다']}
+/>
+
+## 참고 자료
+
+- [Node.js Docs - Test runner (node:test)](https://nodejs.org/api/test.html)

@@ -1,0 +1,214 @@
+---
+title: '12. oklch와 color-mix()로 색 팔레트 만들기'
+description: 'design-spec의 hex 색 토큰을 oklch로 옮기고 color-mix()로 hover·비활성 톤을 계산한다'
+---
+
+<Callout type="info">
+  **이번 편의 결과물:** 10편의 `--color-*` 토큰이 hex 값 대신 `oklch()` 값으로 교체되고, hover·비활성 톤(`--color-primary-hover` 등)이 손으로 고른 hex가 아니라 `color-mix()` 계산식으로 자동 생성된다. · **다루는 개념:** `hsl`의 지각적 불균일 문제, `oklch()` 좌표 읽는 법, `color-mix()`로 톤 변형 생성
+</Callout>
+
+## 이 편에서 만드는 파일
+
+```
+web-practice/
+└── portfolio/
+    └── css/
+        └── styles.css   ~ (tokens 레이어의 색 토큰을 oklch + color-mix()로 교체)
+```
+
+## 개념 정리
+
+지금까지 색 토큰은 `#0969da`처럼 hex로 적혀 있습니다. hex(정확히는 sRGB)는 디자이너가 직접 고른 값을 담기엔 문제가 없지만, **코드로 톤을 계산**하려 하면 한계가 드러납니다. `#0969da`를 20퍼센트 더 밝게 만들려고 `hsl()`로 바꿔 밝기(lightness)만 올려도, 색상에 따라 사람 눈에는 밝기가 고르게 늘지 않습니다. 같은 밝기 증가분이라도 파란색은 아주 밝아 보이고 노란색은 거의 안 밝아 보이는 식입니다. `hsl`의 밝기 축이 사람의 실제 색 지각과 어긋나 있기 때문입니다.
+
+`oklch()`는 사람의 색 지각에 맞춰 설계된 색 공간입니다. 좌표 세 개로 색을 표현합니다.
+
+```css
+oklch(66% 0.18 254);
+/*    L    C    H  */
+```
+
+| 좌표 | 이름 | 범위 | 의미 |
+|------|------|------|------|
+| L | Lightness(명도) | 0%–100% | 0에 가까울수록 검정, 100에 가까울수록 흰색 |
+| C | Chroma(채도) | 0 이상(보통 0–0.4) | 0이면 무채색(회색), 클수록 선명 |
+| H | Hue(색상) | 0–360 | 색상환 각도. 빨강 근처 25, 노랑 근처 100, 파랑 근처 254 |
+
+hsl과 다른 점은, oklch에서는 **L 값을 고정한 채 H만 바꿔도 눈에 보이는 밝기가 거의 그대로 유지**된다는 것입니다. 그래서 "이 파란색과 밝기가 같은 초록색"을 코드로 계산해서 만들 수 있습니다.
+
+### hex → oklch 값 계산
+
+design-spec의 `--color-primary: #0969da`를 oklch로 옮기는 절차는 다음과 같습니다.
+
+1. 브라우저 개발자 도구의 색상 선택기(`Elements` → `Styles`에서 색상 값 옆 네모를 클릭)를 열면 hex·rgb·hsl·oklch 표기를 순환해서 보여줍니다. `#0969da`를 oklch로 전환하면 `oklch(54.6% 0.192 253.7)`에 가까운 값이 나옵니다.
+2. 이 좌표를 그대로 쓰지 않고 **소수 둘째 자리로 반올림**해 `oklch(55% 0.19 254)`로 정리합니다. 토큰 값은 사람이 읽고 조정할 것이므로 지나치게 긴 소수를 남기지 않습니다.
+3. 같은 방식으로 나머지 색을 옮깁니다.
+
+| 토큰 | 기존 hex | oklch (반올림) |
+|------|----------|----------------|
+| `--color-bg` | `#ffffff` | `oklch(100% 0 0)` |
+| `--color-surface` | `#f6f7f9` | `oklch(97% 0.003 260)` |
+| `--color-text` | `#1f2328` | `oklch(24% 0.006 260)` |
+| `--color-text-muted` | `#59636e` | `oklch(46% 0.012 250)` |
+| `--color-primary` | `#0969da` | `oklch(55% 0.19 254)` |
+| `--color-border` | `#d0d7de` | `oklch(87% 0.006 250)` |
+| `--color-accent` | `#bf3989` | `oklch(50% 0.19 350)` |
+
+무채색(`--color-bg`, `--color-surface`, `--color-text`)은 C 값이 0에 가깝습니다. H(색상)는 채도가 거의 없을 때는 의미가 작아지지만 표기 규칙상 남겨 둡니다.
+
+### `color-mix()`로 톤 변형 만들기
+
+design-spec에는 `--color-primary-hover: #0550ae`처럼 hover용 색이 **디자이너가 손으로 고른 값**으로 이미 정해져 있었습니다. `color-mix()`를 쓰면 이 값을 별도로 관리하지 않고 기본 색에서 계산해 낼 수 있습니다.
+
+```css
+color-mix(in oklch, oklch(55% 0.19 254) 80%, black 20%);
+```
+
+`in oklch`는 어느 색 공간에서 섞을지 지정합니다. 위 식은 "`--color-primary` 80퍼센트에 검정 20퍼센트를 섞는다"는 뜻이며, 결과는 원래 색보다 살짝 어두운 톤이 됩니다. `black` 대신 `white`를 섞으면 밝은 톤(비활성 상태 등)을 만들 수 있습니다.
+
+### 흔한 오해
+
+"oklch로 바꾸면 색이 눈에 띄게 달라진다"고 생각하기 쉽지만, 반올림 오차 범위 안에서는 원래 hex와 거의 같은 색으로 보입니다. oklch로 옮기는 목적은 **눈에 보이는 색을 바꾸는 것이 아니라, 이후 색 계산(`color-mix()`, 다크모드 반전)을 예측 가능하게 만드는 것**입니다.
+
+## 실습
+
+<Steps>
+### 1. 파일 열기
+
+`portfolio/css/styles.css`의 `tokens` 레이어를 엽니다.
+
+### 2. 코드 작성
+
+색 토큰을 oklch로 교체하고, hover·비활성 톤을 `color-mix()`로 계산합니다.
+
+```css
+/* portfolio/css/styles.css */
+@layer tokens {
+  :root {
+    /* --color-* : oklch로 교체 */
+    --color-bg: oklch(100% 0 0);
+    --color-surface: oklch(97% 0.003 260);
+    --color-text: oklch(24% 0.006 260);
+    --color-text-muted: oklch(46% 0.012 250);
+    --color-primary: oklch(55% 0.19 254);
+    --color-border: oklch(87% 0.006 250);
+    --color-accent: oklch(50% 0.19 350);
+
+    /* hover·비활성 톤은 color-mix()로 계산 */
+    --color-primary-hover: color-mix(in oklch, var(--color-primary) 80%, black 20%);
+    --color-primary-muted: color-mix(in oklch, var(--color-primary) 20%, var(--color-bg) 80%);
+    --color-accent-hover: color-mix(in oklch, var(--color-accent) 80%, black 20%);
+    --color-border-strong: color-mix(in oklch, var(--color-border) 60%, var(--color-text) 40%);
+  }
+}
+```
+
+`components` 레이어에서 계산된 토큰을 사용합니다.
+
+```css
+/* portfolio/css/styles.css */
+@layer components {
+  .hero .button {
+    background-color: var(--color-primary);
+  }
+
+  .hero .button:hover {
+    background-color: var(--color-primary-hover);
+  }
+
+  .project-card-badge-muted {
+    background-color: var(--color-primary-muted);
+    color: var(--color-primary);
+  }
+
+  .field input:focus,
+  .field textarea:focus {
+    outline: 2px solid var(--color-primary);
+    outline-offset: 2px;
+    border-color: var(--color-border-strong);
+  }
+}
+```
+
+### 3. 실행
+
+브라우저에서 `portfolio/index.html`, `contact.html`을 새로고침합니다.
+
+### 4. 확인
+
+- 히어로의 기본 버튼 색이 이전 hex 값과 거의 같은 파란색으로 보입니다. 눈에 띄는 색 변화가 없어야 정상입니다(반올림 오차 안에서 같은 색).
+- 버튼에 마우스를 올리면 손으로 고른 값 없이도 계산된 어두운 톤으로 바뀝니다.
+- 개발자 도구 콘솔에서 `getComputedStyle(document.querySelector('.button')).backgroundColor`를 입력하면 `oklch(...)` 형식의 계산된 색 문자열이 나옵니다.
+- `--color-primary`의 H 값(254)만 `140`으로 바꿔 새로고침하면, L·C는 그대로인데 색상만 초록 계열로 바뀌고 **버튼과 hover 톤의 명도 관계는 그대로 유지**됩니다. 이는 hsl로 같은 실험을 했을 때와 비교해 볼 만합니다.
+</Steps>
+
+## 직접 해보기
+
+1. `--color-accent`를 기준으로 `color-mix()`를 이용해 `--color-accent-muted`(연한 배경용)를 만들어 보세요. `--color-primary-muted`와 같은 비율(20%/80%)을 씁니다.
+2. `.project-card`에 `border: 1px solid var(--color-border)`가 있다면, hover 시 `--color-border-strong`으로 바뀌는 규칙을 추가해 보세요.
+
+<details>
+<summary>답 보기</summary>
+
+```css
+:root {
+  --color-accent-muted: color-mix(in oklch, var(--color-accent) 20%, var(--color-bg) 80%);
+}
+
+.project-card:hover {
+  border-color: var(--color-border-strong);
+}
+```
+
+</details>
+
+## 자주 하는 실수
+
+| 증상 | 원인 | 고치는 법 |
+|------|------|-----------|
+| `color-mix()` 결과가 예상보다 탁하게 나온다 | `in oklch` 대신 기본값(`in oklab`이 아니라 실제로는 지정을 생략하면 `srgb`)으로 섞였다 | `color-mix()`의 첫 인자로 반드시 `in oklch`(또는 원하는 색 공간)를 명시한다 |
+| 무채색 토큰(`--color-bg` 등)의 H 값을 임의로 넣어 색이 미묘하게 틀어진다 | C(채도)가 0에 가까우면 H는 사실상 의미가 없는데 실수로 채도를 살짝 남겨 색이 낀다 | 완전한 무채색은 `oklch(L% 0 0)`처럼 C를 0으로 명확히 둔다 |
+| oklch 값의 L을 100 넘게 입력해 색이 깨진다 | L은 백분율 범위(0%–100%)만 유효하다 | 100%를 넘는 값을 넣지 않는다 |
+| `color-mix()`를 지원하지 않는 아주 오래된 브라우저에서 배경이 사라진다 | 폴백 없이 `color-mix()` 값만 선언했다 | `color-mix()`는 2023-05부터 Baseline 널리 사용 가능이라 이 사이트의 대상 브라우저 범위에서는 폴백이 필수는 아니지만, 더 넓은 호환이 필요하면 `background: var(--color-primary); background: color-mix(...)`처럼 이전 선언을 폴백으로 남긴다 |
+
+## 확인 문제
+
+<Quiz
+  questionNumber={1}
+  question="oklch가 hsl보다 유리한 이유는?"
+  options={['oklch는 값이 세 개뿐이라 더 짧다', 'oklch는 L을 고정한 채 색상만 바꿔도 눈에 보이는 밝기가 고르게 유지된다', 'oklch는 hex보다 파일 용량이 작다', 'oklch는 모든 브라우저의 기본 색 표기 방식이다']}
+  correctAnswer={2}
+  explanation="oklch는 사람의 색 지각에 맞춰 설계되어 L을 고정하면 색상이 바뀌어도 체감 밝기가 고르게 유지됩니다."
+  optionExplanations={['hsl도 세 값을 씁니다', '정답입니다', '색 표기 방식은 파일 용량과 무관합니다', '기본 표기 방식은 여전히 hex나 rgb입니다']}
+/>
+
+<Quiz
+  questionNumber={2}
+  question="oklch(55% 0.19 254)에서 두 번째 값 0.19가 뜻하는 것은?"
+  options={['명도(Lightness)', '채도(Chroma)', '색상 각도(Hue)', '투명도(Alpha)']}
+  correctAnswer={2}
+  explanation="oklch 좌표는 L C H 순서이며 두 번째 값 C는 채도를 뜻합니다."
+  optionExplanations={['첫 번째 값(55%)이 명도입니다', '정답입니다', '세 번째 값(254)이 색상 각도입니다', '투명도는 슬래시 뒤 네 번째 값으로 별도 표기합니다']}
+/>
+
+<Quiz
+  questionNumber={3}
+  question="color-mix(in oklch, var(--color-primary) 80%, black 20%)의 결과는?"
+  options={['--color-primary와 완전히 동일한 색', '--color-primary를 20% 어둡게 만든 톤', '--color-primary를 20% 밝게 만든 톤', '항상 순수한 검정색']}
+  correctAnswer={2}
+  explanation="color-mix()는 지정한 비율대로 두 색을 섞으므로 primary 80퍼센트에 검정 20퍼센트를 섞어 살짝 어두운 톤이 됩니다."
+  optionExplanations={['검정을 섞었으므로 원래 색과 달라집니다', '정답입니다', '흰색이 아니라 검정을 섞었으므로 어두워집니다', '20퍼센트만 섞었으므로 순수 검정이 되지 않습니다']}
+/>
+
+<Quiz
+  questionNumber={4}
+  question="oklch로 옮긴 색이 원래 hex와 거의 같아 보이는 이유는?"
+  options={['브라우저가 자동으로 hex로 되돌리기 때문에', '반올림 오차 범위 안에서 사람 눈에 같은 색으로 보이도록 값을 옮겼기 때문에', 'oklch는 항상 흰색에 가깝게 렌더링되기 때문에', 'oklch 값은 실제로 적용되지 않기 때문에']}
+  correctAnswer={2}
+  explanation="oklch로 옮기는 목적은 색 자체를 바꾸는 것이 아니라 이후 계산을 예측 가능하게 만드는 것이라 원래 색과 거의 같게 반올림합니다."
+  optionExplanations={['브라우저는 지정한 색 공간 그대로 렌더링합니다', '정답입니다', '색상값에 따라 다르게 렌더링됩니다', 'oklch도 정상적으로 렌더링에 적용됩니다']}
+/>
+
+## 참고 자료
+
+- [MDN — oklch()](https://developer.mozilla.org/en-US/docs/Web/CSS/color_value/oklch)
+- [MDN — color-mix()](https://developer.mozilla.org/en-US/docs/Web/CSS/color_value/color-mix)

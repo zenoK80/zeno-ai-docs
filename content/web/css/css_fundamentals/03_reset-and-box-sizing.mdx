@@ -1,0 +1,177 @@
+---
+title: '03. 리셋과 전역 box-sizing'
+description: '브라우저 기본 스타일을 지우고 전역 box-sizing을 border-box로 맞춰 통일된 빈 캔버스를 만듭니다.'
+---
+
+<Callout type="info">
+  **이번 편의 결과물:** 3페이지 전체의 기본 여백·목록 스타일이 사라지고, 이후 모든 크기 계산이 `border-box` 기준으로 통일됩니다. **다루는 개념:** 브라우저 기본 스타일 제거(모던 리셋), 전역 `box-sizing: border-box`, 리셋을 스타일시트 맨 위에 두는 이유
+</Callout>
+
+브라우저는 `<body>`·`<h1>`·`<ul>` 같은 태그에 자체 기본 여백을 줍니다. 브라우저마다 값이 조금씩 다르고, 시안대로 간격을 맞추려면 이 기본값부터 지워야 합니다.
+
+## 이 편에서 만드는 파일
+
+```text
+web-practice/portfolio/
+└── css/
+    └── styles.css   ~ (맨 위에 리셋 + box-sizing 규칙 추가)
+```
+
+## 개념 정리
+
+브라우저가 기본으로 주는 스타일 중 실무에서 자주 지우는 항목입니다.
+
+| 요소 | 기본 스타일 | 왜 지우는가 |
+|------|-------------|-------------|
+| `body`, `h1`–`h6`, `p` | 바깥 여백(`margin`) | 시안의 간격 스케일을 처음부터 새로 설계하기 위해 |
+| `ul`, `ol` | 안쪽 여백(`padding`)과 불릿/번호 | 내비게이션·카드 리스트처럼 불릿이 필요 없는 곳이 많음 |
+| `img` | 인라인 요소 취급(하단에 빈 틈 생김) | `display: block`으로 바꿔 틈을 없앰 |
+
+**box-sizing**은 요소의 너비·높이를 계산할 때 `padding`과 `border`를 포함할지 정합니다.
+
+| 값 | 너비 계산 방식 |
+|----|----------------|
+| `content-box`(기본값) | `width`는 내용 영역만. 실제 차지 너비는 `width + padding + border` |
+| `border-box` | `width`에 `padding`과 `border`가 이미 포함됨. 실제 차지 너비가 `width` 그대로 |
+
+`content-box`에서는 `width: 300px`에 `padding: 20px`를 주면 실제로 340px를 차지해, 카드 여러 개를 나란히 배치할 때 계산이 매번 어긋납니다. `border-box`로 통일하면 `width` 값이 곧 실제 크기이므로 레이아웃 계산이 단순해집니다. 그래서 실무에서는 거의 항상 전역으로 `border-box`를 적용합니다.
+
+리셋과 `box-sizing` 규칙은 스타일시트 **맨 위**에 둡니다. 캐스케이드는 명시도가 같으면 나중 규칙이 이기므로, 리셋을 먼저 적용해 두어야 그 아래에 오는 실제 디자인 규칙들이 브라우저 기본값과 부딪히지 않고 항상 리셋 위에 깔끔하게 얹힙니다.
+
+## 실습
+
+<Steps>
+
+### 1. styles.css 열기
+
+`web-practice/portfolio/css/styles.css`를 엽니다. 02편까지 `header a`·`.logo` 규칙이 들어 있습니다.
+
+### 2. 리셋과 box-sizing 추가
+
+파일 맨 위에 리셋 블록을 추가합니다. 지금까지 쌓인 `styles.css` 전체는 다음과 같습니다.
+
+```css
+/* web-practice/portfolio/css/styles.css */
+
+/* --- 리셋: 브라우저 기본 스타일 제거 --- */
+*,
+*::before,
+*::after {
+  box-sizing: border-box;
+}
+
+body,
+h1,
+h2,
+h3,
+p,
+figure {
+  margin: 0;
+}
+
+ul,
+ol {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+img {
+  display: block;
+  max-width: 100%;
+}
+
+button,
+input,
+select,
+textarea {
+  font: inherit;
+}
+
+/* --- 여기부터 실제 디자인 규칙 --- */
+header a {
+  color: #1f2328;
+  text-decoration: none;
+}
+
+.logo {
+  color: #0969da;
+  font-weight: 700;
+}
+```
+
+`*`(전체 선택자)와 `::before`·`::after`(가상 요소)까지 묶어 `box-sizing: border-box`를 지정하면, 앞으로 만들 모든 요소에 예외 없이 적용됩니다. `button`·`input`·`select`·`textarea`에 `font: inherit`을 준 것은 폼 요소가 브라우저 기본 글꼴을 따로 쓰는 관행이 있어, 05편에서 타이포그래피를 적용할 때 폼도 같은 글꼴을 쓰게 하기 위한 사전 정리입니다.
+
+### 3. 실행
+
+세 페이지를 모두 새로고침합니다.
+
+### 4. 확인
+
+- `index.html`의 히어로 제목과 문단 사이 간격이 브라우저 기본 여백 없이 붙어 보입니다(정상입니다. 간격은 07편에서 다시 채웁니다).
+- `contact.html`의 FAQ `<details>` 목록에서 불릿이 사라졌습니다.
+- DevTools에서 아무 `<div>`나 선택해 Computed 탭을 열면 `box-sizing: border-box`가 적용된 것이 보입니다.
+
+</Steps>
+
+## 직접 해보기
+
+임시로 아무 요소에 `width: 300px; padding: 40px; border: 10px solid black;`을 주고, `box-sizing`을 `content-box`로 바꿨다가 `border-box`로 바꿔보며 DevTools의 박스 모델 다이어그램(Computed 탭 하단)에서 실제 차지 너비가 어떻게 달라지는지 비교해 보세요.
+
+<details>
+<summary>확인 방법</summary>
+
+`content-box`에서는 다이어그램의 전체 너비가 `300 + 40*2 + 10*2 = 400px`로 표시됩니다. `border-box`에서는 `padding`과 `border`가 300px 안에 포함되어 전체 너비가 300px 그대로 유지됩니다.
+
+</details>
+
+## 자주 하는 실수
+
+| 증상 | 원인 | 고치는 법 |
+|------|------|-----------|
+| 리셋을 넣었는데도 기본 여백이 남는다 | 리셋 블록을 스타일시트 아래쪽에 둠 | 리셋을 파일 맨 위로 옮겨 이후 규칙보다 먼저 캐스케이드에 들어가게 함 |
+| 리스트 화살표·번호가 필요한 곳까지 사라졌다 | `list-style: none`을 모든 `ul`/`ol`에 일괄 적용 | 번호가 필요한 목록엔 해당 부분만 별도 클래스로 `list-style: decimal` 등을 다시 지정 |
+| 이미지 아래 미세한 빈 틈이 안 없어진다 | `img`에 `display: block`을 빠뜨림 | 리셋의 `img { display: block; }` 줄 확인 |
+| `box-sizing`을 특정 요소에만 줬다 | `*` 전체 선택자 대신 개별 태그만 지정 | `*, *::before, *::after` 형태로 전역 적용 |
+
+## 확인 문제
+
+<Quiz
+  questionNumber={1}
+  question="width: 200px, padding: 20px인 요소가 border-box일 때 실제로 차지하는 너비는?"
+  options={['180px', '200px', '220px', '240px']}
+  correctAnswer={2}
+  explanation="border-box는 padding과 border를 width 값 안에 포함시키므로 실제 차지 너비는 width인 200px 그대로입니다."
+  optionExplanations={['border-box에서 너비가 줄어들지 않습니다', '정답입니다', '220px는 content-box에서 padding 한쪽만 더한 값입니다', '240px는 content-box 계산과도 맞지 않습니다']}
+/>
+
+<Quiz
+  questionNumber={2}
+  question="리셋 규칙을 스타일시트 맨 위에 두는 이유는?"
+  options={['파일을 읽기 쉽게 정렬하기 위해서일 뿐이다', '캐스케이드에서 나중 규칙이 이기므로 먼저 깔아 둬야 그 위에 디자인 규칙을 얹을 수 있다', '브라우저가 파일 앞부분만 먼저 읽기 때문이다', '리셋은 위치와 관계없이 항상 마지막에 적용되기 때문이다']}
+  correctAnswer={2}
+  explanation="명시도가 같을 때는 소스 순서상 나중에 나온 규칙이 이깁니다. 리셋을 먼저 두어야 이후 디자인 규칙이 리셋 위에 자연스럽게 얹힙니다."
+  optionExplanations={['가독성만을 위한 관례가 아니라 캐스케이드 동작과 직결됩니다', '정답입니다', '브라우저는 파일 전체를 읽고 캐스케이드를 계산합니다', '리셋도 소스 순서를 따르는 일반 규칙입니다']}
+/>
+
+<Quiz
+  questionNumber={3}
+  question="ul, ol에 list-style: none을 주로 적용하는 이유로 가장 적절한 것은?"
+  options={['목록 요소 자체를 화면에서 숨기기 위해', '내비게이션이나 카드처럼 불릿이 필요 없는 목록이 많기 때문에', 'CSS 파일 용량을 줄이기 위해', '브라우저가 ul 태그를 지원하지 않을 때 대비하기 위해']}
+  correctAnswer={2}
+  explanation="내비게이션 메뉴나 카드 그리드처럼 의미상 목록이지만 시각적으로 불릿이 필요 없는 경우가 많아 기본값을 지웁니다."
+  optionExplanations={['list-style: none은 불릿만 지울 뿐 요소를 숨기지 않습니다', '정답입니다', '용량과는 무관합니다', 'ul 태그는 모든 최신 브라우저가 지원합니다']}
+/>
+
+<Quiz
+  questionNumber={4}
+  question="box-sizing: border-box를 전역으로 적용하는 선택자로 가장 적절한 것은?"
+  options={['body', 'div', '*, *::before, *::after', '.container']}
+  correctAnswer={3}
+  explanation="body나 특정 클래스에만 지정하면 다른 요소는 여전히 기본값인 content-box로 남습니다. 전체 선택자와 가상 요소까지 포함해야 예외 없이 적용됩니다."
+  optionExplanations={['body에만 주면 그 안의 다른 요소는 적용되지 않습니다', 'div도 마찬가지로 일부 요소만 지정하는 것입니다', '정답입니다', '특정 클래스만으로는 전역 적용이 되지 않습니다']}
+/>
+
+## 참고 자료
+
+- [MDN — CSS box sizing](https://developer.mozilla.org/en-US/docs/Web/CSS/Guides/Box_sizing)

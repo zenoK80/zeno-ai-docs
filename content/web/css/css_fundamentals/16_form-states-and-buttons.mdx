@@ -1,0 +1,156 @@
+---
+title: '16. 폼 상태와 버튼 상호작용'
+description: '입력 포커스, 버튼 hover, 비활성 상태를 의사 클래스로 구분해 사용자에게 지금 무엇이 선택돼 있는지 보여줍니다.'
+---
+
+<Callout type="info">
+  **이번 편의 결과물:** 입력 필드에 포커스가 가면 테두리가 강조되고, 버튼에 마우스를 올리면 색이 바뀌며, 비활성 버튼은 흐리게 보입니다. **다루는 개념:** `:hover`/`:focus`/`:disabled` 의사 클래스, 버튼 variant 상태, 포커스 표시를 지우면 안 되는 이유
+</Callout>
+
+## 이 편에서 만드는 파일
+
+```
+web-practice/portfolio/
+└── css/
+    └── styles.css   ~ (:hover, :focus, :disabled 상태 규칙 추가)
+```
+
+15편에서 만든 `.field input/select/textarea`, `.contact-form button` 규칙에 상태별 스타일을 덧붙입니다. 마크업은 바꾸지 않습니다.
+
+## 개념 정리
+
+의사 클래스(pseudo-class)는 요소의 **현재 상태**에 따라 적용되는 선택자입니다.
+
+| 의사 클래스 | 적용 시점 |
+|-------------|-----------|
+| `:hover` | 마우스 커서가 요소 위에 있을 때 |
+| `:focus` | 키보드 `Tab` 이동이나 클릭으로 요소가 입력 대상이 됐을 때 |
+| `:disabled` | `disabled` 속성이 붙은 폼 요소일 때 |
+| `:invalid` | `modern_html`의 폼 검증 규칙을 만족하지 못할 때(19편 이후 범위) |
+
+`:focus`는 마우스를 쓰지 않는 사용자(키보드로만 탐색하는 사용자, 스크린 리더 사용자)에게 **지금 어느 요소가 선택돼 있는지** 알려주는 유일한 시각 신호입니다. `outline: none`으로 지우기만 하고 대체 스타일을 넣지 않으면 이 신호가 완전히 사라집니다. 이 사이트는 지우는 대신 `outline`을 디자인 토큰 색으로 다시 그립니다.
+
+| 상태 | 이 사이트의 표현 |
+|------|-------------------|
+| 입력 `:focus` | `outline: 2px solid var(--color-primary)`, `outline-offset: 2px` |
+| 제출 버튼 `:hover` | 배경을 `--color-primary-hover`로 |
+| 버튼 `:disabled` | 투명도 0.5, `cursor: not-allowed` |
+
+흔한 오해: `:hover`는 터치 화면(모바일)에는 정확히 대응하는 개념이 없습니다. 터치 기기는 탭을 hover로 흉내 내는 경우가 있어, hover에만 의존한 필수 기능(예: 메뉴 열기)은 피해야 합니다. 이 사이트에서 hover는 장식적인 피드백에만 씁니다.
+
+## 실습
+
+<Steps>
+
+### 1. 파일 열기
+
+`web-practice/portfolio/css/styles.css`에서 `.field input`, `.contact-form button` 규칙 바로 아래에 이어 씁니다.
+
+### 2. 코드 작성
+
+```css
+/* web-practice/portfolio/css/styles.css */
+
+/* ...기존 .field, .contact-form button 규칙 유지... */
+
+.field input:focus,
+.field select:focus,
+.field textarea:focus {
+  outline: 2px solid var(--color-primary);
+  outline-offset: 2px;
+  border-color: var(--color-primary);
+}
+
+.contact-form button:hover {
+  background: var(--color-primary-hover);
+}
+
+.contact-form button:focus-visible {
+  outline: 2px solid var(--color-primary);
+  outline-offset: 2px;
+}
+
+.contact-form button:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.contact-form button:disabled:hover {
+  background: var(--color-primary);
+}
+```
+
+`:focus-visible`은 `:focus`와 비슷하지만 **키보드로 이동했을 때만** 표시를 켭니다(마우스 클릭 시에는 생략). 이 과목에서는 버튼에만 적용해 마우스 클릭 시 나타나는 테두리를 조금 줄였습니다. 입력 필드는 항상 눈에 보이는 편이 안전해 `:focus`를 그대로 씁니다.
+
+### 3. 실행
+
+`contact.html`을 열고 `Tab` 키로 필드 사이를 이동해 봅니다.
+
+### 4. 확인
+
+- 이름 입력을 클릭하면 파란 테두리(`outline`)가 필드 바깥쪽에 2px 간격으로 나타납니다.
+- `Tab` 키로 "보내기" 버튼까지 이동하면 버튼 주위에도 같은 테두리가 나타납니다.
+- 마우스를 "보내기" 버튼 위에 올리면 배경색이 진해집니다.
+- 임시로 버튼에 `disabled` 속성을 추가해 보면(개발자 도구에서 속성 추가) 버튼이 흐리게 보이고 커서가 `not-allowed` 모양으로 바뀝니다. 확인 후 속성을 제거합니다.
+
+</Steps>
+
+## 직접 해보기
+
+1. 문의 유형 `select`에도 `:focus` 스타일이 잘 적용되는지 확인하고, 안 된다면 선택자를 고칩니다.
+2. 06편에서 만든 히어로 보조 버튼(`.button-secondary`)에도 `:hover` 시 배경을 `--color-primary`로, 글자색을 흰색으로 바꾸는 것을 시도해 보고, 배경과 대비가 충분한지 DevTools의 색 대비 도구로 확인합니다.
+
+<details>
+<summary>풀이 보기</summary>
+
+```css
+.button-secondary:hover {
+  background: var(--color-primary);
+  color: #ffffff;
+}
+```
+
+색을 바꾼 뒤에는 DevTools Styles 패널에서 색상 값 옆의 작은 원을 클릭하면 대비 비율(contrast ratio)을 볼 수 있습니다. 4.5 이상이면 본문 텍스트 기준을 통과합니다.
+
+</details>
+
+## 자주 하는 실수
+
+| 증상 | 원인 | 고치는 법 |
+|------|------|-----------|
+| 포커스 테두리가 아예 안 보임 | 다른 규칙에서 `outline: none`을 전역으로 선언함 | 전역 리셋에 `outline: none`이 있다면 지우고, 필요한 곳에만 `outline` 값을 재정의 |
+| 비활성 버튼인데 hover 시 색이 바뀜 | `:disabled` 규칙보다 `:hover` 규칙이 CSS에서 나중에 옴 | `.contact-form button:disabled:hover`처럼 더 구체적인 선택자를 추가하거나 순서를 뒤로 옮김 |
+| 마우스 클릭 후에도 버튼에 테두리가 계속 보임 | `:focus`를 써서 클릭 후에도 표시가 남음 | 버튼처럼 마우스 클릭이 주된 상호작용인 요소는 `:focus-visible`로 바꿈 |
+
+## 확인 문제
+
+<Quiz
+  questionNumber={1}
+  question="outline: none으로 포커스 표시를 지우기만 하고 대체 스타일을 넣지 않으면 어떤 문제가 생기는가?"
+  options={['페이지 로딩 속도가 느려진다', '키보드로 탐색하는 사용자가 지금 어느 요소가 선택됐는지 알 수 없다', 'CSS 파일 용량이 커진다', '브라우저가 자동으로 outline을 되살린다']}
+  correctAnswer={2}
+  explanation="포커스 표시는 키보드·스크린 리더 사용자에게 현재 위치를 알려주는 유일한 시각 신호이므로, 지우려면 반드시 대체 스타일을 넣어야 합니다."
+  optionExplanations={['로딩 속도와는 무관합니다', '정답입니다', '한 줄의 속성 제거는 파일 용량에 거의 영향이 없습니다', '브라우저는 자동으로 되살리지 않습니다']}
+/>
+
+<Quiz
+  questionNumber={2}
+  question=":focus와 :focus-visible의 차이로 옳은 것은?"
+  options={[':focus-visible은 마우스 클릭 시에도 항상 켜진다', ':focus-visible은 키보드 이동 등 필요한 경우에만 표시를 켠다', ':focus는 disabled 요소에도 적용된다', '둘은 완전히 같은 의사 클래스다']}
+  correctAnswer={2}
+  explanation=":focus-visible은 브라우저가 판단하기에 표시가 필요한 입력 방식(주로 키보드)일 때만 스타일을 적용해, 마우스 클릭 후 남는 테두리를 줄여 줍니다."
+  optionExplanations={['이는 :focus에 대한 설명입니다', '정답입니다', 'disabled 요소는 포커스를 받을 수 없어 두 의사 클래스 모두 적용되지 않습니다', '적용 조건이 다른 별개의 의사 클래스입니다']}
+/>
+
+<Quiz
+  questionNumber={3}
+  question="이 사이트에서 버튼이 비활성 상태일 때 마우스를 올려도 배경색이 바뀌지 않게 하려면 어떤 선택자가 필요한가?"
+  options={['button:disabled', 'button:hover', 'button:disabled:hover', 'button:focus']}
+  correctAnswer={3}
+  explanation=":disabled와 :hover를 함께 쓴 button:disabled:hover는 비활성 상태에서 hover가 걸릴 때만 적용되어, hover 규칙이 disabled를 덮어쓰는 문제를 막습니다."
+  optionExplanations={['hover 상태는 다루지 않아 색 변경을 막지 못할 수 있습니다', 'disabled 여부와 무관하게 적용됩니다', '정답입니다', '포커스 상태만 다루므로 hover 문제와는 관련이 없습니다']}
+/>
+
+## 참고 자료
+
+- [MDN — Styling web forms](https://developer.mozilla.org/en-US/docs/Learn_web_development/Extensions/Forms/Styling_web_forms)

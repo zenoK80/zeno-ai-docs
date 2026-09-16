@@ -1,0 +1,184 @@
+---
+title: '01. Node.js 실행 환경과 프로젝트 시작'
+description: '빈 폴더에서 npm init으로 todo-cli 프로젝트를 만들고 ESM 진입점을 실행합니다.'
+---
+
+<Callout type="info">
+  **이번 편의 결과물:** 빈 폴더에서 `npm init`으로 `todo-cli` 프로젝트를 만들고 `node src/index.js`를 실행하면 "todo-cli 준비 완료"가 출력됩니다. · **다루는 개념:** ECMAScript·JavaScript·Node.js·npm의 관계, package.json, `"type": "module"`, `node` 실행 명령
+</Callout>
+
+## 이 편에서 만드는 파일
+
+```
+todo-cli/
+├── package.json   (+)
+└── src/
+    └── index.js   (+)
+```
+
+## 개념 정리
+
+이 과목 전체에서 `todo-cli`라는 할 일 관리 CLI(명령행 프로그램)를 편마다 조금씩 완성합니다. 시작하기 전에 지금 다루는 언어와 실행 환경의 이름부터 정리합니다.
+
+| 용어 | 정체 | 역할 |
+|------|------|------|
+| ECMAScript | 언어 문법 명세(TC39가 관리) | `let`, `class`, `Promise` 같은 문법과 내장 객체를 정의 |
+| JavaScript | ECMAScript를 구현한 실제 언어 | 브라우저·서버에서 실행되는 코드 자체 |
+| Node.js | JavaScript 실행 런타임 | V8 엔진 + 파일시스템·네트워크 같은 시스템 API를 붙여 브라우저 밖에서 실행 |
+| npm | Node.js의 패키지 매니저 | 라이브러리 설치, `package.json` 스크립트 실행 |
+
+브라우저용 JavaScript에는 `document`, `window` 같은 DOM API가 있지만 Node.js에는 없습니다. 대신 Node.js는 `process`, `fs` 같은 시스템 API를 제공합니다. 이 과목은 Node.js 22(2026년 기준 최신 LTS)를 기준으로 진행합니다. LTS(Long Term Support)는 장기간 보안 패치를 제공하는 안정 버전 계열을 뜻하며, 실무 서버·CLI 도구는 보통 LTS 버전을 기준으로 배포합니다.
+
+### npm 명령 정리
+
+| 명령 | 역할 |
+|------|------|
+| `npm init -y` | 기본값으로 `package.json` 생성 |
+| `npm run <스크립트 이름>` | `scripts` 필드에 등록된 명령 실행 |
+| `npm install <패키지>` | 의존 패키지 설치(이 과목은 외부 패키지 없이 Node.js 내장 기능만 사용) |
+
+`todo-cli`는 외부 패키지 없이 Node.js 내장 모듈(`fs/promises`, `node:test` 등)만으로 완성합니다. 그래서 `package.json`에 `dependencies` 항목이 생기지 않습니다.
+
+### package.json 핵심 필드
+
+| 필드 | 의미 |
+|------|------|
+| `name`, `version` | 패키지 이름과 버전 |
+| `type` | `"module"`이면 `import`/`export`(ESM) 문법 사용, 없으면 `require`(CommonJS) |
+| `main` | `import`로 이 패키지를 불러올 때 진입점 |
+| `bin` | 터미널 명령으로 등록할 실행 파일 매핑 |
+| `scripts` | `npm run 이름`으로 실행할 명령 모음 |
+
+`"type": "module"`을 지정하지 않으면 Node.js는 `.js` 파일을 CommonJS(`require`/`module.exports`)로 해석합니다. 이 과목은 처음부터 끝까지 ESM만 사용하므로 반드시 지정합니다.
+
+## 실습
+
+<Steps>
+
+### 1. 폴더 만들고 npm init 실행
+
+```text
+mkdir todo-cli
+cd todo-cli
+npm init -y
+```
+
+`npm init -y`는 질문 없이 기본값으로 `package.json`을 생성합니다.
+
+### 2. package.json 수정
+
+생성된 파일을 열어 아래 내용으로 바꿉니다.
+
+```json
+// package.json
+{
+  "name": "todo-cli",
+  "version": "0.1.0",
+  "description": "터미널에서 쓰는 할 일 관리 CLI",
+  "type": "module",
+  "main": "src/index.js",
+  "bin": {
+    "todo": "./src/index.js"
+  },
+  "scripts": {
+    "start": "node src/index.js",
+    "test": "node --test"
+  }
+}
+```
+
+`bin` 필드는 이 패키지를 전역 설치했을 때 `todo`라는 명령으로 `src/index.js`를 실행하게 합니다. 지금은 전역 설치를 하지 않으므로 이 과목 내내 `node src/index.js`로 직접 실행합니다.
+
+### 3. 진입점 파일 작성
+
+```js
+// src/index.js
+console.log('todo-cli 준비 완료');
+```
+
+### 4. 실행
+
+```text
+node src/index.js
+```
+
+</Steps>
+
+## 확인
+
+- 터미널에 아래처럼 출력되면 성공입니다.
+
+```text
+todo-cli 준비 완료
+```
+
+- `npm run start`로 실행해도 같은 결과가 나오는지 확인합니다(`scripts.start`가 `node src/index.js`를 대신 실행).
+- `node -v` 실행 결과가 `v22` 이상인지 확인합니다.
+
+## 직접 해보기
+
+1. `package.json`의 `description` 필드를 원하는 문장으로 바꿔봅니다.
+2. `src/index.js`에 `console.log(process.version)`을 한 줄 추가해 현재 Node.js 버전을 함께 출력해봅니다.
+
+<details>
+<summary>정답 보기</summary>
+
+```js
+// src/index.js
+console.log('todo-cli 준비 완료');
+console.log('Node 버전:', process.version);
+```
+
+</details>
+
+## 자주 하는 실수
+
+| 증상 | 원인 | 고치는 법 |
+|------|------|-----------|
+| `SyntaxError: Cannot use import statement outside a module` | `package.json`에 `"type": "module"`이 없음 | `"type": "module"` 추가 후 다시 실행 |
+| `npm init -y` 실행 후 파일이 안 보임 | 다른 폴더에서 실행함 | `pwd`(또는 `cd`)로 현재 위치가 `todo-cli/`인지 확인 |
+| `Cannot find module './index.js'` | 파일 경로나 이름 오타 | `src/index.js` 경로와 대소문자를 정확히 확인 |
+
+## 확인 문제
+
+<Quiz
+  questionNumber={1}
+  question="ECMAScript와 JavaScript의 관계로 옳은 것은?"
+  options={['ECMAScript는 JavaScript의 실행 런타임이다', 'JavaScript는 ECMAScript 명세를 구현한 언어다', '둘은 서로 관련 없는 별개의 언어다', 'ECMAScript는 브라우저 전용 API 모음이다']}
+  correctAnswer={2}
+  explanation="ECMAScript는 문법 명세이고, JavaScript는 그 명세를 구현한 실제 언어입니다."
+  optionExplanations={['런타임은 Node.js 같은 실행 환경이 담당합니다', '정답입니다', 'ECMAScript 명세를 JavaScript가 구현하는 관계입니다', 'DOM 같은 브라우저 API는 ECMAScript 범위 밖입니다']}
+/>
+
+<Quiz
+  questionNumber={2}
+  question="package.json에서 type 값을 module로 지정할 때 달라지는 점은?"
+  options={['require 대신 import/export 문법을 쓸 수 있다', 'npm 명령을 더 이상 쓸 수 없다', '파일 확장자를 반드시 .mjs로 바꿔야 한다', 'Node.js 버전이 자동으로 올라간다']}
+  correctAnswer={1}
+  explanation="type이 module이면 .js 파일을 ESM으로 해석해 import/export 문법을 사용할 수 있습니다."
+  optionExplanations={['정답입니다', 'npm 명령 사용 여부와는 무관합니다', '.js 확장자를 그대로 ESM으로 해석합니다', '버전과는 관련 없습니다']}
+/>
+
+<Quiz
+  questionNumber={3}
+  question="package.json의 bin 필드가 하는 역할은?"
+  options={['테스트 실행 스크립트를 등록한다', '패키지를 전역 설치했을 때 실행할 터미널 명령을 지정한다', '의존 패키지 버전을 고정한다', '빌드 결과물 폴더를 지정한다']}
+  correctAnswer={2}
+  explanation="bin은 패키지를 전역 설치했을 때 사용할 명령 이름과 실행 파일을 매핑합니다."
+  optionExplanations={['테스트는 scripts.test가 담당합니다', '정답입니다', '버전 고정은 dependencies 영역의 역할입니다', '빌드 폴더 지정과는 관련 없습니다']}
+/>
+
+<Quiz
+  questionNumber={4}
+  question="type이 module로 설정된 상태에서 import 없이 require를 사용하면 어떻게 되는가?"
+  options={['정상 동작한다', 'require가 정의되지 않아 오류가 발생한다', 'Node.js가 자동으로 import로 바꿔준다', '경고만 출력되고 계속 실행된다']}
+  correctAnswer={2}
+  explanation="ESM 환경에서는 CommonJS 전용 함수인 require가 기본으로 제공되지 않아 참조 오류가 발생합니다."
+  optionExplanations={['ESM에서는 require가 기본 제공되지 않습니다', '정답입니다', '자동 변환은 일어나지 않습니다', '경고가 아니라 오류로 실행이 멈춥니다']}
+/>
+
+## 참고 자료
+
+- [Node.js Docs - process.argv](https://nodejs.org/api/process.html#processargv)
+- [Node.js — Node.js 22 is now available!](https://nodejs.org/en/blog/announcements/v22-release-announce)
+- [Node.js Docs - Modules: ECMAScript modules](https://nodejs.org/api/esm.html)

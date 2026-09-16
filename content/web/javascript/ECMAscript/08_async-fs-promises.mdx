@@ -1,0 +1,307 @@
+---
+title: '08. 비동기 파일 저장: fs/promises와 async/await'
+description: 'fs/promises와 async/await로 할 일 목록을 data/todos.json에 저장하고 시작할 때 불러옵니다.'
+---
+
+<Callout type="info">
+  **이번 편의 결과물:** `todo-cli`를 실행하면 `data/todos.json`에서 목록을 불러오고, `add` 실행 후 같은 파일에 저장합니다. 파일이 없어도 오류 없이 빈 목록으로 시작합니다. · **다루는 개념:** `fs/promises`(`readFile`/`writeFile`), `async`/`await`, `try`/`catch` 에러 처리
+</Callout>
+
+## 이 편에서 만드는 파일
+
+```
+todo-cli/
+├── data/
+│   └── todos.json          (+, 시드 데이터)
+└── src/
+    ├── index.js             (~)
+    ├── models/
+    │   └── TodoStore.js     (~)
+    └── storage/
+        └── fileStore.js     (+)
+```
+
+## 개념 정리
+
+### fs/promises
+
+Node.js의 `node:fs` 모듈은 콜백 기반 API가 기본이지만, `node:fs/promises`는 같은 기능을 Promise로 감싸 제공합니다. `async`/`await`와 함께 쓰면 콜백 중첩 없이 순서대로 읽을 수 있습니다.
+
+| 함수 | 역할 |
+|------|------|
+| `readFile(path, 'utf-8')` | 파일 내용을 문자열로 읽음(Promise 반환) |
+| `writeFile(path, data, 'utf-8')` | 문자열을 파일에 씀(기존 내용 덮어씀) |
+
+### async/await와 07편의 관계
+
+`await`는 Promise가 처리(완료 또는 실패)될 때까지 그 줄에서 함수 실행을 멈춥니다. 07편에서 본 것처럼 이 대기는 콜스택을 막지 않고, 대기하는 동안 다른 동기 코드가 먼저 실행될 수 있습니다. `async` 함수는 항상 Promise를 반환합니다.
+
+```js
+async function loadData() {
+  const raw = await readFile('data.json', 'utf-8'); // 여기서 대기
+  return JSON.parse(raw);
+}
+```
+
+### try/catch로 실패 다루기
+
+파일이 없거나 JSON 형식이 깨졌을 때 프로그램이 스택 트레이스를 그대로 뿜어내면 사용자가 알아보기 어렵습니다. `try`/`catch`로 감싸 상황별로 다르게 처리합니다.
+
+| 에러 상황 | `error.code` | 처리 방법 |
+|-----------|--------------|-----------|
+| 파일이 아직 없음(첫 실행) | `ENOENT` | 빈 배열로 시작(정상 상황) |
+| JSON 형식이 깨짐 | 없음(`SyntaxError`) | 사용자에게 파일이 손상되었다고 안내(14편에서 더 다룸) |
+| 그 외 파일 시스템 오류 | 다양함 | 다시 던져서 프로그램을 중단 |
+
+`error.code === 'ENOENT'`만 정상 상황으로 처리하고, 나머지는 `throw`로 다시 던져야 진짜 문제를 숨기지 않습니다.
+
+## 실습
+
+<Steps>
+
+### 1. data 폴더와 시드 파일 만들기
+
+```json
+// data/todos.json
+[
+  {
+    "id": 1,
+    "title": "ECMAScript 03편 실습 끝내기",
+    "done": true,
+    "tags": ["study"],
+    "due": "2026-09-18",
+    "createdAt": "2026-09-15T09:00:00+09:00"
+  },
+  {
+    "id": 2,
+    "title": "포트폴리오 프로젝트 카드 6개 채우기",
+    "done": false,
+    "tags": ["portfolio", "html"],
+    "due": "2026-09-20",
+    "createdAt": "2026-09-15T10:30:00+09:00"
+  },
+  {
+    "id": 3,
+    "title": "todo-cli에 검색 명령 추가",
+    "done": false,
+    "tags": ["study", "node"],
+    "due": "2026-09-22",
+    "createdAt": "2026-09-16T08:10:00+09:00"
+  },
+  {
+    "id": 4,
+    "title": "운동 30분",
+    "done": false,
+    "tags": ["health"],
+    "due": null,
+    "createdAt": "2026-09-16T07:00:00+09:00"
+  },
+  {
+    "id": 5,
+    "title": "독서 기록 앱 별점 기능",
+    "done": true,
+    "tags": ["react"],
+    "due": "2026-09-14",
+    "createdAt": "2026-09-12T20:00:00+09:00"
+  }
+]
+```
+
+### 2. 코드 작성
+
+```js
+// src/storage/fileStore.js
+import { readFile, writeFile } from 'node:fs/promises';
+import { fileURLToPath } from 'node:url';
+
+const DATA_PATH = fileURLToPath(new URL('../../data/todos.json', import.meta.url));
+
+export async function loadTodos() {
+  try {
+    const raw = await readFile(DATA_PATH, 'utf-8');
+    return JSON.parse(raw);
+  } catch (error) {
+    if (error.code === 'ENOENT') {
+      return [];
+    }
+    throw error;
+  }
+}
+
+export async function saveTodos(todos) {
+  const json = JSON.stringify(todos, null, 2);
+  await writeFile(DATA_PATH, json, 'utf-8');
+}
+```
+
+`DATA_PATH`는 `fileStore.js` 파일 위치를 기준으로 계산합니다. `import.meta.url`은 현재 모듈 파일의 URL이고, `new URL('../../data/todos.json', ...)`으로 상대 경로를 절대 경로로 바꾼 뒤 `fileURLToPath`로 파일 시스템 경로 문자열로 변환합니다. 이렇게 하면 어느 폴더에서 `node`를 실행하든 항상 같은 `data/todos.json`을 가리킵니다.
+
+```js
+// src/models/TodoStore.js
+import { Todo } from './Todo.js';
+
+export class TodoStore {
+  #todos = [];
+  #nextId = 1;
+
+  static fromData(dataList) {
+    const store = new TodoStore();
+    for (const item of dataList) {
+      store.#todos.push(Object.assign(Object.create(Todo.prototype), item));
+    }
+    store.#nextId = store.#todos.reduce((max, todo) => Math.max(max, todo.id), 0) + 1;
+    return store;
+  }
+
+  toData() {
+    return this.#todos.map((todo) => ({ ...todo }));
+  }
+
+  add(title, options) {
+    const todo = new Todo(this.#nextId, title, options);
+    this.#todos.push(todo);
+    this.#nextId += 1;
+    return todo;
+  }
+
+  list({ filter, sort } = {}) {
+    const filterFn = TodoStore.#makeStatusFilter(filter);
+    const compareFn = TodoStore.#makeComparator(sort);
+    return this.#todos.filter(filterFn).sort(compareFn);
+  }
+
+  static #makeStatusFilter(status) {
+    if (status === 'done') return (todo) => todo.done;
+    if (status === 'pending') return (todo) => !todo.done;
+    return () => true;
+  }
+
+  static #makeComparator(sortKey) {
+    if (sortKey === 'due') {
+      return (a, b) => {
+        if (a.due === null && b.due === null) return 0;
+        if (a.due === null) return 1;
+        if (b.due === null) return -1;
+        return a.due.localeCompare(b.due);
+      };
+    }
+    return (a, b) => a.createdAt.localeCompare(b.createdAt);
+  }
+}
+```
+
+`fromData`는 저장된 순수 객체(`{ id, title, ... }`)를 `Object.assign(Object.create(Todo.prototype), item)`으로 감싸 `Todo.prototype`의 메서드(`toDisplayLine`)를 쓸 수 있게 만듭니다. `JSON.parse`가 만든 객체는 일반 객체일 뿐 `Todo` 인스턴스가 아니기 때문에 이 과정이 필요합니다. `toData`는 반대로 저장 직전에 클래스 인스턴스를 순수 객체 배열로 펼칩니다.
+
+```js
+// src/index.js
+import { parseArgs } from './cli/parseArgs.js';
+import { TodoStore } from './models/TodoStore.js';
+import { runAdd } from './commands/add.js';
+import { runList } from './commands/list.js';
+import { loadTodos, saveTodos } from './storage/fileStore.js';
+
+async function main() {
+  const savedData = await loadTodos();
+  const store = TodoStore.fromData(savedData);
+
+  const argv = process.argv.slice(2);
+  const { command, positional, flags } = parseArgs(argv);
+
+  if (command === 'add') {
+    runAdd(store, positional, flags);
+    await saveTodos(store.toData());
+  } else if (command === 'list') {
+    runList(store, flags);
+  } else {
+    console.log('알 수 없는 명령입니다:', command);
+  }
+}
+
+main().catch((error) => {
+  console.error('실행 중 오류가 발생했습니다:', error.message);
+  process.exitCode = 1;
+});
+```
+
+`main` 함수 전체를 `async`로 선언해 안에서 `await`를 쓸 수 있게 합니다. `add`일 때만 `saveTodos`를 호출해 목록이 바뀐 경우에만 파일에 씁니다. `main()` 호출 뒤 `.catch(...)`를 붙여, `main` 안에서 처리하지 못하고 새어 나온 에러를 사용자용 메시지로 바꿔 출력합니다.
+
+### 3. 실행
+
+```text
+node src/index.js list
+```
+
+```text
+node src/index.js add "새 할일" --tag study --due 2026-09-25
+```
+
+</Steps>
+
+## 확인
+
+- 첫 `list` 실행 시 `data/todos.json`의 5개 항목이 출력됩니다.
+- `add` 실행 후 `data/todos.json`을 다시 열어 새 항목이 추가되어 있는지 확인합니다.
+- `data/todos.json`을 삭제한 뒤 `node src/index.js list`를 실행해도 오류 없이 빈 목록(출력 없음)으로 시작하는지 확인합니다. 삭제했다면 실습 1단계 내용으로 다시 만들어 둡니다.
+
+## 직접 해보기
+
+1. `data/todos.json`을 열어 `[` 다음에 아무 글자나 하나 추가해 일부러 JSON을 깨뜨린 뒤 실행해 어떤 에러 메시지가 나오는지 관찰하고 원래대로 되돌립니다.
+2. `saveTodos` 호출 앞에 `console.log('저장 시작');`, 뒤에 `console.log('저장 완료');`를 추가해 `await`가 실제로 저장이 끝날 때까지 다음 줄 실행을 멈추는지 확인합니다.
+
+<details>
+<summary>정답 보기</summary>
+
+JSON을 깨뜨리면 `JSON.parse(raw)`에서 `SyntaxError: Unexpected token ... in JSON`이 발생하고, 이 에러는 `error.code`가 없으므로 `catch` 블록에서 `throw error`로 다시 던져집니다. 결국 `main().catch(...)`가 이를 잡아 "실행 중 오류가 발생했습니다: Unexpected token ..."을 출력합니다.
+
+</details>
+
+## 자주 하는 실수
+
+| 증상 | 원인 | 고치는 법 |
+|------|------|-----------|
+| `await`를 썼는데 `SyntaxError: await is only valid in async functions` | `await`를 `async` 함수 밖에서 사용 | `await`를 쓰는 함수 앞에 반드시 `async`를 붙인다 |
+| 저장이 안 된 것처럼 보임 | `saveTodos` 호출에 `await`를 빠뜨려 프로그램이 먼저 종료됨 | `await saveTodos(...)`처럼 반드시 기다린다 |
+| 파일이 없을 때도 프로그램이 죽음 | `ENOENT` 코드를 확인하지 않고 모든 에러를 다시 던짐 | `error.code === 'ENOENT'`일 때만 빈 배열을 반환하도록 분기한다 |
+
+## 확인 문제
+
+<Quiz
+  questionNumber={1}
+  question="fs/promises의 readFile, writeFile이 콜백 기반 fs와 다른 점은?"
+  options={['더 빠르게 실행된다', 'Promise를 반환해 async/await와 함께 쓸 수 있다', '동기적으로 즉시 결과를 반환한다', '파일을 자동으로 암호화한다']}
+  correctAnswer={2}
+  explanation="fs/promises의 함수들은 콜백 대신 Promise를 반환하므로 async/await 문법으로 순서대로 처리할 수 있습니다."
+  optionExplanations={['속도 차이가 핵심이 아닙니다', '정답입니다', '여전히 비동기입니다', '암호화 기능은 없습니다']}
+/>
+
+<Quiz
+  questionNumber={2}
+  question="async 함수 안에서 await readFile(...)을 만나면?"
+  options={['프로그램 전체가 멈춘다', '해당 함수의 실행이 그 지점에서 멈추고 제어권이 반환된다', '파일을 동기적으로 즉시 읽는다', 'readFile이 무시된다']}
+  correctAnswer={2}
+  explanation="await는 Promise가 처리될 때까지 해당 async 함수의 실행만 멈추며, 콜스택은 비워져 다른 코드가 먼저 실행될 수 있습니다."
+  optionExplanations={['프로그램 전체가 아니라 해당 함수만 멈춥니다', '정답입니다', '여전히 비동기로 처리됩니다', '무시되지 않고 결과를 기다립니다']}
+/>
+
+<Quiz
+  questionNumber={3}
+  question="파일이 존재하지 않을 때 발생하는 에러의 error.code 값은?"
+  options={['ENOENT', 'EEXIST', 'SYNTAX_ERROR', 'NULL']}
+  correctAnswer={1}
+  explanation="Node.js 파일 시스템 API는 대상 파일이 없을 때 error.code에 ENOENT를 담아 예외를 던집니다."
+  optionExplanations={['정답입니다', 'EEXIST는 파일이 이미 존재할 때 나오는 코드입니다', 'JSON 파싱 실패는 SyntaxError로 별도 처리합니다', 'error.code가 없는 상황이 아니라 ENOENT라는 문자열입니다']}
+/>
+
+<Quiz
+  questionNumber={4}
+  question="fileStore.js에서 catch 블록이 ENOENT일 때만 빈 배열을 반환하고 그 외에는 error를 다시 던지는 이유는?"
+  options={['모든 에러를 숨기기 위해서', '파일이 없는 첫 실행은 정상 상황이지만 다른 오류까지 감추면 문제를 놓치기 때문에', '코드를 짧게 쓰기 위해서', 'JSON.parse 속도를 높이기 위해서']}
+  correctAnswer={2}
+  explanation="파일 없음은 첫 실행에서 자연스러운 상황이라 빈 배열로 처리하지만, 그 외의 진짜 오류까지 삼키면 디버깅이 어려워지므로 다시 던집니다."
+  optionExplanations={['모든 에러를 숨기면 디버깅이 어려워집니다', '정답입니다', '코드 길이가 목적이 아닙니다', '파싱 속도와는 무관합니다']}
+/>
+
+## 참고 자료
+
+- [Node.js Docs - File system (fs/promises)](https://nodejs.org/api/fs.html#promises-api)
+- [MDN - Using promises / async function](https://developer.mozilla.org/en-US/docs/Web/JavaScript/Guide/Using_promises)

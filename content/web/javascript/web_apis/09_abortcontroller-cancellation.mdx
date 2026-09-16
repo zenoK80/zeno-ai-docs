@@ -1,0 +1,253 @@
+---
+title: '09. AbortController로 취소·타임아웃'
+description: '검색어를 빠르게 바꿔도 오래된 fetch 응답이 화면을 덮어쓰지 않도록 요청을 취소합니다.'
+---
+
+<Callout type="info">
+  **이번 편의 결과물:** 검색창에 빠르게 타이핑해도 이전 요청이 최신 결과를 덮어쓰지 않고, 서버가 3초 넘게 응답하지 않으면 자동으로 요청을 포기합니다. · **다루는 개념:** `AbortController`/`AbortSignal`, 요청 타임아웃, 경쟁 상태(race condition) 방지
+</Callout>
+
+## 이 편에서 만드는 파일
+
+```
+notes-app/
+├── index.html   (~ 검색 입력 추가)
+└── src/
+    ├── api.js    (~)
+    └── main.js   (~)
+```
+
+## 개념 정리
+
+### AbortController와 AbortSignal
+
+`AbortController`는 진행 중인 비동기 작업을 취소하는 신호를 만드는 객체입니다. `controller.signal`을 `fetch`의 옵션으로 넘기면, 이후 `controller.abort()`를 호출했을 때 그 `fetch`가 `AbortError`를 던지며 중단됩니다.
+
+| 구성 요소 | 역할 |
+|-----------|------|
+| `new AbortController()` | 취소 신호를 만드는 컨트롤러 생성 |
+| `controller.signal` | `fetch(url, { signal })`처럼 취소 대상에 전달하는 신호 |
+| `controller.abort()` | 신호를 발생시켜 연결된 작업을 취소 |
+| `signal.aborted` | 이미 취소됐는지 확인하는 불리언 |
+
+08편에서 만든 `fetchNotes`는 취소 수단이 없어서, 검색어를 `"운"` → `"운동"`처럼 빠르게 바꾸면 두 요청이 동시에 서버로 나갑니다. 네트워크 지연에 따라 `"운"`에 대한 응답이 `"운동"` 응답보다 나중에 도착할 수 있고, 그러면 화면에는 옛 검색 결과가 남습니다. 이것이 경쟁 상태(race condition)입니다.
+
+### 타임아웃 만들기
+
+`AbortSignal`은 수동 취소뿐 아니라 시간 기반 취소도 지원합니다. `AbortSignal.timeout(ms)`는 지정한 시간이 지나면 자동으로 취소되는 신호를 반환합니다.
+
+| 방법 | 코드 | 용도 |
+|------|------|------|
+| 수동 취소 | `controller.abort()` | 새 요청 시작 시 이전 요청 취소 |
+| 시간 초과 취소 | `AbortSignal.timeout(3000)` | 서버 무응답 시 자동 포기 |
+| 두 신호를 합치기 | `AbortSignal.any([a, b])` | 수동 취소와 타임아웃을 동시에 적용 |
+
+## 실습
+
+<Steps>
+
+### 1. src/api.js 열기
+
+08편에서 만든 `fetchNotes`, `createNoteOnServer`, `updateNoteOnServer`, `deleteNoteOnServer`는 그대로 두고, `signal` 인자를 받도록 바꾸고 타임아웃 신호를 합치는 헬퍼를 추가합니다.
+
+### 2. 코드 작성
+
+```js
+// src/api.js
+const BASE_URL = 'http://localhost:3001'
+
+function withTimeout(signal, timeoutMs) {
+  const timeoutSignal = AbortSignal.timeout(timeoutMs)
+  if (!signal) return timeoutSignal
+  return AbortSignal.any([signal, timeoutSignal])
+}
+
+export async function fetchNotes({ query = '', signal, timeoutMs = 3000 } = {}) {
+  const url = query
+    ? `${BASE_URL}/notes?q=${encodeURIComponent(query)}`
+    : `${BASE_URL}/notes`
+  const response = await fetch(url, { signal: withTimeout(signal, timeoutMs) })
+  if (!response.ok) {
+    throw new Error(`목록 조회 실패: ${response.status}`)
+  }
+  return response.json()
+}
+
+export async function createNoteOnServer(note, { signal, timeoutMs = 3000 } = {}) {
+  const response = await fetch(`${BASE_URL}/notes`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(note),
+    signal: withTimeout(signal, timeoutMs),
+  })
+  if (!response.ok) {
+    throw new Error(`생성 실패: ${response.status}`)
+  }
+  return response.json()
+}
+
+export async function updateNoteOnServer(id, patch, { signal, timeoutMs = 3000 } = {}) {
+  const response = await fetch(`${BASE_URL}/notes/${id}`, {
+    method: 'PATCH',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(patch),
+    signal: withTimeout(signal, timeoutMs),
+  })
+  if (!response.ok) {
+    throw new Error(`수정 실패: ${response.status}`)
+  }
+  return response.json()
+}
+
+export async function deleteNoteOnServer(id, { signal, timeoutMs = 3000 } = {}) {
+  const response = await fetch(`${BASE_URL}/notes/${id}`, {
+    method: 'DELETE',
+    signal: withTimeout(signal, timeoutMs),
+  })
+  if (!response.ok) {
+    throw new Error(`삭제 실패: ${response.status}`)
+  }
+}
+```
+
+`withTimeout`은 호출부가 넘긴 `signal`(수동 취소용)과 `AbortSignal.timeout`(자동 취소용)을 하나로 합칩니다. 둘 중 어느 쪽이 먼저 취소되든 `fetch`는 중단됩니다.
+
+### 3. index.html에 검색 입력 추가
+
+08편까지 만든 `.note-composer`(form) 위에 검색 입력을 하나 추가합니다.
+
+```html
+<!-- index.html의 #app 안, .note-composer 위에 추가 -->
+<input id="search-input" type="search" placeholder="메모 검색" />
+```
+
+### 4. src/main.js에 검색 취소 로직 추가
+
+08편에서 만든 폼 제출·목록 클릭(추가·삭제·편집) 핸들러는 그대로 두고, 검색 입력과 취소 로직만 추가합니다.
+
+```js
+// src/main.js (08편의 form submit·listEl click 핸들러는 그대로 유지, 아래 내용만 추가)
+import { fetchNotes } from './api.js'
+import { renderList } from './render.js'
+
+const searchInput = document.querySelector('#search-input')
+
+let currentSearchController = null
+
+async function runSearch(query) {
+  if (currentSearchController) {
+    currentSearchController.abort()
+  }
+  const controller = new AbortController()
+  currentSearchController = controller
+
+  try {
+    const notes = await fetchNotes({ query, signal: controller.signal })
+    renderList(notes, listEl, { editingId })
+  } catch (error) {
+    if (error.name === 'AbortError') {
+      return
+    }
+    console.error('검색 실패:', error)
+  }
+}
+
+searchInput.addEventListener('input', (event) => {
+  runSearch(event.target.value.trim())
+})
+```
+
+`listEl`과 `editingId`는 08편에서 이미 선언한 모듈 전역 변수를 그대로 씁니다. 새 검색을 시작하기 전에 `currentSearchController.abort()`로 직전 요청을 먼저 취소합니다. `catch` 블록에서 `error.name === 'AbortError'`인 경우는 사용자가 의도적으로 새 검색을 시작해 발생한 정상적인 취소이므로 화면에 에러로 표시하지 않습니다.
+
+### 5. 실행
+
+```text
+npx json-server db.json --port 3001
+```
+
+```text
+npm run dev
+```
+
+</Steps>
+
+## 확인
+
+- 검색창에 `"운"`을 입력한 직후 바로 `"운동"`까지 입력합니다.
+- 브라우저 개발자 도구 네트워크 탭에서 `q=%EC%9A%B4` 요청 상태가 `(canceled)`로 표시됩니다.
+- 목록에는 `"운동"` 검색 결과만 남고, `"운"` 검색 결과가 뒤늦게 나타나 덮어쓰지 않습니다.
+- `db.json` 서버를 잠시 멈춘 상태에서 검색하면 3초 후 `console.error`로 실패가 찍히고, 화면이 무한 로딩 상태로 멈추지 않습니다.
+
+## 직접 해보기
+
+1. 목록 조회뿐 아니라 메모 저장(`createNoteOnServer`)에도 저장 버튼을 두 번 빠르게 눌렀을 때 이전 요청을 취소하는 로직을 추가해봅니다.
+2. `timeoutMs`를 500으로 낮춰서 실제로 타임아웃이 걸리는 상황을 재현하고, 에러 메시지를 화면에 표시하는 코드를 추가해봅니다.
+
+<details>
+<summary>정답 보기</summary>
+
+```js
+let currentSaveController = null
+
+async function saveNote(note) {
+  if (currentSaveController) {
+    currentSaveController.abort()
+  }
+  const controller = new AbortController()
+  currentSaveController = controller
+  return createNoteOnServer(note, { signal: controller.signal })
+}
+```
+
+</details>
+
+## 자주 하는 실수
+
+| 증상 | 원인 | 고치는 법 |
+|------|------|-----------|
+| 취소했는데도 화면이 잠깐 옛 데이터로 바뀜 | `abort()` 이후 `catch`에서 `AbortError`를 걸러내지 않고 그대로 `renderList` 호출 | `error.name === 'AbortError'`일 때는 즉시 `return`으로 렌더링을 건너뛴다 |
+| 매 요청마다 새 컨트롤러를 만들지만 취소가 안 됨 | `currentSearchController` 변수를 함수 안에서 선언해 요청마다 초기화됨 | 컨트롤러 변수를 함수 바깥(모듈 스코프)에 두고 재사용한다 |
+| `AbortSignal.any is not a function` 에러 | 오래된 브라우저에서 실행 | 최신 Chrome/Edge/Firefox에서 테스트하거나 `timeoutMs`만 단독으로 사용한다 |
+
+## 확인 문제
+
+<Quiz
+  questionNumber={1}
+  question="AbortController를 사용하는 목적으로 가장 적절한 것은?"
+  options={['서버 응답을 캐시하기 위해', '진행 중인 비동기 작업을 중간에 취소하기 위해', 'JSON 데이터를 파싱하기 위해', 'DOM 요소를 생성하기 위해']}
+  correctAnswer={2}
+  explanation="AbortController는 fetch 같은 비동기 작업에 취소 신호를 보내 중간에 중단시키는 도구입니다."
+  optionExplanations={['캐시와는 관련이 없습니다', '정답입니다', 'JSON.parse의 역할입니다', 'document.createElement의 역할입니다']}
+/>
+
+<Quiz
+  questionNumber={2}
+  question="검색어를 빠르게 바꿀 때 발생하는 경쟁 상태(race condition)의 원인으로 옳은 것은?"
+  options={['서버가 요청을 거부해서', '나중에 보낸 요청의 응답이 먼저 보낸 요청보다 먼저 도착할 수 있어서', '먼저 보낸 요청의 응답이 나중 요청 응답보다 늦게 도착해 화면을 덮어쓸 수 있어서', 'localStorage 용량이 부족해서']}
+  correctAnswer={3}
+  explanation="네트워크 지연 순서는 요청을 보낸 순서와 다를 수 있어, 먼저 보낸 요청의 응답이 늦게 도착하면 최신 검색 결과를 옛 결과로 덮어쓰게 됩니다."
+  optionExplanations={['서버 거부와는 무관합니다', '나중 요청이 먼저 도착하는 경우가 문제의 원인은 아닙니다', '정답입니다', 'localStorage 용량과는 무관합니다']}
+/>
+
+<Quiz
+  questionNumber={3}
+  question="AbortSignal.timeout(3000)의 동작으로 옳은 것은?"
+  options={['3000개의 요청을 순서대로 보낸다', '3초가 지나면 자동으로 취소되는 신호를 반환한다', '3초마다 요청을 반복 전송한다', '응답 데이터를 3000바이트로 제한한다']}
+  correctAnswer={2}
+  explanation="AbortSignal.timeout은 인자로 준 밀리초가 지나면 자동으로 취소 상태가 되는 AbortSignal을 반환합니다."
+  optionExplanations={['요청 반복과는 무관합니다', '정답입니다', '반복 전송 기능이 아닙니다', '응답 크기 제한 기능이 아닙니다']}
+/>
+
+<Quiz
+  questionNumber={4}
+  question="fetch가 AbortController에 의해 취소됐을 때 catch 블록에서 확인해야 할 값은?"
+  options={['error.message가 빈 문자열인지', 'error.name이 AbortError인지', 'response.status가 200인지', 'error.code가 404인지']}
+  correctAnswer={2}
+  explanation="취소된 fetch는 AbortError라는 이름의 에러를 던지므로, catch에서 error.name으로 취소인지 다른 실패인지 구분합니다."
+  optionExplanations={['message로 판별하는 방법은 안정적이지 않습니다', '정답입니다', '취소되면 response 자체가 없습니다', '404는 취소가 아니라 리소스 없음 상태 코드입니다']}
+/>
+
+## 참고 자료
+
+- [MDN - AbortController](https://developer.mozilla.org/en-US/docs/Web/API/AbortController)
+- [MDN - AbortSignal.timeout()](https://developer.mozilla.org/en-US/docs/Web/API/AbortSignal/timeout_static)

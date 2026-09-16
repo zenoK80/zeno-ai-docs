@@ -1,0 +1,301 @@
+---
+title: '11. 정렬·필터·페이지네이션 데이터 테이블'
+description: '책 목록을 컬럼 클릭 정렬·검색·페이지 이동이 되는 테이블로 확장하고 서버 상태와 연동한다'
+---
+
+<Callout type="info">
+  **이번 편의 결과물:** 책 목록이 컬럼 클릭으로 정렬되고, 검색어로 필터링되며, 페이지 번호로 이동할 수 있는 테이블이 됩니다. · **다루는 개념:** 정렬 가능한 테이블 헤더, 필터 입력과 쿼리 파라미터 동기화, 페이지네이션 컨트롤과 TanStack Query 연동
+</Callout>
+
+## 이 편에서 만드는 파일
+
+```
+bookshelf/src/
+├── components/
+│   └── BookTable.jsx           + 신규 (BookList를 표 형태로 대체)
+├── pages/
+│   └── BookListPage.jsx        ~ 수정 (검색·정렬·페이지 상태 연결)
+├── api/
+│   └── books.js                ~ 수정 (getBooks가 정렬·검색·페이지 파라미터를 받음)
+└── store/
+    └── useUiStore.js           ~ 수정 (searchQuery, page 필드 추가)
+```
+
+## 개념 정리
+
+06편에서 페이지 단위 조회를, 09편에서 필터·정렬 상태를 Zustand로 옮겼습니다. 이번 편은 이 둘을 하나의 표 컴포넌트로 묶습니다. 핵심은 **정렬·검색·페이지 상태가 바뀔 때마다 TanStack Query의 `queryKey`도 함께 바뀌어야** 새 조합에 맞는 데이터를 다시 조회한다는 점입니다.
+
+| 상태 | 저장 위치 | queryKey 포함 여부 |
+|---|---|---|
+| `statusFilter` | Zustand(09편) | 포함 |
+| `sortBy`, `sortOrder` | Zustand(09편) | 포함 |
+| `searchQuery` | Zustand(이번 편 추가) | 포함(디바운스 후) |
+| `page` | Zustand(이번 편 추가) | 포함 |
+
+테이블 헤더 클릭으로 정렬을 바꾸는 로직은 규칙이 단순합니다. 같은 컬럼을 다시 클릭하면 방향을 뒤집고, 다른 컬럼을 클릭하면 오름차순으로 새로 시작합니다.
+
+검색어는 `react_2`에서 만든 `useDebounce` 훅으로 타이핑이 멈춘 뒤에만 스토어에 반영합니다. 매 타이핑마다 서버에 요청을 보내면 네트워크가 낭비되고 화면이 깜빡입니다.
+
+## 실습
+
+<Steps>
+
+### 1. 스토어에 검색·페이지 상태 추가
+
+```js
+// src/store/useUiStore.js (필드·액션 추가/수정 — 나머지는 09편 코드 유지)
+searchQuery: '',
+page: 1,
+setStatusFilter: (statusFilter) => set({ statusFilter, page: 1 }),
+setSearchQuery: (searchQuery) => set({ searchQuery, page: 1 }),
+setPage: (page) => set({ page }),
+setSort: (sortBy) =>
+  set((state) => ({
+    sortBy,
+    sortOrder: state.sortBy === sortBy && state.sortOrder === 'asc' ? 'desc' : 'asc',
+    page: 1,
+  })),
+```
+
+검색어·필터·정렬이 바뀌면 `page`를 1로 되돌립니다. 3페이지를 보다가 필터를 바꿨는데 빈 페이지가 뜨는 것을 막기 위해서입니다. `setSort`의 방향 토글 로직 자체는 09편과 같고, 이번 편에서 `page: 1` 초기화만 더했습니다. `resetFilters`도 `searchQuery: ''`, `page: 1`을 포함하도록 09편 정의에 추가합니다.
+
+### 2. api/books.js에 파라미터 반영
+
+```js
+// src/api/books.js (getBooks 함수만 발췌 — 나머지는 04~06편 코드 유지)
+const API_BASE = 'http://localhost:3001';
+
+export async function getBooks({ status, sortBy, sortOrder, search, page, pageSize = 5 }) {
+  const params = new URLSearchParams({
+    _sort: sortBy,
+    _order: sortOrder,
+    _page: String(page),
+    _limit: String(pageSize),
+  });
+  if (status !== 'all') params.set('status', status);
+  if (search) params.set('q', search);
+
+  const response = await fetch(`${API_BASE}/books?${params.toString()}`);
+  if (!response.ok) throw new Error('책 목록을 불러오지 못했습니다');
+
+  const total = Number(response.headers.get('X-Total-Count') ?? 0);
+  const items = await response.json();
+  return { items, total, page, pageSize };
+}
+```
+
+`X-Total-Count` 헤더로 전체 개수를 받아 총 페이지 수를 계산합니다. `json-server`(04편부터 사용)는 `_page`·`_limit` 페이지네이션에서 이 헤더를 기본으로 응답에 포함합니다.
+
+### 3. BookTable 컴포넌트 작성
+
+```jsx
+// src/components/BookTable.jsx
+import { useUiStore } from '../store/useUiStore';
+
+const COLUMNS = [
+  { key: 'title', label: '제목' },
+  { key: 'author', label: '저자' },
+  { key: 'pages', label: '쪽수' },
+  { key: 'status', label: '상태' },
+];
+
+function BookTable({ books }) {
+  const sortBy = useUiStore((state) => state.sortBy);
+  const sortOrder = useUiStore((state) => state.sortOrder);
+  const setSort = useUiStore((state) => state.setSort);
+
+  return (
+    <table className="book-table">
+      <thead>
+        <tr>
+          {COLUMNS.map((column) => (
+            <th key={column.key}>
+              <button type="button" onClick={() => setSort(column.key)}>
+                {column.label}
+                {sortBy === column.key ? (sortOrder === 'asc' ? ' ▲' : ' ▼') : ''}
+              </button>
+            </th>
+          ))}
+        </tr>
+      </thead>
+      <tbody>
+        {books.map((book) => (
+          <tr key={book.id}>
+            <td>{book.title}</td>
+            <td>{book.author}</td>
+            <td>{book.pages}</td>
+            <td>{book.status}</td>
+          </tr>
+        ))}
+      </tbody>
+    </table>
+  );
+}
+
+export default BookTable;
+```
+
+헤더 버튼은 컬럼 키 하나만 `setSort`에 넘깁니다. 방향을 뒤집을지 새로 시작할지는 스토어의 `setSort` 액션이 판단합니다.
+
+### 4. BookListPage에서 검색·페이지네이션 연결
+
+```jsx
+// src/pages/BookListPage.jsx
+import { useState } from 'react';
+import { useUiStore } from '../store/useUiStore';
+import { useDebounce } from '../hooks/useDebounce';
+import { useBooks } from '../hooks/useBooks.js';
+import BookTable from '../components/BookTable';
+
+function BookListPage() {
+  const statusFilter = useUiStore((state) => state.statusFilter);
+  const sortBy = useUiStore((state) => state.sortBy);
+  const sortOrder = useUiStore((state) => state.sortOrder);
+  const searchQuery = useUiStore((state) => state.searchQuery);
+  const setSearchQuery = useUiStore((state) => state.setSearchQuery);
+  const page = useUiStore((state) => state.page);
+  const setPage = useUiStore((state) => state.setPage);
+
+  const [searchInput, setSearchInput] = useState(searchQuery);
+  const debouncedSearch = useDebounce(searchInput, 300);
+
+  if (debouncedSearch !== searchQuery) {
+    setSearchQuery(debouncedSearch);
+  }
+
+  const { data, isPending, isError } = useBooks({
+    status: statusFilter,
+    sortBy,
+    sortOrder,
+    search: searchQuery,
+    page,
+  });
+
+  if (isPending) return <p>불러오는 중...</p>;
+  if (isError) return <p role="alert">목록을 불러오지 못했습니다</p>;
+
+  const totalPages = Math.max(1, Math.ceil(data.total / data.pageSize));
+
+  return (
+    <section>
+      <input
+        type="search"
+        aria-label="책 검색"
+        value={searchInput}
+        onChange={(e) => setSearchInput(e.target.value)}
+        placeholder="제목으로 검색"
+      />
+      <BookTable books={data.items} />
+      <nav className="pagination" aria-label="페이지 이동">
+        <button type="button" disabled={page <= 1} onClick={() => setPage(page - 1)}>
+          이전
+        </button>
+        <span>
+          {page} / {totalPages}
+        </span>
+        <button type="button" disabled={page >= totalPages} onClick={() => setPage(page + 1)}>
+          다음
+        </button>
+      </nav>
+    </section>
+  );
+}
+
+export default BookListPage;
+```
+
+렌더링 중간에 `setSearchQuery`를 호출하는 부분이 낯설 수 있습니다. 디바운스된 값이 스토어 값과 달라졌을 때만 실행되므로 무한 렌더로 이어지지 않고, 다음 렌더에서 `searchQuery`가 갱신된 값으로 반영됩니다. `useBooks`는 06편에서 `placeholderData: keepPreviousData`를 이미 적용해 두었으므로, 검색·정렬·페이지가 바뀌어도 이전 목록을 화면에 유지해 깜빡임 없이 전환됩니다.
+
+### 5. 실행
+
+```text
+npm run dev
+```
+
+### 6. 확인
+
+- "제목" 헤더를 클릭하면 오름차순으로 정렬되고, 한 번 더 클릭하면 내림차순으로 바뀝니다(헤더 옆 화살표로 확인).
+- 검색창에 타이핑을 멈추고 약 0.3초 뒤에 목록이 필터링됩니다.
+- "다음"을 눌러 페이지를 넘기면 새 목록이 나타나고, 마지막 페이지에서는 "다음" 버튼이 비활성화됩니다.
+- 검색어를 바꾸면 페이지가 1로 초기화됩니다.
+
+</Steps>
+
+## 직접 해보기
+
+1. `COLUMNS`에 `{ key: 'rating', label: '별점' }`을 추가하고 `api/books.js`의 정렬 대상에도 반영해 보세요.
+2. 페이지 번호를 직접 클릭해 이동할 수 있도록 "이전/다음" 대신 숫자 버튼 목록을 렌더링해 보세요(`Array.from({ length: totalPages })` 활용).
+
+<details>
+<summary>정답 보기</summary>
+
+```jsx
+// src/pages/BookListPage.jsx (숫자 버튼 목록)
+<nav className="pagination" aria-label="페이지 이동">
+  {Array.from({ length: totalPages }, (_, i) => i + 1).map((pageNumber) => (
+    <button
+      key={pageNumber}
+      type="button"
+      className={pageNumber === page ? 'active' : ''}
+      onClick={() => setPage(pageNumber)}
+    >
+      {pageNumber}
+    </button>
+  ))}
+</nav>
+```
+
+`rating` 컬럼은 `COLUMNS` 배열에 추가하는 것만으로 헤더 버튼이 생기지만, 실제 정렬은 목업 서버가 `_sort=rating`을 인식해야 동작합니다. json-server 스타일 쿼리 파라미터는 필드 이름을 그대로 받으므로 서버 쪽 수정은 필요 없습니다.
+
+</details>
+
+## 자주 하는 실수
+
+| 증상 | 원인 | 고치는 법 |
+|---|---|---|
+| 검색창에 한 글자만 쳐도 요청이 계속 나감 | `useDebounce` 없이 `searchInput`을 바로 `queryKey`에 사용 | 디바운스된 값만 스토어·`queryKey`에 반영 |
+| 페이지를 넘길 때마다 화면이 로딩 스피너로 깜빡임 | `placeholderData` 옵션 누락 | `placeholderData: (previous) => previous` 추가 |
+| 정렬 컬럼을 바꿔도 방향이 항상 오름차순으로 시작 안 됨 | `setSort`에서 같은 컬럼 여부를 확인하지 않음 | 클릭한 컬럼이 현재 `sortBy`와 같은지 비교하는 조건 확인 |
+| 필터를 바꿨더니 존재하지 않는 페이지가 표시됨 | 필터·검색 변경 시 `page`를 초기화하지 않음 | `setStatusFilter`, `setSearchQuery`, `setSort`에서 `page: 1` 반영 |
+
+## 확인 문제
+
+<Quiz
+  questionNumber={1}
+  question="정렬·검색·페이지 상태를 queryKey에 포함해야 하는 이유는?"
+  options={['queryKey가 길수록 캐시 용량이 줄어들기 때문에', '상태 조합이 바뀔 때마다 그에 맞는 데이터를 다시 조회하고 별도로 캐싱하기 위해', 'React가 queryKey 길이로 컴포넌트 우선순위를 정하기 때문에', 'Zustand 상태는 queryKey 없이는 읽을 수 없기 때문에']}
+  correctAnswer={2}
+  explanation="TanStack Query는 queryKey가 다르면 별도의 캐시 항목으로 취급한다. 정렬·검색·페이지 조합마다 다른 데이터가 필요하므로 모두 queryKey에 포함해야 한다."
+  optionExplanations={['캐시 용량과 키 길이는 직접적 관계가 없다', '정답 — 조합별로 캐시를 구분하기 위함이다', 'React 렌더 우선순위와는 무관하다', 'Zustand 상태 읽기와 queryKey 포함 여부는 별개다']}
+/>
+
+<Quiz
+  questionNumber={2}
+  question="검색 입력에 디바운스를 적용하는 목적은?"
+  options={['타이핑 속도를 느리게 만들기 위해', '타이핑이 멈춘 뒤에만 요청을 보내 불필요한 네트워크 호출을 줄이기 위해', 'zod 검증을 건너뛰기 위해', '정렬 순서를 자동으로 바꾸기 위해']}
+  correctAnswer={2}
+  explanation="디바운스는 값이 일정 시간 동안 바뀌지 않을 때만 반영해, 매 타이핑마다 요청이 나가는 것을 막는다."
+  optionExplanations={['입력 자체의 속도는 바뀌지 않는다', '정답 — 불필요한 요청을 줄이는 것이 목적이다', '검증과는 무관하다', '정렬과는 무관하다']}
+/>
+
+<Quiz
+  questionNumber={3}
+  question="placeholderData 옵션에 이전 데이터를 그대로 반환하는 콜백을 넘기면 생기는 효과는?"
+  options={['이전 요청이 실패해도 에러를 숨긴다', '새 데이터가 도착하기 전까지 이전 페이지 데이터를 화면에 유지해 깜빡임을 줄인다', '캐시를 영구적으로 삭제하지 않는다', '검색어를 이전 값으로 되돌린다']}
+  correctAnswer={2}
+  explanation="placeholderData 콜백이 이전 데이터를 반환하면, 새 쿼리가 로딩 중인 동안에도 화면에 이전 결과가 유지된다."
+  optionExplanations={['에러 처리와는 무관하다', '정답 — 페이지 전환 시 깜빡임을 줄인다', '캐시 삭제 정책과는 무관하다', '검색어 값 자체를 바꾸지 않는다']}
+/>
+
+<Quiz
+  questionNumber={4}
+  question="필터나 검색어를 바꿀 때 page를 1로 초기화하는 이유는?"
+  options={['서버 요청 횟수를 줄이기 위해', '이전 페이지 번호가 새 결과 집합에서는 존재하지 않을 수 있기 때문에', 'Zustand persist가 자동으로 요구하기 때문에', 'TanStack Query가 1페이지만 지원하기 때문에']}
+  correctAnswer={2}
+  explanation="필터·검색이 바뀌면 전체 결과 수가 달라져, 이전에 보던 페이지 번호가 존재하지 않는 빈 페이지가 될 수 있다."
+  optionExplanations={['요청 횟수 절감이 직접 목적은 아니다', '정답 — 존재하지 않는 페이지를 보는 것을 방지한다', 'persist는 페이지 초기화를 요구하지 않는다', 'TanStack Query는 페이지 수 제한이 없다']}
+/>
+
+## 참고 자료
+
+- [TanStack Query — Paginated Queries](https://tanstack.com/query/latest/docs/framework/react/guides/paginated-queries)

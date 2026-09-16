@@ -1,0 +1,262 @@
+---
+title: '06. 낙관적 업데이트와 페이지네이션 캐시'
+description: '삭제를 서버 응답 전에 즉시 반영하고, 목록을 페이지 단위로 조회합니다'
+---
+
+<Callout type="info">
+  **이번 편의 결과물:** 삭제 버튼을 누르면 서버 응답 전에 즉시 목록에서 사라지고, 실패하면 원래대로 되돌아갑니다. 목록이 페이지 단위로 조회됩니다. · **다루는 개념:** `onMutate` 낙관적 업데이트, 실패 시 롤백(`onError`), 페이지 단위 조회와 `placeholderData`
+</Callout>
+
+05편까지는 삭제 버튼을 누르면 서버 응답이 올 때까지 기다렸다가 `invalidateQueries`로 다시 조회했습니다. 네트워크가 느리면 사용자는 클릭 후 잠깐 멈춘 화면을 보게 됩니다. 이 편에서는 서버 응답을 기다리지 않고 화면을 먼저 바꾸는 낙관적 업데이트를 적용하고, 목록을 페이지 단위로 나눕니다.
+
+## 이 편에서 만드는 파일
+
+```
+bookshelf/src/
+├── api/
+│   └── books.js                ~ (getBooks가 page 파라미터를 받고 총 개수를 함께 반환)
+├── hooks/
+│   ├── useBooks.js             ~ (placeholderData 추가로 페이지 전환 시 깜빡임 제거)
+│   └── useBookMutations.js     ~ (useDeleteBook에 낙관적 업데이트 적용)
+└── pages/
+    └── BookListPage.jsx        ~ (낙관적 삭제, 페이지 이동 UI)
+```
+
+## 개념 정리
+
+| 개념 | 설명 |
+|------|------|
+| `onMutate` | 요청을 보내기 **전에** 실행. 여기서 캐시를 직접 수정해 화면을 먼저 바꾼다 |
+| 롤백 | `onMutate`가 반환한 값(변경 전 스냅샷)을 `onError`에서 다시 캐시에 넣어 되돌린다 |
+| `cancelQueries` | 진행 중인 조회가 낙관적 변경을 덮어쓰지 않도록 취소한다 |
+| `placeholderData` | 새 페이지를 불러오는 동안 이전 페이지 데이터를 화면에 유지한다 |
+
+낙관적 업데이트는 3단계로 이뤄집니다. (1) `onMutate`에서 캐시를 먼저 바꾸고 이전 상태를 저장, (2) 요청이 실패하면 `onError`에서 저장해둔 이전 상태로 복원, (3) 성공하든 실패하든 `onSettled`에서 서버와 다시 동기화합니다. 이 세 단계를 빠뜨리면 화면과 서버 상태가 어긋난 채로 남을 수 있습니다.
+
+`json-server`는 `_page`, `_limit` 쿼리 파라미터로 페이지 단위 조회를 지원하고, 응답 헤더 `X-Total-Count`에 전체 개수를 담아줍니다.
+
+## 실습
+
+<Steps>
+
+### 1. API 함수에 페이지 파라미터 추가
+
+```js
+// bookshelf/src/api/books.js
+const API_BASE = 'http://localhost:3001'
+
+export async function getBooks({ page = 1, limit = 4 } = {}) {
+  const response = await fetch(`${API_BASE}/books?_page=${page}&_limit=${limit}`)
+  if (!response.ok) {
+    throw new Error(`책 목록을 가져오지 못했습니다 (상태 코드: ${response.status})`)
+  }
+  const items = await response.json()
+  const total = Number(response.headers.get('X-Total-Count') ?? items.length)
+  return { items, total }
+}
+
+export async function createBook(book) {
+  const response = await fetch(`${API_BASE}/books`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(book),
+  })
+  if (!response.ok) {
+    throw new Error('책을 추가하지 못했습니다')
+  }
+  return response.json()
+}
+
+export async function deleteBook(id) {
+  const response = await fetch(`${API_BASE}/books/${id}`, { method: 'DELETE' })
+  if (!response.ok) {
+    throw new Error('책을 삭제하지 못했습니다')
+  }
+  return response.json()
+}
+```
+
+`getBooks`의 반환 모양이 배열에서 `{ items, total }` 객체로 바뀝니다. 이 계약 변경 때문에 `hooks/useBooks.js`가 넘겨주는 `data`의 모양도 함께 바뀌고, `BookListPage`도 그에 맞게 고쳐야 합니다.
+
+### 2. useBooks에 placeholderData 추가
+
+```js
+// bookshelf/src/hooks/useBooks.js
+import { useQuery, keepPreviousData } from '@tanstack/react-query'
+import { getBooks } from '../api/books.js'
+
+export function useBooks(params = {}) {
+  return useQuery({
+    queryKey: ['books', params],
+    queryFn: () => getBooks(params),
+    placeholderData: keepPreviousData,
+  })
+}
+```
+
+### 3. useDeleteBook에 낙관적 업데이트 적용
+
+05편에서 만든 `useDeleteBook`은 성공한 뒤에야 캐시를 무효화했습니다. 이제 요청을 보내기 전에 캐시를 먼저 바꾸도록 훅 내부만 고칩니다. 이 훅을 쓰는 컴포넌트 쪽 코드는 바뀌지 않습니다.
+
+```js
+// bookshelf/src/hooks/useBookMutations.js (useDeleteBook만 발췌 — useCreateBook은 05편 코드 유지)
+import { useMutation, useQueryClient } from '@tanstack/react-query'
+import { createBook, deleteBook } from '../api/books.js'
+
+export function useDeleteBook(queryKey) {
+  const queryClient = useQueryClient()
+  return useMutation({
+    mutationFn: deleteBook,
+    onMutate: async (id) => {
+      await queryClient.cancelQueries({ queryKey })
+      const previous = queryClient.getQueryData(queryKey)
+      queryClient.setQueryData(queryKey, (old) =>
+        old ? { ...old, items: old.items.filter((book) => book.id !== id) } : old,
+      )
+      return { previous }
+    },
+    onError: (mutationError, id, context) => {
+      queryClient.setQueryData(queryKey, context.previous)
+    },
+    onSettled: () => {
+      queryClient.invalidateQueries({ queryKey: ['books'] })
+    },
+  })
+}
+```
+
+`queryKey`가 페이지마다 달라지므로(`['books', { page }]`), 어떤 페이지를 보고 있을 때 삭제했는지 알아야 정확한 캐시를 바꿀 수 있습니다. 그래서 `useDeleteBook`이 `queryKey`를 인자로 받도록 시그니처를 바꿨습니다.
+
+### 4. 목록 화면에 낙관적 삭제와 페이지 이동 적용
+
+```jsx
+// bookshelf/src/pages/BookListPage.jsx
+import { useState } from 'react'
+import { Link } from 'react-router'
+import { useBooks } from '../hooks/useBooks.js'
+import { useDeleteBook } from '../hooks/useBookMutations.js'
+import BookList from '../components/BookList.jsx'
+
+const PAGE_SIZE = 4
+
+export default function BookListPage() {
+  const [page, setPage] = useState(1)
+  const params = { page, limit: PAGE_SIZE }
+  const queryKey = ['books', params]
+
+  const { data, isLoading, isError, error } = useBooks(params)
+  const deleteMutation = useDeleteBook(queryKey)
+
+  if (isLoading) {
+    return <p role="status">책 목록을 불러오는 중입니다...</p>
+  }
+
+  if (isError) {
+    return <p role="alert">목록을 불러오지 못했습니다: {error.message}</p>
+  }
+
+  const { items, total } = data
+  const totalPages = Math.max(1, Math.ceil(total / PAGE_SIZE))
+
+  return (
+    <section>
+      <header>
+        <h1>내 서재</h1>
+        <Link to="/books/new">새 책 등록</Link>
+      </header>
+      <BookList books={items} onDelete={(id) => deleteMutation.mutate(id)} />
+      <nav aria-label="페이지 이동">
+        <button type="button" disabled={page === 1} onClick={() => setPage((p) => p - 1)}>
+          이전
+        </button>
+        <span>
+          {page} / {totalPages}
+        </span>
+        <button type="button" disabled={page === totalPages} onClick={() => setPage((p) => p + 1)}>
+          다음
+        </button>
+      </nav>
+    </section>
+  )
+}
+```
+
+`invalidateQueries({ queryKey: ['books'] })`처럼 앞부분만 지정하면 `['books', 1]`, `['books', 2]` 등 페이지별 캐시를 한번에 무효화합니다. `queryKey`가 배열이라 부분 일치로 동작합니다.
+
+### 5. 실행과 확인
+
+```text
+npx json-server db.json --port 3001
+npm run dev
+```
+
+- `/` 화면에서 4권씩 목록이 보이고 "이전/다음" 버튼으로 페이지를 넘길 수 있다.
+- 삭제 버튼을 누르면 네트워크 응답을 기다리지 않고 즉시 목록에서 사라진다.
+- 브라우저 개발자 도구의 네트워크 탭에서 응답 속도를 느리게(Slow 3G) 설정하고 삭제해도 화면은 바로 바뀐다.
+- 마지막 페이지에서 "다음" 버튼이 비활성화된다.
+
+</Steps>
+
+## 직접 해보기
+
+1. `json-server`를 잠깐 끈 상태에서 삭제 버튼을 누르고, 화면이 원래대로 롤백되는지 확인해 보세요.
+2. `keepPreviousData` 대신 `placeholderData`를 빼면 페이지를 넘길 때 화면이 어떻게 달라지는지 관찰해 보세요.
+
+<details>
+<summary>정답 보기</summary>
+
+`placeholderData: keepPreviousData`를 제거하면 페이지를 넘길 때마다 `isLoading`이 다시 `true`가 되어 "불러오는 중입니다..."가 매번 깜빡입니다. `keepPreviousData`는 새 페이지 데이터가 도착할 때까지 이전 페이지 데이터를 화면에 유지해 깜빡임을 없앱니다.
+
+`json-server`를 끄면 `deleteBook`의 `fetch`가 실패해 `deleteMutation`의 `onError`가 실행되고, `context.previous`로 캐시가 복원되어 사라졌던 항목이 다시 나타납니다.
+
+</details>
+
+## 자주 하는 실수
+
+| 증상 | 원인 | 고치는 법 |
+|------|------|-----------|
+| 롤백 후에도 다른 페이지 데이터가 깨짐 | `queryKey`를 페이지 번호 없이 고정 문자열로 사용 | `['books', page]`처럼 페이지를 포함한 키를 쓴다 |
+| 삭제 도중 화면이 두 번 깜빡임 | `onMutate`에서 `cancelQueries`를 생략 | 진행 중인 조회를 취소한 뒤 캐시를 수정한다 |
+| 페이지를 넘길 때마다 로딩 문구가 다시 보임 | `placeholderData` 미설정 | `keepPreviousData`를 `placeholderData`에 지정한다 |
+
+## 확인 문제
+
+<Quiz
+  questionNumber={1}
+  question="낙관적 업데이트에서 onMutate가 실행되는 시점은"
+  options={['서버 응답을 받은 직후', '요청을 보내기 전', '컴포넌트가 언마운트될 때', 'invalidateQueries 호출 이후']}
+  correctAnswer={2}
+  explanation="onMutate는 실제 요청이 나가기 전에 실행되어 캐시를 먼저 바꿉니다."
+  optionExplanations={['응답 이후는 onSuccess·onSettled입니다', '정답입니다', '언마운트와 무관합니다', '순서가 반대입니다']}
+/>
+
+<Quiz
+  questionNumber={2}
+  question="onError에서 context.previous로 캐시를 되돌리는 이유는"
+  options={['서버 부하를 줄이기 위해', '요청이 실패했을 때 낙관적으로 바꿨던 화면을 원래대로 복원하기 위해', '타입 오류를 막기 위해', '캐시 용량을 절약하기 위해']}
+  correctAnswer={2}
+  explanation="onMutate에서 저장한 이전 상태를 실패 시 되돌려 화면과 실제 서버 상태의 불일치를 막습니다."
+  optionExplanations={['부하와 무관합니다', '정답입니다', '타입과 무관합니다', '용량과 무관합니다']}
+/>
+
+<Quiz
+  questionNumber={3}
+  question="placeholderData에 keepPreviousData를 지정하면 어떤 효과가 있는가"
+  options={['이전 페이지 데이터를 새 데이터가 도착할 때까지 화면에 유지한다', '요청을 아예 보내지 않는다', '캐시를 영구히 삭제하지 않는다', '페이지 번호를 자동으로 계산한다']}
+  correctAnswer={1}
+  explanation="keepPreviousData는 새 쿼리 결과가 오기 전까지 이전 성공 데이터를 임시로 보여줘 깜빡임을 줄입니다."
+  optionExplanations={['정답입니다', '요청은 여전히 보내집니다', '캐시 보존과는 다른 개념입니다', '페이지 계산과 무관합니다']}
+/>
+
+<Quiz
+  questionNumber={4}
+  question="queryKey를 books, page 형태의 배열로 만드는 이유는"
+  options={['배열이 문자열보다 빠르기 때문에', '페이지마다 별도 캐시 항목을 만들어 관리하기 위해', 'React 규칙이라서', 'JSON 직렬화가 필요 없어서']}
+  correctAnswer={2}
+  explanation="페이지별로 다른 queryKey를 쓰면 각 페이지의 데이터가 독립된 캐시 항목으로 저장되고 무효화·롤백도 정확히 대상 페이지에만 적용됩니다."
+  optionExplanations={['속도 차이가 이유가 아닙니다', '정답입니다', 'React 자체 규칙은 아닙니다', '직렬화와 무관합니다']}
+/>
+
+## 참고 자료
+
+- [TanStack Query — Optimistic Updates 가이드](https://tanstack.com/query/latest/docs/framework/react/guides/optimistic-updates)

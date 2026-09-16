@@ -1,0 +1,243 @@
+---
+title: '11. 정규식으로 검색 명령 만들기'
+description: '정규식 리터럴과 test·replace 메서드로 todo search 명령을 만듭니다.'
+---
+
+<Callout type="info">
+  **이번 편의 결과물:** `todo search &lt;패턴&gt;`이 정규식으로 할 일 제목을 검색해 일치하는 항목만 출력하고, 일치한 부분을 대괄호로 표시합니다. · **다루는 개념:** 정규식 리터럴/플래그, `test`/`match`/`replace`
+</Callout>
+
+## 이 편에서 만드는 파일
+
+```
+todo-cli/
+└── src/
+    └── commands/
+        └── search.js   (+)
+```
+
+`src/index.js`에도 `search` 명령 분기가 하나 추가됩니다.
+
+## 개념 정리
+
+### 정규식 리터럴과 플래그
+
+정규식(regular expression)은 문자열에서 특정 패턴을 찾는 문법입니다. 슬래시(`/`) 사이에 패턴을 쓰고, 뒤에 플래그를 붙입니다.
+
+| 표기 | 의미 |
+|------|------|
+| `/제출/` | "제출"이라는 문자열을 포함하는지 검사 |
+| `/제출/i` | 대소문자 구분 없이 검사(`i` = ignore case) |
+| `/제출/g` | 문자열 전체에서 모든 일치를 찾음(`g` = global) |
+| `new RegExp(문자열, 플래그)` | 문자열로 정규식을 동적으로 생성 |
+
+검색어를 사용자가 명령행에서 입력하는 `todo-cli`는 패턴을 코드에 미리 적어둘 수 없으므로, 리터럴(`/.../`) 대신 `new RegExp()` 생성자로 동적 정규식을 만듭니다.
+
+### 정규식 메서드 3가지
+
+| 메서드 | 호출 주체 | 반환값 | 용도 |
+|--------|-----------|--------|------|
+| `regex.test(문자열)` | 정규식 | `boolean` | 일치 여부만 확인 |
+| `문자열.match(regex)` | 문자열 | 일치 정보 배열 또는 `null` | 일치한 내용 자체를 확인 |
+| `문자열.replace(regex, 대체값)` | 문자열 | 치환된 새 문자열 | 일치한 부분을 바꾸거나 표시 |
+
+`replace`의 두 번째 인자로 함수를 넘기면, 일치한 문자열을 인자로 받아 원하는 형태로 가공할 수 있습니다. `todo-cli` 검색은 `test`로 일치 항목을 걸러내고, `replace`로 일치한 부분을 대괄호로 감싸 표시합니다.
+
+### 잘못된 패턴 처리
+
+사용자가 `[`처럼 정규식 문법으로는 불완전한 문자열을 입력하면 `new RegExp()`가 `SyntaxError`를 던집니다. `try`/`catch`로 감싸 사용자에게 읽을 수 있는 메시지를 보여줘야 합니다. 에러 처리 자체는 14편에서 더 다루고, 여기서는 최소한의 방어만 합니다.
+
+## 실습
+
+<Steps>
+
+### 1. src/commands/search.js 파일 만들기
+
+`src/commands/` 폴더에 `search.js`를 새로 만듭니다.
+
+### 2. 코드 작성
+
+```js
+// src/commands/search.js
+export function runSearch(store, positional) {
+  const [pattern] = positional;
+  if (!pattern) {
+    console.log('검색어를 입력하세요. 예: node src/index.js search 제출');
+    return;
+  }
+
+  let regex;
+  try {
+    regex = new RegExp(pattern, 'i');
+  } catch {
+    console.log('올바르지 않은 정규식입니다:', pattern);
+    return;
+  }
+
+  const matched = store.toArray().filter((todo) => regex.test(todo.title));
+  if (matched.length === 0) {
+    console.log('일치하는 할 일이 없습니다.');
+    return;
+  }
+
+  matched.forEach((todo) => {
+    const highlighted = todo.title.replace(regex, (match) => `[${match}]`);
+    console.log(`#${todo.id} ${highlighted}`);
+  });
+}
+```
+
+`regex.test(todo.title)`은 제목에 패턴이 포함되어 있는지만 확인하므로 `filter`의 조건 함수로 바로 쓸 수 있습니다. `title.replace(regex, 콜백)`은 콜백이 돌려준 대괄호 문자열로 실제로 일치한 부분(대소문자가 섞여 있어도 원래 표기 그대로)을 대괄호로 감쌉니다. `i` 플래그를 고정으로 붙여 대소문자를 구분하지 않고 검색합니다.
+
+`src/index.js`에 `search` 명령 분기를 추가합니다.
+
+```js
+// src/index.js
+import { parseArgs } from './cli/parseArgs.js';
+import { TodoStore } from './models/TodoStore.js';
+import { loadTodos, saveTodos } from './storage/fileStore.js';
+import { runAdd } from './commands/add.js';
+import { runList } from './commands/list.js';
+import { runTags } from './commands/tags.js';
+import { runSearch } from './commands/search.js';
+
+const argv = process.argv.slice(2);
+const { command, positional, flags } = parseArgs(argv);
+
+const rawTodos = await loadTodos();
+const store = TodoStore.fromArray(rawTodos);
+
+if (command === 'add') {
+  await runAdd(store, positional, flags);
+  await saveTodos(store.toArray().map((todo) => todo.toJSON()));
+} else if (command === 'list') {
+  runList(store, flags);
+} else if (command === 'tags') {
+  runTags(store);
+} else if (command === 'search') {
+  runSearch(store, positional);
+} else {
+  console.log('알 수 없는 명령입니다:', command);
+}
+```
+
+### 3. 실행
+
+```text
+node src/index.js search cli
+```
+
+```text
+node src/index.js search 카드
+```
+
+</Steps>
+
+## 확인
+
+- `search cli` 결과(제목에 "cli"가 들어간 항목, 대소문자 구분 없이 "todo-cli"의 "cli"와 일치):
+
+```text
+#3 todo-[cli]에 검색 명령 추가
+```
+
+- `search 카드` 결과(제목에 "카드"가 들어간 항목):
+
+```text
+#2 포트폴리오 프로젝트 [카드] 6개 채우기
+```
+
+- `search`만 입력하고 검색어를 생략하면 "검색어를 입력하세요. 예: node src/index.js search 제출"가 출력됩니다.
+- `search [`처럼 정규식 문법이 불완전한 값을 넣으면 "올바르지 않은 정규식입니다: ["이 출력되고 프로그램이 죽지 않습니다.
+
+## 직접 해보기
+
+1. `search` 명령에 `--exact` 플래그가 있을 때만 대소문자를 구분하도록(`i` 플래그를 빼도록) `runSearch`를 고쳐봅니다.
+2. `문자열.match(regex)`를 콘솔에서 직접 실행해 일치한 부분과 인덱스 정보가 담긴 배열이 반환되는 것을 확인합니다.
+
+<details>
+<summary>정답 보기</summary>
+
+```js
+// src/commands/search.js
+export function runSearch(store, positional, flags = {}) {
+  const [pattern] = positional;
+  if (!pattern) {
+    console.log('검색어를 입력하세요. 예: node src/index.js search 제출');
+    return;
+  }
+
+  let regex;
+  try {
+    regex = new RegExp(pattern, flags.exact ? '' : 'i');
+  } catch {
+    console.log('올바르지 않은 정규식입니다:', pattern);
+    return;
+  }
+
+  const matched = store.toArray().filter((todo) => regex.test(todo.title));
+  if (matched.length === 0) {
+    console.log('일치하는 할 일이 없습니다.');
+    return;
+  }
+
+  matched.forEach((todo) => {
+    const highlighted = todo.title.replace(regex, (match) => `[${match}]`);
+    console.log(`#${todo.id} ${highlighted}`);
+  });
+}
+```
+
+`index.js`의 호출부도 `runSearch(store, positional, flags)`로 세 번째 인자를 넘기도록 함께 고쳐야 합니다.
+
+</details>
+
+## 자주 하는 실수
+
+| 증상 | 원인 | 고치는 법 |
+|------|------|-----------|
+| 대소문자가 다르면 검색이 안 됨 | `i` 플래그를 빼먹음 | `new RegExp(pattern, 'i')`처럼 플래그를 붙인다 |
+| 특수문자가 든 검색어에서 오류 발생 | `(`, `[` 같은 정규식 전용 문자를 그대로 패턴으로 씀 | `try`/`catch`로 감싸 사용자에게 안내 메시지를 보여준다 |
+| `replace`로 표시가 안 됨 | 정규식에 `g` 플래그가 없어 첫 일치만 바뀜(여러 번 나오는 경우) | 모든 일치를 바꾸려면 `g` 플래그를 추가한다 |
+
+## 확인 문제
+
+<Quiz
+  questionNumber={1}
+  question="regex.test(문자열)의 반환값 타입은?"
+  options={['일치한 문자열', 'boolean', '일치 개수(number)', '배열']}
+  correctAnswer={2}
+  explanation="test 메서드는 패턴이 문자열에 포함되어 있는지 여부만 boolean으로 반환합니다."
+  optionExplanations={['문자열이 아니라 boolean을 반환합니다', '정답입니다', '개수를 세지 않습니다', 'match와 달리 배열을 반환하지 않습니다']}
+/>
+
+<Quiz
+  questionNumber={2}
+  question="new RegExp(pattern, 'i')에서 'i' 플래그의 의미는?"
+  options={['전체 문자열에서 모든 일치를 찾는다', '대소문자를 구분하지 않고 검사한다', '줄바꿈을 무시한다', '정규식을 즉시 실행한다']}
+  correctAnswer={2}
+  explanation="i 플래그는 ignore case의 약자로, 대소문자를 구분하지 않고 패턴을 검사합니다."
+  optionExplanations={['전체 검사는 g 플래그의 역할입니다', '정답입니다', '줄바꿈 관련 플래그는 s입니다', '정규식은 플래그와 무관하게 생성 시점에 컴파일됩니다']}
+/>
+
+<Quiz
+  questionNumber={3}
+  question="사용자가 입력한 검색어 문자열을 new RegExp()로 넘길 때 try/catch로 감싸는 이유는?"
+  options={['실행 속도를 높이기 위해', '문법이 불완전한 패턴이 SyntaxError를 던질 수 있어서', '항상 소문자로 변환하기 위해', 'JSON으로 변환하기 위해']}
+  correctAnswer={2}
+  explanation="괄호가 짝이 맞지 않는 등 정규식 문법으로 불완전한 문자열은 new RegExp()에서 오류를 던지므로, 이를 붙잡아 사용자에게 안내해야 합니다."
+  optionExplanations={['속도와는 관련이 없습니다', '정답입니다', '대소문자 변환은 i 플래그가 담당합니다', 'JSON 변환과는 관련 없는 코드입니다']}
+/>
+
+<Quiz
+  questionNumber={4}
+  question="title.replace(regex, (match) =&gt; `[${match}]`)에서 콜백 함수의 match 매개변수가 받는 값은?"
+  options={['원본 문자열 전체', '치환 후 결과 문자열', '실제로 일치한 부분 문자열', '정규식 객체 자체']}
+  correctAnswer={3}
+  explanation="replace에 콜백 함수를 넘기면, 실제로 패턴과 일치한 부분 문자열이 콜백의 첫 번째 인자로 전달됩니다."
+  optionExplanations={['원본 전체가 아니라 일치한 부분만 전달됩니다', '치환 결과는 콜백이 반환하는 값입니다', '정답입니다', '정규식 객체가 아니라 문자열이 전달됩니다']}
+/>
+
+## 참고 자료
+
+- [MDN - Regular expressions](https://developer.mozilla.org/en-US/docs/Web/JavaScript/Guide/Regular_expressions)

@@ -1,0 +1,299 @@
+---
+title: '12. Date와 Intl로 마감일·통계 표시'
+description: 'Date로 마감일을 비교하고 Intl로 D-day 표시와 완료율 통계를 만듭니다.'
+---
+
+<Callout type="info">
+  **이번 편의 결과물:** `list`에 마감일이 "D-4"처럼 표시되고, `todo stats`가 전체 완료율을 백분율로 출력합니다. · **다루는 개념:** `Date` 생성·비교, `Intl.DateTimeFormat`, `Intl.NumberFormat`/`RelativeTimeFormat`
+</Callout>
+
+## 이 편에서 만드는 파일
+
+```
+todo-cli/
+└── src/
+    ├── utils/
+    │   └── date.js       (+)
+    └── commands/
+        ├── list.js       (~)
+        └── stats.js      (+)
+```
+
+`src/index.js`에도 `stats` 명령 분기가 하나 추가됩니다.
+
+## 개념 정리
+
+### Date 생성과 비교
+
+`new Date(문자열)`은 ISO 형식(`'2026-09-20'`) 문자열을 날짜 객체로 만듭니다. 두 `Date` 객체는 `-` 연산으로 밀리초 차이를 구할 수 있습니다.
+
+| 표현 | 결과 |
+|------|------|
+| `new Date('2026-09-20')` | 2026년 9월 20일 자정(UTC) 기준 `Date` 객체 |
+| `dateA - dateB` | 두 날짜의 차이(밀리초, `number`) |
+| `date.getFullYear()`, `getMonth()`, `getDate()` | 로컬 기준 연/월(0부터 시작)/일 |
+
+밀리초 차이를 일 단위로 바꾸려면 `1000(밀리초) × 60(초) × 60(분) × 24(시간)`으로 나눕니다. 시(時)·분·초까지 있는 두 시각을 "며칠 차이"로 비교하려면, 비교 전에 두 날짜 모두 자정 시각으로 맞춰야 날짜 경계에서 오차가 생기지 않습니다.
+
+### Intl.DateTimeFormat — 로케일 기반 날짜 서식
+
+```js
+new Intl.DateTimeFormat('ko-KR', { dateStyle: 'medium' }).format(new Date('2026-09-20'));
+// '2026. 9. 20.'
+```
+
+직접 문자열을 조립하지 않고 `Intl.DateTimeFormat`에 로케일과 서식 옵션을 넘기면, 해당 로케일 표기 규칙에 맞는 날짜 문자열을 얻습니다.
+
+### Intl.RelativeTimeFormat — 상대 시간 표현
+
+```js
+new Intl.RelativeTimeFormat('ko', { numeric: 'auto' }).format(4, 'day');
+// '4일 후'
+```
+
+`format(값, 단위)`에서 값이 양수면 미래, 음수면 과거를 뜻합니다. `numeric: 'auto'`는 값이 `-1`, `0`, `1`처럼 흔한 경우 "어제", "오늘", "내일" 같은 자연스러운 표현을 우선 시도합니다. 실행 환경(Node.js 버전, 로케일 데이터)에 따라 정확한 문구는 조금 다를 수 있습니다.
+
+### Intl.NumberFormat — 퍼센트 서식
+
+```js
+new Intl.NumberFormat('ko-KR', { style: 'percent', maximumFractionDigits: 0 }).format(0.4);
+// '40%'
+```
+
+`style: 'percent'`를 지정하면 `0.4` 같은 비율 값을 직접 100을 곱하지 않아도 "40%"로 표시합니다.
+
+## 실습
+
+<Steps>
+
+### 1. src/utils/date.js 파일 만들기
+
+날짜 계산과 서식을 한 곳에 모읍니다.
+
+### 2. 코드 작성
+
+```js
+// src/utils/date.js
+export function formatDueBadge(dueString, now = new Date()) {
+  if (!dueString) return '마감 없음';
+
+  const due = startOfDay(new Date(dueString));
+  const today = startOfDay(now);
+  const diffDays = Math.round((due - today) / (1000 * 60 * 60 * 24));
+  const relative = new Intl.RelativeTimeFormat('ko', { numeric: 'auto' }).format(diffDays, 'day');
+
+  if (diffDays === 0) return '오늘 마감';
+  if (diffDays > 0) return `D-${diffDays} (${relative})`;
+  return `D+${Math.abs(diffDays)} (${relative})`;
+}
+
+export function formatDate(dateString) {
+  return new Intl.DateTimeFormat('ko-KR', { dateStyle: 'medium' }).format(new Date(dateString));
+}
+
+function startOfDay(date) {
+  return new Date(date.getFullYear(), date.getMonth(), date.getDate());
+}
+```
+
+`startOfDay`로 시·분·초를 지운 뒤 빼야 "오늘 밤 11시"와 "내일 새벽 1시"처럼 실제로는 하루 차이인데 몇 시간밖에 차이 나지 않는 두 시각이 잘못 비교되지 않습니다. `now` 매개변수에 기본값 `new Date()`를 줘서, 테스트할 때는 원하는 기준일을 직접 넘길 수 있게 열어둡니다.
+
+`src/commands/list.js`에서 마감일 표시를 `formatDueBadge`로 바꿉니다.
+
+```js
+// src/commands/list.js
+import { formatDueBadge } from '../utils/date.js';
+
+const PAGE_SIZE = 2;
+
+export function runList(store, flags) {
+  const result = store.list(flags);
+
+  if (flags.page === undefined) {
+    printList(result);
+    return;
+  }
+
+  const pageNumber = Number(flags.page);
+  let index = 1;
+  for (const page of paginate(result, PAGE_SIZE)) {
+    if (index === pageNumber) {
+      console.log(`--- ${pageNumber}페이지 ---`);
+      printList(page);
+      return;
+    }
+    index += 1;
+  }
+  console.log(`${pageNumber}페이지는 존재하지 않습니다. 전체 ${index - 1}페이지입니다.`);
+}
+
+function* paginate(items, pageSize) {
+  for (let i = 0; i < items.length; i += pageSize) {
+    yield items.slice(i, i + pageSize);
+  }
+}
+
+function printList(list) {
+  list.forEach(({ id, title, done, tags, due }) => {
+    const mark = done ? '[x]' : '[ ]';
+    const tagText = tags.length > 0 ? tags.join(', ') : '없음';
+    console.log(`${mark} #${id} ${title} (태그: ${tagText}, 마감: ${formatDueBadge(due)})`);
+  });
+}
+```
+
+마지막으로 통계 명령을 추가합니다.
+
+```js
+// src/commands/stats.js
+export function runStats(store) {
+  const all = store.toArray();
+  const total = all.length;
+  const done = all.filter((todo) => todo.done).length;
+  const rate = total === 0 ? 0 : done / total;
+  const percent = new Intl.NumberFormat('ko-KR', { style: 'percent', maximumFractionDigits: 0 }).format(rate);
+  console.log(`전체 ${total}개 중 완료 ${done}개 (완료율 ${percent})`);
+}
+```
+
+`src/index.js`에 `stats` 명령 분기를 추가합니다.
+
+```js
+// src/index.js
+import { parseArgs } from './cli/parseArgs.js';
+import { TodoStore } from './models/TodoStore.js';
+import { loadTodos, saveTodos } from './storage/fileStore.js';
+import { runAdd } from './commands/add.js';
+import { runList } from './commands/list.js';
+import { runTags } from './commands/tags.js';
+import { runSearch } from './commands/search.js';
+import { runStats } from './commands/stats.js';
+
+const argv = process.argv.slice(2);
+const { command, positional, flags } = parseArgs(argv);
+
+const rawTodos = await loadTodos();
+const store = TodoStore.fromArray(rawTodos);
+
+if (command === 'add') {
+  await runAdd(store, positional, flags);
+  await saveTodos(store.toArray().map((todo) => todo.toJSON()));
+} else if (command === 'list') {
+  runList(store, flags);
+} else if (command === 'tags') {
+  runTags(store);
+} else if (command === 'search') {
+  runSearch(store, positional);
+} else if (command === 'stats') {
+  runStats(store);
+} else {
+  console.log('알 수 없는 명령입니다:', command);
+}
+```
+
+### 3. 실행
+
+```text
+node src/index.js list
+```
+
+```text
+node src/index.js stats
+```
+
+</Steps>
+
+## 확인
+
+- 오늘을 2026-09-16으로 가정하면, seed 데이터의 마감일이 아래처럼 표시됩니다.
+
+```text
+[x] #1 ECMAScript 03편 실습 끝내기 (태그: study, 마감: D-2 (2일 후))
+[ ] #2 포트폴리오 프로젝트 카드 6개 채우기 (태그: portfolio, html, 마감: D-4 (4일 후))
+[ ] #3 todo-cli에 검색 명령 추가 (태그: study, node, 마감: D-6 (6일 후))
+[ ] #4 운동 30분 (태그: health, 마감: 마감 없음)
+[x] #5 독서 기록 앱 별점 기능 (태그: react, 마감: D+2 (2일 전))
+```
+
+- `stats` 실행 결과(5개 중 2개 완료):
+
+```text
+전체 5개 중 완료 2개 (완료율 40%)
+```
+
+- 로케일 데이터 버전에 따라 `Intl.RelativeTimeFormat`의 괄호 안 문구("2일 후" 등)는 조금 다르게 보일 수 있지만 `D-4`, `D+2` 같은 핵심 표시는 항상 동일합니다.
+
+## 직접 해보기
+
+1. `formatDate`를 `stats` 결과에 추가해, "오늘(2026. 9. 16. 기준)" 같은 문구를 함께 출력해봅니다.
+2. `Intl.NumberFormat`의 `maximumFractionDigits`를 `1`로 바꿔 완료율이 소수점 첫째 자리까지 나오는지 확인합니다.
+
+<details>
+<summary>정답 보기</summary>
+
+```js
+// src/commands/stats.js
+import { formatDate } from '../utils/date.js';
+
+export function runStats(store) {
+  const all = store.toArray();
+  const total = all.length;
+  const done = all.filter((todo) => todo.done).length;
+  const rate = total === 0 ? 0 : done / total;
+  const percent = new Intl.NumberFormat('ko-KR', { style: 'percent', maximumFractionDigits: 0 }).format(rate);
+  console.log(`오늘(${formatDate(new Date().toISOString())} 기준)`);
+  console.log(`전체 ${total}개 중 완료 ${done}개 (완료율 ${percent})`);
+}
+```
+
+</details>
+
+## 자주 하는 실수
+
+| 증상 | 원인 | 고치는 법 |
+|------|------|-----------|
+| D-day가 하루씩 어긋남 | 시·분·초까지 포함한 채로 날짜를 뺌 | `startOfDay`로 자정 시각으로 맞춘 뒤 뺀다 |
+| 완료율이 `NaN%`로 나옴 | 목록이 비어 있을 때 `0`으로 나눔 | `total === 0`일 때는 `rate`를 `0`으로 고정한다 |
+| `Intl.DateTimeFormat` 결과가 예상과 다른 표기로 나옴 | 로케일 문자열(`'ko-KR'`)을 빠뜨리거나 오타 | 로케일 코드와 `dateStyle` 옵션 철자를 확인한다 |
+
+## 확인 문제
+
+<Quiz
+  questionNumber={1}
+  question="두 Date 객체를 dateA - dateB로 뺐을 때 반환되는 값의 단위는?"
+  options={['일(day)', '초(second)', '밀리초(millisecond)', '분(minute)']}
+  correctAnswer={3}
+  explanation="Date 객체끼리 뺄셈 연산을 하면 밀리초 단위의 숫자 차이가 반환됩니다."
+  optionExplanations={['일 단위로 바꾸려면 직접 나눠야 합니다', '초 단위가 아닙니다', '정답입니다', '분 단위가 아닙니다']}
+/>
+
+<Quiz
+  questionNumber={2}
+  question="formatDueBadge에서 startOfDay로 두 날짜를 자정 시각으로 맞춘 뒤 비교하는 이유는?"
+  options={['문자열 비교를 하기 위해', '시·분·초 차이로 날짜 차이가 잘못 계산되는 것을 막기 위해', 'Intl.DateTimeFormat을 쓰기 위한 필수 조건이라서', 'JSON 직렬화를 위해']}
+  correctAnswer={2}
+  explanation="시·분·초가 섞인 채로 비교하면 실제로는 하루 차이인 두 시각이 며칠 차이로 잘못 계산될 수 있어, 자정 기준으로 맞춘 뒤 비교합니다."
+  optionExplanations={['문자열이 아니라 숫자(밀리초) 비교입니다', '정답입니다', 'Intl.DateTimeFormat과는 별개의 처리입니다', 'JSON 직렬화와는 관련 없는 코드입니다']}
+/>
+
+<Quiz
+  questionNumber={3}
+  question="new Intl.NumberFormat('ko-KR', { style: 'percent' }).format(0.4)의 결과는?"
+  options={['0.4', '4%', '40%', '400%']}
+  correctAnswer={3}
+  explanation="style이 percent이면 전달한 소수 값에 100을 곱한 백분율로 표시하므로 0.4는 40%가 됩니다."
+  optionExplanations={['percent 스타일은 원래 값 그대로 표시하지 않습니다', '100을 곱하는 계산이 맞지 않습니다', '정답입니다', '0.4 × 100은 400이 아니라 40입니다']}
+/>
+
+<Quiz
+  questionNumber={4}
+  question="완료율 계산에서 total이 0일 때 rate를 0으로 고정하는 이유는?"
+  options={['0으로 나누면 Infinity나 NaN이 되기 때문에', '문자열 변환 오류를 막기 위해', 'Intl.NumberFormat이 0만 허용해서', '태그 개수를 맞추기 위해']}
+  correctAnswer={1}
+  explanation="0으로 나누는 연산은 NaN이나 Infinity를 만들 수 있으므로, 목록이 비었을 때는 별도로 0을 지정해 예외적인 값을 피합니다."
+  optionExplanations={['정답입니다', '문자열 변환과는 관련 없는 코드입니다', 'Intl.NumberFormat은 다양한 숫자를 허용합니다', '태그와는 관련 없는 계산입니다']}
+/>
+
+## 참고 자료
+
+- [MDN - Intl.DateTimeFormat](https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Intl/DateTimeFormat)

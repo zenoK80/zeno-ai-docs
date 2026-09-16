@@ -1,0 +1,111 @@
+---
+title: '20. 다음 단계 — Web Components 개요'
+description: 'notes-app을 Custom Element로 재구성한다면 무엇이 바뀌는지 개요만 정리하고 다음 과목으로 연결합니다.'
+---
+
+<Callout type="info">
+  **이번 편의 결과물:** (실습 없음) 메모 카드를 Custom Element로 바꾼다면 무엇이 달라지는지 개념만 정리하고, 이 구조를 깊게 다루는 다음 과목으로 연결합니다. · **다루는 개념:** Custom Elements, Shadow DOM 한 문단 소개
+</Callout>
+
+## 이 편에서 다루는 범위
+
+이 편은 코드를 작성하지 않습니다. 지금까지 `notes-app`은 `document.createElement`와 `innerHTML`로 DOM을 직접 조립하는 방식으로 만들었습니다. 이 방식과 **Web Components**(Custom Elements, Shadow DOM)라는 대안이 무엇이 다른지, 왜 별도 과목(`web_component`)에서 다루는지만 정리합니다.
+
+## 개념 정리
+
+### 지금까지 만든 방식과 Custom Element의 차이
+
+19편까지 `createNoteItem(note)` 함수는 `<article>`을 만들고 자식 요소를 하나씩 `append`했습니다. 이 함수를 호출하는 쪽(`render.js`)이 내부 구조를 전부 알아야 합니다. Custom Element는 이 조립 로직을 `<note-item>`이라는 새 HTML 태그 안에 캡슐화합니다.
+
+| 비교 항목 | 지금 방식(함수로 DOM 조립) | Custom Element |
+|-----------|------------------------------|-----------------|
+| 사용법 | `createNoteItem(note)` 호출 후 `append` | `<note-item>` 태그를 HTML에 직접 씀 |
+| 내부 구조 은닉 | 없음(호출부가 구조를 알아야 함) | Shadow DOM으로 내부 마크업·스타일 은닉 가능 |
+| 상태 변경 반응 | 다시 그려서 `replaceChildren` | 표준 라이프사이클 콜백(`attributeChangedCallback`)으로 반응 |
+| 스타일 충돌 | 전역 CSS 클래스 이름 관리 필요(`.note-item`) | Shadow DOM 안 스타일은 바깥에 새지 않음 |
+
+### Custom Elements 한 문단
+
+`customElements.define('note-item', class extends HTMLElement { ... })`으로 새 태그를 등록합니다. `connectedCallback`은 요소가 문서에 삽입될 때, `attributeChangedCallback`은 지정한 속성이 바뀔 때 호출됩니다. 이 콜백 안에서 지금 `render.js`가 하던 DOM 조립을 수행할 수 있습니다.
+
+### Shadow DOM 한 문단
+
+`element.attachShadow({ mode: 'open' })`으로 만드는 Shadow DOM은 그 요소 안에만 적용되는 독립된 DOM 트리입니다. 안에 `<style>`을 넣어도 바깥 페이지의 CSS와 서로 영향을 주지 않습니다. notes-app처럼 전역 클래스 이름(`.note-item`, `.toolbar`)으로 스타일 충돌을 조심해야 했던 문제가 구조적으로 사라집니다.
+
+## notes-app을 컴포넌트화한다면
+
+- `createNoteItem`은 `class NoteItem extends HTMLElement`로 옮겨가고, `render.js`는 `<note-item>` 태그를 만들어 `note` 데이터를 속성이나 프로퍼티로 전달하는 역할만 남습니다.
+- 17~19편에서 만든 첨부 미리보기·복사·공유·삭제 버튼은 `NoteItem`의 Shadow DOM 안에서 조립되고, `main.js`의 이벤트 위임은 `note-item`이 발생시키는 커스텀 이벤트(`CustomEvent`)를 듣는 형태로 바뀝니다.
+- `styles.css`에 있던 `.note-item` 관련 규칙은 `NoteItem`의 Shadow DOM 내부 `<style>`로 옮겨가, 페이지 전역 스타일과 완전히 분리됩니다.
+
+이 전환을 실제로 해보는 것은 이 과목의 범위가 아닙니다. Custom Elements의 라이프사이클, Shadow DOM의 스타일 격리 규칙, 슬롯(slot)을 이용한 콘텐츠 합성, 폼 연동 Custom Element(`ElementInternals`) 등은 `/javascript/web_component` 과목에서 깊게 다룹니다.
+
+### 왜 지금 다루지 않는가
+
+Web Components는 이 과목이 다룬 DOM·이벤트·저장소·워커 API와 성격이 다릅니다. 지금까지의 API는 "브라우저가 이미 제공하는 기능을 가져다 쓰는" 방식이었지만, Custom Elements·Shadow DOM은 "브라우저에 새 HTML 태그를 등록하는" 확장 메커니즘입니다. 라이프사이클 콜백, 속성-프로퍼티 동기화, 슬롯 기반 콘텐츠 합성처럼 그 자체로 한 과목 분량의 개념이 있어, 이 과목에 욱여넣으면 06 규격이 정한 "결과물이 곧 목차" 원칙(편당 8~14KB, 실습 중심)을 지키기 어렵습니다. 그래서 `web_component` 과목이 별도로 존재합니다.
+
+### 다음 과목에서 이어받을 상태
+
+`web_component` 과목은 이번 `notes-app`의 코드를 그대로 가져가지 않고 새 실습 프로젝트에서 시작합니다. 다만 개념적으로는 지금 표에서 정리한 "함수로 만든 `note-item`을 `<note-item>` 태그로 바꾼다면"이라는 질문을 그대로 이어받아, 실제로 그 태그를 등록하고 동작시키는 과정을 다룹니다.
+
+## 지금까지 만든 것
+
+| 편 | 추가된 기능 |
+|----|-------------|
+| 04–07 | DOM 렌더링, 이벤트 위임 CRUD, 폼 검증, localStorage 저장 |
+| 08–10 | fetch 동기화, AbortController 취소, URL/History 라우팅 |
+| 11–14 | IndexedDB 전환, IntersectionObserver 무한 스크롤, MutationObserver·ResizeObserver, 타이머·rAF·Page Lifecycle |
+| 15–16 | Web Worker 검색, Service Worker와 Cache로 오프라인 사용 |
+| 17–19 | File/Blob 첨부·내보내기, Clipboard·Notification·Web Share, CSP·origin·권한 |
+
+`notes-app`은 이 표의 모든 기능이 동작하는 완성된 오프라인 지원 SPA 상태로 끝납니다.
+
+## 자주 하는 오해
+
+| 오해 | 사실 |
+|------|------|
+| Web Components는 React 같은 프레임워크의 대체품이다 | 브라우저 표준 API이며, React·Vue 컴포넌트와 함께 쓰이기도 한다 |
+| Shadow DOM을 쓰면 무조건 성능이 좋아진다 | 스타일 격리와 캡슐화가 목적이며, 성능 이점은 상황에 따라 다르다 |
+| Custom Element는 클래스형 컴포넌트를 대체하는 새 문법일 뿐이다 | 라이프사이클 콜백과 속성 관찰(`observedAttributes`) 등 별도 개념 체계를 갖는다 |
+
+## 확인 문제
+
+<Quiz
+  questionNumber={1}
+  question="지금까지 만든 createNoteItem 함수 방식과 Custom Element 방식의 가장 큰 차이는?"
+  options={['둘 다 완전히 동일한 방식이다', 'Custom Element는 내부 구조를 태그 하나로 캡슐화하고 Shadow DOM으로 스타일을 격리할 수 있다', 'Custom Element는 IndexedDB를 대체한다', 'Custom Element는 fetch 요청을 대체한다']}
+  correctAnswer={2}
+  explanation="Custom Element는 DOM 조립 로직과 스타일을 하나의 새 태그 안에 캡슐화하며, Shadow DOM으로 스타일 충돌을 구조적으로 막을 수 있습니다."
+  optionExplanations={['조립 방식이 근본적으로 다릅니다', '정답입니다', 'IndexedDB와는 무관한 개념입니다', 'fetch와는 무관한 개념입니다']}
+/>
+
+<Quiz
+  questionNumber={2}
+  question="Shadow DOM의 역할로 가장 적절한 것은?"
+  options={['네트워크 요청을 캐시한다', '요소 안에만 적용되는 독립된 DOM 트리를 만들어 스타일과 마크업을 바깥과 격리한다', '자바스크립트 실행을 다른 스레드로 옮긴다', 'localStorage 데이터를 암호화한다']}
+  correctAnswer={2}
+  explanation="Shadow DOM은 특정 요소에 독립된 DOM 트리를 붙여, 그 안의 스타일과 마크업이 바깥 페이지에 영향을 주거나 받지 않게 합니다."
+  optionExplanations={['캐시와는 무관합니다', '정답입니다', 'Web Worker의 역할입니다', '암호화 기능이 아닙니다']}
+/>
+
+<Quiz
+  questionNumber={3}
+  question="attributeChangedCallback이 호출되는 시점은?"
+  options={['요소가 생성될 때만', '관찰 대상으로 지정한 속성 값이 바뀔 때', '페이지를 새로고침할 때만', 'fetch 요청이 끝날 때']}
+  correctAnswer={2}
+  explanation="attributeChangedCallback은 observedAttributes에 등록된 속성의 값이 바뀔 때마다 호출되는 Custom Element 라이프사이클 콜백입니다."
+  optionExplanations={['생성 시점 콜백은 connectedCallback입니다', '정답입니다', '새로고침과는 별개의 콜백입니다', 'fetch 완료와는 무관합니다']}
+/>
+
+<Quiz
+  questionNumber={4}
+  question="이 과목이 Web Components를 마지막 편 개요로만 다루고 별도 과목(web_component)으로 넘기는 이유로 가장 적절한 것은?"
+  options={['Web Components가 더 이상 쓰이지 않는 폐기 기능이라서', '라이프사이클·슬롯 등 별도 개념 체계가 있어 한 편 분량을 넘어서기 때문에', 'notes-app에서 전혀 쓸 수 없는 API라서', '보안상 위험한 API라서']}
+  correctAnswer={2}
+  explanation="Custom Elements와 Shadow DOM은 라이프사이클 콜백, 슬롯, 폼 연동 등 자체 개념 체계를 가진 확장 메커니즘이라 이 과목의 8~14KB 실습형 규격 안에 담기 어려워 별도 과목으로 분리했습니다."
+  optionExplanations={['현재도 표준으로 유지되는 API입니다', '정답입니다', '실제로 notes-app에도 적용할 수 있습니다', '보안 문제로 배제한 것이 아닙니다']}
+/>
+
+## 참고 자료
+
+- [MDN - Web components](https://developer.mozilla.org/en-US/docs/Web/API/Web_components)

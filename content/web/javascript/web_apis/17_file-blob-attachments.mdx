@@ -1,0 +1,323 @@
+---
+title: '17. File/Blob으로 첨부·내보내기'
+description: '메모에 이미지를 첨부하고, 전체 메모를 JSON 파일로 내보내기·가져오기합니다.'
+---
+
+<Callout type="info">
+  **이번 편의 결과물:** 메모 편집기에 파일 입력을 추가해 이미지를 첨부하고, 툴바의 내보내기·가져오기 버튼으로 전체 메모를 JSON 파일로 주고받습니다. · **다루는 개념:** `input type="file"`, `FileReader`, `Blob`, `URL.createObjectURL`
+</Callout>
+
+## 이 편에서 만드는 파일
+
+```
+notes-app/
+├── index.html         (~ 툴바 내보내기·가져오기 버튼 추가)
+└── src/
+    ├── notes.js        (~ attachFile/exportAllNotes/importNotesFromFile 추가)
+    ├── render.js       (~ createNoteItem 정리, 상세 화면에 첨부 입력 추가)
+    └── main.js         (~ 첨부·내보내기·가져오기 이벤트 연결)
+```
+
+## 개념 정리
+
+### File과 Blob
+
+`<input type="file">`로 고른 파일은 `input.files`에 `File` 객체로 담깁니다. `File`은 `Blob`을 상속합니다. `Blob`은 이름표가 없는 이진 데이터 덩어리이고, `File`은 여기에 파일 이름·수정 시각을 더한 것입니다.
+
+| 객체 | 가진 정보 |
+|------|-----------|
+| `Blob` | 바이트 데이터, `size`, `type`(MIME) |
+| `File` | `Blob`의 모든 정보 + `name`, `lastModified` |
+
+### FileReader로 파일 내용 읽기
+
+`FileReader`는 파일을 비동기로 읽습니다. 읽기가 끝나면 `load` 이벤트가 발생하고 결과는 `reader.result`에 담깁니다.
+
+| 메서드 | 결과 형식 | 쓰임 |
+|--------|-----------|------|
+| `readAsDataURL(file)` | `data:image/png;base64,...` 문자열 | `<img src>`에 바로 넣을 수 있는 이미지 미리보기 |
+| `readAsText(file)` | 문자열 | JSON·텍스트 파일 파싱 |
+| `readAsArrayBuffer(file)` | `ArrayBuffer` | 이진 데이터 가공 |
+
+콜백 기반 API라서 이 실습에서는 `Promise`로 감싸 `await`로 씁니다.
+
+### Blob로 파일 만들어 내보내기
+
+반대 방향도 가능합니다. 문자열을 `Blob`으로 감싸면 `URL.createObjectURL(blob)`로 그 `Blob`을 가리키는 임시 URL을 만들 수 있습니다. 이 URL을 `<a download>`의 `href`로 주고 `click()`을 호출하면 다운로드가 시작됩니다. 이 URL은 메모리에 남으므로 다운로드 직후 `URL.revokeObjectURL(url)`로 해제합니다.
+
+## 실습
+
+<Steps>
+
+### 1. src/notes.js에 첨부·내보내기·가져오기 함수 추가
+
+11편에서 만든 `getAllNotes`, `putNote` import는 그대로 두고, 아래 함수만 추가합니다.
+
+```js
+// src/notes.js (아래 함수만 추가, 04~16편 코드는 그대로 유지)
+function readFileAsDataUrl(file) {
+  return new Promise((resolve, reject) => {
+    const reader = new FileReader();
+    reader.onload = () => resolve(reader.result);
+    reader.onerror = () => reject(reader.error);
+    reader.readAsDataURL(file);
+  });
+}
+
+export async function attachFile(id, file) {
+  const notes = await getAllNotes();
+  const target = notes.find((note) => note.id === id);
+  if (!target) throw new Error(`메모를 찾을 수 없습니다: ${id}`);
+  const dataUrl = await readFileAsDataUrl(file);
+  const updated = {
+    ...target,
+    attachment: { name: file.name, type: file.type, size: file.size, dataUrl },
+    updatedAt: new Date().toISOString(),
+  };
+  await putNote(updated);
+  return updated;
+}
+
+export async function exportAllNotes() {
+  const notes = await getAllNotes();
+  const blob = new Blob([JSON.stringify(notes, null, 2)], { type: 'application/json' });
+  const url = URL.createObjectURL(blob);
+  const link = document.createElement('a');
+  link.href = url;
+  link.download = `notes-${Date.now()}.json`;
+  link.click();
+  URL.revokeObjectURL(url);
+}
+
+export function importNotesFromFile(file) {
+  return new Promise((resolve, reject) => {
+    const reader = new FileReader();
+    reader.onload = async () => {
+      try {
+        const imported = JSON.parse(reader.result);
+        for (const note of imported) {
+          await putNote(note);
+        }
+        resolve(imported.length);
+      } catch (error) {
+        reject(error);
+      }
+    };
+    reader.onerror = () => reject(reader.error);
+    reader.readAsText(file);
+  });
+}
+```
+
+`importNotesFromFile`은 같은 `id`가 있으면 `putNote`가 덮어쓰므로 기존 메모와 자동으로 병합됩니다.
+
+### 2. src/render.js에 첨부 미리보기 추가
+
+12편까지 `renderList`/`appendNotes`가 목록 항목을 문자열 템플릿(`innerHTML`)으로 직접 그렸습니다. 이번 편부터 항목 마크업을 `createNoteItem`이라는 함수 하나로 정리해, 앞으로 편마다 버튼(복사·공유 등)을 붙이기 쉽게 만듭니다. `renderList`/`appendNotes` 안에서 `<li>`를 만들던 부분을 `createNoteItem(note)` 호출로 바꿉니다.
+
+```js
+// src/render.js (새로 추가하는 함수. renderList/appendNotes는 이 함수를 호출하도록 바꿈)
+export function createNoteItem(note) {
+  const li = document.createElement('li');
+  li.className = 'note-item';
+  li.dataset.id = note.id;
+
+  const title = document.createElement('strong');
+  title.textContent = note.title;
+
+  const tags = document.createElement('span');
+  tags.className = 'note-tags';
+  tags.textContent = note.tags.join(', ');
+
+  li.append(title, tags);
+
+  if (note.attachment) {
+    li.append(createAttachmentThumb(note.attachment));
+  }
+
+  return li;
+}
+
+function createAttachmentThumb(attachment) {
+  if (attachment.type.startsWith('image/')) {
+    const img = document.createElement('img');
+    img.src = attachment.dataUrl;
+    img.alt = attachment.name;
+    img.className = 'attachment-thumb';
+    return img;
+  }
+  const link = document.createElement('a');
+  link.href = attachment.dataUrl;
+  link.download = attachment.name;
+  link.textContent = `첨부파일: ${attachment.name}`;
+  return link;
+}
+```
+
+상세 화면(`renderDetail`, 10편)에 첨부 파일 입력을 추가하고, 그 값을 읽고 초기화하는 함수도 추가합니다. 첨부 입력은 상세 화면을 다시 그릴 때마다 새로 생기므로, 요소를 모듈 top-level에서 한 번만 찾아두지 않고 함수 호출 시점마다 다시 찾습니다.
+
+```js
+// src/render.js의 renderDetail 함수 중 본문 아래에 첨부 입력 한 줄 추가
+export function renderDetail(note, container) {
+  if (!note) {
+    container.innerHTML = '<p>메모를 찾을 수 없습니다.</p><a href="/" data-link>목록으로</a>'
+    return
+  }
+  container.innerHTML = `
+    <a href="/" data-link>← 목록으로</a>
+    <h2>${note.title}</h2>
+    <div id="note-body-editor" contenteditable="true">${note.body}</div>
+    <span id="save-status"></span>
+    <input id="editor-attachment-input" type="file" accept="image/*,application/pdf" />
+    <p>태그: ${note.tags.join(', ') || '없음'}</p>
+  `
+}
+
+export function getEditorAttachmentFile() {
+  const input = document.querySelector('#editor-attachment-input');
+  return input ? input.files[0] ?? null : null;
+}
+
+export function resetEditorAttachmentInput() {
+  const input = document.querySelector('#editor-attachment-input');
+  if (input) input.value = '';
+}
+```
+
+`renderDetail`은 13편에서 `#note-body-editor`와 `#save-status`를 이미 추가했습니다. 여기에 첨부 입력만 한 줄 더합니다.
+
+### 3. index.html 툴바에 내보내기·가져오기 버튼 추가
+
+```html
+<!-- index.html의 #toolbar(10편) 안에 추가 -->
+<button id="export-btn" type="button">내보내기</button>
+<label class="file-label">
+  가져오기
+  <input id="import-input" type="file" accept="application/json" hidden />
+</label>
+```
+
+### 4. src/main.js에서 이벤트 연결
+
+```js
+// src/main.js (아래만 추가, 04~16편 초기화는 그대로 유지)
+import { attachFile, exportAllNotes, importNotesFromFile } from './notes.js';
+import { getEditorAttachmentFile, resetEditorAttachmentInput } from './render.js';
+
+const exportBtn = document.querySelector('#export-btn');
+const importInput = document.querySelector('#import-input');
+
+document.body.addEventListener('change', async (event) => {
+  if (event.target.id !== 'editor-attachment-input') return;
+  const file = getEditorAttachmentFile();
+  if (!file || !editingId) return;
+  await attachFile(editingId, file);
+  resetEditorAttachmentInput();
+});
+
+exportBtn.addEventListener('click', () => {
+  exportAllNotes();
+});
+
+importInput.addEventListener('change', async () => {
+  const [file] = importInput.files;
+  if (!file) return;
+  await importNotesFromFile(file);
+  importInput.value = '';
+});
+```
+
+첨부 입력(`#editor-attachment-input`)은 상세 화면을 열 때마다 `renderDetail`이 새로 만들므로, 이 요소에 직접 리스너를 다는 대신 `document.body`에서 `change` 이벤트를 위임으로 받아 `event.target.id`로 구분합니다(`change` 이벤트는 버블링됩니다). `editingId`는 14편에서 `main.js`에 선언한 모듈 전역 변수로, 지금 편집기에 열려 있는 메모의 id를 담고 있습니다.
+
+### 5. 실행
+
+```text
+npm run dev
+```
+
+</Steps>
+
+## 확인
+
+- 메모를 열고(편집기 진입) 첨부 입력에서 이미지를 고르면, 목록의 해당 메모 항목에 썸네일이 나타납니다.
+- 이미지가 아닌 파일을 첨부하면 "첨부파일: 이름" 링크가 보이고, 클릭하면 다운로드됩니다.
+- 툴바의 "내보내기"를 누르면 `notes-<시각>.json` 파일이 다운로드됩니다.
+- "가져오기"로 그 파일을 다시 선택하면 같은 목록이 그대로 복원됩니다.
+
+## 직접 해보기
+
+1. 첨부 파일 크기가 2MB를 넘으면 `alert`로 경고하고 첨부를 막는 검사를 `editor-attachment-input`의 `change` 리스너에 추가해봅니다.
+2. `exportAllNotes`를 참고해 메모 하나만 내보내는 `exportSingleNote(id)` 함수를 만들어봅니다.
+
+<details>
+<summary>정답 보기</summary>
+
+```js
+// src/main.js의 editorAttachmentInput 리스너 맨 앞에 추가
+const MAX_SIZE = 2 * 1024 * 1024;
+
+editorAttachmentInput.addEventListener('change', async () => {
+  const file = getEditorAttachmentFile();
+  if (!file || !editingId) return;
+  if (file.size > MAX_SIZE) {
+    alert('첨부 파일은 2MB 이하만 가능합니다.');
+    resetEditorAttachmentInput();
+    return;
+  }
+  await attachFile(editingId, file);
+  resetEditorAttachmentInput();
+});
+```
+
+</details>
+
+## 자주 하는 실수
+
+| 증상 | 원인 | 고치는 법 |
+|------|------|-----------|
+| 첨부 이미지를 여러 개 넣으면 IndexedDB 용량이 빠르게 참 | `dataUrl` 문자열(base64)이 원본 파일보다 33% 정도 크고 그대로 저장됨 | 큰 파일은 원본 크기를 검사해 제한을 두거나, 실제 서비스에서는 별도 Blob 저장소를 고려 |
+| 다운로드가 안 되고 새 탭이 열림 | `<a>`에 `download` 속성을 빼먹음 | `link.download = 파일명`을 반드시 지정 |
+| 이미지 미리보기 URL이 계속 쌓여 메모리 사용량 증가 | `URL.createObjectURL`만 부르고 `revokeObjectURL`을 안 부름 | 다운로드 트리거 직후 `revokeObjectURL` 호출 |
+| `importNotesFromFile`이 조용히 실패 | JSON 형식이 아닌 파일을 선택 | `JSON.parse` 실패를 `catch`해 사용자에게 알림 표시 |
+
+## 확인 문제
+
+<Quiz
+  questionNumber={1}
+  question="File 객체와 Blob 객체의 관계로 옳은 것은?"
+  options={['File은 Blob과 무관한 별개의 타입이다', 'File은 Blob을 상속하며 파일 이름과 수정 시각 정보를 더 가진다', 'Blob이 File을 상속한다', 'File은 항상 이미지 데이터만 담을 수 있다']}
+  correctAnswer={2}
+  explanation="File은 Blob을 상속한 타입으로, size와 type 외에 name과 lastModified를 추가로 가집니다."
+  optionExplanations={['File은 Blob의 하위 타입입니다', '정답입니다', '상속 방향이 반대입니다', '어떤 MIME 타입의 데이터든 담을 수 있습니다']}
+/>
+
+<Quiz
+  questionNumber={2}
+  question="FileReader.readAsDataURL(file)의 결과로 얻는 값은?"
+  options={['파일의 원본 바이트를 담은 ArrayBuffer', 'base64로 인코딩된 data: URL 문자열', '파일 시스템 경로 문자열', 'File 객체 자체']}
+  correctAnswer={2}
+  explanation="readAsDataURL은 파일 내용을 base64로 인코딩한 data: URL 문자열을 reader.result에 담습니다."
+  optionExplanations={['ArrayBuffer는 readAsArrayBuffer의 결과입니다', '정답입니다', '브라우저는 로컬 파일 경로를 노출하지 않습니다', 'File 객체가 아니라 문자열입니다']}
+/>
+
+<Quiz
+  questionNumber={3}
+  question="URL.createObjectURL(blob)로 만든 URL을 계속 쌓아두면 안 되는 이유는?"
+  options={['서버 저장 공간을 차지하기 때문', '브라우저 메모리에서 해제되지 않아 누수가 발생하기 때문', 'URL 길이 제한에 걸리기 때문', 'HTTPS에서만 동작하기 때문']}
+  correctAnswer={2}
+  explanation="createObjectURL이 만든 URL은 명시적으로 revokeObjectURL을 호출하기 전까지 메모리에 Blob 참조를 유지합니다."
+  optionExplanations={['서버가 아니라 브라우저 메모리 문제입니다', '정답입니다', 'URL 길이와는 무관합니다', 'HTTPS 여부와 무관하게 동작합니다']}
+/>
+
+<Quiz
+  questionNumber={4}
+  question="notes-app에서 메모 전체를 내보낼 때 Blob을 사용하는 이유로 가장 적절한 것은?"
+  options={['JSON 문자열을 파일로 만들어 URL.createObjectURL로 다운로드 링크를 생성하기 위해', 'fetch 요청 속도를 높이기 위해', 'IndexedDB 저장 용량을 줄이기 위해', 'localStorage 대신 사용하기 위해']}
+  correctAnswer={1}
+  explanation="Blob으로 감싸야 URL.createObjectURL로 임시 다운로드 URL을 만들고 a 태그의 download 속성과 함께 파일 저장을 트리거할 수 있습니다."
+  optionExplanations={['정답입니다', 'fetch 속도와는 무관합니다', '저장 용량 절감과는 무관합니다', 'localStorage 대체가 목적이 아닙니다']}
+/>
+
+## 참고 자료
+
+- [MDN - File API](https://developer.mozilla.org/en-US/docs/Web/API/File_API)

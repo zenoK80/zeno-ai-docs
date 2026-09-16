@@ -1,0 +1,213 @@
+---
+title: '19. modern_html UI 요소 스타일링'
+description: '프로젝트 상세 dialog·모바일 popover·FAQ details를 ::backdrop과 커스텀 화살표로 사이트 톤에 맞게 꾸밉니다.'
+---
+
+<Callout type="info">
+  **이번 편의 결과물:** 프로젝트 카드의 "자세히" 모달, 모바일 메뉴 팝오버, FAQ 아코디언이 시안과 같은 색·간격·둥근 모서리로 꾸며지고 열고 닫힐 때 애니메이션이 붙습니다. **다루는 개념:** `<dialog>`의 `::backdrop`, popover 진입 애니메이션, `<details>` 화살표 커스터마이징
+</Callout>
+
+## 이 편에서 만드는 파일
+
+```
+web-practice/portfolio/
+└── css/
+    └── styles.css   ~ (#project-dialog, ::backdrop, #mobile-menu 진입 애니메이션, .faq 규칙 추가)
+```
+
+`modern_html`이 이미 마크업에 `<dialog id="project-dialog">`(카드 "자세히" 모달), `<details>`(FAQ 아코디언)를 넣어 두었고, `#mobile-menu` popover는 13편에서 위치와 배경까지 스타일링했습니다. 이 편은 마크업을 건드리지 않고 나머지 시각 요소를 채웁니다.
+
+## 개념 정리
+
+| 대상 | 스타일 지점 | 역할 |
+|------|-------------|------|
+| `<dialog>` 본체 | 일반 선택자(`#project-dialog`) | 카드처럼 배경·테두리·둥근 모서리·그림자 지정 |
+| `<dialog>` 뒷배경 | `::backdrop` 의사 요소 | 모달이 열렸을 때 페이지 나머지를 덮는 반투명 배경 |
+| `<dialog>` 열림 상태 | `[open]` 속성 선택자 | 열려 있는 동안에만 적용할 애니메이션 |
+| popover 열림 상태 | `:popover-open` 의사 클래스 | popover가 화면에 떠 있는 동안에만 적용할 스타일 |
+| `<details>` 요약줄 | `summary` | 클릭 영역이자 화살표를 넣을 위치 |
+| `<details>` 기본 화살표 제거 | `summary::-webkit-details-marker`, `list-style: none` | 브라우저 기본 삼각형 마커 제거 후 직접 그린 기호로 교체 |
+
+`::backdrop`은 `<dialog>`가 `showModal()`로 열렸을 때만 브라우저가 자동으로 만들어 주는 의사 요소입니다. 모달 바깥 어딘가에 `.backdrop` 같은 클래스를 따로 만들 필요가 없습니다. `[open]`은 `<dialog>` 요소 자체에 브라우저가 붙였다 뗐다 하는 속성이라, `#project-dialog[open]`처럼 써서 열려 있는 동안에만 적용되는 규칙을 만들 수 있습니다.
+
+흔한 오해는 `<details>`의 기본 화살표를 `list-style: none`만으로 지울 수 있다고 생각하는 것입니다. Chromium 계열 브라우저는 `summary`에 `::-webkit-details-marker`라는 별도 의사 요소로 마커를 그리므로, 두 규칙을 같이 써야 모든 브라우저에서 지워집니다.
+
+## 실습
+
+<Steps>
+
+### 1. 파일 열기
+
+`web-practice/portfolio/css/styles.css`를 엽니다. 지금까지 만든 `.project-card`, `#mobile-menu` 규칙 아래에 이어서 씁니다.
+
+### 2. 프로젝트 상세 dialog 스타일링
+
+```css
+/* web-practice/portfolio/css/styles.css */
+/* ...기존 리셋·토큰·레이아웃·헤더·버튼·카드·전환·애니메이션 규칙 유지... */
+
+#project-dialog {
+  width: min(32rem, 90vw);
+  border: none;
+  border-radius: var(--radius);
+  padding: var(--space-8);
+  background-color: var(--color-bg);
+  box-shadow: var(--shadow);
+}
+
+#project-dialog::backdrop {
+  background-color: rgb(15 23 32 / 0.5);
+}
+
+#project-dialog h3 {
+  margin-bottom: var(--space-4);
+}
+
+#project-dialog p + p {
+  margin-top: var(--space-3);
+}
+```
+
+### 3. dialog·popover에 진입 애니메이션 추가
+
+18편에서 배운 `@keyframes`를 재사용해, 모달과 팝오버가 열릴 때 살짝 커지며 나타나게 만듭니다.
+
+```css
+@keyframes overlay-enter {
+  from {
+    opacity: 0;
+    transform: scale(0.96);
+  }
+  to {
+    opacity: 1;
+    transform: scale(1);
+  }
+}
+
+#project-dialog[open] {
+  animation: overlay-enter 200ms ease-out;
+}
+
+#mobile-menu:popover-open {
+  animation: overlay-enter 150ms ease-out;
+}
+```
+
+`transition`이 아니라 `animation`을 쓴 이유는, `display: none`에서 보이는 상태로 바뀌는 순간에는 일반 `transition`이 시작 값을 읽지 못하기 때문입니다. `@keyframes` 기반 `animation`은 요소가 화면에 나타나는 시점에 그대로 재생되므로 이 상황에 맞습니다.
+
+### 4. FAQ details 화살표 커스터마이징
+
+```css
+.faq details {
+  border-bottom: 1px solid var(--color-border);
+  padding-block: var(--space-4);
+}
+
+.faq summary {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  cursor: pointer;
+  font-weight: 700;
+  list-style: none;
+}
+
+.faq summary::-webkit-details-marker {
+  display: none;
+}
+
+.faq summary::after {
+  content: "+";
+  font-size: var(--text-lg);
+  color: var(--color-text-muted);
+  transition: transform 200ms ease;
+}
+
+.faq details[open] summary::after {
+  transform: rotate(45deg);
+}
+
+.faq details[open] summary {
+  margin-bottom: var(--space-2);
+}
+```
+
+`+` 기호를 45도 회전시키면 `×` 모양이 되어, 별도 아이콘 이미지 없이 열림·닫힘 상태를 구분합니다. 회전은 17편에서 배운 `transition`을 그대로 재사용했습니다.
+
+### 5. 실행
+
+파일을 저장하고 `projects.html`(모달), `contact.html`(FAQ)을 브라우저로 엽니다. 모바일 폭에서 헤더의 햄버거 버튼도 함께 확인합니다.
+
+### 6. 확인
+
+- `projects.html`에서 카드의 "자세히" 버튼을 누르면 모달이 살짝 커지며 나타나고, 뒤 배경이 반투명하게 어두워집니다.
+- 모달 바깥(어두운 영역)을 클릭하거나 `Esc`를 누르면 닫힙니다.
+- 모바일 폭에서 햄버거 버튼을 누르면 메뉴가 이전보다 부드럽게 나타납니다.
+- `contact.html`의 FAQ 항목을 클릭하면 `+`가 `×` 모양으로 회전하며 답변이 펼쳐지고, 다시 클릭하면 원래 모양으로 돌아갑니다.
+- 개발자 도구 Elements 패널에서 `#project-dialog`를 열어 둔 채로 선택하면 `::backdrop`이 별도 트리 항목으로 보입니다.
+
+</Steps>
+
+## 직접 해보기
+
+1. `#project-dialog::backdrop`에 `backdrop-filter: blur(2px)`를 추가해 뒷배경을 흐리게 만들어 보세요.
+2. FAQ 화살표를 `+`/`×` 대신 `▸`/`▾`로 바꿔 보세요. `content` 값과 회전 각도를 함께 조정해야 합니다.
+
+<details>
+<summary>정답 확인</summary>
+
+1. `backdrop-filter`는 아직 `background-color`만큼 모든 브라우저 지원이 완전하지 않을 수 있으므로, 지원하지 않는 환경에서는 반투명 배경색만 보여도 문제 없도록 `background-color`를 함께 남겨 둡니다.
+2. `▸`는 회전 없이, `▾`는 이미 아래를 향한 모양이라 `details[open]`일 때 오히려 회전을 주지 않거나 `rotate(0deg)`로 정리하는 편이 자연스럽습니다.
+
+</details>
+
+## 자주 하는 실수
+
+| 증상 | 원인 | 고치는 법 |
+|------|------|-----------|
+| `::backdrop`이 전혀 안 보인다 | `<dialog>`를 `show()`가 아니라 `open` 속성만으로 표시했다(모달 방식이 아님) | `showModal()`로 연 `<dialog>`만 `::backdrop`을 만든다. `modern_html`의 스크립트가 `showModal()`을 쓰는지 확인 |
+| `<details>` 화살표가 두 개 겹쳐 보인다 | `list-style: none`만 적용하고 `::-webkit-details-marker`를 지우지 않았다 | Chromium 브라우저를 위해 두 규칙을 함께 적용 |
+| 모달이 열리자마자 애니메이션 없이 바로 나타난다 | `transition`으로 시도해 `display` 전환 시작 값을 못 읽는다 | `@keyframes` 기반 `animation`으로 대체 |
+| 모바일 메뉴 애니메이션이 데스크톱에서도 실행된다 | `:popover-open` 선택자를 미디어 쿼리 밖에 둬서 항상 평가된다 | popover는 열렸을 때만 이 상태가 매치되므로 실제로는 문제없다. 데스크톱에서 버튼 자체가 `display: none`인지 먼저 확인 |
+
+## 확인 문제
+
+<Quiz
+  questionNumber={1}
+  question="::backdrop 의사 요소가 나타나는 조건으로 옳은 것은?"
+  options={['모든 dialog 요소에 항상 나타난다', 'showModal()로 연 dialog가 열려 있는 동안에만 나타난다', 'CSS에서 별도 클래스를 만들어야 나타난다', 'details 요소에도 동일하게 적용된다']}
+  correctAnswer={2}
+  explanation="::backdrop은 dialog가 showModal()로 모달 방식으로 열려 있는 동안 브라우저가 자동으로 만드는 의사 요소입니다."
+  optionExplanations={['열려 있을 때만 나타납니다', '정답입니다', '별도 클래스 없이 의사 요소로 스타일링합니다', 'details에는 해당하지 않습니다']}
+/>
+
+<Quiz
+  questionNumber={2}
+  question="details의 기본 화살표를 모든 주요 브라우저에서 지우려면 필요한 것은?"
+  options={['list-style: none만으로 충분하다', 'list-style: none과 summary::-webkit-details-marker 제거를 함께 쓴다', 'display: none을 summary에 직접 적용한다', 'details 태그 자체를 삭제한다']}
+  correctAnswer={2}
+  explanation="Chromium 계열은 ::-webkit-details-marker라는 별도 의사 요소로 마커를 그리므로, list-style: none과 함께 이 의사 요소도 지워야 모든 브라우저에서 기본 화살표가 사라집니다."
+  optionExplanations={['일부 브라우저에서는 마커가 남습니다', '정답입니다', 'summary 자체를 지우면 클릭 영역이 사라집니다', '태그를 지우면 아코디언 기능 자체가 없어집니다']}
+/>
+
+<Quiz
+  questionNumber={3}
+  question="display: none에서 보이는 상태로 바뀌는 순간의 등장 효과에 transition 대신 animation을 쓰는 이유는?"
+  options={['animation이 더 짧은 코드로 작성되기 때문에', 'transition은 display 전환 시작 값을 읽지 못해 애니메이션이 생략되기 때문에', 'transition은 색상에만 적용할 수 있기 때문에', '브라우저가 transition을 지원하지 않기 때문에']}
+  correctAnswer={2}
+  explanation="transition은 값이 바뀌는 두 상태 사이를 보간하는데, display: none 상태에서는 시작 값을 읽을 수 없어 전환이 건너뛰어집니다. @keyframes 기반 animation은 요소가 나타나는 시점에 정의된 단계를 그대로 재생합니다."
+  optionExplanations={['코드 길이와는 무관합니다', '정답입니다', 'transition은 다양한 속성에 적용 가능합니다', '대부분의 브라우저가 transition을 지원합니다']}
+/>
+
+<Quiz
+  questionNumber={4}
+  question=":popover-open 의사 클래스가 매치되는 시점은?"
+  options={['popover 속성이 있는 요소가 항상', 'popover가 화면에 떠서 보이는 동안', '페이지가 로드되는 순간 한 번만', 'popover 버튼에 마우스를 올렸을 때만']}
+  correctAnswer={2}
+  explanation=":popover-open은 popover 요소가 열려서 화면에 표시되는 동안에만 매치되는 상태 의사 클래스입니다."
+  optionExplanations={['닫혀 있을 때는 매치되지 않습니다', '정답입니다', '로드 시점과는 무관하고 열림 상태를 따릅니다', 'hover가 아니라 열림 상태를 기준으로 합니다']}
+/>
+
+## 참고 자료
+
+- [MDN — dialog 요소](https://developer.mozilla.org/en-US/docs/Web/HTML/Reference/Elements/dialog)

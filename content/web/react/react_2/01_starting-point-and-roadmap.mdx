@@ -1,0 +1,172 @@
+---
+title: '01. 출발점 점검과 중급 로드맵'
+description: 'react_1이 남긴 bookshelf 상태를 점검하고 이 과목에서 무엇이 달라지는지 확인합니다.'
+---
+
+<Callout type="info">
+  **이번 편의 결과물:** 코드 변경 없음 — `bookshelf` 폴더 구조와 상태 관리 방식을 이 과목 기준으로 점검합니다. · **다루는 개념:** react_1 산출물 점검, 중급 로드맵, 실습 폴더 규칙
+</Callout>
+
+## 이 편에서 만드는 파일
+
+```
+bookshelf/
+  package.json
+  vite.config.js
+  index.html
+  src/
+    main.jsx
+    App.jsx
+    components/
+      BookForm.jsx
+      BookList.jsx
+      BookCard.jsx
+      ThemeToggle.jsx
+    context/
+      ThemeContext.jsx
+    reducers/
+      booksReducer.js
+    App.css
+```
+
+새 파일은 없습니다. 위 구조가 지금 내 `bookshelf` 폴더와 같은지 확인만 합니다. 다르다면 파일명·폴더명을 이 구조에 맞춥니다.
+
+## 개념 정리
+
+### 지금 bookshelf가 하는 일
+
+`react_1`을 마친 `bookshelf`는 페이지 하나에서 책 목록·추가 폼·필터·테마 전환을 모두 처리합니다.
+
+| 상태 | 관리 방식 | 위치 |
+|------|-----------|------|
+| `books` 배열 | `useReducer(booksReducer)` — `added`/`toggled`/`deleted` 액션 | `App.jsx` |
+| 필터 값·입력 폼 필드 | `useState` | `App.jsx` |
+| 테마(light/dark) | `useContext(ThemeContext)` | `App.jsx`, `ThemeToggle.jsx` |
+| `books` 저장 | `useEffect`로 `localStorage`에 직접 쓰기 | `App.jsx` |
+
+각 책 객체는 `id`, `title`, `author`, `status`(`wish`\|`reading`\|`done`), `rating`, `pages`, `coverColor`, `startedAt`, `finishedAt`, `memo` 필드를 가집니다.
+
+### 중급에서 달라지는 것
+
+| 지금(react_1) | 중급(react_2) | 담당 편 |
+|----------------|-----------------|---------|
+| 페이지 1개 | 목록·상세·추가 3개 라우트 + 중첩 라우트 | 03–05 |
+| `App.jsx`에 저장 로직 인라인 | `useLocalStorage`, `useDebounce` 커스텀 훅으로 분리 | 06, 07 |
+| 검증 없이 즉시 추가 | 제출 전 검증 + 인라인 에러 메시지 | 08 |
+| 리렌더 원인 미측정 | Profiler로 측정 후에만 `memo`/`useMemo`/`useCallback` | 09 |
+| 오류 시 흰 화면 | Error Boundary + `lazy` + `Suspense` | 11 |
+| `window.confirm`으로 삭제 확인 | `createPortal` 모달 + 포커스 트랩 | 12 |
+| 배열 그대로 저장 | `{ byId, allIds }` 정규화 | 13 |
+| 전역 CSS 파일 하나 | `*.module.css`로 컴포넌트 단위 격리 | 15 |
+| 테스트 없음 | Vitest+RTL 컴포넌트 테스트 1개 | 16 |
+
+기존 문법(컴포넌트, JSX, `useState`/`useEffect`/`useReducer`/`useRef`, 이벤트·리스트 렌더링, Context)은 이미 다룰 수 있다고 가정하고 반복하지 않습니다.
+
+### 실습 폴더 규칙
+
+- 편 번호가 바뀔 때마다 실제 코드는 같은 `bookshelf/` 폴더 안에서 계속 이어집니다. 편마다 새 폴더를 만들지 않습니다.
+- 각 편 상단의 "이 편에서 만드는 파일" 트리에서 `+`는 새 파일, `~`는 수정 파일입니다.
+- 한 편을 마칠 때마다 커밋을 하나 남기면 편 사이를 되짚기 쉽습니다. 이 과목 문서 자체는 커밋을 요구하지 않지만 권장합니다.
+
+## 실습
+
+<Steps>
+
+### 1. 폴더 구조 확인
+
+`bookshelf` 프로젝트 루트에서 구조를 확인합니다.
+
+### 2. 명령 실행
+
+```text
+npm ls react react-dom
+```
+
+### 3. 실행 결과 확인
+
+```text
+node --version
+```
+
+### 4. 확인
+
+- `react`, `react-dom` 버전이 19.x인지 확인합니다.
+- `src/App.jsx`를 열어 위 표의 네 가지 상태(books, 필터·입력값, 테마, 저장)가 실제로 그 방식으로 구현되어 있는지 확인합니다.
+
+</Steps>
+
+## 확인
+
+- `npm run dev` 실행 후 브라우저에서 책 목록·추가 폼·테마 토글 버튼이 한 화면에 보입니다.
+- 폴더 구조가 위 트리와 다르면(예: `reducers/` 대신 다른 위치에 있음) 02편부터 시작하기 전에 구조를 맞춥니다.
+
+## 직접 해보기
+
+1. `src/App.jsx`를 읽고 `books` state가 어디서 초기화되는지(`useReducer`의 두 번째·세 번째 인자) 찾아봅니다.
+2. `localStorage`에 저장된 키 이름을 브라우저 개발자 도구의 Application 탭에서 확인해봅니다.
+
+<details>
+<summary>정답 보기</summary>
+
+`useReducer(booksReducer, undefined, initFn)` 형태라면 `initFn`이 `localStorage`를 읽어 초기값을 만듭니다. 개발자 도구의 Application → Local Storage에서 `bookshelf`로 시작하는 키를 찾을 수 있습니다.
+
+</details>
+
+## 자주 하는 실수
+
+| 증상 | 원인 | 고치는 법 |
+|------|------|-----------|
+| `npm run dev` 실행 시 모듈을 찾을 수 없다는 오류 | `node_modules`가 없거나 오래됨 | `npm install`을 다시 실행한다 |
+| 폴더 구조가 이 문서와 다름 | react_1을 다른 방식으로 정리함 | 파일을 옮기거나 이름을 바꿔 위 구조에 맞춘다. 옮긴 뒤에는 반드시 `npm run dev`로 정상 동작을 확인한다 |
+| React 버전이 18 이하 | 프로젝트 생성 시점이 오래됨 | `npm install react@latest react-dom@latest`로 올린다 |
+
+## 확인 문제
+
+<Quiz
+  questionNumber={1}
+  question="react_1이 끝난 시점의 bookshelf에서 books 상태를 관리하는 방식은?"
+  options={['여러 개의 useState로 각 책을 개별 관리한다', 'useReducer와 added/toggled/deleted 액션으로 관리한다', 'Redux 스토어로 관리한다', 'localStorage에서 매 렌더마다 직접 읽어 렌더링한다']}
+  correctAnswer={2}
+  explanation="react_1 산출물은 booksReducer.js의 added/toggled/deleted 액션을 useReducer로 처리합니다."
+  optionExplanations={['배열 전체를 하나의 상태로 관리합니다', '정답입니다', '이 과목은 외부 상태 라이브러리를 쓰지 않습니다', '읽기는 초기화 시점에만 하고 이후는 state로 관리합니다']}
+/>
+
+<Quiz
+  questionNumber={2}
+  question="이 과목(react_2)이 다루지 않는 것은?"
+  options={['React Router 데이터 모드', 'TanStack Query 같은 서버 상태 라이브러리', '커스텀 훅 추출', 'CSS Modules']}
+  correctAnswer={2}
+  explanation="서버 상태 라이브러리·인증·배포는 react_3의 범위입니다."
+  optionExplanations={['03~05편에서 다룹니다', '정답입니다', '06, 07편에서 다룹니다', '15편에서 다룹니다']}
+/>
+
+<Quiz
+  questionNumber={3}
+  question="지금 bookshelf 페이지 수는?"
+  options={['3개', '1개', '5개', '라우터가 이미 있어 개수를 셀 수 없다']}
+  correctAnswer={2}
+  explanation="현재는 App.jsx 하나가 목록·폼·필터·테마 전환을 모두 렌더하는 단일 페이지입니다."
+  optionExplanations={['페이지 분리는 03~05편에서 이뤄집니다', '정답입니다', '아직 라우트가 없습니다', '라우터는 03편에서 도입합니다']}
+/>
+
+<Quiz
+  questionNumber={4}
+  question="이 과목에서 books를 localStorage에 저장하는 로직을 커스텀 훅으로 옮기는 편은?"
+  options={['03편', '06편', '09편', '15편']}
+  correctAnswer={2}
+  explanation="06편에서 useLocalStorage 훅으로 저장 로직을 추출합니다."
+  optionExplanations={['03편은 라우터 도입이 목표입니다', '정답입니다', '09편은 성능 측정과 메모이제이션입니다', '15편은 CSS Modules입니다']}
+/>
+
+<Quiz
+  questionNumber={5}
+  question="'이 편에서 만드는 파일' 트리에서 물결표 없이 쓰이는 두 기호의 의미로 옳은 것은?"
+  options={['+는 삭제, ~는 새 파일', '+는 새 파일, ~는 수정 파일', '둘 다 삭제를 의미한다', '기호는 실행 순서를 의미한다']}
+  correctAnswer={2}
+  explanation="+는 새로 추가되는 파일, ~는 기존 파일 중 이번 편에서 수정되는 파일을 표시합니다."
+  optionExplanations={['반대로 설명되어 있습니다', '정답입니다', '삭제 표시가 아닙니다', '실행 순서가 아니라 변경 종류를 나타냅니다']}
+/>
+
+## 참고 자료
+
+- [React 공식 문서 - Quick Start](https://react.dev/learn)

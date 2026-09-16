@@ -1,0 +1,222 @@
+---
+title: '15. Web Worker로 검색 인덱싱'
+description: '메모가 많아져도 검색 입력이 버벅이지 않도록, 검색 인덱스를 만들고 찾는 작업을 별도 워커 스레드로 옮깁니다.'
+---
+
+<Callout type="info">
+  **이번 편의 결과물:** 메모 500개 이상에서도 검색 입력이 버벅이지 않고, 워커가 결과를 돌려줍니다. · **다루는 개념:** `new Worker()`, `postMessage`/`onmessage` 메시지 패싱, 메인 스레드 분리의 효과
+</Callout>
+
+## 이 편에서 만드는 파일
+
+```
+notes-app/
+└── src/
+    ├── workers/
+    │   └── search.worker.js    (+)
+    └── main.js                 (~)
+```
+
+## 개념 정리
+
+### 왜 검색을 메인 스레드에서 하면 안 되나
+
+자바스크립트는 브라우저 탭 하나에서 기본적으로 **메인 스레드 하나**만 씁니다. DOM 렌더링, 이벤트 처리, 자바스크립트 실행이 모두 이 스레드를 나눠 씁니다. 메모 500개, 1000개를 대상으로 문자열 검색을 메인 스레드에서 동기적으로 실행하면, 그동안 화면 갱신과 입력 처리가 멈춰 타이핑이 끊기는 것처럼 느껴집니다. `Web Worker`는 메인 스레드와 별도의 스레드에서 자바스크립트를 실행해, 무거운 계산이 화면 반응성을 막지 않게 합니다.
+
+### Worker 생성과 메시지 패싱
+
+워커는 별도의 자바스크립트 파일로 만들고, 메인 스레드에서 `Worker` 인스턴스를 생성해 연결합니다. 워커와 메인 스레드는 DOM이나 변수를 공유하지 않고, **메시지 복사**로만 데이터를 주고받습니다.
+
+| 위치 | 보내는 방법 | 받는 방법 |
+|------|-------------|-----------|
+| 메인 스레드 | `worker.postMessage(data)` | `worker.onmessage = (e) => {}` |
+| 워커 내부 | `self.postMessage(data)` | `self.onmessage = (e) => {}` |
+
+`postMessage`로 넘긴 값은 참조가 아니라 복사본(구조화 복제, structured clone)입니다. 함수나 DOM 노드는 복제할 수 없어 전달할 수 없고, 일반 객체·배열·문자열·숫자는 복제해 전달됩니다.
+
+### 워커가 할 수 없는 것
+
+워커 내부에서는 `document`, `window`에 접근할 수 없습니다. DOM을 직접 조작할 수 없다는 뜻입니다. 대신 `fetch`, `setTimeout`, `JSON` 같은 API는 사용할 수 있습니다. 검색처럼 **입력을 받아 결과를 계산해 돌려주는** 순수 계산 작업에 적합한 이유입니다.
+
+## 실습
+
+<Steps>
+
+### 1. src/workers 폴더 만들기
+
+`src/workers/search.worker.js` 파일을 새로 만듭니다. Vite는 `new Worker(new URL(...), { type: 'module' })` 형태로 워커 파일을 지정하면 별도 번들로 처리합니다.
+
+### 2. 코드 작성
+
+```js
+// src/workers/search.worker.js
+let index = [];
+
+function buildIndex(notes) {
+  return notes.map((note) => ({
+    id: note.id,
+    text: `${note.title} ${note.body} ${note.tags.join(' ')}`.toLowerCase(),
+  }));
+}
+
+function search(query) {
+  const keyword = query.trim().toLowerCase();
+  if (keyword === '') {
+    return index.map((entry) => entry.id);
+  }
+  return index
+    .filter((entry) => entry.text.includes(keyword))
+    .map((entry) => entry.id);
+}
+
+self.onmessage = (event) => {
+  const { type, payload } = event.data;
+
+  if (type === 'index') {
+    index = buildIndex(payload);
+    self.postMessage({ type: 'indexed', payload: index.length });
+    return;
+  }
+
+  if (type === 'search') {
+    const matchedIds = search(payload);
+    self.postMessage({ type: 'result', payload: matchedIds });
+  }
+};
+```
+
+`buildIndex`는 메모마다 제목·본문·태그를 하나의 소문자 문자열로 합쳐 검색하기 쉬운 형태(인덱스)로 미리 만들어 둡니다. `search`는 이 인덱스에서 `includes`로 검색어를 찾아 일치하는 메모 `id` 목록만 반환합니다. 실제 메모 객체 전체가 아니라 `id` 배열만 돌려주는 이유는, 메모 본문이 길 경우 메시지 전달 비용을 줄이기 위해서입니다.
+
+```js
+// src/main.js (검색 관련 부분만 표시. registerRoute 등 라우팅 로직은 그대로 유지)
+import { renderList } from './render.js'
+
+const searchWorker = new Worker(new URL('./workers/search.worker.js', import.meta.url), {
+  type: 'module',
+})
+
+const searchInputEl = document.querySelector('#search-input')
+const noteListEl = document.querySelector('#note-list')
+
+let allNotes = []
+
+function indexNotesInWorker(notes) {
+  allNotes = notes
+  searchWorker.postMessage({ type: 'index', payload: notes })
+}
+
+searchWorker.onmessage = (event) => {
+  const { type, payload } = event.data
+
+  if (type === 'indexed') {
+    console.log(`검색 인덱스 생성 완료: ${payload}건`)
+    return
+  }
+
+  if (type === 'result') {
+    const matched = allNotes.filter((note) => payload.includes(note.id))
+    renderList(matched, noteListEl)
+  }
+}
+
+searchInputEl.addEventListener('input', (event) => {
+  searchWorker.postMessage({ type: 'search', payload: event.target.value })
+})
+
+// 목록 화면에서 notes를 불러온 직후(showList 안, 기존 로직 다음 줄) 반드시 한 번 호출합니다.
+// indexNotesInWorker(notes)
+```
+
+`indexNotesInWorker`는 메모 목록을 불러온 직후 한 번 호출해 워커에 인덱스를 만들어두고, 이후 `search-input`에 입력이 있을 때마다 검색어만 워커로 보냅니다. 워커가 결과 `id` 배열을 돌려주면 `allNotes`에서 해당 항목만 걸러 11~12편에서 만든 `renderList(notes, container)`로 다시 그립니다.
+
+### 3. 실행
+
+```text
+npm run dev
+```
+
+### 4. 확인
+
+- 개발자 도구 콘솔에 `검색 인덱스 생성 완료: 4건`(seed 데이터 기준)이 뜬다.
+- 검색창에 `fetch`를 입력하면 `fetch 취소` 메모만 목록에 남는다.
+- 검색창을 비우면 전체 메모가 다시 보인다.
+- 개발자 도구 Sources 탭에서 `search.worker.js`가 메인 스레드와 별도 워커 컨텍스트로 표시되는지 확인한다.
+
+</Steps>
+
+## 직접 해보기
+
+1. `buildIndex`가 만드는 인덱스 문자열에 태그(`note.tags`)를 빼고 제목·본문만 포함하도록 바꿔, 태그로는 검색이 안 되는지 확인해봅니다.
+2. 검색어가 2글자 미만이면 워커에 메시지를 보내지 않도록 `searchInputEl`의 `input` 리스너에 조건을 추가해봅니다.
+
+<details>
+<summary>정답 보기</summary>
+
+```js
+function buildIndex(notes) {
+  return notes.map((note) => ({
+    id: note.id,
+    text: `${note.title} ${note.body}`.toLowerCase(),
+  }));
+}
+```
+
+```js
+searchInputEl.addEventListener('input', (event) => {
+  const value = event.target.value;
+  if (value.length > 0 && value.length < 2) return;
+  searchWorker.postMessage({ type: 'search', payload: value });
+});
+```
+
+</details>
+
+## 자주 하는 실수
+
+| 증상 | 원인 | 고치는 법 |
+|------|------|-----------|
+| 워커 파일을 찾지 못한다는 오류 | `new Worker('./workers/search.worker.js')`처럼 경로만 문자열로 넘김 | `new URL('./workers/search.worker.js', import.meta.url)`로 감싸 Vite가 번들 경로를 인식하게 한다 |
+| 검색 결과가 항상 비어 있음 | `indexNotesInWorker`를 한 번도 호출하지 않아 워커의 `index`가 빈 배열 | 메모 목록을 불러온 직후 반드시 `indexNotesInWorker(notes)`를 호출한다 |
+| 워커 안에서 document를 쓰려다 오류 남 | 워커 스레드에는 DOM 접근 권한이 없음 | 워커는 계산만 하고, 결과를 받은 메인 스레드에서 `renderList`로 DOM을 갱신한다 |
+
+## 확인 문제
+
+<Quiz
+  questionNumber={1}
+  question="Web Worker를 쓰는 주된 목적으로 옳은 것은?"
+  options={['DOM을 더 빠르게 조작하기 위해서', '무거운 계산을 별도 스레드로 옮겨 메인 스레드의 화면 반응성을 지키기 위해서', '네트워크 요청 속도를 높이기 위해서', 'localStorage 용량 제한을 없애기 위해서']}
+  correctAnswer={2}
+  explanation="Web Worker는 자바스크립트 실행을 메인 스레드와 분리된 별도 스레드에서 수행해, 무거운 계산이 화면 렌더링과 입력 처리를 막지 않게 합니다."
+  optionExplanations={['워커는 DOM에 접근할 수 없습니다', '정답입니다', '네트워크 요청 자체의 속도를 바꾸지 않습니다', 'localStorage 용량과는 무관합니다']}
+/>
+
+<Quiz
+  questionNumber={2}
+  question="메인 스레드와 워커 사이에서 postMessage로 전달한 값의 성질로 옳은 것은?"
+  options={['원본과 같은 참조를 공유한다', '구조화 복제로 값이 복사되어 전달된다', 'JSON 문자열로만 전달할 수 있다', '함수도 그대로 전달할 수 있다']}
+  correctAnswer={2}
+  explanation="postMessage로 전달되는 값은 구조화 복제 알고리즘으로 복사되어 전달됩니다. 참조를 공유하지 않으므로 워커 쪽에서 값을 바꿔도 메인 스레드의 원본에는 영향이 없습니다."
+  optionExplanations={['참조가 아니라 복사본이 전달됩니다', '정답입니다', 'JSON 문자열이 아니어도 객체·배열·숫자를 그대로 전달할 수 있습니다', '함수는 구조화 복제로 전달할 수 없습니다']}
+/>
+
+<Quiz
+  questionNumber={3}
+  question="Web Worker 내부에서 할 수 없는 일로 옳은 것은?"
+  options={['fetch로 네트워크 요청 보내기', 'document.querySelector로 DOM 요소 선택하기', 'setTimeout으로 지연 실행 예약하기', 'JSON.parse로 문자열 파싱하기']}
+  correctAnswer={2}
+  explanation="워커 스레드에는 document, window 같은 DOM 관련 전역 객체가 없어 DOM 요소를 직접 선택하거나 조작할 수 없습니다."
+  optionExplanations={['워커에서도 fetch를 사용할 수 있습니다', '정답입니다', '워커에서도 setTimeout을 사용할 수 있습니다', '워커에서도 JSON을 사용할 수 있습니다']}
+/>
+
+<Quiz
+  questionNumber={4}
+  question="이번 편의 search 함수가 메모 객체 전체가 아니라 id 배열만 반환하는 이유로 옳은 것은?"
+  options={['id만 구조화 복제가 가능해서', '메시지로 주고받는 데이터 양을 줄이기 위해서', '워커가 문자열만 반환할 수 있어서', 'renderList가 id만 받도록 고정되어 있어서']}
+  correctAnswer={2}
+  explanation="메모 본문 전체를 매번 워커와 메인 스레드 사이로 복사해 주고받으면 메시지 크기가 커집니다. id 배열만 주고받고, 실제 메모 데이터는 이미 메인 스레드에 있는 배열에서 찾는 편이 더 가볍습니다."
+  optionExplanations={['id가 아닌 값도 구조화 복제가 가능합니다', '정답입니다', '워커는 객체, 배열 등도 반환할 수 있습니다', 'renderList는 메모 객체 배열을 받도록 만들었습니다']}
+/>
+
+## 참고 자료
+
+- [MDN - Web Workers API](https://developer.mozilla.org/en-US/docs/Web/API/Web_Workers_API)

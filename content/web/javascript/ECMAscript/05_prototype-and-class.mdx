@@ -1,0 +1,263 @@
+---
+title: '05. 프로토타입과 class로 Todo, TodoStore 만들기'
+description: '배열과 일반 함수로 짜여 있던 구조를 프로토타입 기반 class인 Todo, TodoStore로 리팩터링합니다.'
+---
+
+<Callout type="info">
+  **이번 편의 결과물:** `todos` 배열과 낱개 함수로 되어 있던 04편 코드를 `Todo`, `TodoStore` 클래스로 리팩터링합니다. `add`, `list --filter`, `list --sort` 동작은 04편과 동일합니다. · **다루는 개념:** 프로토타입 체인, class 문법(필드·메서드·private 필드), 캡슐화
+</Callout>
+
+## 이 편에서 만드는 파일
+
+```
+todo-cli/
+└── src/
+    └── index.js   (~)
+```
+
+## 개념 정리
+
+### 프로토타입 체인
+
+JavaScript 객체는 자신에게 없는 프로퍼티를 찾을 때 자신의 프로토타입(prototype)을 따라 올라갑니다. 이 연결을 프로토타입 체인이라고 합니다. `class` 문법이 없던 시절에는 함수와 `prototype` 객체로 이 체인을 직접 구성했습니다.
+
+```js
+function Todo(id, title) {
+  this.id = id;
+  this.title = title;
+  this.done = false;
+}
+
+Todo.prototype.toDisplayLine = function () {
+  const mark = this.done ? '[x]' : '[ ]';
+  return `${mark} #${this.id} ${this.title}`;
+};
+
+const todo = new Todo(1, '리포트 제출');
+todo.toDisplayLine(); // '[ ] #1 리포트 제출'
+```
+
+`new Todo(...)`로 만든 객체는 자신에게 `id`, `title`, `done`만 갖고 있습니다. `toDisplayLine`은 `Todo.prototype`에만 있지만, `todo.toDisplayLine()`을 호출하면 자신에게 없으니 프로토타입 체인을 따라 `Todo.prototype`에서 찾아 실행합니다. `Object.getPrototypeOf(todo) === Todo.prototype`은 `true`입니다.
+
+### class는 프로토타입 위의 문법
+
+`class` 문법은 이 프로토타입 체인을 자동으로 구성해 주는 표기법(문법적 설탕)입니다. 위 코드와 아래 코드는 동작이 같습니다.
+
+```js
+class Todo {
+  constructor(id, title) {
+    this.id = id;
+    this.title = title;
+    this.done = false;
+  }
+
+  toDisplayLine() {
+    const mark = this.done ? '[x]' : '[ ]';
+    return `${mark} #${this.id} ${this.title}`;
+  }
+}
+```
+
+`toDisplayLine`처럼 클래스 본문에 적은 메서드는 인스턴스가 아니라 `Todo.prototype`에 정의됩니다. 인스턴스마다 메서드 복사본이 생기지 않아 메모리를 아낍니다.
+
+### private 필드로 캡슐화
+
+`#`으로 시작하는 필드는 클래스 밖에서 접근할 수 없는 private 필드입니다. `TodoStore`가 관리하는 목록 배열을 외부에서 직접 바꾸지 못하게 막을 때 씁니다.
+
+| 표기 | 접근 범위 |
+|------|-----------|
+| `this.title` | 클래스 안팎 어디서나 읽고 쓸 수 있음(public) |
+| `this.#todos` | 같은 클래스 안의 메서드에서만 접근 가능(private) |
+| `static #makeComparator` | 인스턴스가 아니라 클래스 자체에 속한 private 메서드 |
+
+`store.#todos`를 클래스 밖에서 쓰면 문법 오류가 납니다. 목록을 읽거나 바꾸려면 반드시 `store.add(...)`, `store.list(...)` 같은 공개 메서드를 거쳐야 합니다. 이것이 캡슐화입니다.
+
+## 실습
+
+<Steps>
+
+### 1. src/index.js 열기
+
+04편의 `todos` 배열, `addTodo`, `makeStatusFilter`, `makeComparator`, `printList` 함수를 `Todo`, `TodoStore` 클래스로 옮깁니다.
+
+### 2. 코드 작성
+
+```js
+// src/index.js
+import { parseArgs } from './cli/parseArgs.js';
+
+class Todo {
+  constructor(id, title, { tag, due } = {}) {
+    this.id = id;
+    this.title = title;
+    this.done = false;
+    this.tags = tag ? [tag] : [];
+    this.due = due ?? null;
+    this.createdAt = new Date().toISOString();
+  }
+
+  toDisplayLine() {
+    const mark = this.done ? '[x]' : '[ ]';
+    const tagText = this.tags.length > 0 ? this.tags.join(', ') : '없음';
+    const dueText = this.due ?? '없음';
+    return `${mark} #${this.id} ${this.title} (태그: ${tagText}, 마감: ${dueText})`;
+  }
+}
+
+class TodoStore {
+  #todos = [];
+  #nextId = 1;
+
+  add(title, options) {
+    const todo = new Todo(this.#nextId, title, options);
+    this.#todos.push(todo);
+    this.#nextId += 1;
+    return todo;
+  }
+
+  list({ filter, sort } = {}) {
+    const filterFn = TodoStore.#makeStatusFilter(filter);
+    const compareFn = TodoStore.#makeComparator(sort);
+    return this.#todos.filter(filterFn).sort(compareFn);
+  }
+
+  static #makeStatusFilter(status) {
+    if (status === 'done') return (todo) => todo.done;
+    if (status === 'pending') return (todo) => !todo.done;
+    return () => true;
+  }
+
+  static #makeComparator(sortKey) {
+    if (sortKey === 'due') {
+      return (a, b) => {
+        if (a.due === null && b.due === null) return 0;
+        if (a.due === null) return 1;
+        if (b.due === null) return -1;
+        return a.due.localeCompare(b.due);
+      };
+    }
+    return (a, b) => a.createdAt.localeCompare(b.createdAt);
+  }
+}
+
+function printList(list) {
+  list.forEach((todo) => console.log(todo.toDisplayLine()));
+}
+
+const store = new TodoStore();
+store.add('리포트 제출', { tag: 'work', due: '2026-09-20' });
+store.add('운동하기', { tag: 'health' });
+store.add('todo-cli에 검색 명령 추가', { tag: 'study', due: '2026-09-22' });
+
+const argv = process.argv.slice(2);
+const { command, positional, flags } = parseArgs(argv);
+
+if (command === 'add') {
+  const [title] = positional;
+  const created = store.add(title, flags);
+  console.log('추가됨:', created.toDisplayLine());
+  printList(store.list());
+} else if (command === 'list') {
+  printList(store.list(flags));
+} else {
+  console.log('알 수 없는 명령입니다:', command);
+}
+```
+
+`store.#todos`, `TodoStore.#makeStatusFilter`, `TodoStore.#makeComparator`는 모두 `TodoStore` 클래스 밖에서 접근할 수 없습니다. `index.js`의 나머지 코드는 `store.add(...)`와 `store.list(...)`만 호출합니다. `done` 두 번째 완료 항목이 이번 편부터 시작 시 미리 세 개 채워지는 이유는 08편(파일 저장)까지는 저장 기능이 없어서, 실행할 때마다 같은 예시 데이터로 시작하기 때문입니다.
+
+### 3. 실행
+
+```text
+node src/index.js list --filter pending
+```
+
+```text
+node src/index.js add "새 할일" --tag study
+```
+
+</Steps>
+
+## 확인
+
+- `list --filter pending` 결과가 04편과 같은 두 항목인지 확인합니다.
+
+```text
+[ ] #1 리포트 제출 (태그: work, 마감: 2026-09-20)
+[ ] #3 todo-cli에 검색 명령 추가 (태그: study, 마감: 2026-09-22)
+```
+
+- `Todo.prototype.toDisplayLine`이 실제로 프로토타입에 있는지 확인하려면 파일 맨 아래에 `console.log(Object.getPrototypeOf(store.list()[0]) === Todo.prototype);`을 추가해 실행하고, `true`가 나오는지 봅니다(확인 후 삭제해도 됩니다).
+
+## 직접 해보기
+
+1. `Todo` 클래스에 `get summary()` 게터를 추가해 `todo.summary`로 `"제목 (완료)"` 또는 `"제목 (미완료)"` 문자열을 바로 읽을 수 있게 해봅니다.
+2. `TodoStore`에 `get size()` 게터를 추가해 `store.size`로 전체 할 일 개수를 읽을 수 있게 해봅니다. `#todos.length`를 그대로 반환하면 됩니다.
+
+<details>
+<summary>정답 보기</summary>
+
+```js
+// Todo 클래스 안
+get summary() {
+  return `${this.title} (${this.done ? '완료' : '미완료'})`;
+}
+
+// TodoStore 클래스 안
+get size() {
+  return this.#todos.length;
+}
+```
+
+</details>
+
+## 자주 하는 실수
+
+| 증상 | 원인 | 고치는 법 |
+|------|------|-----------|
+| `SyntaxError: Private field '#todos' must be declared in an enclosing class` | private 필드를 클래스 밖에서 참조 | `#`으로 시작하는 필드는 항상 같은 클래스 안 메서드에서만 쓴다 |
+| `this`가 `undefined`로 나옴 | 클래스 메서드를 일반 함수처럼 따로 떼어 호출(`const fn = store.list; fn()`) | 메서드는 항상 `store.list()`처럼 인스턴스에 붙여서 호출한다 |
+| `new` 없이 `Todo(1, '제목')`을 호출해 오류 발생 | class는 반드시 `new`로 생성해야 함 | `class`로 만든 생성자는 `new Todo(...)`처럼 항상 `new`를 붙인다 |
+
+## 확인 문제
+
+<Quiz
+  questionNumber={1}
+  question="프로토타입 체인에 대한 설명으로 옳은 것은?"
+  options={['객체가 자신에게 없는 프로퍼티를 찾을 때 연결된 프로토타입을 따라 올라가는 구조다', '배열을 정렬하는 알고리즘이다', 'JSON 데이터를 문자열로 바꾸는 과정이다', '비동기 함수를 동기처럼 쓰는 문법이다']}
+  correctAnswer={1}
+  explanation="프로토타입 체인은 객체가 자신에게 없는 프로퍼티나 메서드를 프로토타입을 따라 찾아 올라가는 연결 구조입니다."
+  optionExplanations={['정답입니다', '정렬 알고리즘과는 무관합니다', 'JSON 직렬화와는 다른 개념입니다', '비동기 문법과는 무관합니다']}
+/>
+
+<Quiz
+  questionNumber={2}
+  question="class 문법과 프로토타입 기반 함수 생성자의 관계로 옳은 것은?"
+  options={['class는 프로토타입과 전혀 다른 새로운 메모리 구조를 쓴다', 'class는 프로토타입 체인을 자동으로 구성해 주는 문법이다', 'class로 만든 인스턴스는 프로토타입이 없다', 'class는 인스턴스마다 메서드 복사본을 만든다']}
+  correctAnswer={2}
+  explanation="class는 내부적으로 프로토타입 체인을 그대로 사용하며, 메서드를 자동으로 prototype에 정의해 주는 문법입니다."
+  optionExplanations={['내부 구조는 동일한 프로토타입 체인입니다', '정답입니다', 'class 인스턴스도 프로토타입 체인을 갖습니다', '메서드는 prototype에 한 번만 정의됩니다']}
+/>
+
+<Quiz
+  questionNumber={3}
+  question="private 필드(#todos)를 클래스 밖에서 직접 store.#todos로 접근하면?"
+  options={['정상적으로 값을 읽을 수 있다', '문법 오류가 발생한다', 'undefined가 반환된다', '경고만 출력되고 계속 실행된다']}
+  correctAnswer={2}
+  explanation="private 필드는 선언된 클래스 안에서만 접근 가능하며, 클래스 밖에서 참조하면 문법 오류가 발생합니다."
+  optionExplanations={['클래스 밖에서는 접근할 수 없습니다', '정답입니다', 'undefined가 아니라 오류입니다', '경고가 아니라 오류로 멈춥니다']}
+/>
+
+<Quiz
+  questionNumber={4}
+  question="TodoStore에서 add와 list를 public 메서드로, #todos를 private 필드로 설계한 이유로 가장 적절한 것은?"
+  options={['코드 줄 수를 줄이기 위해서', '외부에서 목록 배열을 직접 조작하지 못하게 하고 공개 메서드를 거치도록 강제하기 위해서', '실행 속도를 높이기 위해서', 'JSON으로 저장하기 위해서']}
+  correctAnswer={2}
+  explanation="캡슐화는 내부 상태를 숨기고 정해진 메서드로만 접근하게 만들어 데이터 일관성을 지키는 설계 원칙입니다."
+  optionExplanations={['줄 수 감소가 목적이 아닙니다', '정답입니다', '속도 향상이 목적이 아닙니다', 'JSON 저장은 08편 이후 주제입니다']}
+/>
+
+## 참고 자료
+
+- [MDN - Classes](https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Classes)
+- [MDN - Private class features](https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Classes/Private_properties)

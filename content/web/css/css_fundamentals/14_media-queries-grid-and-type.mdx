@@ -1,0 +1,190 @@
+---
+title: '14. 반응형 그리드와 타이포그래피 마무리'
+description: '프로젝트 카드 그리드를 화면 폭에 따라 1열-2열-3열로 바꾸고, 제목·이미지도 함께 반응형으로 다듬습니다.'
+---
+
+<Callout type="info">
+  **이번 편의 결과물:** 모바일에서 카드가 1열로 쌓이고, 태블릿은 2열, 데스크톱은 3열로 배열되며 제목 크기와 이미지도 화면 폭에 맞게 줄어듭니다. **다루는 개념:** 미디어 쿼리로 그리드 열 수 조정, 반응형 타이포그래피, `max-width: 100%` 반응형 이미지
+</Callout>
+
+## 이 편에서 만드는 파일
+
+```
+web-practice/portfolio/
+└── css/
+    └── styles.css   ~ (.project-grid, img, .project-card 반응형 규칙 추가)
+```
+
+11~12편에서 만든 `.project-grid`·`.project-card`는 지금 데스크톱 3열 기준으로만 되어 있습니다. 이 편에서 모바일·태블릿 구간을 채웁니다.
+
+## 개념 정리
+
+13편에서 배운 모바일 우선 방식을 그대로 씁니다. 그리드는 **기본을 1열로 두고**, `min-width` 조건이 붙을 때마다 열 수를 늘립니다.
+
+| 구간 | 조건 | `grid-template-columns` |
+|------|------|--------------------------|
+| 모바일 | 기본 | `1fr` (1열) |
+| 태블릿 | `min-width: 768px` | `repeat(2, 1fr)` |
+| 데스크톱 | `min-width: 1024px` | `repeat(3, 1fr)` |
+
+타이포그래피는 05편에서 이미 `h1`(`--text-3xl`)과 `.hero h1`의 모바일 축소(`max-width: 767px`에서 `--text-2xl`)를 정해 뒀으므로 이 편에서 다시 건드리지 않습니다. 이 편은 카드 제목(`.project-card h2`) 하나만 좁은 화면에서 한 단계 낮춥니다.
+
+| 요소 | 모바일(`max-width: 767px`) | 기본(05편에서 정의, `--text-lg`) |
+|------|------------------------------|-----------------------------------|
+| 카드 제목(`.project-card h2`) | `--text-base`(16px) | `--text-lg`(20px) |
+
+이미지 반응형 처리는 한 줄이면 충분합니다.
+
+```css
+img {
+  max-width: 100%;
+  height: auto;
+  display: block;
+}
+```
+
+`max-width: 100%`는 이미지가 부모 요소보다 커지지 않게 막고, `height: auto`는 가로세로 비율을 유지합니다. `.project-card img`처럼 비율을 고정하고 싶은 이미지는 `aspect-ratio` 대신(이 과목 범위 밖) `object-fit: cover`와 고정 높이를 함께 씁니다.
+
+흔한 오해: 그리드 열 수를 미디어 쿼리마다 새로 쓰면 `gap` 같은 공통 값을 중복 선언하기 쉽습니다. 공통 값은 기본 규칙에 한 번만 쓰고, 미디어 쿼리 안에는 **바뀌는 값만** 씁니다.
+
+## 실습
+
+<Steps>
+
+### 1. 파일 열기
+
+`web-practice/portfolio/css/styles.css`에서 `.project-grid`·`.project-card` 규칙을 찾습니다.
+
+### 2. 코드 작성
+
+```css
+/* web-practice/portfolio/css/styles.css */
+
+/* ...기존 리셋·토큰·헤더·내비 규칙 유지... */
+
+img {
+  max-width: 100%;
+  height: auto;
+  display: block;
+}
+
+.project-grid {
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: var(--space-6);
+}
+
+.project-card {
+  background: var(--color-surface);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius);
+  overflow: hidden;
+}
+
+.project-card img {
+  width: 100%;
+  height: 12rem;
+  object-fit: cover;
+}
+
+.project-card p {
+  font-size: var(--text-sm);
+}
+
+@media (max-width: 767px) {
+  .project-card h2 {
+    font-size: var(--text-base);
+  }
+}
+
+@media (min-width: 768px) {
+  .project-grid {
+    grid-template-columns: repeat(2, 1fr);
+  }
+}
+
+@media (min-width: 1024px) {
+  .project-grid {
+    grid-template-columns: repeat(3, 1fr);
+  }
+}
+```
+
+카드 제목은 기본값(05편, `--text-lg`)을 그대로 두고 767px 이하에서만 `--text-base`로 낮춥니다. `h1`은 05편이 이미 처리했으므로 여기서 다시 선언하지 않습니다.
+
+### 3. 실행
+
+`projects.html`을 브라우저로 엽니다. `index.html`도 함께 열어 제목 크기 변화를 봅니다.
+
+### 4. 확인
+
+- 모바일 폭(400px 정도)에서 프로젝트 카드가 세로로 1열 쌓입니다.
+- 폭을 768px 이상으로 넓히면 카드가 2열로, 1024px 이상에서는 3열로 바뀝니다.
+- `index.html`의 히어로 제목이 좁은 화면에서는 작게, 넓은 화면에서는 크게 보입니다.
+- 카드 썸네일 이미지가 카드 폭에 맞춰 잘리지 않고 채워집니다(`object-fit: cover`).
+
+</Steps>
+
+## 직접 해보기
+
+1. 카드 3열 사이 `gap`을 데스크톱에서만 `var(--space-8)`로 넓혀 봅니다.
+2. 카드 설명(`.project-card p`)의 줄 수를 2줄로 제한하는 방법을 찾아 적용해 봅니다(힌트: `-webkit-line-clamp`는 이 과목 범위 밖이므로, 대신 `max-height`와 `overflow: hidden`으로 근사치를 만들어 봅니다).
+
+<details>
+<summary>풀이 보기</summary>
+
+```css
+@media (min-width: 1024px) {
+  .project-grid {
+    gap: var(--space-8);
+  }
+}
+
+.project-card p {
+  max-height: calc(var(--text-sm) * var(--leading) * 2);
+  overflow: hidden;
+}
+```
+
+</details>
+
+## 자주 하는 실수
+
+| 증상 | 원인 | 고치는 법 |
+|------|------|-----------|
+| 태블릿에서 카드가 3열로 보임 | `min-width: 1024px` 규칙이 `min-width: 768px` 규칙보다 CSS 파일에서 먼저 옴 | 미디어 쿼리를 좁은 화면 조건 → 넓은 화면 조건 순서로 배치 |
+| 이미지가 카드 밖으로 튀어나옴 | `.project-card img`에 `max-width: 100%`가 없거나 `overflow: hidden`이 카드에 없음 | `img { max-width: 100% }` 전역 규칙 확인, 카드에 `overflow: hidden` 유지 |
+| 카드 제목이 767px 이하에서 안 줄어듦 | `@media (max-width: 767px)` 블록이 `.project-card h2` 기본 규칙(05편)보다 CSS 파일에서 앞에 옴 | 미디어 쿼리를 기본 규칙 뒤에 배치해 캐스케이드 순서를 지킨다 |
+
+## 확인 문제
+
+<Quiz
+  questionNumber={1}
+  question="이 사이트에서 프로젝트 카드가 2열로 배열되는 화면 폭 조건은?"
+  options={['min-width: 480px', 'min-width: 768px', 'min-width: 1024px', 'max-width: 768px']}
+  correctAnswer={2}
+  explanation="태블릿 구간인 min-width: 768px에서 2열, min-width: 1024px에서 3열로 바뀝니다."
+  optionExplanations={['이 값은 스펙에 없습니다', '정답입니다', '이 조건은 3열이 시작되는 데스크톱 기준입니다', 'max-width 조건은 반대 방향으로 좁은 화면에 적용됩니다']}
+/>
+
+<Quiz
+  questionNumber={2}
+  question="img에 max-width: 100%를 지정하는 이유로 가장 알맞은 것은?"
+  options={['이미지 파일 용량을 줄이기 위해', '이미지가 부모 요소보다 커지지 않게 막기 위해', '이미지를 항상 정사각형으로 만들기 위해', '이미지 로딩 속도를 높이기 위해']}
+  correctAnswer={2}
+  explanation="max-width: 100%는 이미지의 렌더링 크기가 부모 요소 폭을 넘지 않도록 제한해 좁은 화면에서 넘치는 것을 막습니다."
+  optionExplanations={['파일 용량은 CSS로 줄일 수 없습니다', '정답입니다', '비율은 height: auto가 유지하며 정사각형과는 무관합니다', '로딩 속도는 이미지 최적화나 lazy loading의 역할입니다']}
+/>
+
+<Quiz
+  questionNumber={3}
+  question="모바일 우선 방식으로 반응형 타이포그래피를 만들 때 옳은 순서는?"
+  options={['데스크톱 크기를 기본값으로 쓰고 모바일에서 줄인다', '모바일 크기를 기본값으로 쓰고 데스크톱에서 키운다', '모든 화면에서 같은 크기를 쓴다', '자바스크립트로 화면 폭을 측정해 크기를 계산한다']}
+  correctAnswer={2}
+  explanation="모바일 우선은 좁은 화면 스타일을 기본으로 두고 min-width 미디어 쿼리로 넓은 화면에서 값을 키웁니다."
+  optionExplanations={['데스크톱 우선 방식의 설명입니다', '정답입니다', '화면 폭에 따라 가독성이 달라지므로 같은 크기를 쓰지 않습니다', 'CSS 미디어 쿼리만으로 충분하므로 JavaScript가 필요하지 않습니다']}
+/>
+
+## 참고 자료
+
+- [MDN — CSS media queries](https://developer.mozilla.org/en-US/docs/Web/CSS/Guides/Media_queries)

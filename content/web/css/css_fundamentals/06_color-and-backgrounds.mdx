@@ -1,0 +1,195 @@
+---
+title: '06. 색과 배경 적용'
+description: '배경·링크·버튼 색을 토큰에 연결하고 히어로 섹션에 그라디언트 배경을 넣습니다.'
+---
+
+<Callout type="info">
+  **이번 편의 결과물:** 배경·링크·버튼 색이 시안과 일치하고, 히어로 섹션에 그라디언트 배경이 적용됩니다. **다루는 개념:** 색 표기법(hex/rgb/hsl)과 변수 연결, `background-color`/`background-image`, 선형 그라디언트 기초
+</Callout>
+
+## 이 편에서 만드는 파일
+
+```
+web-practice/portfolio/
+└── css/
+    └── styles.css   ~ (색·배경 규칙 추가)
+```
+
+## 개념 정리
+
+CSS는 색을 여러 표기법으로 쓸 수 있습니다. hex(`#0969da`)는 04편에서 이미 토큰으로 정의해 뒀으므로 이 편에서는 그 변수를 요소에 연결하는 데 집중합니다.
+
+| 표기법 | 형태 | 이 사이트에서의 쓰임 |
+|--------|------|----------------------|
+| hex | `#rrggbb` | `tokens.css`의 원본 값 |
+| rgb | `rgb(255 255 255 / 0.6)` | 반투명 오버레이가 필요할 때만 |
+| hsl | `hsl(210 40% 98%)` | 이 프로젝트에서는 사용하지 않음(체크리스트용) |
+| `var()` | `var(--color-primary)` | 실제 스타일 규칙에서 항상 이 형태로 사용 |
+
+배경은 `background-color`(단색)와 `background-image`(그라디언트·이미지)로 나뉩니다. 선형 그라디언트는 `linear-gradient(방향, 색1, 색2)` 형태이며, 방향을 각도(`135deg`)나 키워드(`to right`)로 지정합니다. 흔한 오해는 그라디언트를 `background-color`에 쓰는 것입니다. 그라디언트는 이미지로 취급되므로 반드시 `background-image` 또는 단축 속성 `background`에 씁니다.
+
+## 실습
+
+<Steps>
+
+### 1. styles.css 열기
+
+05편에서 작성한 타이포그래피 규칙 아래에 이어서 작성합니다.
+
+### 2. 본문·링크·버튼 색 연결
+
+```css
+/* web-practice/portfolio/css/styles.css */
+/* ...03~05편 리셋·타이포그래피 유지... */
+
+body {
+  background-color: var(--color-bg);
+  color: var(--color-text);
+}
+
+a {
+  color: var(--color-primary);
+  text-decoration: none;
+}
+
+a:hover {
+  color: var(--color-primary-hover);
+  text-decoration: underline;
+}
+
+.button {
+  display: inline-block;
+  border-radius: var(--radius);
+  padding: var(--space-2) var(--space-6);
+  font-weight: 700;
+  background-color: var(--color-primary);
+  color: #ffffff;
+  border: 1px solid transparent;
+}
+
+.button-secondary {
+  background-color: transparent;
+  color: var(--color-text);
+  border-color: var(--color-border);
+}
+```
+
+`index.html`의 히어로 버튼 2개에는 `class="button"`과 `class="button button-secondary"`가 이미 붙어 있습니다(`modern_html`이 만든 마크업 그대로입니다). 기본 버튼은 `.button` 하나만으로 파란 배경이 적용되고, 보조 버튼은 `.button`에 `.button-secondary`가 덧붙어 배경을 지우고 테두리만 남깁니다. 이 편에서는 마크업을 바꾸지 않고 CSS만 추가합니다.
+
+### 3. 히어로 배경에 그라디언트 적용
+
+```css
+.hero {
+  background-image: linear-gradient(135deg, var(--color-surface), var(--color-bg));
+  padding: var(--space-16) 0;
+}
+```
+
+### 4. 폼 요소 배경·테두리도 함께 정리
+
+`contact.html`의 입력 필드도 이 편에서 배경·테두리 색을 미리 연결해 둡니다(폼 레이아웃 자체는 15편에서 다룹니다).
+
+```css
+.contact-form input,
+.contact-form select,
+.contact-form textarea {
+  background-color: var(--color-bg);
+  border: 1px solid var(--color-border);
+  color: var(--color-text);
+}
+
+.contact-form input:invalid,
+.contact-form textarea:invalid {
+  border-color: var(--color-accent);
+}
+```
+
+`:invalid`는 `required`·`minlength`·`type="email"` 같은 HTML 검증 속성을 만족하지 못한 입력에 브라우저가 자동으로 붙이는 상태입니다. 마크업을 바꾸지 않고도 색만으로 오류 상태를 구분할 수 있습니다.
+
+### 5. 카드·표 배경 정리
+
+```css
+.project-card {
+  background-color: var(--color-surface);
+  border: 1px solid var(--color-border);
+}
+
+.career th {
+  background-color: var(--color-surface);
+}
+
+.career td,
+.career th {
+  border-bottom: 1px solid var(--color-border);
+}
+```
+
+### 6. 실행
+
+파일을 저장하고 `index.html`·`projects.html`·`contact.html`을 각각 브라우저로 새로고침합니다.
+
+### 7. 확인
+
+- 히어로 섹션 배경이 위에서 아래로(135도 대각선) `--color-surface`에서 `--color-bg`로 부드럽게 바뀝니다.
+- 기본 버튼은 파란 배경에 흰 글자, 보조 버튼은 테두리만 있는 흰 배경으로 구분됩니다.
+- 본문 링크(경력 표 안 링크가 있다면)에 마우스를 올리면 색이 진해지고 밑줄이 나타납니다.
+- 프로젝트 카드 배경이 페이지 배경과 다른 회색조(`--color-surface`)로 구분됩니다.
+- `contact.html`에서 필수 입력을 비운 채 포커스를 옮기면 테두리가 `--color-accent`로 바뀝니다.
+- 개발자 도구에서 `.button`의 Computed `background-color`가 `rgb(9, 105, 218)`(hex `#0969da`의 계산값)로 보입니다.
+
+</Steps>
+
+## 직접 해보기
+
+1. `.hero`의 그라디언트 각도를 `135deg`에서 `to bottom`으로 바꿔 방향이 어떻게 달라지는지 비교해 보세요.
+2. `--color-accent`(`#bf3989`)를 `.faq summary`에 `color`로 적용해 FAQ 질문만 강조색으로 보이게 해 보세요(19편에서 다시 다룰 부분을 미리 맛봅니다).
+
+<details>
+<summary>정답 확인</summary>
+
+1. `to bottom`은 각도 키워드로, 그라디언트가 위에서 아래로 수직으로만 흐릅니다. `135deg`는 왼쪽 위에서 오른쪽 아래로 대각선으로 흐르므로 더 입체적으로 보입니다.
+2. `.faq summary { color: var(--color-accent); }`를 추가하면 됩니다. 다만 이 규칙은 19편에서 `<details>`를 본격적으로 다룰 때 화살표 스타일과 함께 정리하는 편이 낫습니다. 지금은 색상 변수 연결 감각만 확인하면 충분합니다.
+
+</details>
+
+## 자주 하는 실수
+
+| 증상 | 원인 | 고치는 법 |
+|------|------|-----------|
+| 그라디언트가 안 보인다 | `background-color`에 `linear-gradient`를 넣었다 | `background-image` 또는 단축 속성 `background`에 넣는다 |
+| 버튼 글자색이 배경과 겹쳐 안 보인다 | `.button`에 배경만 넣고 글자색은 안 넣어 상속된 어두운 글자색이 그대로 남았다 | 배경·글자색은 항상 같은 규칙 안에서 짝으로 지정 |
+| 카드 배경이 페이지 배경과 구분 안 된다 | `--color-surface`와 `--color-bg`를 같은 값으로 착각해 둘 다 흰색을 썼다 | `tokens.css`에서 두 값이 다른지(`#f6f7f9` vs `#ffffff`) 다시 확인 |
+| hover 색이 안 바뀐다 | `a:hover` 규칙이 `a` 규칙보다 스타일시트에서 앞에 있다 | 캐스케이드는 소스 순서를 따르므로 `:hover`는 기본 규칙 뒤에 배치 |
+
+## 확인 문제
+
+<Quiz
+  questionNumber={1}
+  question="선형 그라디언트를 배경으로 쓸 때 올바른 속성은?"
+  options={['background-color', 'background-image', 'color', 'border-image']}
+  correctAnswer={2}
+  explanation="그라디언트는 이미지로 취급되므로 background-image(또는 단축 속성 background)에 지정합니다."
+  optionExplanations={['단색 배경 전용 속성입니다', '정답입니다', '글자색 속성입니다', '테두리 이미지 속성으로 이 사이트에서 쓰지 않습니다']}
+/>
+
+<Quiz
+  questionNumber={2}
+  question="이 포트폴리오의 히어로 배경 그라디언트 방향으로 지정한 각도는?"
+  options={['0deg', '90deg', '135deg', '180deg']}
+  correctAnswer={3}
+  explanation="linear-gradient(135deg, ...)로 왼쪽 위에서 오른쪽 아래로 대각선 방향을 지정합니다."
+  optionExplanations={['위에서 아래 방향이 아닙니다', '왼쪽에서 오른쪽 방향입니다', '정답입니다', '아래에서 위 방향이 아닙니다']}
+/>
+
+<Quiz
+  questionNumber={3}
+  question="a:hover 규칙이 적용되지 않을 때 가장 먼저 의심할 부분은?"
+  options={['tokens.css 파일명이 잘못됐는지', 'a:hover가 a보다 스타일시트에서 앞에 있는지', 'HTML에 a 태그가 없는지', '브라우저 캐시 문제인지만']}
+  correctAnswer={2}
+  explanation="캐스케이드는 소스 순서를 따르므로, 명시도가 같다면 나중에 나온 규칙이 이깁니다. a:hover가 a보다 앞에 있으면 기본 a 규칙에 덮여 무시될 수 있습니다."
+  optionExplanations={['파일명 문제라면 색 자체가 전혀 적용되지 않습니다', '정답입니다', '이 사이트는 이미 링크가 있는 마크업입니다', '순서 문제를 먼저 확인하는 것이 우선입니다']}
+/>
+
+## 참고 자료
+
+- [MDN — Applying color to HTML elements using CSS](https://developer.mozilla.org/en-US/docs/Web/CSS/CSS_colors/Applying_color)

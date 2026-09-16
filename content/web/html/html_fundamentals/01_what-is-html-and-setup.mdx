@@ -1,0 +1,191 @@
+---
+title: '01. HTML이란 무엇인가: 역할 분담과 시작 준비'
+description: '웹 페이지가 HTML·CSS·JS로 나뉘는 이유를 정리하고, 포트폴리오 실습 폴더와 스타터 파일을 준비합니다'
+---
+
+<Callout type="info">
+  **이번 편의 결과물:** `web-practice/portfolio/` 폴더가 만들어지고 디자인 시안(design-spec.md)·원고(copy.md)·이미지가 받아져 있습니다. **다루는 개념:** HTML·CSS·JS 역할 분담, 요소·태그 개념 예고, 4개 과목이 함께 만드는 포트폴리오 프로젝트 개요, 스타터 파일 구조
+</Callout>
+
+## 이 편에서 만드는 파일
+
+```
+web-practice/
++ portfolio/
+  + design-spec.md
+  + copy.md
+  + favicon.svg
+  + images/
+    + profile.svg
+    + project-01.svg ~ project-06.svg
+    + og-image.svg
+```
+
+## 개념 정리
+
+### HTML·CSS·JS는 왜 나뉘어 있는가
+
+웹 페이지 하나는 세 가지 언어가 각자 다른 역할을 맡아 만듭니다. 한 언어가 다른 언어의 역할을 대신하면 유지보수가 어려워지므로, 이 과목부터 시작해 4개 과목 내내 이 역할 분담을 지킵니다.
+
+| 언어 | 역할 | 이 과목에서 다루는가 |
+|------|------|----------------------|
+| HTML | 구조와 의미(제목인지, 목록인지, 표인지) | 다룬다 |
+| CSS | 색·레이아웃·타이포 같은 모양 | 다루지 않는다(`css/css_fundamentals` 담당) |
+| JavaScript | 클릭·입력 같은 동작 | 다루지 않는다(`javascript/web_apis` 담당) |
+
+이 과목에서는 **CSS를 한 줄도 쓰지 않습니다.** 완성된 페이지도 브라우저 기본 스타일 그대로 보입니다. 모양이 없어도 구조와 의미만으로 콘텐츠를 전달할 수 있는지 확인하는 것이 목표입니다.
+
+### HTML 요소란 무엇인가(예고)
+
+HTML 문서는 **요소**(element)로 이루어집니다. 요소는 보통 여는 태그·내용·닫는 태그로 구성됩니다. 예를 들어 문단 요소는 `<p>내용</p>` 형태입니다. 태그의 정확한 문법(속성값 인용, 빈 요소 등)은 02편에서 다룹니다. 이번 편에서는 "요소 하나가 콘텐츠 한 덩어리를 감싼다"는 것만 기억합니다.
+
+### 이 과목에서 만드는 것
+
+개인 포트폴리오 사이트를 정적 3페이지로 만듭니다. 가상 인물 Zeno Kim의 사이트이며 실제 개인정보가 아닙니다.
+
+| 파일 | 담는 내용 |
+|------|-----------|
+| `index.html` | 자기소개(히어로·About), 기술 스택 리스트, 경력 표 |
+| `projects.html` | 프로젝트 카드 6개 |
+| `contact.html` | 레이블이 연결된 연락 폼 |
+
+이 세 파일은 `html_fundamentals` → `modern_html` → `css_fundamentals` → `modern_css` 네 과목을 거치며 계속 이어서 자랍니다. 이 과목이 끝나는 16편까지는 CSS 없이 시맨틱 마크업만으로 완성합니다.
+
+## 실습
+
+<Steps>
+
+### 1. 실습 폴더 만들기
+
+VS Code에서 원하는 위치에 `web-practice` 폴더를 열고, 그 안에 `portfolio` 폴더를 만듭니다.
+
+```bash
+mkdir -p web-practice/portfolio
+cd web-practice/portfolio
+mkdir images
+```
+
+### 2. 스타터 파일 받기
+
+이 사이트의 디자인 시안·원고·이미지는 `https://zeno.it.kr/practice/portfolio/` 아래에 그대로 공개되어 있습니다. 터미널에서 `curl`로 받습니다.
+
+```bash
+curl -o design-spec.md https://zeno.it.kr/practice/portfolio/design-spec.md
+curl -o copy.md https://zeno.it.kr/practice/portfolio/copy.md
+curl -o favicon.svg https://zeno.it.kr/practice/portfolio/favicon.svg
+curl -o images/profile.svg https://zeno.it.kr/practice/portfolio/images/profile.svg
+curl -o images/og-image.svg https://zeno.it.kr/practice/portfolio/images/og-image.svg
+```
+
+프로젝트 썸네일 6장은 번호가 바뀌므로 반복문으로 받습니다.
+
+```bash
+for n in 01 02 03 04 05 06; do
+  curl -o "images/project-$n.svg" "https://zeno.it.kr/practice/portfolio/images/project-$n.svg"
+done
+```
+
+터미널 대신 브라우저를 쓴다면 각 URL을 열어 `Ctrl+S`(또는 `Cmd+S`)로 같은 파일명으로 저장합니다.
+
+### 3. 받은 파일 확인
+
+```bash
+ls -R
+```
+
+```text
+.:
+copy.md  design-spec.md  favicon.svg  images
+
+./images:
+og-image.svg  profile.svg  project-01.svg  project-02.svg
+project-03.svg  project-04.svg  project-05.svg  project-06.svg
+```
+
+### 4. 확인
+
+- `design-spec.md`를 열어 1절 "사이트 구성" 표가 보이는지 확인합니다.
+- `copy.md`를 열어 로고 이름이 `Zeno Kim`인지 확인합니다.
+- `images/` 폴더에 svg 파일 8개(프로필 1 + 프로젝트 6 + og 1)가 있는지 확인합니다.
+
+</Steps>
+
+## 직접 해보기
+
+1. `design-spec.md`의 4절 "레이아웃 스펙"에서 브레이크포인트가 몇 단계로 나뉘는지 찾아보세요.
+
+<details>
+<summary>답 보기</summary>
+
+3단계입니다. 모바일(기본, ~767px)·태블릿(768px 이상)·데스크톱(1024px 이상)이며, css_fundamentals 과목에서 실제로 적용합니다.
+
+</details>
+
+2. `copy.md`에서 `contact.html`의 제출 버튼 문구를 찾아보세요.
+
+<details>
+<summary>답 보기</summary>
+
+`보내기`입니다. 11편에서 실제 버튼 요소로 만듭니다.
+
+</details>
+
+## 자주 하는 실수
+
+| 증상 | 원인 | 고치는 법 |
+|------|------|-----------|
+| `curl` 실행 시 `command not found` | Windows 기본 셸에 `curl`이 없는 구버전 | PowerShell에서는 `curl`이 `Invoke-WebRequest` 별칭이므로 그대로 실행하거나 브라우저로 다운로드 |
+| 받은 파일이 0바이트 | URL 오타(대소문자·확장자) | 파일명은 소문자, 확장자는 `.svg`·`.md`까지 정확히 입력 |
+| `images` 폴더가 안 만들어짐 | `mkdir images`를 `portfolio` 밖에서 실행 | `cd web-practice/portfolio`부터 다시 실행 |
+| 이미지가 열리지 않음 | 저장 시 확장자가 `.svg.txt`로 붙음 | 브라우저 저장 대화상자에서 파일 형식을 "모든 파일"로 바꾸고 저장 |
+
+## 확인 문제
+
+<Quiz
+  questionNumber={1}
+  question="이 과목에서 CSS를 다루지 않는 이유로 가장 알맞은 것은?"
+  options={['CSS 문법이 너무 어려워서', 'HTML과 CSS가 서로 다른 역할을 맡고, CSS는 css_fundamentals 과목이 담당하기 때문', 'CSS는 브라우저마다 다르게 동작해서', '포트폴리오 사이트에는 CSS가 필요 없어서']}
+  correctAnswer={2}
+  explanation="HTML은 구조와 의미, CSS는 모양을 담당합니다. 역할이 나뉘어 있으므로 이 과목은 구조에만 집중하고, 모양은 뒤 과목이 이어받습니다."
+  optionExplanations={['문법 난이도와는 관계없는 설계 원칙입니다.', '정답입니다. 역할 분담이 핵심 이유입니다.', '브라우저 호환성과는 관계없는 이유입니다.', '실제로는 css_fundamentals에서 같은 파일에 스타일을 입힙니다.']}
+/>
+
+<Quiz
+  questionNumber={2}
+  question="이 과목이 끝난 16편 시점의 포트폴리오 상태로 알맞은 것은?"
+  options={['CSS로 완전히 꾸며져 있다', 'JavaScript로 동작하는 다이얼로그가 있다', '시맨틱 마크업만 있고 CSS는 전혀 없다', '아직 폴더도 만들지 않은 상태다']}
+  correctAnswer={3}
+  explanation="html_fundamentals은 CSS 없이 시맨틱 마크업만으로 3페이지를 완성합니다. 스타일은 css_fundamentals부터, 동작은 modern_html·web_apis부터 추가됩니다."
+  optionExplanations={['CSS는 css_fundamentals의 몫입니다.', '다이얼로그는 modern_html에서 다룹니다.', '정답입니다.', '01편에서 이미 폴더와 스타터 파일을 준비합니다.']}
+/>
+
+<Quiz
+  questionNumber={3}
+  question="포트폴리오 3페이지 중 프로젝트 카드 6개가 들어가는 파일은?"
+  options={['index.html', 'projects.html', 'contact.html', 'about.html']}
+  correctAnswer={2}
+  explanation="projects.html이 프로젝트 카드 그리드를 담당합니다. index.html은 자기소개, contact.html은 연락 폼을 담당합니다."
+  optionExplanations={['index.html은 자기소개·기술 스택·경력을 담습니다.', '정답입니다.', 'contact.html은 연락 폼입니다.', '이 사이트에는 about.html이라는 별도 파일이 없습니다.']}
+/>
+
+<Quiz
+  questionNumber={4}
+  question="design-spec.md와 copy.md를 그대로 따라야 하는 이유로 가장 알맞은 것은?"
+  options={['시험에 나오기 때문에', '4개 과목이 같은 파일을 이어서 완성하므로 이름·값·문구가 어긋나면 뒤 과목 실습이 깨지기 때문', 'HTML 표준이 이 이름을 강제하기 때문', 'W3C 검증기가 이 이름만 통과시키기 때문']}
+  correctAnswer={2}
+  explanation="html_fundamentals에서 정한 class명·id·문구를 css_fundamentals·modern_css가 선택자로 그대로 참조합니다. 이름이 달라지면 뒤 과목 코드가 대상 요소를 찾지 못합니다."
+  optionExplanations={['시험 대비 과목이 아닙니다.', '정답입니다.', 'HTML 표준은 특정 이름을 강제하지 않습니다.', '검증기는 이름과 무관하게 문법만 검사합니다.']}
+/>
+
+<Quiz
+  questionNumber={5}
+  question="HTML 요소의 기본 구성으로 알맞은 것은?"
+  options={['여는 태그 + 내용 + 닫는 태그', '속성값 + 콘텐츠 모델', 'CSS 선택자 + 선언', '이벤트 + 핸들러 함수']}
+  correctAnswer={1}
+  explanation="요소는 보통 여는 태그와 닫는 태그가 내용을 감싸는 형태입니다. 정확한 태그·속성 문법은 02편에서 다룹니다."
+  optionExplanations={['정답입니다.', '콘텐츠 모델은 02편에서 다루는 별도 개념입니다.', 'CSS 선택자·선언은 css_fundamentals의 개념입니다.', '이벤트·핸들러는 web_apis에서 다루는 JavaScript 개념입니다.']}
+/>
+
+## 참고 자료
+
+- [WHATWG — HTML Living Standard](https://html.spec.whatwg.org/multipage/)

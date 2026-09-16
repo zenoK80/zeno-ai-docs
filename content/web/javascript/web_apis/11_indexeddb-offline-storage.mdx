@@ -1,0 +1,300 @@
+---
+title: '11. IndexedDB로 오프라인 저장 전환'
+description: 'localStorage를 IndexedDB로 바꿔 대량 메모를 저장하고 네트워크 없이도 목록을 불러옵니다.'
+---
+
+<Callout type="info">
+  **이번 편의 결과물:** 메모가 IndexedDB에 저장되고, 서버 연결 없이도 이전 메모 목록이 화면에 나타납니다. · **다루는 개념:** 오브젝트 스토어 생성, `transaction`/`objectStore`, 비동기 이벤트 기반 API, localStorage→IndexedDB 마이그레이션
+</Callout>
+
+## 이 편에서 만드는 파일
+
+```
+notes-app/
+└── src/
+    ├── storage.js   (~)
+    ├── notes.js     (~)
+    └── main.js      (~)
+```
+
+## 개념 정리
+
+### localStorage의 한계
+
+07편에서 만든 `localStorage` 저장은 문자열만 다루고, 용량이 보통 5MB 안팎으로 제한되며, 모든 읽기·쓰기가 동기(synchronous)로 동작해 메모가 많아지면 메인 스레드를 멈춥니다. `IndexedDB`는 객체를 그대로 저장하고, 용량 제한이 훨씬 크며, 모든 API가 비동기입니다.
+
+| 비교 항목 | localStorage | IndexedDB |
+|-----------|--------------|-----------|
+| 저장 형태 | 문자열(JSON 직렬화 필요) | 객체 그대로 |
+| 동작 방식 | 동기 | 비동기(이벤트 기반) |
+| 용량 | 약 5MB | 수백 MB 이상(브라우저마다 다름) |
+| 조회 방식 | key로만 | 인덱스·범위 조회 지원 |
+
+### 핵심 구성 요소
+
+| 용어 | 의미 |
+|------|------|
+| 데이터베이스(database) | `notes-app-db`처럼 이름과 버전을 가진 저장 공간 전체 |
+| 오브젝트 스토어(object store) | 관계형 DB의 테이블에 해당. 여기서는 `notes` 스토어 하나 |
+| 트랜잭션(transaction) | 스토어 접근은 반드시 트랜잭션 안에서만 가능 |
+| `keyPath` | 각 레코드를 구분하는 필드 이름(`id`) |
+
+`indexedDB.open` 요청은 `onupgradeneeded`, `onsuccess`, `onerror` 세 콜백으로 결과를 알립니다. Promise를 직접 반환하지 않으므로, 사용하기 편하도록 Promise로 감싸는 헬퍼를 만듭니다.
+
+## 실습
+
+<Steps>
+
+### 1. src/storage.js 다시 작성
+
+07편의 `localStorage` 기반 `saveNotes`/`loadNotes`를 IndexedDB 버전으로 교체하고, 기존 데이터를 한 번만 옮기는 마이그레이션 함수를 추가합니다.
+
+### 2. 코드 작성
+
+```js
+// src/storage.js
+const DB_NAME = 'notes-app-db'
+const DB_VERSION = 1
+const STORE_NAME = 'notes'
+const LEGACY_KEY = 'notes-app:notes'
+
+let dbPromise = null
+
+function openDatabase() {
+  if (dbPromise) return dbPromise
+  dbPromise = new Promise((resolve, reject) => {
+    const request = indexedDB.open(DB_NAME, DB_VERSION)
+
+    request.onupgradeneeded = (event) => {
+      const db = event.target.result
+      if (!db.objectStoreNames.contains(STORE_NAME)) {
+        db.createObjectStore(STORE_NAME, { keyPath: 'id' })
+      }
+    }
+
+    request.onsuccess = (event) => resolve(event.target.result)
+    request.onerror = (event) => reject(event.target.error)
+  })
+  return dbPromise
+}
+
+export async function getAllNotes() {
+  const db = await openDatabase()
+  return new Promise((resolve, reject) => {
+    const tx = db.transaction(STORE_NAME, 'readonly')
+    const store = tx.objectStore(STORE_NAME)
+    const request = store.getAll()
+    request.onsuccess = () => resolve(request.result)
+    request.onerror = () => reject(request.error)
+  })
+}
+
+export async function putNote(note) {
+  const db = await openDatabase()
+  return new Promise((resolve, reject) => {
+    const tx = db.transaction(STORE_NAME, 'readwrite')
+    tx.objectStore(STORE_NAME).put(note)
+    tx.oncomplete = () => resolve(note)
+    tx.onerror = () => reject(tx.error)
+  })
+}
+
+export async function deleteNote(id) {
+  const db = await openDatabase()
+  return new Promise((resolve, reject) => {
+    const tx = db.transaction(STORE_NAME, 'readwrite')
+    tx.objectStore(STORE_NAME).delete(id)
+    tx.oncomplete = () => resolve()
+    tx.onerror = () => reject(tx.error)
+  })
+}
+
+export async function migrateFromLocalStorage() {
+  const raw = localStorage.getItem(LEGACY_KEY)
+  if (!raw) return
+  const legacyNotes = JSON.parse(raw)
+  const db = await openDatabase()
+  await new Promise((resolve, reject) => {
+    const tx = db.transaction(STORE_NAME, 'readwrite')
+    const store = tx.objectStore(STORE_NAME)
+    legacyNotes.forEach((note) => store.put(note))
+    tx.oncomplete = resolve
+    tx.onerror = () => reject(tx.error)
+  })
+  localStorage.removeItem(LEGACY_KEY)
+}
+```
+
+`getAllNotes`, `putNote`, `deleteNote`는 각각 하나의 트랜잭션 안에서 요청 하나만 수행합니다. `migrateFromLocalStorage`는 기존 `localStorage` 데이터가 있을 때만 한 번 옮기고, 옮긴 뒤에는 원본 키를 지워 다음 실행부터는 다시 실행되지 않게 합니다.
+
+### 3. src/notes.js를 비동기 호출로 변경
+
+```js
+// src/notes.js
+import { getAllNotes, putNote, deleteNote } from './storage.js'
+
+export async function loadAllNotes() {
+  return getAllNotes()
+}
+
+export async function addNote({ id, title, body, tags = [], pinned = false, updatedAt }) {
+  const note = {
+    id: id ?? crypto.randomUUID(),
+    title,
+    body,
+    tags,
+    pinned,
+    updatedAt: updatedAt ?? new Date().toISOString(),
+  }
+  await putNote(note)
+  return note
+}
+
+export async function editNote(id, patch) {
+  const notes = await getAllNotes()
+  const target = notes.find((note) => note.id === id)
+  if (!target) throw new Error(`메모를 찾을 수 없습니다: ${id}`)
+  const updated = { ...target, ...patch, updatedAt: new Date().toISOString() }
+  await putNote(updated)
+  return updated
+}
+
+export async function removeNote(id) {
+  await deleteNote(id)
+}
+```
+
+`crypto.randomUUID()`로 id를 만들어 서버 동기화 전에도 고유한 값을 갖도록 합니다. `editNote`는 먼저 전체 목록에서 대상을 찾은 뒤 병합한 객체를 다시 저장합니다.
+
+### 4. src/main.js에서 초기 로딩 순서 변경
+
+10편에서 만든 `showList`/`showDetail`은 `fetchNotes`(json-server)로 목록을 가져왔습니다. 이제 `notes.js`가 IndexedDB 기반으로 바뀌었으므로, 두 라우트 핸들러가 `loadAllNotes`를 쓰도록 바꾸고, `initRouter()` 호출 전에 마이그레이션을 먼저 끝냅니다.
+
+```js
+// src/main.js (10편의 showList/showDetail, 초기화 부분만 교체. registerRoute·document.body 리스너는 그대로 유지)
+import { migrateFromLocalStorage } from './storage.js'
+import { loadAllNotes } from './notes.js'
+import { renderList, renderDetail } from './render.js'
+import { initRouter } from './router.js'
+
+const viewRoot = document.querySelector('#note-list')
+
+async function showList() {
+  const notes = await loadAllNotes()
+  renderList(notes, viewRoot)
+}
+
+async function showDetail(params) {
+  const notes = await loadAllNotes()
+  const note = notes.find((item) => String(item.id) === params.id)
+  renderDetail(note, viewRoot)
+}
+
+async function bootstrap() {
+  await migrateFromLocalStorage()
+  initRouter()
+}
+
+bootstrap()
+```
+
+`showList`, `showDetail`은 10편에서 `registerRoute`에 이미 등록해 둔 함수를 같은 이름으로 다시 정의하는 것이므로 별도 등록 코드가 필요 없습니다. `bootstrap`은 마이그레이션이 끝난 뒤에만 `initRouter()`를 호출해, 첫 화면이 옛 `localStorage` 데이터를 보기 전에 IndexedDB로 옮겨진 최신 데이터를 읽게 합니다.
+
+`removeNote`가 이제 비동기 함수이므로, 10편에서 만든 삭제 버튼 리스너의 `removeNote(id)` 앞에도 `await`를 붙입니다.
+
+```js
+// src/main.js의 document.body 클릭 리스너 중 삭제 분기(10편 코드에 await만 추가)
+if (deleteBtn) {
+  const id = deleteBtn.closest('li').dataset.id
+  try {
+    await deleteNoteOnServer(id)
+  } catch (error) {
+    console.error(error)
+  }
+  await removeNote(id)
+  refresh()
+}
+```
+
+### 5. 실행
+
+```text
+npm run dev
+```
+
+</Steps>
+
+## 확인
+
+- 브라우저 개발자 도구 애플리케이션(Application) 탭에서 IndexedDB → `notes-app-db` → `notes` 스토어에 메모 레코드가 보입니다.
+- 개발자 도구 네트워크 탭을 오프라인으로 설정한 뒤 새로고침해도 메모 목록이 그대로 뜹니다.
+- 이전에 `localStorage`에 저장해뒀던 메모가 있다면, 첫 실행 후 애플리케이션 탭의 로컬 스토리지 항목이 사라지고 IndexedDB에 옮겨져 있습니다.
+
+## 직접 해보기
+
+1. `notes` 스토어에 `tags` 필드를 대상으로 하는 인덱스(`store.createIndex('tags', 'tags', { multiEntry: true })`)를 추가해, 태그 하나로 메모를 조회하는 함수를 만들어봅니다.
+2. `deleteNote`가 존재하지 않는 id를 받았을 때도 에러 없이 조용히 끝나는지 확인하고, 필요하면 사전 확인 로직을 추가합니다.
+
+<details>
+<summary>정답 보기</summary>
+
+```js
+request.onupgradeneeded = (event) => {
+  const db = event.target.result
+  const store = db.createObjectStore(STORE_NAME, { keyPath: 'id' })
+  store.createIndex('tags', 'tags', { multiEntry: true })
+}
+```
+
+</details>
+
+## 자주 하는 실수
+
+| 증상 | 원인 | 고치는 법 |
+|------|------|-----------|
+| `objectStore(...) undefined` 에러 | 트랜잭션 범위 밖에서 스토어에 접근 시도 | 스토어 접근은 항상 같은 `transaction` 호출 안에서만 한다 |
+| `onupgradeneeded`가 두 번째 실행부터 호출 안 됨 | 정상 동작. 스토어는 버전이 바뀔 때만 다시 생성됨 | 스키마를 바꿀 때는 `DB_VERSION`을 올린다 |
+| 마이그레이션이 새로고침마다 반복됨 | `localStorage.removeItem`을 호출하지 않음 | 마이그레이션 성공 후 반드시 원본 키를 지운다 |
+
+## 확인 문제
+
+<Quiz
+  questionNumber={1}
+  question="IndexedDB가 localStorage와 다른 가장 큰 특징은?"
+  options={['문자열만 저장할 수 있다', '모든 API가 비동기 이벤트 기반이다', '브라우저를 껐다 켜면 데이터가 사라진다', '용량 제한이 없어 무제한 저장이 가능하다']}
+  correctAnswer={2}
+  explanation="IndexedDB의 모든 읽기·쓰기 요청은 이벤트(onsuccess, onerror, oncomplete)를 통해 비동기로 결과를 알립니다."
+  optionExplanations={['문자열이 아니라 객체를 그대로 저장합니다', '정답입니다', '영구 저장소이므로 재시작해도 유지됩니다', '무제한은 아니며 브라우저별 상한이 있습니다']}
+/>
+
+<Quiz
+  questionNumber={2}
+  question="IndexedDB에서 스토어에 접근하려면 반드시 거쳐야 하는 것은?"
+  options={['localStorage.getItem', 'transaction', 'JSON.stringify', 'fetch']}
+  correctAnswer={2}
+  explanation="오브젝트 스토어 접근은 db.transaction으로 만든 트랜잭션 범위 안에서만 가능합니다."
+  optionExplanations={['localStorage와는 다른 API입니다', '정답입니다', '직렬화 없이 객체를 그대로 저장합니다', '네트워크 요청과는 무관합니다']}
+/>
+
+<Quiz
+  questionNumber={3}
+  question="onupgradeneeded 콜백이 호출되는 시점으로 옳은 것은?"
+  options={['데이터를 조회할 때마다', '데이터베이스가 처음 생성되거나 버전이 올라갈 때', '트랜잭션이 실패했을 때', '브라우저 탭을 닫을 때']}
+  correctAnswer={2}
+  explanation="onupgradeneeded는 지정한 DB_VERSION이 기존 버전보다 높을 때(최초 생성 포함) 스키마를 만들거나 바꿀 기회로 호출됩니다."
+  optionExplanations={['조회마다 호출되지 않습니다', '정답입니다', '실패 처리는 onerror의 역할입니다', '탭 종료와는 무관합니다']}
+/>
+
+<Quiz
+  questionNumber={4}
+  question="localStorage에서 IndexedDB로 마이그레이션 후 localStorage.removeItem을 호출하는 이유는?"
+  options={['IndexedDB 용량을 늘리기 위해', '다음 실행 시 마이그레이션이 중복 실행되지 않도록 하기 위해', 'fetch 요청 속도를 높이기 위해', 'CSS 스타일을 초기화하기 위해']}
+  correctAnswer={2}
+  explanation="원본 키를 지우지 않으면 매번 실행 시 조건문이 다시 참이 되어 같은 데이터를 반복해서 옮기려 시도합니다."
+  optionExplanations={['용량과는 무관합니다', '정답입니다', 'fetch 속도와는 무관합니다', 'CSS와는 무관합니다']}
+/>
+
+## 참고 자료
+
+- [MDN - IndexedDB API](https://developer.mozilla.org/en-US/docs/Web/API/IndexedDB_API)
+- [MDN - IDBObjectStore](https://developer.mozilla.org/en-US/docs/Web/API/IDBObjectStore)

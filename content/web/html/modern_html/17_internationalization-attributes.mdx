@@ -1,0 +1,174 @@
+---
+title: '17. 국제화 속성으로 다국어 표기 다듬기'
+description: 'lang·dir·bdi·ruby로 포트폴리오의 다국어 표기를 정확하게 다듬는다'
+---
+
+<Callout type="info">
+  **이번 편의 결과물:** 페이지 곳곳의 `lang` 속성이 정확해지고, 영문 프로젝트명 옆에 `ruby`로 한글 발음이 표기된다 · **다루는 개념:** `lang`, `dir`과 `bdi`, `ruby`/`rt`/`rp`
+</Callout>
+
+## 이 편에서 만드는 파일
+
+```text
+web-practice/portfolio/
+├── index.html       ~ (본문 영단어에 lang="en" 부여, 도구 이름에 ruby 발음 추가)
+├── projects.html    ~ (영문 프로젝트명에 ruby 발음 추가)
+└── contact.html     ~ (FAQ 답변의 영단어에 lang="en" 부여)
+```
+
+## 개념 정리
+
+`lang` 속성은 문서나 특정 구간의 언어를 선언한다. 스크린 리더는 이 값을 보고 발음을 바꾸고, CSS는 `:lang()` 선택자로 언어별 스타일을 줄 수 있다. `<html lang="ko">`처럼 문서 전체에 한 번 선언하고, 문장 중간에 다른 언어 단어가 섞이면 그 구간만 `<span lang="en">React</span>`로 다시 선언한다. 그래야 한국어 음성엔진이 영단어를 한국어 발음 규칙으로 읽지 않는다.
+
+`dir`은 텍스트 방향(`ltr`/`rtl`/`auto`)을 정한다. 대부분의 한국어 페이지는 `ltr`을 벗어날 일이 없지만, 방향을 알 수 없는 값(사용자가 입력한 이름, 외부에서 받아온 문자열)을 한국어 문장 사이에 끼워 넣을 때는 `<bdi>`(bidirectional isolation)로 감싼다. `<bdi>`는 안의 텍스트 방향이 바깥 문장에 영향을 주지 않도록 격리한다. 이름 자체가 오른쪽에서 왼쪽으로 읽는 문자여도 주변 한국어 문장의 순서가 흐트러지지 않는다.
+
+`<ruby>`는 원문 위(또는 옆)에 작은 발음·설명을 붙이는 요소다. `<rt>`가 발음 텍스트이고, `<rp>`는 `<ruby>`를 지원하지 않는 브라우저에서 괄호로 대체 표시할 문자다.
+
+| 속성/요소 | 역할 | 안 쓰면 생기는 문제 |
+|-----------|------|----------------------|
+| `lang` (구간별) | 스크린 리더 발음, `:lang()` 선택자 | 영단어를 한국어 발음 규칙으로 잘못 읽음 |
+| `dir="auto"` / `<bdi>` | 방향을 모르는 문자열 격리 | 문장 순서가 뒤섞여 보임 |
+| `<ruby>`/`<rt>`/`<rp>` | 발음·읽는 법 병기 | 영문 이름을 어떻게 읽는지 알 수 없음 |
+
+**흔한 오해:** "`lang="ko"`를 문서 최상단에 한 번 넣으면 끝"이라고 생각하기 쉽다. 문장 안에 섞인 영단어·고유명사는 별도로 감싸야 발음이 정확해진다.
+
+## 실습
+
+<Steps>
+
+### 1. 파일 열기
+
+`web-practice/portfolio/index.html`, `projects.html`, `contact.html`을 연다.
+
+### 2. 코드 작성
+
+`index.html`의 소개 문단과 기술 스택 목록에서 영단어를 `lang="en"`으로 감싸고, 자주 틀리는 발음인 `Vite`에 `ruby`를 붙인다.
+
+```html
+<!-- index.html -->
+<!-- ...기존 코드 유지 -->
+<p>처음에는 디자인 툴로 화면을 그리다가, 직접 만들어 보고 싶어서 HTML과 CSS를 배웠습니다. 지금은 <span lang="en">React</span>로 서비스 화면을 만들고 있습니다.</p>
+<!-- ...기존 코드 유지 -->
+<ul>
+  <li>마크업·스타일: HTML, CSS, Sass</li>
+  <li>언어: <span lang="en">JavaScript</span>, <span lang="en">TypeScript</span></li>
+  <li>프레임워크: <span lang="en">React</span>, <span lang="en">Next.js</span></li>
+  <li>도구: Git, <ruby>Vite<rp>(</rp><rt>비트</rt><rp>)</rp></ruby>, Figma</li>
+</ul>
+<!-- ...기존 코드 유지 -->
+```
+
+`projects.html`은 프로젝트 제목에 영문 이름이 섞여 있다. 03편~16편에서 만든 `bookshelf`·`notes`·`todo-cli` 카드 제목에 `ruby`로 발음을 붙인다.
+
+```html
+<!-- projects.html -->
+<!-- ...기존 코드 유지 -->
+<h2>독서 기록 <ruby>bookshelf<rp>(</rp><rt>북셸프</rt><rp>)</rp></ruby></h2>
+<!-- ...기존 코드 유지 -->
+<h2>메모 앱 <ruby>notes<rp>(</rp><rt>노츠</rt><rp>)</rp></ruby></h2>
+<!-- ...기존 코드 유지 -->
+<h2><ruby>todo-cli<rp>(</rp><rt>투두 씨엘아이</rt><rp>)</rp></ruby></h2>
+<!-- ...기존 코드 유지 -->
+```
+
+`contact.html`의 FAQ 답변에 나오는 도구 이름도 언어를 밝힌다.
+
+```html
+<!-- contact.html -->
+<!-- ...기존 코드 유지 -->
+<details name="faq">
+  <summary>사용하는 도구는 무엇인가요?</summary>
+  <p><span lang="en">VS Code</span>, <span lang="en">Figma</span>, <span lang="en">GitHub</span>를 주로 씁니다.</p>
+</details>
+<!-- ...기존 코드 유지 -->
+```
+
+방향을 모르는 문자열을 다루는 감각을 익히기 위해, `contact.html` 연락처 정보에 협업 시간대를 표기할 때 영문 약어를 `<bdi>` 없이도 안전한 경우와, 외부에서 그대로 받아온 이름처럼 방향을 예측할 수 없는 문자열은 `<bdi>`로 감싸야 하는 경우를 구분해 둔다.
+
+```html
+<!-- contact.html -->
+<!-- ...기존 코드 유지 -->
+<p>업무 시간: 평일 10:00 – 18:00 (<span lang="en">KST</span>)</p>
+<!-- 외부 협업자 이름처럼 방향을 예측할 수 없는 문자열을 표시할 때만 <bdi>를 쓴다 -->
+<!-- 예: <p>추천인: <bdi>{외부에서 받아온 이름}</bdi>님</p> -->
+<!-- ...기존 코드 유지 -->
+```
+
+### 3. 실행
+
+VS Code Live Server 또는 `npx serve web-practice/portfolio`로 로컬 서버를 띄운다.
+
+### 4. 확인
+
+- `index.html` 기술 스택 목록에서 `Vite` 옆에 작게 "비트"가 표시된다.
+- `projects.html`의 "독서 기록 bookshelf"와 "메모 앱 notes", "todo-cli" 카드 제목 옆에 발음이 붙어 있다.
+- 브라우저 개발자 도구 요소 검사에서 `<span lang="en">` 구간이 문서 기본 언어(`ko`)와 다르게 표시된다.
+- macOS VoiceOver나 Windows 내레이터로 소개 문단을 읽으면 `React`, `JavaScript`가 영어 발음으로 읽힌다.
+
+</Steps>
+
+## 직접 해보기
+
+1. `contact.html`의 연락처 정보에서 이메일 주소(`hello@zeno.example`)처럼 영문과 기호가 섞인 문자열에도 `lang="en"`이 필요한지 판단해 보고, 필요 없다면 그 이유를 한 줄로 적어 본다.
+
+<details>
+<summary>답 보기</summary>
+
+이메일 주소는 발음해서 듣는 텍스트가 아니라 그대로 복사해 쓰는 식별자에 가깝다. 스크린 리더도 이메일 형식을 감지하면 별도 규칙으로 읽어 주는 경우가 많아, `lang` 없이 두어도 실사용에 큰 문제가 없다. 다만 팀 컨벤션에 따라 붙이는 것도 틀린 선택은 아니다.
+
+</details>
+
+2. `index.html` 경력 표의 회사명 "스튜디오 파도"는 전부 한국어이므로 `lang` 추가가 필요 없다. 만약 이 표에 해외 지사명이 영문으로 추가된다면 어느 태그에 `lang="en"`을 넣을지 표 구조를 보고 정해 본다.
+
+## 자주 하는 실수
+
+| 증상 | 원인 | 고치는 법 |
+|------|------|-----------|
+| 영단어를 스크린 리더가 이상하게 읽음 | 문장 안 영단어에 `lang` 미지정 | 해당 구간을 `span lang="en"`으로 감싼다 |
+| `ruby` 발음이 데스크톱에서만 보이고 일부 오래된 브라우저에서 괄호 없이 붙어 보임 | `rp` 요소 누락 | `rt` 앞뒤에 `rp`로 대체 괄호를 넣는다 |
+| 외부에서 받아온 이름을 넣었더니 문장 순서가 이상해짐 | 방향을 모르는 문자열을 격리하지 않음 | `bdi`로 감싼다 |
+| `dir="rtl"`을 문서 전체에 걸어 레이아웃이 깨짐 | 격리가 필요한 구간에 전체 방향을 바꿈 | 전체가 아니라 해당 구간만 `bdi`나 `dir="auto"`로 좁힌다 |
+
+## 확인 문제
+
+<Quiz
+  questionNumber={1}
+  question="문장 중간에 섞인 영단어의 발음을 스크린 리더가 정확히 읽게 하려면 무엇을 해야 하는가?"
+  options={['문서 최상단 lang 속성만 ko로 둔다', '해당 구간을 span lang=en으로 감싼다', '영단어를 이미지로 바꾼다', '영단어 앞뒤에 공백을 추가한다']}
+  correctAnswer={2}
+  explanation="문서 전체 언어와 다른 구간은 별도로 lang 속성을 선언해야 스크린 리더가 올바른 발음 규칙을 적용한다."
+  optionExplanations={['문서 전체 선언만으로는 구간별 언어 차이를 반영하지 못한다', '정답이다. 구간별 lang 선언이 발음을 결정한다', '이미지는 대체 텍스트 없이는 접근성이 더 나빠진다', '공백은 발음 규칙에 영향을 주지 않는다']}
+/>
+
+<Quiz
+  questionNumber={2}
+  question="bdi 요소를 쓰는 목적으로 가장 알맞은 것은?"
+  options={['문서 전체의 읽기 방향을 오른쪽에서 왼쪽으로 바꾼다', '방향을 예측할 수 없는 문자열이 주변 문장 순서에 영향을 주지 않도록 격리한다', '발음 기호를 원문 위에 작게 표시한다', '영단어를 볼드로 강조한다']}
+  correctAnswer={2}
+  explanation="bdi는 bidirectional isolation의 약자로, 방향을 알 수 없는 텍스트를 주변 문맥에서 격리해 문장 순서가 흐트러지지 않게 한다."
+  optionExplanations={['문서 전체 방향은 dir 속성으로 다루는 별개의 문제다', '정답이다', '발음 기호는 ruby/rt의 역할이다', '강조는 strong이나 CSS의 역할이다']}
+/>
+
+<Quiz
+  questionNumber={3}
+  question="ruby 요소와 함께 쓰는 rp 요소의 역할은?"
+  options={['발음 텍스트 자체를 담는다', 'ruby를 지원하지 않는 브라우저에서 발음을 괄호로 대체 표시한다', '문서의 언어를 선언한다', '텍스트 방향을 격리한다']}
+  correctAnswer={2}
+  explanation="rp는 ruby annotation을 지원하지 않는 환경에서 rt 내용을 괄호로 감싸 대체 표시하기 위한 요소다."
+  optionExplanations={['발음 텍스트는 rt가 담당한다', '정답이다', '언어 선언은 lang 속성의 역할이다', '방향 격리는 bdi의 역할이다']}
+/>
+
+<Quiz
+  questionNumber={4}
+  question="다음 중 lang 속성을 구간별로 다시 선언해야 하는 경우로 가장 알맞은 것은?"
+  options={['한국어 문장 전체를 읽을 때', '한국어 문장 중간에 영어 단어 React가 섞였을 때', '숫자만 있는 문장을 읽을 때', '이모지만 있는 문장을 읽을 때']}
+  correctAnswer={2}
+  explanation="문서 기본 언어와 다른 언어의 단어가 문장 중간에 섞이면 그 구간만 별도로 lang을 선언해 발음을 정확히 한다."
+  optionExplanations={['문서 기본 lang으로 충분하다', '정답이다', '숫자는 별도 lang 선언이 필요하지 않다', '이모지는 lang 선언 대상이 아니다']}
+/>
+
+## 참고 자료
+
+- [MDN — lang 전역 속성](https://developer.mozilla.org/en-US/docs/Web/HTML/Reference/Global_attributes/lang)
+- [MDN — bdi 요소](https://developer.mozilla.org/en-US/docs/Web/HTML/Reference/Elements/bdi)
+- [MDN — ruby 요소](https://developer.mozilla.org/en-US/docs/Web/HTML/Reference/Elements/ruby)

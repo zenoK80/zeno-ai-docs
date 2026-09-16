@@ -1,0 +1,520 @@
+---
+title: '18. prefers-* 대응과 완료 점검'
+description: '모든 모션을 prefers-reduced-motion에 반응하게 하고, css/ 정본 전체로 과목을 마무리합니다'
+---
+
+<Callout type="info">
+  **이번 편의 결과물:** 다크모드·뷰 전환·스크롤 연동 애니메이션이 전부 `prefers-reduced-motion: reduce`에서 꺼지고, `prefers-contrast: more`에서 테두리·글자 대비가 강해집니다. `css/tokens.css`와 `css/styles.css` 정본 전체를 다시 실어 이 과목에서 만든 `@supports` 폴백을 한 번에 점검합니다. **다루는 개념:** `prefers-reduced-motion`/`prefers-color-scheme`/`prefers-contrast`, `@supports` 폴백 총정리, `01_학습방향.md` 완료 기준 5가지 자가 점검
+</Callout>
+
+## 이 편에서 만드는 파일
+
+```text
+web-practice/portfolio/
+└── css/
+    ├── tokens.css              ~ (prefers-contrast 대응 토큰 추가 — 정본 전체 수록)
+    └── styles.css              ~ (prefers-reduced-motion 총정리 규칙 추가 — 정본 전체 수록)
+web-practice/lessons/modern-css/
+└── 18_prefers-media-and-fallback-checklist/
+    └── checklist.md             + (완료 기준 5가지 자가 점검표)
+```
+
+## 개념 정리
+
+`prefers-*` 미디어 기능은 운영체제 설정을 CSS에서 읽는 방법입니다. 지금까지 편에서 색·모션 기능을 만들 때마다 이 값을 하나씩 썼는데, 이번 편에서 셋을 한 파일에 모아 사이트 전체에 일관되게 적용합니다.
+
+| 미디어 기능 | 값 | 의미 |
+|-------------|-----|------|
+| `prefers-reduced-motion` | `reduce` / `no-preference` | 시스템에서 모션 최소화를 켰는지 |
+| `prefers-color-scheme` | `light` / `dark` | 시스템 색상 모드(13편의 `light-dark()`가 기본값으로 참조) |
+| `prefers-contrast` | `more` / `less` / `no-preference` | 시스템에서 고대비 모드를 켰는지 |
+
+세 기능 모두 널리 사용 가능(Baseline widely available)이라 폴백 없이 바로 써도 됩니다. 다만 **이 기능들이 반응하는 대상**(애니메이션, 색 토큰)은 이 과목 전체에서 새로 만든 것이므로, 한 곳에 모아 놓지 않으면 어떤 애니메이션이 빠졌는지 놓치기 쉽습니다.
+
+`prefers-reduced-motion: reduce`에서 모든 애니메이션·전환을 끄는 표준 패턴은 다음과 같습니다.
+
+| 접근 | 장점 | 단점 |
+|------|------|------|
+| `animation-duration: 0.01ms !important` 방식 | 애니메이션이 즉시 끝난 상태로 남아 최종 레이아웃이 깨지지 않음 | `!important` 사용, 규칙이 길어짐 |
+| `animation: none !important` 방식 | 코드가 짧음 | 애니메이션이 `from` 상태에 멈춰 레이아웃이 어색할 수 있음 |
+
+이 과목은 첫 번째 방식을 채택합니다. 애니메이션이 0에 수렴하는 속도로 끝나 `to` 상태(최종 모습)에 바로 도달하기 때문입니다.
+
+## 실습
+
+<Steps>
+
+### 1. 완료 기준 점검표 만들기
+
+`web-practice/lessons/modern-css/18_prefers-media-and-fallback-checklist/checklist.md`를 만들어 `01_학습방향.md`의 완료 기준 5가지를 그대로 옮겨 적습니다.
+
+```text
+# web-practice/lessons/modern-css/18_prefers-media-and-fallback-checklist/checklist.md
+[ ] 1. @layer(reset·tokens·base·components·utilities)로 재정리, 순서 바꿔 우선순위 뒤집기 확인
+[ ] 2. 컨테이너 쿼리+서브그리드 카드 그리드, @scope로 스타일 격리 확인
+[ ] 3. oklch·color-mix()·@property·light-dark() 조합 다크모드 토글 확인
+[ ] 4. 뷰 전환·스크롤 연동 애니메이션 + 각각 @supports 폴백 확인
+[ ] 5. 앵커 포지셔닝 툴팁 + prefers-reduced-motion/prefers-color-scheme 반응 확인
+```
+
+### 2. css/tokens.css 정본 전체 작성하기
+
+이 과목에서 다룬 커스텀 속성 토큰(10편)·`@property`(11편)·`oklch`/`color-mix()`(12편)·`light-dark()`(13편)·`clamp()`(14편)·`prefers-contrast` 대응을 모두 포함한 최종 상태입니다.
+
+```css
+/* portfolio/css/tokens.css — modern_css 18편 시점 정본 */
+@property --gradient-angle {
+  syntax: '<angle>';
+  inherits: false;
+  initial-value: 0deg;
+}
+
+:root {
+  color-scheme: light dark;
+
+  /* 색 원본(oklch) — 11·12편 */
+  --hue-primary: 250;
+  --hue-accent: 350;
+  --oklch-primary: oklch(55% 0.18 var(--hue-primary));
+  --oklch-accent: oklch(55% 0.18 var(--hue-accent));
+
+  /* 색 토큰 — light-dark()로 두 모드 동시 지정, 13편 */
+  --color-bg: light-dark(oklch(100% 0 0), oklch(20% 0.02 var(--hue-primary)));
+  --color-surface: light-dark(oklch(97% 0.005 var(--hue-primary)), oklch(26% 0.02 var(--hue-primary)));
+  --color-text: light-dark(oklch(22% 0.01 var(--hue-primary)), oklch(93% 0.01 var(--hue-primary)));
+  --color-text-muted: light-dark(oklch(46% 0.02 var(--hue-primary)), oklch(70% 0.02 var(--hue-primary)));
+  --color-primary: light-dark(var(--oklch-primary), oklch(75% 0.15 var(--hue-primary)));
+  --color-primary-hover: light-dark(oklch(45% 0.18 var(--hue-primary)), oklch(80% 0.15 var(--hue-primary)));
+  --color-border: light-dark(oklch(85% 0.01 var(--hue-primary)), oklch(35% 0.02 var(--hue-primary)));
+  --color-accent: light-dark(var(--oklch-accent), oklch(75% 0.15 var(--hue-accent)));
+
+  /* 파생 색 — color-mix()로 자동 계산, 12편 */
+  --color-surface-hover: color-mix(in oklch, var(--color-surface), var(--color-text) 6%);
+  --color-primary-muted: color-mix(in oklch, var(--color-primary), transparent 85%);
+  --color-border-strong: color-mix(in oklch, var(--color-border), var(--color-text) 30%);
+
+  /* 타이포 — clamp() 유동 값, 14편 */
+  --font-sans: "Pretendard", "Noto Sans KR", system-ui, sans-serif;
+  --font-mono: "JetBrains Mono", ui-monospace, monospace;
+  --text-xs: 0.75rem;
+  --text-sm: 0.875rem;
+  --text-base: 1rem;
+  --text-lg: clamp(1.125rem, 1.05rem + 0.4vw, 1.25rem);
+  --text-xl: clamp(1.25rem, 1.1rem + 0.7vw, 1.5rem);
+  --text-2xl: clamp(1.5rem, 1.2rem + 1.2vw, 2rem);
+  --text-3xl: clamp(2rem, 1.4rem + 2.4vw, 3rem);
+  --leading: 1.6;
+
+  /* 간격(4px 배수) — css_fundamentals에서 이어받음, 09편에서 논리 속성으로만 소비 */
+  --space-1: 0.25rem;
+  --space-2: 0.5rem;
+  --space-3: 0.75rem;
+  --space-4: 1rem;
+  --space-6: 1.5rem;
+  --space-8: 2rem;
+  --space-12: 3rem;
+  --space-16: 4rem;
+
+  /* 레이아웃 */
+  --container-max: 72rem;
+  --radius: 0.5rem;
+  --shadow: 0 1px 3px rgb(0 0 0 / 0.1), 0 4px 12px rgb(0 0 0 / 0.06);
+  --header-height: 4rem;
+
+  /* 타입 지정된 애니메이션 커스텀 속성 — 11편 */
+  --gradient-angle: 0deg;
+}
+
+/* prefers-contrast 대응 — 18편 */
+@media (prefers-contrast: more) {
+  :root {
+    --color-border: light-dark(oklch(35% 0.02 var(--hue-primary)), oklch(80% 0.02 var(--hue-primary)));
+    --color-border-strong: light-dark(oklch(15% 0.01 var(--hue-primary)), oklch(95% 0.01 var(--hue-primary)));
+    --color-text-muted: light-dark(oklch(28% 0.02 var(--hue-primary)), oklch(88% 0.02 var(--hue-primary)));
+  }
+}
+
+/* 사용자가 라이트/다크를 직접 고른 경우 — 13편 토글 버튼이 이 속성을 바꾼다 */
+:root[data-theme='light'] {
+  color-scheme: light;
+}
+
+:root[data-theme='dark'] {
+  color-scheme: dark;
+}
+```
+
+### 3. css/styles.css 정본 전체 작성하기
+
+`@layer` 5개(03편)에 중첩(04편)·`:has()`(05편)·컨테이너 쿼리(06편)·`@scope`(07편)·서브그리드(08편)·논리 속성(09편)·뷰 전환(15편)·스크롤 연동 애니메이션(16편)·앵커 포지셔닝(17편)까지 전부 담긴 최종본입니다.
+
+```css
+/* portfolio/css/styles.css — modern_css 18편 시점 정본 */
+@layer reset, tokens, base, components, utilities;
+
+@layer reset {
+  *, *::before, *::after { box-sizing: border-box; margin: 0; }
+  img, svg { max-inline-size: 100%; block-size: auto; display: block; }
+  button, input, select, textarea { font: inherit; color: inherit; }
+}
+
+@layer base {
+  body { font-family: var(--font-sans); background: var(--color-bg); color: var(--color-text); line-height: var(--leading); }
+  a { color: var(--color-primary); text-decoration: none; }
+  a:hover { color: var(--color-primary-hover); }
+  a.logo, .site-nav a, .project-card a { color: inherit; }
+  .visually-hidden { position: absolute; inline-size: 1px; block-size: 1px; overflow: hidden; clip-path: inset(50%); }
+}
+
+@layer components {
+  /* 헤더 & 내비게이션 — <nav class="site-nav">/<nav id="mobile-menu" popover> 안에는 ul·li 없이 <a> 3개가 바로 들어 있다 */
+  .site-header {
+    position: sticky;
+    inset-block-start: 0;
+    block-size: var(--header-height);
+    border-block-end: 1px solid var(--color-border);
+    background: var(--color-bg);
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding-inline: var(--space-6);
+
+    & .logo { font-size: var(--text-lg); font-weight: 700; }
+  }
+
+  .site-nav { display: none; gap: var(--space-6); }
+  .site-nav a[aria-current='page'] { color: var(--color-primary); font-weight: 700; }
+
+  .menu-toggle {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    inline-size: 2.5rem;
+    block-size: 2.5rem;
+    border: 1px solid var(--color-border);
+    border-radius: var(--radius);
+    background: var(--color-bg);
+  }
+
+  #mobile-menu {
+    display: flex;
+    flex-direction: column;
+    gap: var(--space-4);
+    position: fixed;
+    inset-block-start: var(--header-height);
+    inset-inline: var(--space-4);
+    margin: 0;
+    padding: var(--space-4);
+    border: 1px solid var(--color-border);
+    border-radius: var(--radius);
+    background: var(--color-bg);
+    box-shadow: var(--shadow);
+  }
+
+  @media (min-width: 1024px) {
+    .site-nav { display: flex; }
+    .menu-toggle { display: none; }
+  }
+
+  /* 버튼 */
+  .button {
+    display: inline-block;
+    border-radius: var(--radius);
+    padding: var(--space-2) var(--space-6);
+    font-weight: 700;
+    background-color: var(--color-primary);
+    color: var(--color-bg);
+    border: 1px solid transparent;
+    transition: background-color 200ms ease, border-color 200ms ease, transform 100ms ease;
+  }
+  .button:hover { background-color: var(--color-primary-hover); }
+  .button-secondary { background-color: transparent; border-color: var(--color-border); color: var(--color-text); }
+
+  /* 히어로 — 01편 등장 애니메이션 + 11편 @property 그라디언트 */
+  .hero {
+    padding-block: var(--space-16);
+    text-align: center;
+    background-image: conic-gradient(from var(--gradient-angle), var(--color-primary-muted), var(--color-surface));
+    transition: --gradient-angle 400ms ease;
+  }
+  .hero:hover { --gradient-angle: 45deg; }
+  .hero h1 { font-size: var(--text-3xl); }
+  .hero p { font-size: var(--text-lg); color: var(--color-text-muted); }
+  .hero > * { animation: hero-enter 600ms ease-out both; }
+  .hero > *:nth-child(2) { animation-delay: 150ms; }
+  .hero > *:nth-child(3) { animation-delay: 300ms; }
+  .hero > *:nth-child(4) { animation-delay: 400ms; }
+
+  @keyframes hero-enter {
+    from { opacity: 0; transform: translateY(12px); }
+    to { opacity: 1; transform: translateY(0); }
+  }
+
+  /* 소개 / 기술 스택 / 경력 */
+  .about, .skills, .career { padding-block: var(--space-12); }
+  .about { display: flex; flex-wrap: wrap; gap: var(--space-8); }
+  .about img { inline-size: 12rem; border-radius: var(--radius); }
+  .skills ul { display: flex; flex-wrap: wrap; gap: var(--space-4); }
+  .skills li { padding: var(--space-2) var(--space-4); background: var(--color-surface); border-radius: var(--radius); font-size: var(--text-sm); }
+  .career table { inline-size: 100%; border-collapse: collapse; }
+  .career th, .career td { padding: var(--space-3) var(--space-4); border-block-end: 1px solid var(--color-border); text-align: start; }
+  .career th { background: var(--color-surface); }
+
+  /* 폼 상태 — 05편 :has() */
+  .contact-form:has(:invalid) button[type='submit'] { background: var(--color-border-strong); cursor: not-allowed; }
+  .contact-form:not(:has(:invalid)) button[type='submit'] { background: var(--color-primary); }
+  .contact-form:has(:invalid:focus) { outline: 2px dashed var(--color-accent); outline-offset: var(--space-2); }
+
+  /* 프로젝트 카드 그리드 — 06편 컨테이너 쿼리 + 08편 서브그리드 */
+  .project-grid {
+    container-type: inline-size;
+    container-name: project-grid;
+    display: grid;
+    grid-template-columns: 1fr;
+    grid-template-rows: auto auto auto auto;
+    gap: var(--space-6);
+  }
+  @container project-grid (min-width: 30rem) { .project-grid { grid-template-columns: repeat(2, 1fr); } }
+  @container project-grid (min-width: 48rem) { .project-grid { grid-template-columns: repeat(3, 1fr); } }
+  .project-grid:has(> :only-child) { grid-template-columns: 1fr; place-items: center; }
+
+  /* 빈 카드 그리드 안내 문구 — 05편 :has() */
+  .project-grid:has(.project-card) .project-grid__empty { display: none; }
+  .project-grid__empty { padding: var(--space-12); text-align: center; color: var(--color-text-muted); }
+
+  /* 카드 스타일 격리 — 07편 @scope, 한계는 button[data-open-project] */
+  @scope (.project-card) to (button[data-open-project]) {
+    :scope {
+      display: grid;
+      grid-template-rows: subgrid;
+      grid-row: span 4;
+      background: var(--color-surface);
+      border: 1px solid var(--color-border);
+      border-radius: var(--radius);
+      overflow: hidden;
+      transition: transform 200ms ease, box-shadow 200ms ease;
+    }
+    :scope:hover { transform: translateY(-2px); box-shadow: var(--shadow); }
+    img { aspect-ratio: 3 / 2; object-fit: cover; }
+    h2 { font-size: var(--text-lg); padding-inline: var(--space-4); margin-block-start: var(--space-4); }
+    p { padding-inline: var(--space-4); color: var(--color-text-muted); font-size: var(--text-sm); }
+    .tags { display: flex; gap: var(--space-2); flex-wrap: wrap; padding-inline: var(--space-4); }
+    .tags li { padding: var(--space-1) var(--space-3); background: var(--color-bg); border: 1px solid var(--color-border); border-radius: 999px; font-size: var(--text-xs); }
+  }
+  .project-card button[data-open-project] { margin: var(--space-4); margin-block-start: auto; }
+
+  /* 프로젝트 상세 모달 */
+  #project-dialog {
+    inline-size: min(32rem, 90vw);
+    border: none;
+    border-radius: var(--radius);
+    padding: var(--space-8);
+    background: var(--color-bg);
+    box-shadow: var(--shadow);
+  }
+  #project-dialog::backdrop { background: rgb(15 23 32 / 0.5); }
+
+  /* 연락 폼 — 필드 래퍼 .field, 체크박스 줄 .field-checkbox, 도움말 .help */
+  .contact-form { display: flex; flex-direction: column; gap: var(--space-6); max-inline-size: 32rem; }
+  .field { display: flex; flex-direction: column; gap: var(--space-2); }
+  .field label { font-size: var(--text-sm); font-weight: 700; }
+  .field input, .field select, .field textarea {
+    inline-size: 100%;
+    padding: var(--space-3);
+    border: 1px solid var(--color-border);
+    border-radius: var(--radius);
+  }
+  .field input:focus, .field select:focus, .field textarea:focus {
+    outline: none;
+    border-color: var(--color-primary);
+    box-shadow: 0 0 0 2px var(--color-primary-muted);
+  }
+  .field input:invalid:not(:placeholder-shown) { border-color: var(--color-accent); }
+  .field-checkbox { flex-direction: row; align-items: center; gap: var(--space-2); }
+  .field .help { font-size: var(--text-xs); color: var(--color-text-muted); }
+  .contact-form button[type='submit'] {
+    block-size: 2.75rem;
+    padding-inline: var(--space-6);
+    border-radius: var(--radius);
+    font-weight: 700;
+    background: var(--color-primary);
+    color: var(--color-bg);
+    border: 1px solid transparent;
+  }
+
+  /* FAQ */
+  .faq details { border-block-end: 1px solid var(--color-border); padding-block: var(--space-4); }
+  .faq summary { display: flex; justify-content: space-between; cursor: pointer; font-weight: 700; }
+
+  /* 앵커 포지셔닝 툴팁 — 17편 */
+  .info-trigger {
+    display: inline-grid;
+    place-items: center;
+    inline-size: 1.25rem;
+    block-size: 1.25rem;
+    border-radius: 50%;
+    border: 1px solid var(--color-border);
+    background: var(--color-surface);
+    color: var(--color-text-muted);
+    font-size: var(--text-xs);
+    cursor: help;
+  }
+  .card-tooltip {
+    position: fixed;
+    top: calc(anchor(bottom) + var(--space-2));
+    left: anchor(center);
+    translate: -50% 0;
+    position-try-fallbacks: flip-block;
+    inline-size: max-content;
+    max-inline-size: 14rem;
+    padding: var(--space-2) var(--space-3);
+    border-radius: var(--radius);
+    background: var(--color-text);
+    color: var(--color-bg);
+    font-size: var(--text-xs);
+    opacity: 0;
+    visibility: hidden;
+    transition: opacity 150ms ease;
+  }
+  .info-trigger:hover + .card-tooltip, .info-trigger:focus-visible + .card-tooltip { opacity: 1; visibility: visible; }
+
+  @supports not (anchor-name: --info-1) {
+    .project-card { position: relative; }
+    .card-tooltip { position: absolute; top: auto; bottom: calc(100% + var(--space-2)); left: var(--space-4); translate: none; }
+  }
+
+  /* 다크모드 토글 버튼 — 13편 */
+  #theme-toggle {
+    margin-inline-start: auto;
+    inline-size: 2.5rem;
+    block-size: 2.5rem;
+    border: 1px solid var(--color-border);
+    border-radius: 999px;
+    background: var(--color-surface);
+    font-size: var(--text-lg);
+    cursor: pointer;
+  }
+  #theme-toggle:hover { background: var(--color-surface-hover); }
+
+  /* 푸터 */
+  .site-footer { padding-block: var(--space-8); border-block-start: 1px solid var(--color-border); color: var(--color-text-muted); font-size: var(--text-sm); }
+}
+
+@layer utilities {
+  .container { max-inline-size: var(--container-max); margin-inline: auto; padding-inline: var(--space-6); }
+}
+
+/* 뷰 전환 — 15편, projects.html 필터 탭 전환에 적용 */
+::view-transition-old(project-grid), ::view-transition-new(project-grid) { animation-duration: 250ms; }
+
+@supports not (view-transition-name: none) {
+  .project-card { transition: opacity 200ms ease; }
+}
+
+/* 스크롤 연동 애니메이션 — 16편, 미지원 시 즉시 보임 */
+.project-card { opacity: 1; }
+
+@supports (animation-timeline: view()) {
+  .project-card {
+    opacity: 0;
+    animation: card-reveal linear both;
+    animation-timeline: view();
+    animation-range: entry 0% cover 30%;
+  }
+  @keyframes card-reveal {
+    from { opacity: 0; transform: translateY(1rem); }
+    to { opacity: 1; transform: none; }
+  }
+}
+
+/* prefers-* 총정리 — 18편, 이 과목에서 만든 모든 모션이 대상 */
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
+  }
+  .hero:hover { --gradient-angle: 0deg; }
+  .project-card { opacity: 1; }
+}
+```
+
+### 4. 실행
+
+```text
+VS Code에서 portfolio/index.html · projects.html · contact.html을 브라우저로 엽니다.
+운영체제 설정에서 "동작 줄이기(reduce motion)"를 켜고 새로고침해 차이를 확인합니다.
+- macOS: 시스템 설정 → 손쉬운 사용 → 디스플레이 → 동작 줄이기
+- Windows: 설정 → 접근성 → 시각 효과 → 애니메이션 효과 끄기
+```
+
+### 5. 확인
+
+- 동작 줄이기를 켜면 카드 hover 이동, 히어로 그라디언트 회전, 스크롤 등장 애니메이션이 전부 즉시 멈춘 상태로 보인다(깜빡이거나 어색하게 멈추지 않는다)
+- 시스템 다크모드를 켜면 토글 버튼을 누르지 않아도 `light-dark()` 기본값이 다크 팔레트로 바뀐다
+- 시스템 고대비 모드를 켜면 카드·폼 테두리가 눈에 띄게 진해진다
+- `checklist.md`의 5개 항목을 실제로 사이트에서 재현해 전부 체크할 수 있다
+
+</Steps>
+
+## 직접 해보기
+
+1. `prefers-reduced-motion: reduce` 블록에 `.hero:hover { --gradient-angle: 0deg; }`가 왜 별도로 필요한지, 이 줄을 지우면 무엇이 달라지는지 확인해 보세요.
+
+<details>
+<summary>답 보기</summary>
+
+`transition-duration: 0.01ms !important`는 **전환 시간**만 0에 가깝게 줄일 뿐, `:hover`에서 `--gradient-angle`이 `45deg`로 바뀌는 것 자체는 막지 않습니다. 즉 회전은 일어나지만 아주 빠르게 끝날 뿐이라 여전히 "움직임"으로 인지될 수 있습니다. `.hero:hover { --gradient-angle: 0deg; }`로 값 자체를 고정해야 hover해도 그라디언트가 전혀 돌지 않습니다.
+
+</details>
+
+## 자주 하는 실수
+
+| 증상 | 원인 | 고치는 법 |
+|------|------|-----------|
+| 동작 줄이기를 켜도 카드가 스크롤 시 여전히 나타났다 사라진다 | `@supports (animation-timeline: view())` 안 애니메이션을 `prefers-reduced-motion` 규칙보다 CSS 파일 뒤쪽에 둬 우선순위가 밀렸다 | `prefers-reduced-motion` 블록을 파일 가장 마지막에 두거나 명시도를 확인 |
+| 고대비 모드에서 테두리 색이 안 바뀐다 | `--color-border`를 `@layer components`에서 다시 하드코딩해 토큰을 덮어썼다 | 컴포넌트에서 항상 커스텀 속성(`var(--color-border)`)만 참조하고 직접 색상값을 쓰지 않는다 |
+| 다크모드 시스템 설정을 꺼도 사이트가 계속 다크로 보인다 | `data-theme="dark"`가 localStorage에 남아 있는데 토글 버튼 초기화 로직이 없다 | 토글 버튼에 "시스템 설정 따르기" 옵션을 추가하거나 `data-theme` 속성을 지우는 버튼 제공 |
+
+## 확인 문제
+
+<Quiz
+  questionNumber={1}
+  question="prefers-reduced-motion: reduce에서 애니메이션을 끌 때 animation-duration: 0.01ms 방식을 animation: none 방식보다 선호하는 이유는?"
+  options={['코드가 더 짧아지기 때문에', '애니메이션이 시작 상태가 아니라 최종 상태로 남아 레이아웃이 자연스럽기 때문에', 'animation: none은 빌드 에러를 일으키기 때문에', '두 방식은 결과가 완전히 같아서 선호 이유가 없다']}
+  correctAnswer={2}
+  explanation="animation: none은 요소를 from 상태로 되돌려 최종 레이아웃이 어색해질 수 있지만, duration을 극단적으로 줄이면 애니메이션이 to 상태에서 멈춘 것처럼 보입니다."
+  optionExplanations={['코드 길이가 선택 기준이 아닙니다', '정답입니다', '문법적으로는 둘 다 유효한 CSS입니다', '두 방식은 결과 상태가 달라질 수 있습니다']}
+/>
+
+<Quiz
+  questionNumber={2}
+  question="이 과목에서 light-dark()가 참조하는 기본 모드를 결정하는 것은?"
+  options={['항상 라이트 모드로 고정된다', 'prefers-color-scheme(시스템 설정) 또는 요소의 color-scheme 값', '브라우저 창의 크기', 'HTML 문서의 lang 속성']}
+  correctAnswer={2}
+  explanation="light-dark()는 해당 요소에 적용된 color-scheme 값을 따르며, color-scheme: light dark처럼 두 값을 다 열어두면 시스템의 prefers-color-scheme을 기본값으로 씁니다."
+  optionExplanations={['라이트로 고정되지 않고 color-scheme을 따릅니다', '정답입니다', '창 크기는 색상 모드와 무관합니다', 'lang 속성은 언어 설정이라 색상 모드와 무관합니다']}
+/>
+
+<Quiz
+  questionNumber={3}
+  question="18편의 완료 점검에서 뷰 전환과 스크롤 연동 애니메이션에 공통으로 요구되는 것은?"
+  options={['두 기능 모두 widely available이므로 폴백이 필요 없다', '각각 @supports로 미지원 브라우저용 대체 동작을 마련해야 한다', 'JavaScript로 완전히 대체해야 한다', '두 기능 다 이 과목의 범위 밖이라 폴백을 만들지 않는다']}
+  correctAnswer={2}
+  explanation="뷰 전환(same-document)은 2025-10 newly available, 스크롤 연동 애니메이션은 여전히 Limited availability라 둘 다 @supports 폴백이 필요합니다."
+  optionExplanations={['아직 widely available이 아니므로 폴백이 필요합니다', '정답입니다', '두 기능 다 CSS 기능 쿼리로 충분히 대응 가능합니다', '둘 다 이 과목 15·16편에서 실습으로 다뤘습니다']}
+/>
+
+<Quiz
+  questionNumber={4}
+  question="prefers-contrast: more에서 --color-border 값만 바꾸고 --color-border-strong은 그대로 두면 생기는 문제는?"
+  options={['문제없다. 두 토큰은 서로 무관하다', '카드 테두리는 진해지지만 이미 강조 테두리로 쓰이던 요소는 상대적으로 대비가 약해 보일 수 있다', 'CSS 빌드가 실패한다', '색상환경이 자동으로 oklch에서 sRGB로 전환된다']}
+  correctAnswer={2}
+  explanation="고대비 모드는 사이트 전체의 대비를 일관되게 높이는 것이 목적이므로, 강조용 토큰(--color-border-strong)도 함께 조정하지 않으면 일반 테두리와 강조 테두리의 차이가 줄어들 수 있습니다."
+  optionExplanations={['두 토큰은 같은 목적(테두리 대비)을 다른 강도로 표현하므로 서로 연관됩니다', '정답입니다', '커스텀 속성 값 변경은 빌드와 무관한 런타임 동작입니다', '색상 함수 전환은 자동으로 일어나지 않습니다']}
+/>
+
+## 참고 자료
+
+- [MDN — prefers-reduced-motion](https://developer.mozilla.org/en-US/docs/Web/CSS/@media/prefers-reduced-motion)

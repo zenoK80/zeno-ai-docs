@@ -1,0 +1,241 @@
+---
+title: '14. 컴포넌트 패턴: compound component와 훅'
+description: 'BookCard를 compound component로 재구성하고 render props 대신 커스텀 훅을 쓰는 이유를 정리합니다'
+---
+
+<Callout type="info">
+  **이번 편의 결과물:** `BookCard`에 compound component 패턴이 적용되어 `BookCard.Cover`, `BookCard.Title`, `BookCard.Status`로 조립할 수 있습니다. · **다루는 개념:** compound component, Context 기반 암묵적 상태 공유, render props와 커스텀 훅의 차이
+</Callout>
+
+## 이 편에서 만드는 파일
+
+```
+bookshelf/src/
+├── components/
+│   └── BookCard.jsx        ~ (compound component로 재작성)
+└── pages/
+    └── BookListPage.jsx    ~ (BookCard.* 조립 방식으로 사용)
+```
+
+## 개념 정리
+
+**compound component**는 부모 컴포넌트가 Context로 상태를 들고, 자식 컴포넌트들이 그 Context를 각자 읽어 조각을 렌더하는 패턴입니다. `select`/`option`처럼 부모와 자식이 한 세트로 동작하지만, 내부 상태 전달을 props 대신 Context로 숨깁니다.
+
+| 패턴 | 상태 전달 방식 | 장점 | 단점 |
+|---|---|---|---|
+| props 조합 | 부모가 모든 자식에 값을 직접 전달 | 데이터 흐름이 명시적 | 자식이 늘수록 prop이 늘어남 |
+| compound component | Context로 암묵적 공유, 자식은 `BookCard.Cover`처럼 이름으로 배치 | 사용부에서 필요한 조각만 원하는 순서로 배치 | Context를 몰래 쓰므로 자식을 `BookCard` 밖에서 쓰면 오류 |
+| render props | 함수를 자식으로 전달해 렌더 로직을 위임 | 로직과 렌더를 분리 | 중첩되면 코드가 계단식으로 깊어짐 |
+| 커스텀 훅 | 로직만 훅으로 추출, 렌더는 각자 작성 | 로직 재사용과 렌더 자유도를 동시에 얻음 | 상태 공유가 아니라 로직 공유만 가능 |
+
+render props는 클래스 컴포넌트 시절 로직 재사용 수단으로 널리 쓰였습니다. 지금은 같은 문제를 커스텀 훅으로 더 평평한 코드로 풀 수 있어 새 코드에서는 거의 쓰지 않습니다. 이 과목 06~07편에서 만든 `useLocalStorage`, `useDebounce`가 바로 그 대체 사례입니다.
+
+**언제 compound를 고르는가:** 여러 자식이 한 부모의 상태(현재 선택된 항목, 열림 여부 등)를 함께 봐야 하고, 사용하는 쪽에서 자식의 구성·순서를 자유롭게 바꾸고 싶을 때 씁니다. 자식이 하나뿐이거나 상태 공유가 필요 없으면 일반 props 조합으로 충분합니다.
+
+## 실습
+
+<Steps>
+
+### 1. 파일 열기
+
+`src/components/BookCard.jsx`를 엽니다. 지금은 `book`, `onToggle`, `onDelete` props를 받아 표지·제목·상태 버튼을 한 번에 렌더하는 단일 컴포넌트입니다.
+
+### 2. 코드 작성
+
+```jsx
+// src/components/BookCard.jsx
+import { createContext, useContext } from 'react';
+
+const BookCardContext = createContext(null);
+
+function useBookCardContext(componentName) {
+  const context = useContext(BookCardContext);
+  if (!context) {
+    throw new Error(componentName + '는 BookCard 안에서만 사용할 수 있습니다');
+  }
+  return context;
+}
+
+function BookCard({ book, onToggle, onDelete, children }) {
+  return (
+    <BookCardContext.Provider value={{ book, onToggle, onDelete }}>
+      <li className="book-card">{children}</li>
+    </BookCardContext.Provider>
+  );
+}
+
+function Cover({ ref }) {
+  const { book } = useBookCardContext('BookCard.Cover');
+  // React 19부터 ref를 일반 prop으로 받는다. forwardRef가 필요 없다.
+  return <div ref={ref} className="book-card__cover" style={{ backgroundColor: book.coverColor }} aria-hidden="true" />;
+}
+
+function Title() {
+  const { book } = useBookCardContext('BookCard.Title');
+  return <h3 className="book-card__title">{book.title}</h3>;
+}
+
+function Status() {
+  const { book, onToggle } = useBookCardContext('BookCard.Status');
+  return (
+    <button type="button" onClick={onToggle} className="book-card__status">
+      {book.status === 'done' ? '완독' : '읽는 중'}
+    </button>
+  );
+}
+
+function DeleteButton() {
+  const { onDelete } = useBookCardContext('BookCard.DeleteButton');
+  return (
+    <button type="button" onClick={onDelete} aria-label="삭제">
+      삭제
+    </button>
+  );
+}
+
+BookCard.Cover = Cover;
+BookCard.Title = Title;
+BookCard.Status = Status;
+BookCard.DeleteButton = DeleteButton;
+
+export default BookCard;
+```
+
+`BookCard` 자신은 `<li>`와 `Context.Provider`만 렌더하고, 실제 화면 조각은 `Cover`·`Title`·`Status`·`DeleteButton`이 각자 Context를 읽어 그립니다. 사용하는 쪽은 필요한 조각만, 원하는 순서로 배치할 수 있습니다.
+
+```jsx
+// src/pages/BookListPage.jsx
+import { useMemo, useState } from 'react';
+import { Link } from 'react-router';
+import { useBooks } from '../hooks/useBooks';
+import { useDebounce } from '../hooks/useDebounce';
+import BookCard from '../components/BookCard';
+
+export default function BookListPage() {
+  const { booksById, bookIds, toggleBook, deleteBook } = useBooks();
+  const [keyword, setKeyword] = useState('');
+  const debouncedKeyword = useDebounce(keyword, 300);
+
+  const visibleIds = useMemo(() => {
+    const term = debouncedKeyword.trim().toLowerCase();
+    if (!term) return bookIds;
+    return bookIds.filter((id) => {
+      const book = booksById[id];
+      return book.title.toLowerCase().includes(term) || book.author.toLowerCase().includes(term);
+    });
+  }, [bookIds, booksById, debouncedKeyword]);
+
+  return (
+    <section>
+      <h1>내 책장</h1>
+      {/* ...기존 ThemeToggle 유지 */}
+      <input
+        type="search"
+        value={keyword}
+        onChange={(event) => setKeyword(event.target.value)}
+        placeholder="제목 또는 저자 검색"
+        aria-label="책 검색"
+      />
+      <p>{visibleIds.length}권 표시 중 (전체 {bookIds.length}권)</p>
+      <ul>
+        {visibleIds.map((id) => (
+          <BookCard key={id} book={booksById[id]} onToggle={() => toggleBook(id)} onDelete={() => deleteBook(id)}>
+            <BookCard.Cover />
+            <BookCard.Title />
+            <BookCard.Status />
+            <BookCard.DeleteButton />
+          </BookCard>
+        ))}
+      </ul>
+      <Link to="/books/new">새 책 추가</Link>
+    </section>
+  );
+}
+```
+
+### 3. 실행
+
+```
+npm run dev
+```
+
+### 4. 확인
+
+- 목록 화면이 이전과 같은 모습으로 보이지만, `BookListPage.jsx`에서 `BookCard.Cover`·`BookCard.Title`·`BookCard.Status`·`BookCard.DeleteButton` 순서를 바꾸면 화면 배치도 바로 바뀝니다.
+- `BookCard.Title`을 `BookCard` 밖에서 단독으로 렌더해보면 "BookCard.Title는 BookCard 안에서만 사용할 수 있습니다" 오류가 콘솔에 표시됩니다.
+
+</Steps>
+
+## 직접 해보기
+
+1. `BookCard.Author`를 추가해 저자 이름을 표시하는 조각을 만들어보세요. `Title`과 같은 방식으로 Context에서 `book`을 읽습니다.
+
+<details>
+<summary>답 보기</summary>
+
+```jsx
+function Author() {
+  const { book } = useBookCardContext('BookCard.Author');
+  return <p className="book-card__author">{book.author}</p>;
+}
+
+BookCard.Author = Author;
+```
+
+`BookListPage.jsx`의 자식 목록에 `<BookCard.Author />`를 추가하면 됩니다.
+
+</details>
+
+2. 상세 페이지(`BookDetailPage.jsx`)에서는 `BookCard.Cover`와 `BookCard.Title`만 크게 배치하고 `Status`·`DeleteButton`은 빼보세요. 같은 컴포넌트 세트를 화면마다 다르게 조립할 수 있음을 확인합니다.
+
+## 자주 하는 실수
+
+| 증상 | 원인 | 고치는 법 |
+|---|---|---|
+| "BookCard.Cover는 BookCard 안에서만 사용할 수 있습니다" 오류 | 자식 컴포넌트를 `BookCard` 태그 바깥에서 렌더 | 항상 `BookCard` 자식으로만 배치 |
+| props로 book을 또 넘겨줌 | compound 패턴 도입 후에도 이전 습관대로 props 전달 | Context가 이미 값을 갖고 있으므로 자식은 props 없이 호출 |
+| Cover에 넘긴 ref가 동작 안 함 | React 18 이하 습관으로 forwardRef를 씌움 | React 19부터는 함수 컴포넌트가 ref를 일반 prop으로 받으므로 forwardRef를 없앤다 |
+| 자식 순서를 바꿔도 화면이 그대로 | 빌드 캐시나 HMR 문제 | 개발 서버를 재시작해 확인 |
+
+## 확인 문제
+
+<Quiz
+  questionNumber={1}
+  question="compound component 패턴에서 부모와 자식이 상태를 공유하는 방법은?"
+  options={['자식마다 props로 직접 전달한다', '부모가 Context에 값을 담고 자식이 useContext로 읽는다', '전역 변수를 사용한다', 'localStorage를 거쳐 전달한다']}
+  correctAnswer={2}
+  explanation="BookCard는 Context.Provider로 book, onToggle, onDelete를 감싸고, Cover·Title·Status 같은 자식이 useContext로 필요한 값만 꺼내 씁니다."
+  optionExplanations={['props 조합 방식의 특징이며 compound의 핵심은 아닙니다', '정답입니다', '전역 변수는 이 패턴에서 쓰지 않습니다', 'localStorage는 이 상황과 관련이 없습니다']}
+/>
+
+<Quiz
+  questionNumber={2}
+  question="render props 패턴이 현재 새 코드에서 잘 쓰이지 않는 이유는?"
+  options={['브라우저가 더 이상 지원하지 않아서', '같은 로직 재사용 문제를 커스텀 훅이 더 평평한 코드로 해결하기 때문', 'React 19에서 render props를 금지했기 때문', 'render props는 타입스크립트와 호환되지 않아서']}
+  correctAnswer={2}
+  explanation="render props는 클래스 컴포넌트 시절 로직 재사용 수단이었습니다. 훅이 도입된 뒤 useLocalStorage, useDebounce 같은 커스텀 훅으로 같은 문제를 더 단순하게 풀 수 있게 되어 새 코드에서는 잘 쓰이지 않습니다."
+  optionExplanations={['브라우저 지원과는 무관합니다', '정답입니다', 'React가 render props를 금지한 적은 없습니다', '호환성 문제가 아닙니다']}
+/>
+
+<Quiz
+  questionNumber={3}
+  question="이 편에서 BookCard.Cover가 forwardRef 없이 ref를 받을 수 있는 이유는?"
+  options={['Cover가 클래스 컴포넌트라서', 'React 19부터 함수 컴포넌트가 ref를 일반 prop으로 받을 수 있어서', 'ref 대신 항상 useRef를 훅으로만 쓰기 때문에', 'Context.Provider가 ref를 대신 처리해서']}
+  correctAnswer={2}
+  explanation="React 19에서 함수 컴포넌트는 forwardRef로 감싸지 않아도 ref를 다른 prop처럼 받을 수 있습니다."
+  optionExplanations={['Cover는 함수 컴포넌트입니다', '정답입니다', 'useRef는 ref 값을 만들 때 쓰는 것으로 이 상황과 다른 얘기입니다', 'Context.Provider는 ref 전달과 관련이 없습니다']}
+/>
+
+<Quiz
+  questionNumber={4}
+  question="compound component 대신 일반 props 조합을 선택하는 편이 나은 경우는?"
+  options={['자식이 여러 개이고 상태를 함께 봐야 할 때', '사용하는 쪽에서 자식 순서를 자유롭게 바꾸고 싶을 때', '자식이 하나뿐이고 상태 공유가 필요 없을 때', '부모 컴포넌트가 라우트일 때']}
+  correctAnswer={3}
+  explanation="자식이 하나이고 Context로 공유할 상태가 없다면 compound 패턴의 이점(암묵적 공유, 자유로운 배치)이 필요 없으므로 일반 props 조합이 더 단순합니다."
+  optionExplanations={['이 경우가 compound를 선택할 이유입니다', '이 경우도 compound를 선택할 이유입니다', '정답입니다', '라우트 여부는 이 선택 기준과 무관합니다']}
+/>
+
+## 참고 자료
+
+- [React 공식 문서 - Passing Data Deeply with Context](https://react.dev/learn/passing-data-deeply-with-context)
+- [React 공식 문서 - ref로 값 참조하기](https://react.dev/learn/manipulating-the-dom-with-refs)

@@ -1,0 +1,267 @@
+---
+title: '04. 함수·클로저·고차 함수로 필터링·정렬'
+description: '클로저로 필터·정렬 함수를 만들어 목록을 조건에 맞게 걸러내고 정렬합니다.'
+---
+
+<Callout type="info">
+  **이번 편의 결과물:** `list --filter done|pending`, `list --sort created|due`가 동작합니다. · **다루는 개념:** 함수 선언 방식과 화살표 함수, 클로저, `filter`/`sort`/`map`
+</Callout>
+
+## 이 편에서 만드는 파일
+
+```
+todo-cli/
+└── src/
+    └── index.js   (~)
+```
+
+## 개념 정리
+
+### 함수를 선언하는 세 가지 방식
+
+| 방식 | 예시 | 특징 |
+|------|------|------|
+| 함수 선언 | `function add(a, b) { return a + b; }` | 호이스팅됨(선언 전에 호출 가능) |
+| 함수 표현식 | `const add = function (a, b) { return a + b; };` | 변수에 담긴 뒤에만 호출 가능 |
+| 화살표 함수 | `const add = (a, b) => a + b;` | `this`를 새로 만들지 않음, 간결한 표기 |
+
+이 프로젝트는 화살표 함수와 함수 선언을 함께 씁니다. 짧은 콜백은 화살표 함수, 이름이 필요한 로직은 함수 선언을 사용합니다.
+
+### 클로저
+
+클로저(closure)는 함수가 자신이 정의될 때의 스코프를 기억해, 함수 밖으로 나간 뒤에도 그 스코프의 변수에 접근할 수 있는 것을 말합니다. 아래 `makeStatusFilter`는 `status` 값을 기억하는 함수를 반환합니다.
+
+```js
+function makeStatusFilter(status) {
+  return (todo) => todo.done === (status === 'done');
+}
+
+const isDone = makeStatusFilter('done');
+isDone({ done: true }); // true, status는 makeStatusFilter 실행이 끝난 뒤에도 기억됨
+```
+
+`makeStatusFilter` 실행은 끝났지만 반환된 화살표 함수는 `status`를 계속 참조합니다. 이것이 클로저입니다.
+
+### 고차 함수: filter, sort
+
+고차 함수(higher-order function)는 함수를 인자로 받거나 함수를 반환하는 함수입니다. `filter`와 `sort`는 조건 함수(비교 함수)를 인자로 받는 대표적인 배열 고차 함수입니다.
+
+| 메서드 | 인자로 받는 함수 | 반환값 | 원본 배열 |
+|--------|------------------|--------|-----------|
+| `filter(fn)` | `(item) => boolean` | 조건을 만족하는 항목만 담긴 새 배열 | 변경 안 함 |
+| `sort(fn)` | `(a, b) => number` | 정렬된 배열(원본과 같은 참조) | **변경함** |
+
+`sort`는 원본 배열을 직접 바꾸는 유일한 메서드입니다. 원본을 보존하는 `toSorted`는 16편(최신 문법)에서 다룹니다. 비교 함수는 `a`가 `b`보다 앞에 와야 하면 음수, 뒤에 와야 하면 양수를 반환해야 합니다.
+
+## 실습
+
+<Steps>
+
+### 1. src/index.js 열기
+
+03편의 `todos` 배열과 `addTodo`, `printList`는 그대로 두고 필터·정렬 함수를 추가합니다.
+
+### 2. 코드 작성
+
+```js
+// src/index.js
+import { parseArgs } from './cli/parseArgs.js';
+
+const todos = [
+  {
+    id: 1,
+    title: '리포트 제출',
+    done: false,
+    tags: ['work'],
+    due: '2026-09-20',
+    createdAt: '2026-09-15T09:00:00.000Z',
+  },
+  {
+    id: 2,
+    title: '운동하기',
+    done: true,
+    tags: ['health'],
+    due: null,
+    createdAt: '2026-09-15T10:00:00.000Z',
+  },
+  {
+    id: 3,
+    title: 'todo-cli에 검색 명령 추가',
+    done: false,
+    tags: ['study', 'node'],
+    due: '2026-09-22',
+    createdAt: '2026-09-16T08:10:00.000Z',
+  },
+];
+
+function nextId(list) {
+  const last = list[list.length - 1];
+  return last ? last.id + 1 : 1;
+}
+
+function addTodo(list, title, { tag, due } = {}) {
+  const todo = {
+    id: nextId(list),
+    title,
+    done: false,
+    tags: tag ? [tag] : [],
+    due: due ?? null,
+    createdAt: new Date().toISOString(),
+  };
+  list.push(todo);
+  return todo;
+}
+
+function makeStatusFilter(status) {
+  if (status === 'done') return (todo) => todo.done;
+  if (status === 'pending') return (todo) => !todo.done;
+  return () => true;
+}
+
+function makeComparator(sortKey) {
+  if (sortKey === 'due') {
+    return (a, b) => {
+      if (a.due === null && b.due === null) return 0;
+      if (a.due === null) return 1;
+      if (b.due === null) return -1;
+      return a.due.localeCompare(b.due);
+    };
+  }
+  return (a, b) => a.createdAt.localeCompare(b.createdAt);
+}
+
+function printList(list) {
+  list.forEach(({ id, title, done, tags, due }) => {
+    const mark = done ? '[x]' : '[ ]';
+    const tagText = tags.length > 0 ? tags.join(', ') : '없음';
+    const dueText = due ?? '없음';
+    console.log(`${mark} #${id} ${title} (태그: ${tagText}, 마감: ${dueText})`);
+  });
+}
+
+const argv = process.argv.slice(2);
+const { command, positional, flags } = parseArgs(argv);
+
+if (command === 'add') {
+  const [title] = positional;
+  const created = addTodo(todos, title, flags);
+  console.log('추가됨:', created);
+  printList(todos);
+} else if (command === 'list') {
+  const filterFn = makeStatusFilter(flags.filter);
+  const compareFn = makeComparator(flags.sort);
+  const result = todos.filter(filterFn).sort(compareFn);
+  printList(result);
+} else {
+  console.log('알 수 없는 명령입니다:', command);
+}
+```
+
+`makeStatusFilter`와 `makeComparator`는 둘 다 함수를 반환하는 고차 함수이고, 반환된 함수는 클로저로 바깥 매개변수를 기억합니다. `flags.filter`나 `flags.sort`가 없으면 각각 "전부 통과"와 "생성일순" 기본 동작으로 떨어집니다.
+
+### 3. 실행
+
+```text
+node src/index.js list --filter pending
+```
+
+```text
+node src/index.js list --sort due
+```
+
+</Steps>
+
+## 확인
+
+- `--filter pending` 결과(완료되지 않은 항목만):
+
+```text
+[ ] #1 리포트 제출 (태그: work, 마감: 2026-09-20)
+[ ] #3 todo-cli에 검색 명령 추가 (태그: study, node, 마감: 2026-09-22)
+```
+
+- `--sort due` 결과(마감일 빠른 순, `null`은 맨 뒤):
+
+```text
+[ ] #1 리포트 제출 (태그: work, 마감: 2026-09-20)
+[ ] #3 todo-cli에 검색 명령 추가 (태그: study, node, 마감: 2026-09-22)
+[x] #2 운동하기 (태그: health, 마감: 없음)
+```
+
+## 직접 해보기
+
+1. `flags.filter`에 `'done'`도 `'pending'`도 아닌 값을 넣고 실행해 `makeStatusFilter`가 기본값(전부 통과)으로 동작하는지 확인합니다.
+2. `title` 기준 정렬을 지원하는 `--sort title`을 `makeComparator`에 추가해봅니다.
+
+<details>
+<summary>정답 보기</summary>
+
+```js
+function makeComparator(sortKey) {
+  if (sortKey === 'due') {
+    return (a, b) => {
+      if (a.due === null && b.due === null) return 0;
+      if (a.due === null) return 1;
+      if (b.due === null) return -1;
+      return a.due.localeCompare(b.due);
+    };
+  }
+  if (sortKey === 'title') {
+    return (a, b) => a.title.localeCompare(b.title);
+  }
+  return (a, b) => a.createdAt.localeCompare(b.createdAt);
+}
+```
+
+</details>
+
+## 자주 하는 실수
+
+| 증상 | 원인 | 고치는 법 |
+|------|------|-----------|
+| 정렬 결과가 뒤죽박죽 나옴 | 비교 함수가 `boolean`을 반환함(`a.due > b.due`만 반환) | 반드시 음수/0/양수를 반환하는 비교 함수를 만든다 |
+| `list` 두 번 실행하면 순서가 계속 바뀜 | `sort`가 원본 배열을 직접 변경함 | 원본을 유지하려면 `[...todos].sort(...)`처럼 복사 후 정렬한다 |
+| `filter` 결과가 항상 빈 배열 | 조건 함수가 `undefined`를 반환(화살표 함수 중괄호 안에서 `return` 누락) | 화살표 함수 본문에 중괄호를 쓰면 `return`을 명시한다 |
+
+## 확인 문제
+
+<Quiz
+  questionNumber={1}
+  question="클로저에 대한 설명으로 옳은 것은?"
+  options={['함수를 즉시 실행하는 문법이다', '함수가 자신이 정의된 스코프의 변수를 기억하는 것이다', '배열을 정렬하는 내장 메서드다', '비동기 코드를 동기처럼 쓰는 문법이다']}
+  correctAnswer={2}
+  explanation="클로저는 함수가 자신이 정의된 렉시컬 스코프의 변수를 함수 실행이 끝난 뒤에도 계속 참조할 수 있는 특성입니다."
+  optionExplanations={['즉시 실행 함수(IIFE)와는 다른 개념입니다', '정답입니다', 'sort 같은 내장 메서드와는 다른 개념입니다', 'async/await와는 다른 개념입니다']}
+/>
+
+<Quiz
+  questionNumber={2}
+  question="filter와 sort의 차이로 옳은 것은?"
+  options={['둘 다 원본 배열을 변경하지 않는다', 'filter는 새 배열을 반환하고, sort는 원본 배열을 직접 변경한다', 'filter는 원본을 변경하고, sort는 새 배열을 반환한다', '둘 다 원본 배열을 직접 변경한다']}
+  correctAnswer={2}
+  explanation="filter는 조건에 맞는 항목만 담은 새 배열을 반환하고, sort는 원본 배열 자체의 순서를 바꿉니다."
+  optionExplanations={['sort는 원본을 변경합니다', '정답입니다', 'filter는 원본을 변경하지 않습니다', 'filter는 원본을 변경하지 않습니다']}
+/>
+
+<Quiz
+  questionNumber={3}
+  question="makeStatusFilter('done')이 반환하는 함수가 status 값을 계속 기억하는 이유는?"
+  options={['status가 전역 변수라서', '클로저가 함수 정의 시점의 스코프를 캡처해서', 'JSON으로 직렬화되어 저장돼서', 'Node.js가 자동으로 캐시해서']}
+  correctAnswer={2}
+  explanation="반환된 화살표 함수가 makeStatusFilter의 지역 변수 status를 클로저로 캡처하기 때문에 함수 실행이 끝난 뒤에도 값을 기억합니다."
+  optionExplanations={['status는 매개변수로 받은 지역 변수입니다', '정답입니다', '직렬화 과정은 없습니다', 'Node.js의 자동 캐시 기능이 아닙니다']}
+/>
+
+<Quiz
+  questionNumber={4}
+  question="비교 함수 a.due.localeCompare(b.due)를 반환하는 sort 콜백에서, 그 반환값의 의미로 옳은 것은?"
+  options={['항상 true 또는 false만 반환해야 한다', '음수면 a가 앞, 양수면 b가 앞, 0이면 순서 유지', '항상 0만 반환해야 정상이다', '문자열만 반환해야 한다']}
+  correctAnswer={2}
+  explanation="sort의 비교 함수는 음수, 0, 양수 중 하나를 반환하며 그 부호로 두 값의 순서를 결정합니다."
+  optionExplanations={['boolean이 아니라 숫자를 반환해야 합니다', '정답입니다', '0만 반환하면 정렬이 되지 않습니다', 'localeCompare는 숫자를 반환합니다']}
+/>
+
+## 참고 자료
+
+- [MDN - Closures](https://developer.mozilla.org/en-US/docs/Web/JavaScript/Guide/Closures)
+- [MDN - Array.prototype.sort()](https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Array/sort)

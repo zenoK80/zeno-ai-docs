@@ -1,0 +1,188 @@
+---
+title: '04. 모달의 폼 연동과 포커스 관리'
+description: '닫기 버튼을 method=dialog로 동작시키고, 모달이 열리고 닫힐 때 포커스를 올바른 자리로 옮긴다'
+---
+
+<Callout type="info">
+  **이번 편의 결과물:** 모달 안 "닫기" 버튼이 `method="dialog"`로 동작하고, 닫히면 원래 눌렀던 카드로 포커스가 돌아옵니다 · **다루는 개념:** `method="dialog"`와 `returnValue`, 열릴 때 자동 포커스 이동과 트랩, 닫힐 때 포커스 복귀, `close` 이벤트
+</Callout>
+
+## 이 편에서 만드는 파일
+
+```text
+web-practice/portfolio/
+├── projects.html   ~ (dialog 안에 method=dialog 폼과 닫기 버튼 추가)
+└── js/
+    └── main.js     ~ (열기 전 포커스 저장, close 이벤트로 포커스 복귀 로직 추가)
+```
+
+## 개념 정리
+
+### `method="dialog"`와 `returnValue`
+
+`<dialog>` 안의 `<form>`에 `method="dialog"`를 쓰면, 제출 시 페이지 이동이나 서버 요청 없이 **dialog를 닫기만** 합니다. 제출에 쓰인 버튼의 `value`가 `dialog.returnValue`에 자동으로 저장됩니다.
+
+```html
+<form method="dialog">
+  <button type="submit" value="closed">닫기</button>
+</form>
+```
+
+이 버튼을 누르면 `projectDialog.returnValue`가 `"closed"`가 됩니다. 03편에서 배운 `dialog.close()`를 직접 호출하는 것과 결과는 같지만, `method="dialog"`는 폼 제출이라는 익숙한 흐름 안에서 닫기 동작을 표현할 수 있다는 점이 다릅니다.
+
+### 열릴 때 자동 포커스 이동과 트랩
+
+`showModal()`로 dialog가 열리면 브라우저는 자동으로 dialog 안의 **첫 번째 포커스 가능한 요소**(또는 `autofocus` 속성이 붙은 요소)로 포커스를 옮깁니다. 이후 `Tab` 키를 눌러도 포커스는 dialog 바깥으로 나가지 않습니다. 이것을 **포커스 트랩**(focus trap)이라고 부릅니다. 별도 자바스크립트 없이 top layer 메커니즘이 자동으로 처리합니다.
+
+| 상황 | 포커스 이동 |
+|------|-------------|
+| dialog가 열릴 때 | 첫 포커스 가능 요소(또는 `autofocus` 요소)로 이동 |
+| dialog 안에서 `Tab` 반복 | dialog 안 요소들 사이에서만 순환한다 |
+| dialog가 닫힐 때 | 브라우저가 자동으로 옮겨 주지 않는다(직접 처리 필요) |
+
+마지막 행이 이 편의 핵심입니다. 열릴 때는 브라우저가 알아서 해 주지만, **닫힐 때 포커스를 어디로 되돌릴지는 우리가 코드로 정해야** 합니다.
+
+### 닫힐 때 포커스 복귀와 `close` 이벤트
+
+dialog가 닫히면 `close` 이벤트가 발생합니다. 이 시점에 열기 전 포커스를 갖고 있던 요소로 되돌리지 않으면, 포커스가 `body`로 빠져 스크린 리더 사용자와 키보드 사용자 모두 방금까지 보던 카드 위치를 잃어버립니다.
+
+## 실습
+
+<Steps>
+
+### 1. 닫기 버튼을 method=dialog 폼으로 감싸기
+
+`projects.html`의 dialog 맨 위에 닫기 버튼을 추가합니다.
+
+```html
+<!-- portfolio/projects.html -->
+<dialog id="project-dialog" class="project-dialog">
+  <form method="dialog">
+    <button type="submit" value="closed" class="dialog-close" aria-label="닫기">×</button>
+  </form>
+  <h2 class="dialog-title"></h2>
+  <p class="dialog-background"></p>
+  <p class="dialog-role"></p>
+  <p class="dialog-learned"></p>
+</dialog>
+```
+
+`aria-label="닫기"`를 붙인 이유는 버튼 안 내용이 `×` 기호뿐이라 스크린 리더가 읽을 텍스트가 없기 때문입니다. 시각 기호와 별개로 접근 가능한 이름을 명시적으로 줍니다.
+
+### 2. 열기 전 포커스를 기억하고, close 이벤트로 복귀시키기
+
+`main.js`의 클릭 핸들러에서 dialog를 열기 직전의 `button`(트리거)을 변수에 저장하고, `close` 이벤트가 발생하면 그 요소로 포커스를 되돌립니다.
+
+```js
+// portfolio/js/main.js (03편 코드에 이어서 작성)
+let lastTrigger = null;
+
+document.querySelectorAll('[data-project-id]').forEach((button) => {
+  button.addEventListener('click', () => {
+    const detail = projectDetails[button.dataset.projectId];
+    projectDialog.querySelector('.dialog-title').textContent = detail.title;
+    projectDialog.querySelector('.dialog-background').textContent = detail.background;
+    projectDialog.querySelector('.dialog-role').textContent = detail.role;
+    projectDialog.querySelector('.dialog-learned').textContent = detail.learned;
+
+    lastTrigger = button;
+    projectDialog.showModal();
+  });
+});
+
+projectDialog.addEventListener('close', () => {
+  if (lastTrigger) {
+    lastTrigger.focus();
+  }
+});
+```
+
+`showModal()` 호출 직전에 `lastTrigger`를 저장해 두면, `Esc`로 닫든 닫기 버튼으로 닫든 `close` 이벤트 한 곳에서 포커스 복귀를 처리할 수 있습니다. 03편에서 `Esc`가 자동으로 dialog를 닫는다고 배웠는데, 그 경우에도 `close` 이벤트는 똑같이 발생하므로 이 코드 하나로 두 경로를 모두 처리합니다.
+
+### 3. returnValue 확인하기
+
+닫기 버튼을 누른 뒤 `returnValue`에 값이 제대로 들어갔는지 브라우저 콘솔에서 확인합니다.
+
+```js
+// 브라우저 개발자 도구 콘솔에서 직접 입력
+document.querySelector('#project-dialog').returnValue;
+```
+
+### 4. 실행하고 확인하기
+
+```text
+$ (VS Code Live Server 확장으로 projects.html 새로고침)
+```
+
+### 확인
+
+- 아무 카드나 "자세히"를 누르면 dialog가 열리고, 포커스가 자동으로 닫기 버튼(dialog 안 첫 포커스 가능 요소)으로 이동한다.
+- dialog가 열린 상태에서 `Tab`을 여러 번 눌러도 포커스가 dialog 밖 카드나 내비게이션으로 빠져나가지 않는다.
+- 닫기 버튼을 누르면 dialog가 닫히고, 포커스가 방금 눌렀던 "자세히" 버튼으로 정확히 돌아온다.
+- `Esc`로 닫아도 같은 방식으로 포커스가 돌아온다.
+- 콘솔에서 `returnValue`를 확인하면 `"closed"`가 나온다.
+
+</Steps>
+
+## 직접 해보기
+
+닫기 버튼에 `value="closed"` 대신 `value="cancelled"`를 주고, `Esc`로 닫았을 때와 버튼으로 닫았을 때 `returnValue`가 어떻게 다른지 확인해 보세요.
+
+<details>
+<summary>답 확인</summary>
+
+버튼으로 닫으면 `returnValue`가 그 버튼의 `value`(`"cancelled"`)가 됩니다. 반면 `Esc`로 닫으면 `method="dialog"` 폼 제출이 아니라 브라우저의 취소 동작이므로 `returnValue`는 이전 값을 그대로 유지하거나 빈 문자열입니다. 즉 `returnValue`만으로는 "어떻게 닫혔는가"를 완벽히 구분할 수 없어, 정확한 구분이 필요하면 `close`와 `cancel` 이벤트를 각각 리스닝해야 합니다.
+
+</details>
+
+## 자주 하는 실수
+
+| 증상 | 원인 | 고치는 법 |
+|------|------|-----------|
+| 닫기 버튼을 눌러도 페이지가 새로고침된다 | `form`에 `method="dialog"`를 빠뜨렸다 | `form` 태그에 `method="dialog"`가 정확히 있는지 확인한다 |
+| 닫은 뒤 포커스가 페이지 맨 위로 튄다 | `lastTrigger`를 저장하지 않았거나 `close` 리스너가 없다 | `showModal()` 호출 전 `lastTrigger = button` 저장, `close` 이벤트 리스너 등록을 확인한다 |
+| `Tab`을 누르면 포커스가 배경 내비게이션으로 빠진다 | `show()`를 썼거나 dialog를 `showModal()`이 아닌 다른 방식으로 열었다 | 03편의 `showModal()` 호출이 그대로 유지되어 있는지 확인한다 |
+
+## 확인 문제
+
+<Quiz
+  questionNumber={1}
+  question="method=dialog인 form을 제출하면 벌어지는 일은?"
+  options={['서버로 데이터가 전송된다', '페이지가 새로고침된다', '서버 요청 없이 dialog가 닫히고 returnValue가 설정된다', '아무 일도 일어나지 않는다']}
+  correctAnswer={3}
+  explanation="method=dialog는 폼 제출을 서버 요청 대신 dialog 닫기 동작으로 처리하며, 제출에 쓰인 버튼의 value가 dialog.returnValue에 저장된다."
+  optionExplanations={['서버 요청은 발생하지 않는다', '페이지 새로고침도 발생하지 않는다', '정답 — dialog가 닫히고 returnValue가 설정된다', 'dialog를 닫는다는 명확한 동작이 일어난다']}
+/>
+
+<Quiz
+  questionNumber={2}
+  question="showModal()로 dialog가 열릴 때 브라우저가 자동으로 하는 일은?"
+  options={['배경 요소를 모두 삭제한다', '첫 포커스 가능 요소로 포커스를 옮기고 Tab을 dialog 안에 가둔다', '자동으로 3초 뒤 닫는다', 'CSS를 자동으로 적용한다']}
+  correctAnswer={2}
+  explanation="showModal()은 dialog 안 첫 포커스 가능 요소(또는 autofocus 요소)로 포커스를 이동시키고, Tab 이동을 dialog 내부로 제한하는 포커스 트랩을 자동으로 만든다."
+  optionExplanations={['배경 요소는 삭제되지 않고 상호작용만 차단된다', '정답 — 자동 포커스 이동과 포커스 트랩이 핵심 동작이다', '자동으로 닫히는 타이머 같은 것은 없다', 'CSS 자동 적용 같은 동작은 없다']}
+/>
+
+<Quiz
+  questionNumber={3}
+  question="dialog가 닫힐 때 포커스를 원래 트리거로 되돌리기 위해 필요한 것은?"
+  options={['브라우저가 자동으로 처리하므로 아무것도 필요 없다', 'close 이벤트 리스너에서 저장해 둔 트리거 요소에 focus()를 호출한다', 'CSS만으로 처리할 수 있다', 'dialog 태그에 autofocus를 붙이면 된다']}
+  correctAnswer={2}
+  explanation="브라우저는 열릴 때 포커스 이동은 자동으로 처리하지만 닫힐 때 포커스 복귀는 처리하지 않는다. close 이벤트에서 열기 전 저장해 둔 요소에 직접 focus()를 호출해야 한다."
+  optionExplanations={['닫힐 때 포커스 복귀는 자동 처리되지 않는다', '정답 — close 이벤트에서 직접 focus()를 호출해야 한다', 'CSS는 포커스 이동 자체를 수행할 수 없다', 'autofocus는 열릴 때 포커스 위치를 정하는 속성이지 닫힐 때와는 무관하다']}
+/>
+
+<Quiz
+  questionNumber={4}
+  question="닫기 버튼에 aria-label로 닫기라는 이름을 붙인 이유는?"
+  options={['버튼 색을 바꾸기 위해', '버튼 안 내용이 × 기호뿐이라 스크린 리더가 읽을 텍스트가 없어서', '검증기 오류를 없애기 위해', 'CSS 선택자로 쓰기 위해']}
+  correctAnswer={2}
+  explanation="버튼 안에 × 기호만 있으면 스크린 리더가 읽을 수 있는 접근 가능한 이름이 없다. aria-label로 명시적인 이름을 주어 이 문제를 해결한다."
+  optionExplanations={['aria-label은 시각적 색상과 무관하다', '정답 — 접근 가능한 이름을 제공하기 위해서다', 'aria-label 누락은 HTML 문법 오류가 아니라 접근성 문제다', 'CSS 선택자 용도라면 class나 id를 쓰는 것이 더 적절하다']}
+/>
+
+## 참고 자료
+
+- [MDN — HTMLDialogElement: close event](https://developer.mozilla.org/en-US/docs/Web/API/HTMLDialogElement/close_event)
+- [MDN — Forms in dialogs](https://developer.mozilla.org/en-US/docs/Web/HTML/Reference/Elements/dialog#usage_notes)
+- [MDN — HTMLDialogElement.returnValue](https://developer.mozilla.org/en-US/docs/Web/API/HTMLDialogElement/returnValue)

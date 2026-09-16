@@ -1,0 +1,276 @@
+---
+title: '13. JSON과 구조화 복제로 내보내기·가져오기'
+description: 'JSON.stringify/parse와 structuredClone으로 todo-cli의 백업·복원 명령을 만듭니다.'
+---
+
+<Callout type="info">
+  **이번 편의 결과물:** `todo export`로 백업 JSON을 만들고 `todo import <file>`로 복원합니다. 복원본이 원본과 독립된 복사본인지 확인합니다. · **다루는 개념:** `JSON.stringify`/`parse`(replacer/reviver), `structuredClone`, 얕은/깊은 복사 차이
+</Callout>
+
+## 이 편에서 만드는 파일
+
+```
+todo-cli/
+└── src/
+    ├── commands/
+    │   ├── export.js   (+)
+    │   └── import.js   (+)
+    ├── models/
+    │   └── TodoStore.js (~)
+    └── index.js        (~)
+```
+
+## 개념 정리
+
+### JSON.stringify와 replacer
+
+`JSON.stringify(value, replacer, space)`는 객체를 문자열로 바꿉니다. 두 번째 인자 replacer로 직렬화 방식을 바꿀 수 있습니다. `todo-cli`의 `Todo.tags`는 배열이라 `JSON.stringify`로 바로 바꿔도 문제없지만, 만약 `Set`을 직접 직렬화하려 하면 아래처럼 `{}`가 되어 버리는 점을 함께 알아둡니다.
+
+| 값 | `JSON.stringify` 기본 결과 |
+|----|---------------------------|
+| `new Set(['work'])` | `{}` |
+| `new Map([['a', 1]])` | `{}` |
+| `undefined`, 함수 | 키 자체가 사라짐 |
+
+replacer 함수를 넘기면 이 변환을 직접 제어합니다.
+
+```js
+JSON.stringify(todo, (key, value) => {
+  if (value instanceof Set) return [...value];
+  return value;
+});
+```
+
+### JSON.parse와 reviver
+
+`JSON.parse(text, reviver)`의 reviver는 각 키·값 쌍을 만들 때마다 호출되어 값을 다시 원하는 형태로 바꿀 수 있습니다. 아래처럼 특정 키의 값만 골라 원하는 타입으로 바꿀 수 있다는 점만 기억해 둡니다(`todo-cli`는 태그를 배열로만 관리하므로 이 프로젝트에서 실제로 쓰지는 않습니다).
+
+```js
+JSON.parse(text, (key, value) => {
+  if (key === 'due' && value === '') return null;
+  return value;
+});
+```
+
+### structuredClone과 얕은 복사
+
+`structuredClone(value)`은 값을 재귀적으로 깊은 복사(deep copy)합니다. 스프레드(`{ ...obj }`)나 `Object.assign`은 한 단계만 복사하는 얕은 복사(shallow copy)라 중첩 객체는 원본과 참조를 공유합니다.
+
+| 방법 | 복사 깊이 | Set/Map 지원 | 함수 포함 값 |
+|------|-----------|--------------|--------------|
+| `{ ...obj }` | 1단계만 | 참조 그대로 공유 | 그대로 복사(참조) |
+| `JSON.parse(JSON.stringify(obj))` | 전체(깊은 복사) | 지원 안 함(`{}`가 됨) | 사라짐 |
+| `structuredClone(obj)` | 전체(깊은 복사) | 지원함 | 에러 발생 |
+
+`structuredClone`은 함수를 포함한 값을 넘기면 `DataCloneError`를 던집니다. `Todo` 인스턴스처럼 메서드가 있는 클래스 인스턴스를 통째로 넘기면 프로토타입 메서드는 사라지고 일반 객체가 됩니다(clone 결과는 `Todo`의 인스턴스가 아닙니다). import에서 되살릴 데이터는 일반 객체로 취급하고, `Todo.fromObject`(10편)로 다시 클래스 인스턴스를 만듭니다.
+
+## 실습
+
+<Steps>
+
+### 1. src/commands/export.js 만들기
+
+`TodoStore`가 가진 전체 목록을 JSON 문자열로 바꿔 파일에 씁니다. `Todo.tags`는 배열이라 별도 replacer 없이 바로 직렬화됩니다.
+
+### 2. 코드 작성
+
+```js
+// src/commands/export.js
+import { writeFile } from 'node:fs/promises';
+
+function serializeTodo(todo) {
+  return {
+    id: todo.id,
+    title: todo.title,
+    done: todo.done,
+    tags: [...todo.tags],
+    due: todo.due,
+    createdAt: todo.createdAt,
+  };
+}
+
+export async function runExport(store, positional) {
+  const targetPath = positional[0] ?? `data/backup-${Date.now()}.json`;
+  const payload = {
+    exportedAt: new Date().toISOString(),
+    todos: [...store].map(serializeTodo),
+  };
+  const text = JSON.stringify(payload, null, 2);
+  await writeFile(targetPath, text, 'utf-8');
+  console.log(`내보내기 완료: ${targetPath} (${payload.todos.length}개)`);
+}
+```
+
+`[...store]`는 09편에서 만든 `TodoStore`의 `Symbol.iterator`를 이용해 전체 항목을 배열로 펼칩니다. `serializeTodo`가 필드를 순수 객체로 다시 골라 담으므로 `JSON.stringify`가 바로 정상 동작합니다.
+
+### 3. src/commands/import.js 만들기
+
+가져온 JSON을 다시 `Todo` 인스턴스로 만들어 스토어에 채웁니다.
+
+### 4. 코드 작성
+
+```js
+// src/commands/import.js
+import { readFile } from 'node:fs/promises';
+import { Todo } from '../models/Todo.js';
+
+export async function runImport(store, positional) {
+  const [filePath] = positional;
+  if (!filePath) {
+    throw new Error('가져올 파일 경로가 필요합니다: todo import <file>');
+  }
+
+  const text = await readFile(filePath, 'utf-8');
+  const parsed = JSON.parse(text);
+
+  let count = 0;
+  for (const raw of parsed.todos) {
+    const todo = Todo.fromObject(raw);
+    store.replace(todo);
+    count += 1;
+  }
+  console.log(`가져오기 완료: ${filePath}에서 ${count}개 복원`);
+}
+```
+
+`Todo.fromObject(raw)`는 10편에서 만든 정적 메서드로, `{ id, title, done, tags, due, createdAt }` 형태의 일반 객체를 받아 `Todo` 인스턴스로 되살립니다. `store.replace(todo)`는 같은 `id`가 있으면 덮어쓰고 없으면 추가하는 메서드로, 아래에서 `TodoStore`에 추가합니다.
+
+```js
+// src/models/TodoStore.js (replace 메서드만 발췌)
+// ...기존 fromArray/toArray/add/list/findById/tagCounts/Symbol.iterator 유지
+
+replace(todo) {
+  const index = this.#todos.findIndex((item) => item.id === todo.id);
+  if (index === -1) {
+    this.#todos.push(todo);
+  } else {
+    this.#todos[index] = todo;
+  }
+}
+```
+
+같은 `id`가 이미 있으면 그 자리 그대로 덮어쓰고, 없으면 배열 끝에 추가합니다. `#nextId()`(10편)는 항상 배열의 마지막 항목을 기준으로 다음 id를 계산하므로, `import` 직후 `add`를 실행하면 방금 들어온 마지막 항목 다음 번호부터 이어집니다.
+
+### 5. structuredClone으로 독립성 확인하기
+
+가져오기 직후 원본 배열과 복사본이 서로 다른 참조인지 직접 확인해봅니다.
+
+```js
+const original = { tags: new Set(['work']) };
+const cloned = structuredClone(original);
+cloned.tags.add('urgent');
+
+console.log(original.tags); // Set(1) {'work'}  ← 원본은 안 바뀜
+console.log(cloned.tags); // Set(2) {'work', 'urgent'}
+```
+
+### 6. src/index.js에 명령 연결
+
+```js
+// src/index.js (export/import 라우팅 부분만)
+// ...기존 import 유지
+import { runExport } from './commands/export.js';
+import { runImport } from './commands/import.js';
+
+// ...기존 if/else if 체인 유지, 아래 두 분기를 else 앞에 추가
+} else if (command === 'export') {
+  await runExport(store, positional);
+} else if (command === 'import') {
+  await runImport(store, positional);
+  await saveTodos(store.toArray().map((todo) => todo.toJSON()));
+```
+
+### 7. 실행
+
+```text
+node src/index.js export data/backup.json
+```
+
+```text
+node src/index.js import data/backup.json
+```
+
+</Steps>
+
+## 확인
+
+- `export` 실행 후 `data/backup.json`이 생기고, 내용이 `{ "exportedAt": ..., "todos": [...] }` 형태입니다.
+- `import` 실행 후 콘솔에 "가져오기 완료: ... N개 복원"이 출력되고, `list`로 확인하면 백업 시점 항목이 그대로 있습니다.
+- Node REPL(`node`)에서 위 `structuredClone` 예제를 실행하면 `cloned.tags`만 `urgent`가 추가되고 `original.tags`는 그대로입니다.
+
+## 직접 해보기
+
+1. `export` 명령에 `--pretty` 없이도 이미 들여쓰기 2칸으로 저장됩니다. 들여쓰기 없이 한 줄로 저장하는 `--compact` 플래그를 추가해봅니다(`JSON.stringify`의 세 번째 인자를 조건부로 `null`).
+2. `import`가 존재하지 않는 파일 경로를 받으면 어떤 에러가 나는지 확인하고, 14편에서 다룰 사용자용 에러 메시지로 바꿀 부분을 미리 표시해둡니다.
+
+<details>
+<summary>정답 보기(1번)</summary>
+
+```js
+export async function runExport(store, positional, flags = {}) {
+  const targetPath = positional[0] ?? `data/backup-${Date.now()}.json`;
+  const payload = {
+    exportedAt: new Date().toISOString(),
+    todos: [...store].map(serializeTodo),
+  };
+  const space = flags.compact ? undefined : 2;
+  const text = JSON.stringify(payload, null, space);
+  await writeFile(targetPath, text, 'utf-8');
+  console.log(`내보내기 완료: ${targetPath} (${payload.todos.length}개)`);
+}
+```
+
+`index.js`의 호출부도 `runExport(store, positional, flags)`로 세 번째 인자를 넘기도록 함께 고쳐야 합니다.
+
+</details>
+
+## 자주 하는 실수
+
+| 증상 | 원인 | 고치는 법 |
+|------|------|-----------|
+| `store.replace is not a function` | `TodoStore`에 `replace` 메서드를 추가하지 않음 | `models/TodoStore.js`에 `replace(todo)` 메서드를 추가한다 |
+| export 결과에 `Set`이 `{}`로 저장됨 | `JSON.stringify`에 `Set`을 직접 넘김 | `serializeTodo`처럼 미리 배열로 바꾼 뒤 넘긴다 |
+| `structuredClone`이 `DataCloneError`를 던짐 | 메서드가 있는 클래스 인스턴스나 함수를 통째로 복제하려 함 | 순수 데이터 객체만 복제하고, 클래스 인스턴스는 생성자로 다시 만든다 |
+
+## 확인 문제
+
+<Quiz
+  questionNumber={1}
+  question="JSON.stringify가 Set이나 Map을 만나면 기본적으로 어떻게 처리하는가?"
+  options={['배열로 자동 변환한다', '빈 객체({})로 직렬화한다', '에러를 던진다', '문자열 "[Set]"으로 표시한다']}
+  correctAnswer={2}
+  explanation="Set과 Map은 JSON.stringify의 기본 규칙에 없어 순회 가능한 속성이 없는 빈 객체로 직렬화됩니다."
+  optionExplanations={['자동 변환되지 않으므로 replacer가 필요합니다', '정답입니다', '에러 없이 빈 객체가 됩니다', '그런 문자열로 표시되지 않습니다']}
+/>
+
+<Quiz
+  questionNumber={2}
+  question="JSON.parse의 두 번째 인자(reviver)의 역할은?"
+  options={['JSON 문법 오류를 자동으로 고친다', '파싱 중 각 키·값 쌍을 원하는 형태로 변환한다', '파일을 비동기로 읽는다', 'JSON 문자열을 압축한다']}
+  correctAnswer={2}
+  explanation="reviver 함수는 파싱 과정에서 만들어지는 각 키·값 쌍마다 호출되어 값을 원하는 형태로 바꿀 기회를 줍니다."
+  optionExplanations={['문법 오류 자동 수정 기능은 없습니다', '정답입니다', '파일 읽기와는 무관합니다', '압축 기능이 아닙니다']}
+/>
+
+<Quiz
+  questionNumber={3}
+  question="스프레드({ ...obj })와 structuredClone의 차이로 옳은 것은?"
+  options={['둘 다 완전히 같은 깊은 복사다', '스프레드는 1단계만 복사하고, structuredClone은 중첩 구조까지 깊은 복사한다', '스프레드가 더 깊게 복사한다', 'structuredClone은 원시값만 복사할 수 있다']}
+  correctAnswer={2}
+  explanation="스프레드는 최상위 속성만 복사하는 얕은 복사이고, structuredClone은 중첩된 객체·배열·Set·Map까지 재귀적으로 복사하는 깊은 복사입니다."
+  optionExplanations={['복사 깊이가 다릅니다', '정답입니다', '반대로 서술되어 있습니다', 'Set·Map 같은 복합 값도 복사합니다']}
+/>
+
+<Quiz
+  questionNumber={4}
+  question="structuredClone이 DataCloneError를 던지는 경우는?"
+  options={['일반 객체를 복제할 때', '함수나 메서드를 포함한 값을 복제하려 할 때', '숫자를 복제할 때', '빈 배열을 복제할 때']}
+  correctAnswer={2}
+  explanation="structuredClone은 함수를 복제할 수 없으므로 함수나 메서드가 포함된 값을 넘기면 DataCloneError를 던집니다."
+  optionExplanations={['일반 객체는 정상 복제됩니다', '정답입니다', '숫자는 문제없이 복제됩니다', '빈 배열도 정상 복제됩니다']}
+/>
+
+## 참고 자료
+
+- [MDN - JSON.stringify()](https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/JSON/stringify)
+- [MDN - structuredClone()](https://developer.mozilla.org/en-US/docs/Web/API/structuredClone)

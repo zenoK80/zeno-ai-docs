@@ -1,0 +1,289 @@
+---
+title: '10. URL/History로 목록·상세 라우팅'
+description: '주소창 URL로 메모 목록 화면과 상세 화면을 오가는 라우터를 직접 만듭니다.'
+---
+
+<Callout type="info">
+  **이번 편의 결과물:** 메모를 클릭하면 주소가 `/notes/3`으로 바뀌며 상세 화면이 뜨고, 새로고침해도 같은 화면이 유지되며, 뒤로가기 버튼도 정상 동작합니다. · **다루는 개념:** `history.pushState`, `popstate` 이벤트, URL 파라미터로 화면 구분
+</Callout>
+
+## 이 편에서 만드는 파일
+
+```
+notes-app/
+├── index.html      (~)
+└── src/
+    ├── router.js   (+)
+    ├── render.js   (~)
+    └── main.js     (~)
+```
+
+## 개념 정리
+
+### 싱글 페이지 앱에서 URL이 하는 일
+
+지금까지 `notes-app`은 페이지 이동 없이 `#note-list` 안의 내용만 자바스크립트로 바꿔왔습니다. 문제는 주소창이 항상 `/`로 고정돼, 특정 메모를 새로고침하거나 링크로 공유할 방법이 없다는 것입니다. `History` API를 쓰면 실제 페이지 이동(서버 왕복) 없이 주소창 URL만 바꿀 수 있습니다.
+
+| API | 역할 |
+|-----|------|
+| `history.pushState(state, '', url)` | 새 히스토리 항목을 추가하고 주소창 URL을 바꾼다(페이지는 다시 로드하지 않음) |
+| `history.replaceState(state, '', url)` | 현재 히스토리 항목을 교체한다(뒤로가기 목록에 새 항목을 남기지 않음) |
+| `popstate` 이벤트 | 사용자가 브라우저 뒤로가기/앞으로가기를 눌렀을 때 발생 |
+| `location.pathname` | 현재 경로 문자열(`/notes/3` 등)을 읽는다 |
+
+`pushState`는 `popstate` 이벤트를 발생시키지 않습니다. 그래서 라우터는 링크를 클릭했을 때(직접 `pushState` 호출)와 뒤로가기를 눌렀을 때(`popstate` 이벤트) 두 경로 모두에서 같은 화면 렌더링 함수를 불러야 합니다.
+
+### 경로 패턴 읽기
+
+이 앱은 두 화면만 있습니다. 정규식으로 `/notes/:id` 형태인지 확인합니다.
+
+| 경로 | 의미 |
+|------|------|
+| `/` | 메모 목록 화면 |
+| `/notes/3` | id가 `3`인 메모 상세 화면 |
+
+## 실습
+
+<Steps>
+
+### 1. src/router.js 새로 만들기
+
+### 2. 코드 작성
+
+```js
+// src/router.js
+const routes = []
+
+export function registerRoute(pattern, handler) {
+  routes.push({ pattern, handler })
+}
+
+function matchRoute(pathname) {
+  for (const route of routes) {
+    const match = pathname.match(route.pattern)
+    if (match) {
+      return { handler: route.handler, params: match.groups ?? {} }
+    }
+  }
+  return null
+}
+
+function renderCurrentRoute() {
+  const matched = matchRoute(location.pathname)
+  if (matched) {
+    matched.handler(matched.params)
+  } else {
+    routes[0]?.handler({})
+  }
+}
+
+export function navigate(path) {
+  history.pushState({}, '', path)
+  renderCurrentRoute()
+}
+
+export function refresh() {
+  renderCurrentRoute()
+}
+
+export function initRouter() {
+  window.addEventListener('popstate', renderCurrentRoute)
+  renderCurrentRoute()
+}
+```
+
+`registerRoute`는 정규식 패턴과 그 경로를 처리할 함수를 등록만 합니다. `navigate`는 링크 클릭처럼 코드에서 직접 화면을 옮길 때 쓰고, `popstate`는 사용자가 브라우저 버튼을 눌렀을 때만 발생하므로 `initRouter`에서 한 번만 연결합니다. `refresh`는 URL은 그대로 두고 현재 경로를 다시 그릴 때 씁니다(삭제처럼 목록 데이터만 바뀌었을 때 사용).
+
+### 3. src/render.js에 상세 화면 렌더 함수 추가
+
+05~09편의 `renderList`는 카드 안에 편집·저장·취소 버튼까지 그리는 인라인 편집 방식이었습니다. 이제 메모 편집은 상세 화면(13편)에서 다루도록 역할을 나눠, `renderList`를 "제목 링크 + 삭제 버튼"만 그리는 단순한 목록으로 정리하고 상세 화면 렌더 함수를 추가합니다.
+
+```js
+// src/render.js
+export function renderList(notes, container) {
+  container.innerHTML = ''
+  notes.forEach((note) => {
+    const item = document.createElement('li')
+    item.dataset.id = note.id
+    item.innerHTML = `
+      <a href="/notes/${note.id}" data-link>${note.title}</a>
+      <button type="button" data-action="delete">삭제</button>
+    `
+    container.appendChild(item)
+  })
+}
+
+export function renderDetail(note, container) {
+  if (!note) {
+    container.innerHTML = '<p>메모를 찾을 수 없습니다.</p><a href="/" data-link>목록으로</a>'
+    return
+  }
+  container.innerHTML = `
+    <a href="/" data-link>← 목록으로</a>
+    <h2>${note.title}</h2>
+    <p>${note.body}</p>
+    <p>태그: ${note.tags.join(', ') || '없음'}</p>
+  `
+}
+```
+
+### 4. src/main.js에 라우터 연결
+
+06~09편에서 만든 폼 제출(`form.addEventListener('submit', ...)`)과 검색 입력(`searchInput.addEventListener('input', ...)`) 코드는 그대로 두고, 목록을 그리던 `hydrate()` 직접 호출 대신 라우터가 화면 전환을 맡도록 아래 내용을 추가합니다. 05~09편의 `listEl.addEventListener('click', ...)`는 카드 안 편집·저장·취소 버튼(`.note-card`, `data-action="edit"` 등)을 전제로 했는데, `renderList`가 그리는 마크업이 링크와 삭제 버튼만 남는 단순한 형태로 바뀌었으므로 이 리스너 전체를 지우고, 아래 `document.body`의 위임 리스너 하나로 링크 이동과 삭제를 함께 처리합니다.
+
+```js
+// src/main.js (라우터·삭제 처리 추가분. 06~09편의 폼 제출·검색 입력 코드는 그대로 유지)
+import { registerRoute, initRouter, navigate, refresh } from './router.js'
+import { renderList, renderDetail } from './render.js'
+import { fetchNotes, deleteNoteOnServer } from './api.js'
+import { removeNote } from './notes.js'
+
+const viewRoot = document.querySelector('#note-list')
+
+async function showList() {
+  const notes = await fetchNotes()
+  renderList(notes, viewRoot)
+}
+
+async function showDetail(params) {
+  const notes = await fetchNotes()
+  const note = notes.find((item) => String(item.id) === params.id)
+  renderDetail(note, viewRoot)
+}
+
+registerRoute(/^\/$/, showList)
+registerRoute(/^\/notes\/(?<id>[^/]+)$/, showDetail)
+
+document.body.addEventListener('click', async (event) => {
+  const link = event.target.closest('[data-link]')
+  if (link) {
+    event.preventDefault()
+    navigate(link.getAttribute('href'))
+    return
+  }
+
+  const deleteBtn = event.target.closest('[data-action="delete"]')
+  if (deleteBtn) {
+    const id = deleteBtn.closest('li').dataset.id
+    try {
+      await deleteNoteOnServer(id)
+    } catch (error) {
+      console.error(error)
+    }
+    removeNote(id)
+    refresh()
+  }
+})
+
+initRouter()
+```
+
+`registerRoute`에 넘긴 정규식은 이름 있는 캡처 그룹(`(?<id>...)`)을 써서 `params.id`로 바로 꺼내 씁니다. 링크 클릭은 `data-link` 속성이 있는 `<a>`만 가로채 `preventDefault`로 기본 이동을 막고 `navigate`로 대체합니다. 삭제 버튼은 08~09편에서 만든 `deleteNoteOnServer`(서버 반영)와 `removeNote`(로컬 상태 반영)를 그대로 재사용하고, 화면은 `refresh()`로 다시 그립니다.
+
+### 5. index.html에 뷰 컨테이너 정리
+
+06편의 `#note-form`(추가)과 09편의 `#search-input`(검색)은 그대로 두고, `#note-list`를 목록·상세 공용 컨테이너로 계속 씁니다. 툴바 영역(`#toolbar`)은 17~19편에서 내보내기·가져오기·알림 버튼을 추가할 자리로 미리 비워 둡니다.
+
+```html
+<!-- index.html -->
+<div id="app">
+  <header class="app-header">
+    <h1>메모</h1>
+  </header>
+  <input id="search-input" type="search" placeholder="메모 검색" />
+  <form id="note-form" class="note-composer" novalidate>
+    <div class="field">
+      <label for="new-title">제목</label>
+      <input id="new-title" name="title" type="text" required minlength="2" />
+      <p class="field-error" data-error-for="title"></p>
+    </div>
+    <div class="field">
+      <label for="new-body">내용</label>
+      <input id="new-body" name="body" type="text" />
+    </div>
+    <button type="submit">추가</button>
+  </form>
+  <div id="toolbar"></div>
+  <div id="note-list"></div>
+</div>
+```
+
+### 6. 실행
+
+```text
+npm run dev
+```
+
+</Steps>
+
+## 확인
+
+- 메모 제목을 클릭하면 주소창이 `http://localhost:5173/notes/3`으로 바뀌고 상세 내용이 보입니다.
+- 그 상태에서 새로고침(F5)해도 상세 화면이 그대로 유지됩니다.
+- 브라우저 뒤로가기를 누르면 목록 화면으로 돌아갑니다.
+- 존재하지 않는 id로 접근하면(`/notes/999`) "메모를 찾을 수 없습니다" 메시지가 뜹니다.
+
+## 직접 해보기
+
+1. `/notes/:id/edit` 경로를 추가해, 상세 화면에서 편집 버튼을 누르면 이 경로로 이동하도록 만들어봅니다.
+2. 목록 화면에서 검색 중일 때 주소를 `/?q=검색어`처럼 쿼리 문자열까지 반영해봅니다.
+
+<details>
+<summary>정답 보기</summary>
+
+```js
+registerRoute(/^\/notes\/(?<id>[^/]+)\/edit$/, showEditForm)
+```
+
+</details>
+
+## 자주 하는 실수
+
+| 증상 | 원인 | 고치는 법 |
+|------|------|-----------|
+| 뒤로가기를 눌러도 화면이 안 바뀜 | `popstate` 리스너를 등록하지 않음 | `initRouter`에서 `window.addEventListener('popstate', ...)`를 반드시 연결한다 |
+| 링크를 클릭하면 페이지 전체가 새로고침됨 | `event.preventDefault()`를 호출하지 않아 브라우저 기본 이동이 실행됨 | `data-link` 클릭 핸들러에서 `preventDefault`를 먼저 호출한다 |
+| `pushState` 후 화면이 안 바뀜 | `pushState`는 URL만 바꾸고 렌더링은 하지 않음 | `navigate` 함수 안에서 `pushState` 다음 줄에 `renderCurrentRoute`를 직접 호출한다 |
+
+## 확인 문제
+
+<Quiz
+  questionNumber={1}
+  question="history.pushState의 동작으로 옳은 것은?"
+  options={['서버에 새 페이지를 요청하고 다시 로드한다', '페이지를 다시 로드하지 않고 주소창 URL과 히스토리 항목만 바꾼다', 'popstate 이벤트를 자동으로 발생시킨다', '현재 히스토리 항목을 삭제한다']}
+  correctAnswer={2}
+  explanation="pushState는 실제 페이지 이동 없이 히스토리 스택에 새 항목을 추가하고 주소창 URL만 변경합니다."
+  optionExplanations={['서버 왕복이 없는 것이 핵심입니다', '정답입니다', 'pushState 자체는 popstate를 발생시키지 않습니다', '항목을 삭제하지 않고 추가합니다']}
+/>
+
+<Quiz
+  questionNumber={2}
+  question="popstate 이벤트가 발생하는 시점으로 옳은 것은?"
+  options={['pushState를 호출할 때마다', '사용자가 브라우저의 뒤로가기·앞으로가기를 눌렀을 때', '페이지가 처음 로드될 때', 'fetch 요청이 끝났을 때']}
+  correctAnswer={2}
+  explanation="popstate는 사용자가 브라우저 내비게이션 버튼으로 히스토리를 이동할 때 발생하며, 코드에서 pushState를 호출하는 것만으로는 발생하지 않습니다."
+  optionExplanations={['pushState 호출만으로는 발생하지 않습니다', '정답입니다', '최초 로드 시에는 발생하지 않습니다', 'fetch와는 무관합니다']}
+/>
+
+<Quiz
+  questionNumber={3}
+  question="라우터에서 링크 클릭 시 event.preventDefault()를 호출하는 이유는?"
+  options={['이벤트 버블링을 막기 위해', '브라우저의 기본 페이지 이동을 막고 pushState로 대체하기 위해', 'fetch 요청을 취소하기 위해', 'CSS 애니메이션을 멈추기 위해']}
+  correctAnswer={2}
+  explanation="a 태그 클릭의 기본 동작은 실제 페이지 이동이므로, 이를 막아야 pushState 기반의 자체 라우팅으로 대체할 수 있습니다."
+  optionExplanations={['버블링 차단은 stopPropagation의 역할입니다', '정답입니다', 'fetch 취소와는 무관합니다', 'CSS와는 무관합니다']}
+/>
+
+<Quiz
+  questionNumber={4}
+  question="정규식에서 매칭 부분에 이름을 붙이는 이름 있는 캡처 그룹, 예를 들어 notes 뒤 id 부분을 감싸는 표기의 역할은?"
+  options={['대소문자를 구분하지 않게 한다', '매칭된 부분을 params.id로 꺼내 쓸 수 있는 이름 있는 캡처 그룹을 만든다', '정규식을 전역 검색 모드로 바꾼다', '문자열을 배열로 변환한다']}
+  correctAnswer={2}
+  explanation="이름 있는 캡처 그룹(named capture group)은 매칭 결과의 groups 객체에 지정한 이름으로 값을 담아, params.id처럼 바로 접근할 수 있게 합니다."
+  optionExplanations={['대소문자 구분은 i 플래그의 역할입니다', '정답입니다', '전역 검색은 g 플래그의 역할입니다', '배열 변환 기능이 아닙니다']}
+/>
+
+## 참고 자료
+
+- [MDN - History API](https://developer.mozilla.org/en-US/docs/Web/API/History_API)
+- [MDN - Window: popstate event](https://developer.mozilla.org/en-US/docs/Web/API/Window/popstate_event)

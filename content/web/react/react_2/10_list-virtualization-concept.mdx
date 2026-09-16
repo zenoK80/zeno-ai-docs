@@ -1,0 +1,227 @@
+---
+title: '10. 리스트 가상화 개념'
+description: '더미 책 1,000권을 넣고 화면에 보이는 범위만 렌더링하는 가상화를 직접 구현한다'
+---
+
+<Callout type="info">
+  **이번 편의 결과물:** 더미 책 1,000권을 넣어도 DOM에는 화면에 보이는 만큼(약 10~15개)만 렌더링됩니다. 가상화 적용 전/후 DOM 노드 개수를 비교합니다. **다루는 개념:** 윈도잉(windowing), 보이는 범위 계산, 라이브러리 대체 시 트레이드오프
+</Callout>
+
+## 이 편에서 만드는 파일
+
+```
+bookshelf/src/
+├── utils/
+│   └── generateDummyBooks.js   + 신규
+├── hooks/
+│   └── useVirtualList.js       + 신규
+└── pages/
+    └── BookListPage.jsx        ~ 가상화 적용
+```
+
+## 개념 정리
+
+책이 6권일 때는 `filteredBooks.map`으로 전부 렌더링해도 문제가 없습니다. 1,000권이 되면 이야기가 다릅니다. 화면에는 10여 개만 보이는데 나머지 990개도 DOM 노드로 만들어져 브라우저 레이아웃·페인트 비용을 씁니다. **윈도잉**은 전체 데이터 중 스크롤 위치에 따라 화면에 보이는 범위만 실제로 렌더링하는 기법입니다.
+
+| 요소 | 역할 |
+|------|------|
+| 컨테이너 높이 고정 | 스크롤이 발생할 영역을 명시적 높이로 지정 |
+| 전체 높이 placeholder | `아이템 수 × 아이템 높이`만큼 스크롤바 크기를 유지 |
+| 보이는 범위 계산 | `scrollTop`과 컨테이너 높이로 시작·끝 인덱스 계산 |
+| `translateY` 오프셋 | 보이는 항목들을 실제 스크롤 위치에 맞춰 이동 |
+| overscan | 화면 경계 위아래로 여유분을 몇 개 더 렌더링(스크롤 시 빈 화면 방지) |
+
+직접 구현한 윈도잉은 아이템 높이가 고정일 때만 계산이 단순합니다. 높이가 가변이거나 그리드·가로 스크롤까지 고려하면 `react-window`, `@tanstack/react-virtual` 같은 라이브러리가 훨씬 안전합니다. 이 편은 개념을 이해하기 위해 직접 만들고, 실무에서는 라이브러리를 쓰는 판단 기준을 정리합니다.
+
+| 상황 | 선택 |
+|------|------|
+| 아이템 높이 고정, 목록 하나뿐 | 직접 구현해도 충분 |
+| 가변 높이, 그리드, 무한 스크롤과 결합 | 라이브러리 사용 |
+| 항목 수가 애초에 적음(수십 개 이하) | 가상화 자체가 불필요 |
+
+## 실습
+
+<Steps>
+
+### 1. 더미 데이터 생성 함수 작성
+
+```js
+// src/utils/generateDummyBooks.js
+const AUTHORS = ['김민준', '이서연', '박도윤', '최지우', '정하은'];
+const COLORS = ['#2563eb', '#16a34a', '#f59e0b', '#db2777', '#7c3aed', '#0891b2'];
+const STATUSES = ['wish', 'reading', 'done'];
+
+export function generateDummyBooks(count) {
+  return Array.from({ length: count }, (_, index) => ({
+    id: `dummy-${index}`,
+    title: `더미 책 ${index + 1}`,
+    author: AUTHORS[index % AUTHORS.length],
+    status: STATUSES[index % STATUSES.length],
+    rating: index % 6,
+    pages: 100 + (index % 500),
+    coverColor: COLORS[index % COLORS.length],
+    startedAt: null,
+    finishedAt: null,
+    memo: '',
+  }));
+}
+```
+
+### 2. 윈도잉 훅 작성
+
+```js
+// src/hooks/useVirtualList.js
+import { useState } from 'react';
+
+const OVERSCAN = 4;
+
+export function useVirtualList({ itemCount, itemHeight, containerHeight }) {
+  const [scrollTop, setScrollTop] = useState(0);
+
+  const visibleCount = Math.ceil(containerHeight / itemHeight);
+  const startIndex = Math.max(0, Math.floor(scrollTop / itemHeight) - OVERSCAN);
+  const endIndex = Math.min(itemCount, startIndex + visibleCount + OVERSCAN * 2);
+
+  return {
+    startIndex,
+    endIndex,
+    totalHeight: itemCount * itemHeight,
+    offsetY: startIndex * itemHeight,
+    onScroll: (e) => setScrollTop(e.target.scrollTop),
+  };
+}
+```
+
+`startIndex`는 스크롤 위치를 아이템 높이로 나눠 몇 번째부터 보여야 하는지 계산합니다. `overscan`만큼 앞뒤 여유를 둬 빠르게 스크롤할 때 빈 화면이 잠깐 보이는 현상을 줄입니다.
+
+### 3. 목록 페이지에 적용
+
+```jsx
+// src/pages/BookListPage.jsx (일부)
+import { useMemo, useState } from 'react';
+import BookCard from '../components/BookCard.jsx';
+import { useVirtualList } from '../hooks/useVirtualList.js';
+import { generateDummyBooks } from '../utils/generateDummyBooks.js';
+
+const ITEM_HEIGHT = 96;
+const CONTAINER_HEIGHT = 480;
+
+function BookListPage() {
+  // ...09편의 useLocalStorage·useDebounce·filteredBooks·handleToggle·handleDelete 로직 유지
+  const [useDummyData, setUseDummyData] = useState(false);
+  const dummyBooks = useMemo(() => generateDummyBooks(1000), []);
+
+  const visibleSource = useDummyData ? dummyBooks : filteredBooks;
+
+  const { startIndex, endIndex, totalHeight, offsetY, onScroll } = useVirtualList({
+    itemCount: visibleSource.length,
+    itemHeight: ITEM_HEIGHT,
+    containerHeight: CONTAINER_HEIGHT,
+  });
+
+  const visibleBooks = visibleSource.slice(startIndex, endIndex);
+
+  return (
+    <section>
+      {/* ...09편의 검색 input 유지 */}
+      <button type="button" onClick={() => setUseDummyData((prev) => !prev)}>
+        더미 1,000권 {useDummyData ? '끄기' : '켜기'}
+      </button>
+
+      <div
+        className="book-list-viewport"
+        style={{ height: CONTAINER_HEIGHT, overflowY: 'auto' }}
+        onScroll={onScroll}
+      >
+        <div style={{ height: totalHeight, position: 'relative' }}>
+          <ul
+            className="book-list"
+            style={{ transform: `translateY(${offsetY}px)`, position: 'absolute', top: 0, width: '100%' }}
+          >
+            {visibleBooks.map((book) => (
+              <li key={book.id} style={{ height: ITEM_HEIGHT }}>
+                <BookCard book={book} onToggle={handleToggle} onDelete={handleDelete} />
+              </li>
+            ))}
+          </ul>
+        </div>
+      </div>
+    </section>
+  );
+}
+
+export default BookListPage;
+```
+
+더미 데이터로 만든 책은 `handleToggle`·`handleDelete`가 실제 `localStorage`를 건드리지 않도록, 더미 모드일 때는 두 함수 대신 빈 함수를 넘기는 방식으로 바꿔도 됩니다. 이 편은 가상화 자체에 집중하므로 더미 모드에서는 상태 변경 없이 화면 개수만 확인합니다.
+
+### 4. 실행
+
+```
+npm run dev
+```
+
+### 5. 확인
+
+- "더미 1,000권 켜기"를 누르면 스크롤바 크기는 1,000권 분량으로 보이지만, 개발자 도구 Elements 패널에서 `<li>` 개수를 세면 20개 안팎입니다.
+- 스크롤을 내리면 보이는 카드 내용이 실시간으로 바뀝니다.
+- 빠르게 스크롤해도 빈 화면이 길게 나타나지 않습니다(overscan 효과).
+- "끄기"를 누르면 기존 필터링된 목록으로 돌아옵니다.
+
+</Steps>
+
+## 직접 해보기
+
+1. `OVERSCAN` 값을 `0`으로 바꾸고 빠르게 스크롤해 빈 화면이 나타나는지 확인해 보세요.
+2. `ITEM_HEIGHT`를 실제 `BookCard` 높이와 다르게 설정하면 어떤 문제가 생기는지 관찰해 보세요.
+
+<details>
+<summary>풀이 보기</summary>
+
+`OVERSCAN`이 `0`이면 스크롤 속도가 빠를 때 브라우저가 다음 프레임을 그리기 전에 사용자가 이미 다음 범위로 스크롤해, 아직 렌더링되지 않은 빈 영역이 순간적으로 보입니다. 여유분을 두면 이 틈을 줄일 수 있습니다.
+
+`ITEM_HEIGHT`가 실제 카드 높이와 다르면 `totalHeight` 계산이 실제 콘텐츠 길이와 어긋나 스크롤바 크기가 부정확해지고, `translateY` 오프셋도 실제 카드 위치와 맞지 않아 카드가 겹치거나 빈틈이 생깁니다.
+
+</details>
+
+## 자주 하는 실수
+
+| 증상 | 원인 | 고치는 법 |
+|------|------|-----------|
+| 스크롤해도 카드가 안 바뀜 | `onScroll`이 실제 스크롤 컨테이너가 아닌 다른 요소에 붙음 | `overflowY: auto`가 걸린 요소에 직접 연결 |
+| 카드끼리 겹쳐 보임 | `ITEM_HEIGHT`와 실제 카드 높이 불일치 | 카드 높이를 고정하거나 상수를 실제 값에 맞춤 |
+| 스크롤바 길이가 이상함 | `totalHeight` 계산에 `itemCount`를 잘못 넣음 | `itemCount × itemHeight` 확인 |
+| 목록이 짧은데도 가상화 코드가 들어감 | 항목 수가 적어 이득이 없는데 복잡성만 추가됨 | 수십 개 이하는 일반 `map` 렌더링 유지 |
+
+## 확인 문제
+
+<Quiz
+  questionNumber={1}
+  question="리스트 가상화(윈도잉)의 핵심 아이디어는 무엇인가"
+  options={['모든 항목을 미리 서버에서 압축해 전송한다', '화면에 보이는 범위의 항목만 실제로 렌더링한다', 'CSS 애니메이션으로 스크롤을 부드럽게 만든다', '모든 항목의 이미지를 지연 로딩한다']}
+  correctAnswer={2}
+  explanation="윈도잉은 전체 데이터 중 뷰포트에 보이는 범위만 DOM으로 렌더링해 노드 수를 줄이는 기법입니다."
+  optionExplanations={['서버 압축과는 무관합니다', '정답입니다', '애니메이션이 아니라 렌더링 대상 자체를 줄이는 기법입니다', '이미지 지연 로딩은 별개의 최적화입니다']}
+/>
+
+<Quiz
+  questionNumber={2}
+  question="overscan 값을 두는 이유는 무엇인가"
+  options={['전체 데이터를 한 번에 미리 렌더링하기 위해', '빠른 스크롤 시 빈 화면이 보이는 현상을 줄이기 위해', '스크롤 속도를 인위적으로 느리게 만들기 위해', '메모리 사용량을 늘려 캐싱하기 위해']}
+  correctAnswer={2}
+  explanation="화면 경계 위아래로 몇 개를 더 렌더링해 두면, 스크롤이 빨라도 다음 프레임이 그려지기 전 빈 영역이 보일 확률이 줄어듭니다."
+  optionExplanations={['overscan은 일부만 추가로 렌더링하는 것이지 전체 렌더링이 아닙니다', '정답입니다', '스크롤 속도 자체는 바꾸지 않습니다', '메모리 절약이 목적이 아니라 시각적 끊김 방지가 목적입니다']}
+/>
+
+<Quiz
+  questionNumber={3}
+  question="아이템 높이가 가변적이고 그리드 레이아웃까지 필요한 경우 권장되는 선택은 무엇인가"
+  options={['직접 구현한 useVirtualList를 그대로 확장한다', 'react-window·react-virtual 같은 검증된 라이브러리를 사용한다', '가상화를 포기하고 전체를 렌더링한다', 'CSS content-visibility만으로 모든 경우를 해결한다']}
+  correctAnswer={2}
+  explanation="가변 높이·그리드·무한 스크롤이 결합되면 계산이 복잡해지므로, 이런 경우는 검증된 라이브러리를 쓰는 편이 안전합니다."
+  optionExplanations={['간단한 고정 높이 목록을 넘어서면 직접 구현 비용이 커집니다', '정답입니다', '항목 수가 많으면 전체 렌더링은 여전히 비용이 큽니다', 'content-visibility는 보조 수단일 뿐 가변 높이 windowing을 전부 대체하지 않습니다']}
+/>
+
+## 참고 자료
+
+- [web.dev - Virtualize large lists with react-window](https://web.dev/articles/virtualize-long-lists-react-window)

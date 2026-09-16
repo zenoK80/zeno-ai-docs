@@ -1,392 +1,161 @@
 ---
-title: '01. 브라우저 Web 플랫폼 지도: JS 엔진·DOM·Web API 경계'
-description: '자바스크립트 엔진이 할 수 있는 일과 브라우저가 빌려주는 일의 경계를 나누고, 이벤트 루프·메인 스레드·origin이라는 플랫폼의 세 축을 지도로 그린다'
+title: '01. 브라우저 Web 플랫폼 지도'
+description: 'JS 엔진과 Web API의 관계, 이벤트 루프, origin 개념을 그림으로 정리합니다.'
 ---
 
 <Callout type="info">
-  **이번 문서의 목표:** 이 문서를 다 읽으면 `setTimeout`·`fetch`·`document` 같은 이름이 자바스크립트 언어의 일부가 **아니라는** 사실을 근거와 함께 설명하고, 브라우저라는 실행 환경을 엔진·Web API·이벤트 루프·보안 경계라는 네 축의 지도로 머릿속에 그릴 수 있게 됩니다.
+  **이번 편의 결과물:** 코드 작성은 없습니다. 앞으로 20편에 걸쳐 만들 `notes-app`의 기능(DOM 렌더링, `fetch`, 저장소, 워커)이 브라우저의 어느 층에서 동작하는지 지도로 그려 봅니다. · **다루는 개념:** JS 엔진과 Web API의 역할 분리, DOM, 이벤트 루프와 메인 스레드·워커, origin
 </Callout>
 
-## 왜 "경계"부터 그리는가
+## 이 편에서 만드는 파일
 
-이 과목의 나머지 29편은 전부 개별 Web API를 파고듭니다. 그런데 API를 하나씩 배우기 전에 반드시 먼저 잡아야 할 것이 있습니다. **어디까지가 자바스크립트 언어이고, 어디부터가 브라우저가 빌려주는 능력인가** 하는 경계선입니다.
+(코드 없음) 이 편은 실습 폴더를 만들지 않습니다. `notes-app` 프로젝트는 04편부터 시작합니다.
 
-이 선을 못 그으면 아주 자주 이런 착각에 빠집니다.
+## 개념 정리
 
-- "`setTimeout`은 자바스크립트 함수다" → 아닙니다. 브라우저(그리고 Node.js가 각자) 제공하는 함수입니다.
-- "`fetch`가 느려서 코드가 멈춘 것 같다" → `fetch`는 코드를 멈추지 않습니다. 멈춘 건 다른 곳입니다.
-- "브라우저가 자바스크립트를 실행하니까 브라우저가 할 수 있는 건 자바스크립트도 다 할 수 있다" → 파일 시스템을 마음대로 못 읽습니다. 경계와 권한이 있습니다.
+### JS 엔진과 브라우저는 다른 것이다
 
-경계선을 정확히 그으면, 나중에 배울 모든 API가 "브라우저가 나 대신 해주는 일 목록"이라는 하나의 이야기로 정리됩니다. 그래서 1편은 지도 그리기입니다.
+자바스크립트 코드를 실행하는 것은 `V8`, `SpiderMonkey` 같은 **JS 엔진**입니다. 엔진 자체는 변수·함수·객체·`Promise` 같은 언어 문법만 압니다. 화면에 그림을 그리거나 네트워크 요청을 보내는 기능은 엔진에 없습니다.
 
-## 1. 자바스크립트 엔진이 실제로 아는 것
+`document.querySelector`, `fetch`, `localStorage` 같은 것은 브라우저가 엔진 옆에 추가로 붙여 준 **Web API**입니다. 자바스크립트 코드에서 `fetch(...)`를 호출하면, 실제 네트워크 요청은 엔진이 아니라 브라우저(정확히는 브라우저의 네트워크 스택)가 처리하고, 끝나면 결과를 다시 엔진에 돌려줍니다.
 
-### 언어 명세는 생각보다 작다
+| 계층 | 담당 | 예 |
+|------|------|-----|
+| JS 엔진 | 문법 실행, 변수·함수·객체 | `let`, `function`, `class`, `Promise` |
+| Web API (브라우저 제공) | DOM 조작, 네트워크, 저장소, 타이머 | `document`, `fetch`, `localStorage`, `setTimeout` |
+| 렌더링 엔진 | DOM을 화면 픽셀로 그림 | 레이아웃, 페인트(02편에서 다룸) |
 
-**자바스크립트**(JavaScript)라는 언어의 규칙을 정의한 문서를 **ECMAScript 명세**(ECMAScript specification, 에크마스크립트 스펙)라고 부릅니다. 이 명세가 정의하는 것은 놀랍도록 적습니다.
+Node.js에서는 `document`가 없고 대신 `fs`, `process` 같은 시스템 API가 있습니다. "자바스크립트에 원래 있는 기능"과 "실행 환경이 추가한 기능"을 구분하는 습관이 이 과목 전체에서 필요합니다.
 
-- 값과 타입: 숫자(number), 문자열(string), 불리언(boolean), 객체(object), 심볼(symbol) 등
-- 문법과 실행 규칙: 변수 선언, 함수 호출, 프로토타입(prototype) 체인, 클래스(class)
-- 내장 객체(built-in object): `Object`, `Array`, `Math`, `JSON`, `Promise`, `Map`, `Set`, `Date` 등
+### DOM은 문서를 객체로 표현한 것
 
-여기 없는 것이 무엇인지가 핵심입니다. **화면에 무언가를 출력하는 방법이 없습니다.** 파일을 읽는 방법도, 네트워크로 요청을 보내는 방법도, 심지어 "1초 뒤에 실행해줘"라는 시간 개념도 없습니다. `console.log`조차 ECMAScript 명세에 없습니다.
+DOM(Document Object Model)은 HTML 문서를 자바스크립트가 읽고 바꿀 수 있는 트리 구조 객체로 표현한 것입니다. 브라우저가 HTML을 파싱하면서 이 트리를 만들고, 자바스크립트는 `document.querySelector`, `element.textContent` 같은 DOM API로 이 트리를 읽거나 바꿉니다. 트리를 바꾸면 브라우저가 다시 화면을 그립니다(02편에서 자세히 다룸).
 
-> **쉽게 말하면:** 자바스크립트 엔진(engine)은 계산만 할 줄 아는 뇌입니다. 눈·귀·손·시계가 없습니다. 그 감각 기관을 붙여주는 것이 브라우저입니다.
+### 이벤트 루프와 메인 스레드
 
-### 엔진이 하는 일 — 파싱·컴파일·실행
-
-**엔진**(engine, 실행기)은 자바스크립트 소스 코드를 받아 실제로 돌리는 프로그램입니다. 크롬(Chrome)과 엣지(Edge)의 **V8**, 파이어폭스(Firefox)의 **SpiderMonkey**(스파이더몽키), 사파리(Safari)의 **JavaScriptCore**가 대표적입니다.
-
-엔진 내부에는 두 개의 핵심 구조가 있습니다.
-
-- **콜 스택**(call stack, 호출 스택): 지금 실행 중인 함수들이 쌓이는 접시 더미. 함수를 부르면 위에 쌓고, 끝나면 걷어냅니다. 자바스크립트가 "한 번에 한 가지 일만" 하는 이유가 바로 스택이 하나뿐이기 때문입니다.
-- **힙**(heap, 더미): 객체와 배열 같은 덩치 큰 값들이 저장되는 메모리 영역. 더 이상 아무도 참조하지 않는 값은 **GC**(Garbage Collection, 가비지 컬렉션 — 쓰레기 수거)가 알아서 회수합니다.
-
-<Callout type="warning">
-  **자주 틀리는 점:** "자바스크립트는 싱글 스레드(single thread, 단일 실행 흐름)"라는 말은 **엔진의 콜 스택이 하나**라는 뜻이지, 브라우저 전체가 한 가닥으로 돈다는 뜻이 아닙니다. 브라우저는 네트워크·디코딩·컴포지팅(compositing) 등을 별도 스레드에서 병렬로 돌립니다. 내 자바스크립트 코드가 그 위에 올라탈 자리가 하나뿐인 것입니다.
-</Callout>
-
-### 확인 실험 — 엔진에 없는 것과 있는 것
-
-아래 실습기는 실제 브라우저에서 실행됩니다. 콘솔 출력을 보며 어떤 이름이 어디 소속인지 확인해 보세요.
-
-<CodePlayground
-  template="vanilla"
-  activeFile="/index.js"
-  showConsole
-  label="어디까지가 언어이고 어디부터가 브라우저인가"
-  files={{
-    '/index.html': `<div id="app">
-  <p>콘솔 출력을 확인하세요.</p>
-</div>`,
-    '/index.js': `// (A) ECMAScript 언어가 정의하는 내장 객체 — 어떤 JS 환경에도 있다
-console.log("Math는 언어 소속?", typeof Math);        // object
-console.log("JSON은 언어 소속?", typeof JSON);        // object
-console.log("Promise는 언어 소속?", typeof Promise);  // function
-
-// (B) 브라우저가 빌려주는 것 — 언어 명세에는 한 글자도 없다
-console.log("document는?", typeof document);          // object (브라우저)
-console.log("fetch는?", typeof fetch);                // function (브라우저)
-console.log("setTimeout은?", typeof setTimeout);      // function (브라우저)
-console.log("localStorage는?", typeof localStorage);  // object (브라우저)
-
-// (C) 전역 객체의 정체 — 브라우저에서 전역은 window
-console.log("window === globalThis ?", window === globalThis); // true
-
-// (D) 결정적 증거: 브라우저가 준 것은 window에 얹혀 있다
-console.log("window.fetch 존재?", "fetch" in window);       // true
-console.log("window.document 존재?", "document" in window); // true
-
-// (E) 엔진이 멈추면 브라우저의 UI도 함께 멈춘다는 증거
-const 시작 = performance.now();
-let 합계 = 0;
-for (let i = 0; i < 3000000; i++) { 합계 += i; }
-const 걸린시간 = Math.round(performance.now() - 시작);
-console.log("동기 반복 " + 걸린시간 + "ms 동안 화면은 얼어 있었다");`,
-  }}
-/>
-
-`typeof Math`와 `typeof document`가 둘 다 `"object"`로 나오지만, 출신은 완전히 다릅니다. `Math`는 자바스크립트가 도는 모든 곳(Node.js, 워커, 심지어 브라우저 없는 임베디드 엔진)에 있고, `document`는 오직 브라우저의 창(window)이라는 맥락 안에만 존재합니다.
-
-## 2. Web API — 브라우저가 빌려주는 능력
-
-### 이름부터 뜯어보기
-
-**API**(Application Programming Interface, 응용 프로그램 프로그래밍 인터페이스)는 단어를 쪼개면 뜻이 그대로 보입니다. **인터페이스**(interface)는 "사이(inter)에 놓인 면(face)", 즉 서로 다른 두 세계가 만나 약속대로 대화하는 창구입니다. 식당의 메뉴판과 같습니다. 손님은 주방 구조를 몰라도 메뉴판에 적힌 이름만 부르면 음식이 나옵니다.
-
-그래서 **Web API**는 "브라우저라는 주방이 자바스크립트라는 손님에게 내미는 메뉴판"입니다. 메뉴판에는 이런 것들이 적혀 있습니다.
+브라우저 탭 하나는 기본적으로 자바스크립트를 **한 번에 한 줄씩만** 실행하는 스레드 하나(메인 스레드)를 씁니다. 클릭 이벤트 처리, DOM 갱신, 화면 그리기가 전부 이 한 스레드 위에서 순서대로 일어납니다.
 
 ```mermaid
 graph TD
-  JS["자바스크립트 코드 (내가 쓰는 것)"] --> API["Web API 창구"]
-  API --> DOM["문서 — DOM, CSSOM, Range"]
-  API --> NET["네트워크 — fetch, WebSocket, SSE"]
-  API --> STORE["저장소 — Storage, IndexedDB, Cache"]
-  API --> TIME["타이밍 — setTimeout, rAF, Observer"]
-  API --> WORKER["동시성 — Worker, Service Worker"]
-  API --> DEVICE["기기·통합 — 파일, 클립보드, 미디어, 권한"]
-  DOM --> ENGINE["브라우저 내부 구현 (C++/Rust)"]
-  NET --> ENGINE
-  STORE --> ENGINE
-  TIME --> ENGINE
-  WORKER --> ENGINE
-  DEVICE --> ENGINE
+  A["콜 스택<br/>실행 중인 함수"] -->|비어 있으면 꺼내옴| B["태스크 큐<br/>클릭 이벤트, setTimeout 콜백"]
+  C["fetch, IndexedDB 등<br/>Web API가 백그라운드 처리"] -->|완료되면 큐에 등록| B
+  B -->|이벤트 루프가 순서대로 전달| A
 ```
 
-중요한 관찰: 창구 뒤의 실제 구현은 자바스크립트가 아닙니다. `fetch`를 부르면 브라우저 내부의 네트워크 스택(C++로 짜인 코드)이 소켓을 열고 TCP 연결을 맺습니다. 내 자바스크립트는 주문서를 넘겼을 뿐입니다.
+`fetch`나 `setTimeout`처럼 시간이 걸리는 작업은 메인 스레드가 기다리지 않습니다. 브라우저가 백그라운드에서 처리하고, 끝나면 결과를 태스크 큐에 넣습니다. 이벤트 루프는 콜 스택이 비었을 때 큐에서 다음 작업을 꺼내 실행합니다. 이 구조 덕분에 네트워크 요청 중에도 화면이 멈추지 않습니다.
 
-### "브라우저가 대신 한다"의 실제 의미
+무거운 계산(예: 메모 500개 검색)을 메인 스레드에서 직접 돌리면 그동안 클릭도 화면 갱신도 멈춥니다. 15편에서 이 계산을 별도 스레드인 Web Worker로 옮기는 이유가 여기에 있습니다.
 
-이 관점을 잡으면 비동기(asynchronous, 비순차)가 왜 필요한지가 저절로 풀립니다.
+### origin — 같은 사이트인지 구분하는 기준
 
-주문서를 넘긴 뒤 내 콜 스택은 **비어 있습니다.** 네트워크 응답은 브라우저의 다른 스레드가 기다리고 있고, 내 자바스크립트는 그동안 다른 일을 합니다. 응답이 오면 브라우저가 "결과 나왔습니다"라며 내가 맡겨둔 콜백(callback, 되부름 함수)을 큐(queue, 대기줄)에 넣어줍니다.
+origin은 `프로토콜 + 호스트 + 포트`의 조합입니다. 셋 중 하나라도 다르면 다른 origin으로 취급합니다.
 
-> **쉽게 말하면:** Web API는 심부름꾼입니다. `fetch("...")`는 "이거 사다 줘"라고 부탁하고 돌아서는 행동이지, 가게 앞에 서서 기다리는 행동이 아닙니다.
+| URL 1 | URL 2 | 같은 origin인가 |
+|-------|-------|------------------|
+| `http://localhost:5173` | `http://localhost:5173/notes` | 예 (경로는 origin에 포함 안 됨) |
+| `http://localhost:5173` | `http://localhost:3001` | 아니오 (포트가 다름) |
+| `http://localhost:5173` | `https://localhost:5173` | 아니오 (프로토콜이 다름) |
+| `http://app.example.com` | `http://api.example.com` | 아니오 (호스트가 다름) |
 
-### 표준이라는 것
+`localStorage`, IndexedDB, `fetch` 요청 허용 여부(CORS)는 모두 이 origin을 기준으로 판단합니다. 08편에서 `notes-app`(Vite 개발 서버, 포트 5173)이 json-server(포트 3001)에 요청을 보낼 때 이 둘이 서로 다른 origin이라는 점이 다시 등장합니다.
 
-Web API는 특정 회사가 마음대로 만드는 것이 아니라 두 표준 기구가 문서로 정의합니다.
+## 개발자 도구로 확인하기
 
-| 기구 | 전체 이름 | 주로 정의하는 것 |
-|------|-----------|------------------|
-| WHATWG | Web Hypertext Application Technology Working Group | HTML, DOM, Fetch, Streams, URL — 살아있는 표준 |
-| W3C | World Wide Web Consortium | CSSOM, Web Components, 권한·기기 관련 다수 |
+<Steps>
 
-"살아있는 표준"(Living Standard, 리빙 스탠더드)이란 버전 번호를 붙여 얼려두지 않고 계속 고쳐 나가는 방식입니다. 그래서 "HTML5"라는 표현은 더 이상 기술적으로 정확하지 않습니다. 이 스펙 문서를 실제로 읽는 방법은 다음 2편에서 통째로 다룹니다.
+### 1. 아무 웹 페이지에서 개발자 도구 열기
 
-## 3. 이벤트 루프 — 하나뿐인 실행 자리의 교통정리
+브라우저에서 `F12`(또는 `Cmd+Option+I`)를 눌러 개발자 도구를 엽니다. `Console` 탭으로 이동합니다.
 
-### 문제 상황
+### 2. JS 엔진 기능과 Web API 구분해보기
 
-콜 스택은 하나입니다. 그런데 브라우저는 클릭 처리, 네트워크 응답, 타이머 만료, 화면 갱신을 전부 자바스크립트로 알려줘야 합니다. 이 여러 갈래의 일을 **하나뿐인 자리에 순서대로 밀어 넣는 교통정리 장치**가 필요합니다. 그것이 **이벤트 루프**(event loop, 사건 순환)입니다.
+콘솔에 아래를 한 줄씩 입력합니다.
 
-> **쉽게 말하면:** 이벤트 루프는 창구 하나짜리 은행의 번호표 기계입니다. 창구(콜 스택)가 비면 다음 번호를 부릅니다. 창구에 앉은 손님이 안 일어나면, 뒤에 아무리 많이 기다려도 아무도 못 들어옵니다.
-
-### 한 바퀴에 무슨 일이 일어나는가
-
-이벤트 루프의 한 바퀴를 **틱**(tick) 또는 태스크 한 번의 처리라고 부릅니다. 순서가 중요합니다.
-
-```mermaid
-graph TD
-  A["콜 스택이 비었는가?"] -->|아니오| A
-  A -->|예| B["매크로태스크 큐에서 하나 꺼내 실행<br/>클릭 핸들러 · setTimeout 콜백 · fetch 응답 처리"]
-  B --> C["마이크로태스크 큐를 전부 비울 때까지 실행<br/>Promise then · queueMicrotask · MutationObserver"]
-  C --> D{"렌더링 기회인가?<br/>보통 초당 60회"}
-  D -->|아니오| A
-  D -->|예| E["rAF 콜백 실행"]
-  E --> F["스타일 계산 → 레이아웃 → 페인트 → 컴포지트"]
-  F --> G["여유 시간이 남으면<br/>requestIdleCallback 실행"]
-  G --> A
+```text
+typeof Array.prototype.map
+typeof document.querySelector
+typeof fetch
 ```
 
-- **매크로태스크**(macrotask, 큰 작업 — 스펙 용어로는 그냥 task): 한 바퀴에 **하나만** 꺼냅니다. 클릭 이벤트 핸들러, `setTimeout` 콜백, 스크립트 최초 실행이 여기 해당합니다.
-- **마이크로태스크**(microtask, 작은 작업): 매크로태스크 하나가 끝나면 큐가 **완전히 빌 때까지 전부** 실행합니다. `Promise`의 `then`, `await` 이후 코드, `queueMicrotask`, `MutationObserver` 콜백이 여기 들어갑니다.
-- **렌더링**: 마이크로태스크까지 다 비운 뒤에야 화면을 갱신할 기회가 옵니다. 이 단계의 내부 동작은 3편에서 자세히 다룹니다.
+세 줄 모두 `"function"`이 나오지만, `Array.prototype.map`은 언어 자체(JS 엔진)가 제공하는 기능이고 `document.querySelector`와 `fetch`는 브라우저가 추가한 Web API입니다.
 
-여기서 이 과목 전체를 관통하는 결론이 나옵니다. **화면 갱신은 자바스크립트가 콜 스택에서 내려온 뒤에만 가능합니다.** 무거운 반복문이 도는 동안 화면이 얼어붙는 이유이고, 스크롤·애니메이션 최적화가 전부 "메인 스레드를 비우기"라는 한 문장으로 수렴하는 이유입니다.
+### 3. 현재 페이지의 origin 확인하기
 
-<Callout type="warning">
-  **자주 틀리는 점:** `setTimeout(fn, 0)`은 "즉시 실행"이 아니라 "지금 하던 매크로태스크와 그 뒤의 모든 마이크로태스크가 끝난 다음, 가장 이른 기회에"입니다. 게다가 스펙상 중첩 5단계를 넘으면 최소 4밀리초의 하한(clamping, 클램핑)이 걸립니다. 정확한 동작은 18편에서 다룹니다.
-</Callout>
-
-### 순서를 눈으로 확인하기
-
-<CodePlayground
-  template="vanilla"
-  activeFile="/index.js"
-  showConsole
-  label="이벤트 루프 실행 순서 — 예상하고 나서 콘솔을 확인하세요"
-  files={{
-    '/index.html': `<div id="app">
-  <button id="버튼">클릭해서 이벤트 태스크 확인</button>
-  <p id="안내">버튼을 누르면 추가 출력이 나옵니다.</p>
-</div>`,
-    '/index.js': `console.log("1. 동기 코드 — 지금 콜 스택 위");
-
-setTimeout(() => {
-  console.log("5. 매크로태스크(setTimeout 0ms)");
-}, 0);
-
-Promise.resolve().then(() => {
-  console.log("3. 마이크로태스크(Promise then)");
-});
-
-queueMicrotask(() => {
-  console.log("4. 마이크로태스크(queueMicrotask)");
-});
-
-console.log("2. 동기 코드 — 여전히 같은 스택");
-
-// 클릭도 매크로태스크다. 핸들러 안의 Promise는
-// 그 핸들러가 끝난 직후 곧바로 소진된다.
-document.getElementById("버튼").addEventListener("click", () => {
-  console.log("A. 클릭 핸들러 시작 — 새 매크로태스크");
-  Promise.resolve().then(() => console.log("C. 핸들러가 만든 마이크로태스크"));
-  console.log("B. 클릭 핸들러 끝");
-});
-
-// 렌더링은 마이크로태스크를 전부 비운 다음에 온다
-requestAnimationFrame(() => {
-  console.log("6. rAF — 다음 화면 갱신 직전");
-});`,
-  }}
-/>
-
-출력 순서가 1, 2, 3, 4, 5, 6인 것을 확인했다면 이벤트 루프의 뼈대를 잡은 것입니다. 특히 **3과 4가 5보다 먼저**라는 점 — 마이크로태스크가 매크로태스크를 앞지르는 것 — 이 핵심입니다.
-
-## 4. 메인 스레드와 워커 — 자리를 늘리는 유일한 방법
-
-### 메인 스레드가 하는 일 전부
-
-**메인 스레드**(main thread, 주 실행 흐름)는 이름과 달리 자바스크립트만 돌리지 않습니다. 한 탭에서 이 스레드가 담당하는 일 목록입니다.
-
-- 자바스크립트 실행
-- 스타일 계산과 레이아웃(layout, 배치 계산)
-- 대부분의 페인트(paint, 그리기) 명령 생성
-- 이벤트 디스패치(dispatch, 전달)
-
-전부 한 자리에서 순서대로 처리되므로, **자바스크립트가 오래 돌면 스타일 계산도, 클릭 처리도, 화면 그리기도 전부 대기**합니다. 초당 60프레임을 유지하려면 한 프레임에 주어진 시간은 약 16.7밀리초입니다. 자바스크립트가 그중 대부분을 먹으면 프레임을 놓치고, 사용자는 "끊긴다"고 느낍니다.
-
-### 워커 — 진짜 병렬 실행
-
-자리를 늘리는 방법은 **워커**(Worker, 일꾼)뿐입니다. 워커는 별도 스레드에서 도는 독립된 자바스크립트 실행 환경입니다.
-
-| 구분 | 메인 스레드 | 워커 |
-|------|-------------|------|
-| DOM 접근 | 가능 | 불가능 — `document`가 없다 |
-| 사용 가능한 API | 거의 전부 | fetch, IndexedDB, Cache, 타이머 등 일부 |
-| 데이터 전달 | 직접 참조 | `postMessage`로 복사 또는 이전 |
-| 막히면 | 화면 전체가 얼어붙음 | 화면은 멀쩡함 |
-
-워커가 DOM에 접근하지 못하는 것은 게으름이 아니라 설계입니다. 여러 스레드가 같은 DOM 트리를 동시에 고치면 락(lock, 잠금)과 경쟁 조건(race condition, 경쟁 상태)이 필요해지고, 그러면 웹 개발자가 짜는 모든 코드가 훨씬 어려워집니다. 그래서 웹 플랫폼은 **DOM은 메인 스레드 독점, 스레드 간 대화는 메시지 복사로만**이라는 단순한 규칙을 택했습니다. 이 모델의 상세는 19편에서 다룹니다.
-
-## 5. origin — 보안의 기본 단위
-
-### 왜 격리가 필요한가
-
-브라우저에서는 내가 열어둔 은행 탭과, 방금 클릭한 낯선 광고 페이지가 **같은 브라우저 프로세스 안에서 나란히** 돕니다. 아무 장치가 없다면 광고 페이지의 자바스크립트가 은행 페이지의 DOM을 읽어 계좌번호를 가져갈 수 있습니다. 이를 막는 기본 단위가 **오리진**(origin, 출처)입니다.
-
-오리진은 URL(Uniform Resource Locator, 자원 위치 지정자)의 세 조각으로 만들어집니다.
-
-$$
-origin = scheme + host + port
-$$
-
-- $scheme$ (스킴, 통신 방식): `https`, `http` 같은 프로토콜 이름
-- $host$ (호스트, 서버 이름): `example.com` 같은 도메인
-- $port$ (포트, 접속 번호): `443`, `8080` 등. 생략하면 스킴의 기본값
-
-세 개가 **하나라도** 다르면 다른 오리진입니다.
-
-| URL | `https://shop.com` 과 같은 오리진? | 이유 |
-|-----|-----------------------------------|------|
-| `https://shop.com/cart` | 같음 | 경로는 오리진에 포함되지 않는다 |
-| `http://shop.com` | 다름 | 스킴이 다르다 |
-| `https://api.shop.com` | 다름 | 호스트가 다르다 |
-| `https://shop.com:8443` | 다름 | 포트가 다르다 |
-
-이 규칙을 강제하는 정책을 **동일 출처 정책**(Same-Origin Policy, SOP)이라고 부릅니다. 다른 오리진의 DOM 읽기, 저장소 읽기, 응답 본문 읽기가 기본적으로 차단됩니다.
-
-> **쉽게 말하면:** 오리진은 아파트 호수입니다. 같은 건물(브라우저)에 살아도 남의 집 냉장고(저장소)와 서랍(DOM)은 열 수 없습니다. `https://shop.com`과 `https://api.shop.com`은 옆집이지, 같은 집이 아닙니다.
-
-### 저장소도 오리진 단위다
-
-`localStorage`, IndexedDB, Cache Storage는 전부 오리진마다 별도의 공간을 가집니다. `https://a.com`이 저장한 값은 `https://b.com`에서 조회조차 되지 않습니다. 13편에서 이 격리와 용량 한도(quota, 쿼터)를 자세히 다룹니다.
-
-### 안전한 컨텍스트
-
-강력한 API — 카메라, 마이크, 위치, Service Worker, `crypto.subtle` — 는 **안전한 컨텍스트**(secure context, 시큐어 컨텍스트)에서만 동작합니다. 실무적으로는 `https://`이거나 `localhost`여야 한다는 뜻입니다. 중간에서 통신을 가로채는 공격자가 있는 평문 연결에 카메라 권한을 주는 것은 위험하기 때문입니다. 상세는 24편입니다.
-
-<Callout type="warning">
-  **자주 틀리는 점:** "도메인이 같으면 같은 오리진"이라고 외우면 틀립니다. 포트와 스킴까지 셋 다 같아야 합니다. 개발 중 `http://localhost:3000`과 `http://localhost:5173`이 서로를 못 읽는 것이 바로 이 규칙 때문이고, 이를 서버가 허락해 주는 절차가 CORS(Cross-Origin Resource Sharing, 교차 출처 자원 공유)입니다. 10편에서 다룹니다.
-</Callout>
-
-## 6. 전체 지도 한 장
-
-지금까지의 네 축을 하나로 합치면 이 과목의 전체 지형이 됩니다.
-
-```mermaid
-graph TD
-  subgraph 보안경계["오리진 경계 — 이 밖으로는 기본 차단"]
-    subgraph 메인["메인 스레드 — 자리 하나"]
-      STACK["콜 스택"] --> LOOP["이벤트 루프"]
-      LOOP --> MICRO["마이크로태스크 큐"]
-      LOOP --> MACRO["매크로태스크 큐"]
-      LOOP --> RENDER["렌더링 단계 — 03편"]
-    end
-    subgraph 워커스["워커 스레드 — 19편"]
-      W["Worker · Service Worker"]
-    end
-    subgraph 브라우저내부["브라우저 내부 (자바스크립트 아님)"]
-      NETSTACK["네트워크 스택"]
-      DB["저장소 엔진"]
-      COMPOSITOR["컴포지터"]
-    end
-  end
-  MACRO -.콜백 투입.-> NETSTACK
-  MACRO -.콜백 투입.-> DB
-  메인 <-.postMessage 복사.-> 워커스
-  RENDER --> COMPOSITOR
+```text
+location.origin
 ```
 
-이 지도 위에 앞으로의 편들이 얹힙니다. 문서 모델(05편)과 이벤트(06·09편)는 메인 스레드 위의 이야기이고, 네트워크(10~12편)와 저장소(13~16편)는 오리진 경계와 브라우저 내부 구현의 이야기이며, 관측자·타이밍·워커(17~20·23편)는 전부 "메인 스레드의 하나뿐인 자리를 어떻게 비울 것인가"라는 한 가지 질문의 변주입니다.
+### 4. Sources 탭에서 스레드 확인하기
 
-## 핵심 정리
+`Sources` 탭 왼쪽 하단에 `Threads`(또는 `Call Stack` 근처) 영역이 있는지 찾아봅니다. 워커를 쓰지 않는 일반 페이지는 스레드가 메인 스레드 하나만 보입니다.
 
-- ECMAScript 명세는 계산 규칙만 정의한다. `document`·`fetch`·`setTimeout`·`localStorage`는 전부 브라우저가 얹어준 Web API이며, 자바스크립트 언어의 일부가 아니다.
-- Web API를 호출하는 것은 브라우저 내부의 비자바스크립트 구현에 주문서를 넘기는 일이다. 그래서 기다리지 않고 돌아설 수 있고, 그 결과가 콜백으로 돌아오는 구조가 비동기다.
-- 이벤트 루프는 매크로태스크 하나 → 마이크로태스크 전부 → 렌더링 기회 순서로 돈다. 마이크로태스크가 매크로태스크를 앞지른다.
-- 자바스크립트 실행과 레이아웃·페인트가 같은 메인 스레드를 공유하므로, 긴 동기 코드는 곧 화면 멈춤이다. 자리를 늘리는 유일한 방법이 워커다.
-- 오리진은 스킴·호스트·포트 셋의 조합이며, DOM·저장소·응답 본문 접근의 기본 격리 단위다. 강력한 API는 안전한 컨텍스트를 요구한다.
+</Steps>
 
-## 마무리 복습
+## 확인
+
+- 콘솔에서 `typeof fetch`와 `typeof Array.prototype.map`이 둘 다 `"function"`으로 나오지만, 정의된 곳(엔진 vs 브라우저)이 다르다는 것을 설명할 수 있습니다.
+- `location.origin`이 현재 주소창의 `프로토콜://호스트:포트`와 일치하는 것을 확인합니다.
+
+## 직접 해보기
+
+1. 지금 열린 사이트와 다른 사이트(예: 검색 엔진)를 새 탭에서 열고 각각 `location.origin`을 비교해봅니다.
+2. 콘솔에 `setTimeout(() => console.log("나중에"), 0); console.log("먼저")`를 입력하고 어떤 순서로 출력되는지 확인해봅니다. 이유를 위 이벤트 루프 그림과 연결해 설명해봅니다.
+
+<details>
+<summary>정답 보기</summary>
+
+`"먼저"`가 먼저 출력되고 `"나중에"`가 그다음에 출력됩니다. `setTimeout`은 지연 시간이 `0`이어도 콜백을 태스크 큐에 넣을 뿐이고, 콜 스택에 있는 동기 코드(`console.log("먼저")`)가 먼저 끝난 뒤에야 이벤트 루프가 큐에서 콜백을 꺼내 실행하기 때문입니다.
+
+</details>
+
+## 자주 하는 실수
+
+| 오해 | 실제 |
+|------|------|
+| `fetch`, `document` 같은 것도 자바스크립트 언어 문법이다 | 언어 명세(ECMAScript)에는 없고 브라우저가 추가한 Web API다 |
+| 자바스크립트는 여러 작업을 동시에 처리한다 | 메인 스레드는 한 번에 한 작업만 처리한다. 동시처럼 보이는 것은 이벤트 루프가 빠르게 번갈아 처리하기 때문이다 |
+| 포트만 다르면 같은 사이트로 취급된다 | 포트도 origin 구성 요소라 다르면 별개 origin이다 |
+
+## 확인 문제
 
 <Quiz
   questionNumber={1}
-  question="다음 중 ECMAScript 언어 명세가 정의하는 것은?"
-  options={['setTimeout', 'document', 'Promise', 'localStorage']}
-  correctAnswer={3}
-  explanation="Promise는 ECMAScript 명세가 정의하는 내장 객체다. setTimeout, document, localStorage는 브라우저가 제공하는 Web API이며 언어 명세에는 존재하지 않는다."
-  optionExplanations={['브라우저와 Node.js가 각자 제공하는 환경 API다', '브라우저의 창 맥락에만 존재하는 문서 객체다', '정답 — 언어 명세의 내장 객체이므로 어떤 JS 환경에도 존재한다', '브라우저의 저장소 API이며 오리진 단위로 격리된다']}
+  question="document.querySelector와 Array.prototype.map의 차이로 옳은 것은?"
+  options={['둘 다 ECMAScript 언어 명세에 정의된 문법이다', 'querySelector는 브라우저가 제공하는 Web API이고 map은 언어 자체의 내장 기능이다', 'map은 브라우저 전용이라 Node.js에서 쓸 수 없다', '둘 다 브라우저가 추가한 확장 기능이다']}
+  correctAnswer={2}
+  explanation="Array.prototype.map은 ECMAScript 명세가 정의하는 언어 내장 기능이고, document.querySelector는 브라우저가 추가로 제공하는 Web API입니다."
+  optionExplanations={['querySelector는 명세가 아니라 브라우저 API입니다', '정답입니다', 'map은 Node.js에서도 그대로 동작합니다', 'map은 브라우저 확장이 아니라 언어 자체 기능입니다']}
 />
 
 <Quiz
   questionNumber={2}
-  question="다음 코드의 콘솔 출력 순서로 알맞은 것은? 첫 줄에 A 출력, setTimeout 0ms로 B 예약, Promise then으로 C 예약, 마지막 줄에 D 출력."
-  options={['A D C B', 'A B C D', 'A C D B', 'A D B C']}
-  correctAnswer={1}
-  explanation="동기 코드 A와 D가 먼저 끝나고, 그 다음 마이크로태스크 큐가 전부 소진되어 C가 나오며, 매크로태스크인 setTimeout 콜백 B가 마지막이다."
-  optionExplanations={['정답 — 동기 두 줄, 마이크로태스크, 매크로태스크 순서다', 'setTimeout 콜백은 동기 코드가 전부 끝난 뒤에만 실행된다', 'D는 동기 코드이므로 마이크로태스크 C보다 먼저다', '마이크로태스크는 항상 매크로태스크보다 앞선다']}
+  question="자바스크립트 메인 스레드의 동작 방식으로 옳은 것은?"
+  options={['여러 함수를 동시에 병렬로 실행한다', '한 번에 한 작업씩 콜 스택에서 순서대로 실행한다', '항상 별도 스레드에서 이벤트를 처리한다', '이벤트 루프 없이 즉시 모든 콜백을 실행한다']}
+  correctAnswer={2}
+  explanation="메인 스레드는 콜 스택이 비었을 때 이벤트 루프가 태스크 큐에서 꺼낸 작업을 하나씩 순서대로 실행합니다."
+  optionExplanations={['자바스크립트 메인 스레드는 단일 스레드로 동작합니다', '정답입니다', '별도 스레드 사용은 Web Worker를 명시적으로 만들 때만 해당됩니다', '이벤트 루프가 실행 순서를 관리합니다']}
 />
 
 <Quiz
   questionNumber={3}
-  question="브라우저 메인 스레드에 대한 설명으로 옳지 않은 것은?"
-  options={['자바스크립트 실행과 레이아웃 계산이 같은 스레드에서 처리된다', '긴 동기 반복문이 돌면 화면 갱신과 클릭 처리가 모두 지연된다', '워커를 쓰면 워커 스레드에서도 DOM을 직접 수정할 수 있다', '이벤트 디스패치도 이 스레드에서 이루어진다']}
-  correctAnswer={3}
-  explanation="워커에는 document가 없어 DOM에 직접 접근할 수 없다. DOM은 메인 스레드가 독점하며, 워커는 postMessage로 결과만 전달한다."
-  optionExplanations={['둘 다 메인 스레드가 담당하므로 서로 자리를 다툰다', '콜 스택이 비어야 렌더링 기회가 오기 때문이다', '정답(틀린 설명) — 워커는 DOM에 접근할 수 없다', '이벤트 핸들러 실행도 메인 스레드의 태스크로 처리된다']}
+  question="setTimeout(fn, 0)을 호출했을 때 fn이 실행되는 시점으로 옳은 것은?"
+  options={['호출 즉시 동기적으로 실행된다', '현재 실행 중인 동기 코드가 모두 끝난 뒤 태스크 큐를 거쳐 실행된다', '브라우저가 완전히 유휴 상태가 될 때까지 실행되지 않는다', 'Web Worker 스레드에서 실행된다']}
+  correctAnswer={2}
+  explanation="지연 시간이 0이어도 콜백은 태스크 큐에 들어가고, 현재 콜 스택의 동기 코드가 끝난 뒤 이벤트 루프가 꺼내 실행합니다."
+  optionExplanations={['setTimeout은 항상 비동기로 큐를 거칩니다', '정답입니다', '유휴 상태와는 무관하게 큐 순서대로 처리됩니다', 'setTimeout 콜백은 메인 스레드에서 실행됩니다']}
 />
 
 <Quiz
   questionNumber={4}
-  question="https://shop.com 페이지와 동일한 오리진인 것은?"
-  options={['http://shop.com/items', 'https://api.shop.com', 'https://shop.com:8443', 'https://shop.com/cart/checkout']}
-  correctAnswer={4}
-  explanation="오리진은 스킴, 호스트, 포트 세 요소로만 결정되며 경로는 포함되지 않는다. 나머지 보기는 각각 스킴, 호스트, 포트가 다르다."
-  optionExplanations={['스킴이 http로 달라 다른 오리진이다', '호스트가 api.shop.com으로 달라 다른 오리진이다', '포트가 명시적으로 8443이라 기본 443과 다르다', '정답 — 경로만 다르므로 같은 오리진이다']}
-/>
-
-<Quiz
-  questionNumber={5}
-  question="Web API 호출이 코드 실행을 막지 않는 근본적인 이유로 가장 알맞은 것은?"
-  options={['자바스크립트 엔진이 여러 개의 콜 스택을 동시에 운용하기 때문', '실제 작업을 브라우저 내부의 다른 구현이 처리하고 결과만 큐를 통해 콜백으로 돌려주기 때문', 'Promise 문법이 코드를 자동으로 병렬 실행하기 때문', '브라우저가 자바스크립트를 여러 번 복제해 실행하기 때문']}
-  correctAnswer={2}
-  explanation="fetch 같은 호출은 브라우저 내부 구현에 작업을 위임하는 주문서다. 내 콜 스택은 곧 비고, 결과는 태스크 큐를 거쳐 이벤트 루프가 다시 올려준다."
-  optionExplanations={['콜 스택은 실행 맥락마다 하나뿐이다', '정답 — 위임과 콜백 큐가 비동기의 실제 메커니즘이다', 'Promise는 결과를 표현하는 객체일 뿐 병렬 실행 장치가 아니다', '코드가 복제되어 실행되는 일은 없다']}
-/>
-
-<Quiz
-  questionNumber={6}
-  question="안전한 컨텍스트(secure context)를 요구하는 API에 해당하지 않는 것은?"
-  options={['Service Worker 등록', 'crypto.subtle 암호 연산', '카메라·마이크 접근', 'document.getElementById로 요소 선택']}
-  correctAnswer={4}
-  explanation="요소 선택 같은 기본 DOM 조작은 안전한 컨텍스트를 요구하지 않는다. 나머지는 통신 가로채기 위험 때문에 https 또는 localhost에서만 동작한다."
-  optionExplanations={['네트워크를 가로챌 수 있는 강력한 기능이라 제한된다', '암호 키를 다루므로 평문 연결에서는 허용되지 않는다', '기기 접근은 대표적인 제한 대상이다', '정답 — 기본 DOM 조작에는 이 제약이 없다']}
-/>
-
-<Quiz
-  questionNumber={7}
-  question="마이크로태스크 큐에 대한 설명으로 옳은 것은?"
-  options={['이벤트 루프 한 바퀴에 하나씩만 꺼내 실행한다', '매크로태스크 하나가 끝나면 큐가 빌 때까지 전부 실행한다', 'setTimeout 콜백이 들어가는 큐다', '렌더링이 끝난 다음에만 실행된다']}
-  correctAnswer={2}
-  explanation="마이크로태스크는 매크로태스크 하나가 끝날 때마다 큐가 완전히 빌 때까지 연속 실행되며, 그 뒤에 렌더링 기회가 온다. 하나씩 꺼내는 것은 매크로태스크다."
-  optionExplanations={['하나씩 꺼내는 것은 매크로태스크의 처리 방식이다', '정답 — 큐가 빌 때까지 전부 소진한다', 'setTimeout 콜백은 매크로태스크다', '마이크로태스크 소진이 렌더링보다 먼저다']}
+  question="http://localhost:5173과 http://localhost:3001이 서로 다른 origin인 이유는?"
+  options={['호스트 이름의 대소문자가 다르기 때문이다', '경로(path)가 다르기 때문이다', '포트 번호가 다르기 때문이다', '둘 다 http이므로 같은 origin이다']}
+  correctAnswer={3}
+  explanation="origin은 프로토콜, 호스트, 포트 세 가지로 결정되며 포트가 다르면 다른 origin으로 취급됩니다."
+  optionExplanations={['대소문자 문제가 아니라 포트 차이입니다', '경로는 origin 판단에 포함되지 않습니다', '정답입니다', '프로토콜이 같아도 포트가 다르면 다른 origin입니다']}
 />
 
 ## 참고 자료
 
 - [MDN - Web APIs](https://developer.mozilla.org/en-US/docs/Web/API)
-- [MDN - Populating the page: how browsers work](https://developer.mozilla.org/en-US/docs/Web/Performance/Guides/How_browsers_work)
-- [HTML Living Standard - Event loops](https://html.spec.whatwg.org/multipage/webappapis.html#event-loops)
-- [MDN - Web Workers API](https://developer.mozilla.org/en-US/docs/Web/API/Web_Workers_API)
+- [MDN - Event loop](https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Execution_model)
+- [MDN - Same-origin policy](https://developer.mozilla.org/en-US/docs/Web/Security/Same-origin_policy)

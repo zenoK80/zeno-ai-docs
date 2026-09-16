@@ -1,0 +1,209 @@
+---
+title: '14. clamp()로 유동 타이포그래피 만들기'
+description: '뷰포트 폭에 따라 부드럽게 커지고 작아지는 글자 크기를 clamp()로 설계한다'
+---
+
+<Callout type="info">
+  **이번 편의 결과물:** 제목·본문 글자 크기가 화면 폭에 따라 계단 없이 부드럽게 바뀐다 · **다루는 개념:** `min()`/`max()`/`clamp()` 문법, 뷰포트 단위 조합 공식, 사용자 확대 배율을 해치지 않는 값 설계
+</Callout>
+
+## 이 편에서 만드는 파일
+
+```
+portfolio/
+└── css/
+    └── tokens.css        ~ --text-* 토큰을 clamp()로 재작성
+```
+
+## 개념 정리
+
+지금까지 `--text-lg`, `--text-3xl` 같은 타이포 토큰은 고정 `rem` 값이었습니다. 그래서 미디어 쿼리 구간이 바뀌는 순간(768px, 1024px) 글자 크기가 한 번에 툭 뛰었습니다. `clamp()`는 이 계단을 없애고 폭에 비례해 연속적으로 바뀌게 합니다.
+
+### min() / max() / clamp() 문법
+
+| 함수 | 의미 |
+|---|---|
+| `min(a, b)` | 둘 중 작은 값을 사용 |
+| `max(a, b)` | 둘 중 큰 값을 사용 |
+| `clamp(최소, 선호값, 최대)` | 선호값을 쓰되 최소보다 작아지거나 최대보다 커지지 않게 막음 |
+
+`clamp()`는 사실 `max(최소, min(선호값, 최대))`와 같습니다. 선호값 자리에 뷰포트 단위를 넣으면 "화면이 커질수록 선호값도 커지다가, 최대값에서 멈춘다"는 동작이 만들어집니다.
+
+### 뷰포트 단위 조합 공식
+
+선호값을 `1rem + 2vw`처럼 **고정값 + 가변값**으로 씁니다. `vw`만 단독으로 쓰면 두 가지 문제가 생깁니다.
+
+1. 뷰포트 폭이 0에 가까우면 글자도 0에 가까워질 수 있음(최소값 없이 `vw`만 쓸 때).
+2. 사용자가 브라우저 설정에서 **기본 글자 크기**를 키워도(`rem`에 반영되는 설정) `vw`는 반응하지 않아 확대 배율이 무시됨.
+
+그래서 `rem`(사용자 설정 반영)과 `vw`(화면 폭 반응)를 더해서 씁니다.
+
+```css
+--text-3xl: clamp(1.875rem, 1.3rem + 2.4vw, 3.5rem);
+```
+
+읽는 법: 최소 `1.875rem`(30px), 화면이 넓어질수록 `1.3rem`에 `2.4vw`만큼 더한 값을 쓰다가, `3.5rem`(56px)에서 멈춘다는 뜻입니다.
+
+### 기울기 계산 방법
+
+두 뷰포트 폭에서 원하는 글자 크기를 정하고 그 사이를 잇는 직선의 기울기를 구합니다.
+
+| 항목 | 값 |
+|---|---|
+| 최소 폭 | `375px`(작은 모바일) |
+| 최소 폭에서 글자 크기 | `1.875rem` |
+| 최대 폭 | `1152px`(`--container-max`) |
+| 최대 폭에서 글자 크기 | `3.5rem` |
+
+기울기 = (최대 글자 크기 − 최소 글자 크기) ÷ (최대 폭 − 최소 폭) × 100. 위 표 값으로 계산하면 약 `2.4vw`가 나오고, `y절편`은 최소 글자 크기에서 `최소 폭 × 기울기`를 뺀 값으로 약 `1.3rem`이 됩니다. 이 두 수를 그대로 `clamp()`의 선호값 자리에 넣습니다.
+
+### 토큰별 값
+
+| 토큰 | 적용 전(고정) | 적용 후(`clamp()`) |
+|---|---|---|
+| `--text-base` | `1rem` | `clamp(1rem, 0.95rem + 0.25vw, 1.0625rem)` |
+| `--text-lg` | `1.25rem` | `clamp(1.125rem, 1rem + 0.5vw, 1.375rem)` |
+| `--text-xl` | `1.5rem` | `clamp(1.25rem, 1.05rem + 0.8vw, 1.75rem)` |
+| `--text-2xl` | `2rem` | `clamp(1.5rem, 1.2rem + 1.2vw, 2.25rem)` |
+| `--text-3xl` | `3rem` | `clamp(1.875rem, 1.3rem + 2.4vw, 3.5rem)` |
+
+`--text-xs`, `--text-sm`은 본문 보조 텍스트라 화면 폭에 따라 거의 안 바뀌어도 되므로 고정 `rem`을 유지합니다.
+
+## 실습
+
+<Steps>
+
+### 1. tokens.css의 타이포 토큰 교체
+
+`css/tokens.css`를 엽니다. `@layer tokens` 안 `:root`의 타이포 섹션만 바꿉니다(색 토큰은 13편 그대로 유지).
+
+```css
+/* portfolio/css/tokens.css (@layer tokens 안, 타이포 섹션) */
+:root {
+  /* ...색 토큰은 13편에서 만든 light-dark() 그대로 유지... */
+
+  --font-sans: 'Pretendard', 'Noto Sans KR', system-ui, sans-serif;
+  --font-mono: 'JetBrains Mono', ui-monospace, monospace;
+
+  --text-xs: 0.75rem;
+  --text-sm: 0.875rem;
+  --text-base: clamp(1rem, 0.95rem + 0.25vw, 1.0625rem);
+  --text-lg: clamp(1.125rem, 1rem + 0.5vw, 1.375rem);
+  --text-xl: clamp(1.25rem, 1.05rem + 0.8vw, 1.75rem);
+  --text-2xl: clamp(1.5rem, 1.2rem + 1.2vw, 2.25rem);
+  --text-3xl: clamp(1.875rem, 1.3rem + 2.4vw, 3.5rem);
+  --leading: 1.6;
+}
+```
+
+### 2. 미디어 쿼리로 조정하던 히어로 제목 규칙 정리
+
+`css/styles.css`에서 히어로 제목에 `768px` 미만일 때 `--text-2xl`로 낮추던 미디어 쿼리가 있다면(css_fundamentals에서 만든 규칙), 이제 `clamp()`가 그 역할을 대신하므로 지웁니다.
+
+```css
+/* portfolio/css/styles.css (@layer components 안) */
+.hero h1 {
+  font-size: var(--text-3xl);
+  line-height: 1.15;
+}
+
+/* 삭제 대상 예시 — 이제 필요 없음
+@media (max-width: 767px) {
+  .hero h1 { font-size: var(--text-2xl); }
+}
+*/
+```
+
+### 3. 실행
+
+```text
+npx serve portfolio
+```
+
+로컬 서버 없이 파일을 직접 열어도 되지만, 뷰포트 크기를 실시간으로 바꿔 보려면 브라우저 개발자 도구의 반응형 모드를 씁니다.
+
+### 4. 확인
+
+```text
+확인 1. 개발자 도구 반응형 모드에서 폭을 375px부터 1152px까지 천천히 늘리며 히어로 제목 크기가 계단 없이 커진다
+확인 2. 1152px보다 넓혀도 3.5rem에서 더 커지지 않는다(최대값 고정)
+확인 3. 375px보다 좁혀도 1.875rem 아래로 줄지 않는다(최소값 고정)
+확인 4. 브라우저 설정에서 기본 글자 크기를 20px로 올리면(rem 기준 변경) 모든 clamp() 값도 함께 커진다
+```
+
+</Steps>
+
+## 직접 해보기
+
+1. `--text-lg`의 최소·최대값을 각각 10퍼센트씩 키운 새 토큰 `--text-lg-loose`를 만들어 프로젝트 카드 제목에만 적용해 봅니다.
+2. 컨테이너 최대 폭(`--container-max: 72rem`)을 넘는 초대형 모니터에서 제목이 지나치게 커 보이지 않는지 1440px 폭으로 확인하고, 필요하면 `--text-3xl`의 최대값을 낮춰 봅니다.
+
+<details>
+<summary>정답 보기</summary>
+
+```css
+/* portfolio/css/tokens.css */
+--text-lg-loose: clamp(1.2375rem, 1.1rem + 0.55vw, 1.5125rem);
+```
+
+```css
+/* portfolio/css/styles.css */
+.project-card h2 {
+  font-size: var(--text-lg-loose);
+}
+```
+
+1440px 확인 결과 `3.5rem`(56px) 그대로도 히어로 영역(`--container-max: 72rem`) 안에서는 균형이 맞으므로, 최대값을 굳이 낮추지 않아도 됩니다. 컨테이너 자체가 폭을 제한하고 있기 때문입니다.
+
+</details>
+
+## 자주 하는 실수
+
+| 증상 | 원인 | 고치는 법 |
+|---|---|---|
+| 사용자가 브라우저 글자 크기를 키워도 제목이 안 커짐 | 선호값에 `vw`만 쓰고 `rem`을 더하지 않음 | 선호값을 `고정rem + 가변vw` 형태로 다시 계산 |
+| 아주 좁은 화면에서 글자가 너무 작아짐 | 최소값을 너무 낮게 잡음 | 최소값을 모바일 가독성 기준(본문 16px, 제목 30px 이상)으로 올림 |
+| 큰 모니터에서 제목이 과도하게 커짐 | 최대값을 지정하지 않거나 너무 높게 잡음 | `clamp()`의 세 번째 인자(최대값)를 낮춤 |
+| 계산한 `vw` 계수가 이상하게 큼 | 최소 폭과 최대 폭 차이를 px 대신 다른 단위로 계산 | 두 폭 모두 `px` 기준으로 통일해 기울기 계산 |
+
+## 확인 문제
+
+<Quiz
+  questionNumber={1}
+  question="clamp(1rem, 2vw, 3rem)에서 두 번째 인자의 역할은?"
+  options={['최소값과 최대값 사이에서 실제로 커지고 작아지는 선호값', '항상 고정되는 최소값', '항상 고정되는 최대값', '단위를 변환하는 함수']}
+  correctAnswer={1}
+  explanation="clamp()의 두 번째 인자는 선호값(preferred value)으로, 조건에 따라 실제로 늘어나거나 줄어드는 값입니다."
+  optionExplanations={['정답입니다.', '최소값은 첫 번째 인자입니다.', '최대값은 세 번째 인자입니다.', '단위 변환 함수가 아닙니다.']}
+/>
+
+<Quiz
+  questionNumber={2}
+  question="유동 타이포그래피에서 선호값을 vw 단독이 아니라 rem + vw로 쓰는 이유는?"
+  options={['사용자가 브라우저 기본 글자 크기를 조정해도 그 설정이 반영되게 하기 위해서', '값 계산 속도를 높이기 위해서', 'CSS 파일 용량을 줄이기 위해서', 'vw 단위가 구형 브라우저에서 동작하지 않기 때문에']}
+  correctAnswer={1}
+  explanation="vw는 뷰포트 폭에만 반응하고 사용자의 글자 크기 설정에는 반응하지 않으므로, rem을 더해 접근성 설정을 함께 반영합니다."
+  optionExplanations={['정답입니다.', '계산 속도와는 무관합니다.', '파일 용량과는 무관합니다.', 'vw 자체는 오래전부터 널리 지원됩니다.']}
+/>
+
+<Quiz
+  questionNumber={3}
+  question="clamp(A, B, C)는 다음 중 어떤 식과 같은 의미인가?"
+  options={['max(A, min(B, C))', 'min(A, max(B, C))', 'A + B + C의 평균', '항상 B값 고정']}
+  correctAnswer={1}
+  explanation="clamp()는 선호값 B를 쓰되 최소 A보다 작아지지 않고 최대 C보다 커지지 않도록 max(A, min(B, C))와 동일하게 동작합니다."
+  optionExplanations={['정답입니다.', '순서가 바뀌면 의미가 달라집니다.', '평균을 구하는 함수가 아닙니다.', '조건에 따라 A나 C로 고정될 수 있습니다.']}
+/>
+
+<Quiz
+  questionNumber={4}
+  question="미디어 쿼리로 세 단계(모바일·태블릿·데스크톱) 글자 크기를 나누던 방식과 비교했을 때 clamp() 방식의 차이는?"
+  options={['구간 경계에서 크기가 한 번에 뛰지 않고 연속적으로 변한다', '미디어 쿼리보다 지원 브라우저가 훨씬 적다', '색상 값도 함께 바꿀 수 있다', '자바스크립트 없이는 동작하지 않는다']}
+  correctAnswer={1}
+  explanation="clamp()는 뷰포트 폭이 바뀔 때마다 값을 다시 계산하므로 특정 경계에서 크기가 갑자기 바뀌는 대신 부드럽게 변합니다."
+  optionExplanations={['정답입니다.', 'clamp()는 오래전부터 널리 지원되는 함수입니다.', 'clamp()는 숫자 값 계산 함수로 색상과는 관련이 없습니다.', 'clamp()는 순수 CSS 함수로 자바스크립트가 필요 없습니다.']}
+/>
+
+## 참고 자료
+
+- [MDN — clamp()](https://developer.mozilla.org/en-US/docs/Web/CSS/clamp)

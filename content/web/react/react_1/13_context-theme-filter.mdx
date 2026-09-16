@@ -1,0 +1,335 @@
+---
+title: '13. Context로 테마·필터 공유하기'
+description: 'props 드릴링 문제를 Context로 해결하고, 다크 모드 테마와 상태 필터를 bookshelf 전역에서 공유한다'
+---
+
+<Callout type="info">
+  **이번 편의 결과물:** 다크/라이트 테마 토글과 상태 필터(전체/읽고 싶음/읽는 중/다 읽음)가 `Context`로 앱 전역에서 동작합니다. · **다루는 개념:** props drilling, `createContext`, `useContext`, `Provider`
+</Callout>
+
+## 이 편에서 만드는 파일
+
+```
+bookshelf/src/
+├── context/
+│   ├── ThemeContext.jsx     + 신규
+│   └── FilterContext.jsx    + 신규
+├── components/
+│   ├── Header.jsx           + 신규 (h1·테마 토글·필터 버튼)
+│   └── BookList.jsx         ~ 수정 (statusFilter 적용)
+├── main.jsx                 ~ 수정 (Provider로 감싸기)
+└── App.jsx                  ~ 수정 (h1을 Header로 교체)
+```
+
+## 개념 정리
+
+12편까지 `App`이 `books` 상태와 화면 제목(`<h1>bookshelf</h1>`)을 함께 들고 있었습니다. 이제 **테마**와 **상태 필터**를 추가하면, `Header`(테마 버튼·필터 버튼)와 `BookList`(필터링)처럼 트리 여러 곳에서 같은 값이 동시에 필요해집니다. 이걸 전부 `App` → 자식으로 props 릴레이하면, 중간 컴포넌트가 자신과 무관한 props를 떠안는 **props 드릴링**이 생깁니다.
+
+`Context`는 트리 아래 전체에 값을 방송하는 통로이며, 사용법은 세 단계입니다.
+
+| 단계 | 함수 | 역할 |
+|------|------|------|
+| 1. 만들기 | `createContext(기본값)` | Context 객체 생성. 컴포넌트 밖에서 한 번만 |
+| 2. 공급하기 | `<Context.Provider value={...}>` | 감싼 트리 전체에 값 방송 |
+| 3. 구독하기 | `useContext(Context)` | 가장 가까운 위쪽 Provider의 값을 받음 |
+
+`value`가 바뀌면 구독하는 컴포넌트 전원이 리렌더됩니다. `useState`와 묶으면 "바뀌는 전역 값"이 됩니다. Context는 만능이 아니며 판단 기준은 이렇습니다.
+
+| 상황 | 권장 수단 |
+|------|-----------|
+| 한두 층 아래 전달 | props |
+| 트리 전반에서 쓰는 테마·필터 | Context |
+| 자주 바뀌는 대규모 데이터 | 후속 과목의 상태 관리 도구 영역 |
+
+`books` 배열 자체는 아직 Context로 옮기지 않습니다. `App`이 소유하고 props로 내려주는 구조를 그대로 유지하고(14편에서 `useReducer`로 전환), 테마·필터처럼 값은 단순하지만 여러 곳에서 필요한 상태만 Context로 뺍니다.
+
+## 실습
+
+<Steps>
+
+### 1. ThemeContext 만들기
+
+```jsx
+// src/context/ThemeContext.jsx
+import { createContext, useContext, useState } from 'react';
+
+const ThemeContext = createContext(null);
+
+export function ThemeProvider({ children }) {
+  const [theme, setTheme] = useState('light');
+
+  function toggleTheme() {
+    setTheme((prev) => (prev === 'light' ? 'dark' : 'light'));
+  }
+
+  const value = { theme, toggleTheme };
+
+  return <ThemeContext.Provider value={value}>{children}</ThemeContext.Provider>;
+}
+
+export function useTheme() {
+  const context = useContext(ThemeContext);
+  if (context === null) {
+    throw new Error('useTheme은 ThemeProvider 내부에서만 사용합니다.');
+  }
+  return context;
+}
+```
+
+`useTheme`처럼 `useContext` 호출을 감싼 함수를 만들어 두면 `useTheme()` 한 줄로 끝나고, `Provider` 밖에서 잘못 호출했을 때 바로 에러로 알 수 있습니다.
+
+### 2. FilterContext 만들기
+
+```jsx
+// src/context/FilterContext.jsx
+import { createContext, useContext, useState } from 'react';
+
+const FilterContext = createContext(null);
+
+export function FilterProvider({ children }) {
+  const [statusFilter, setStatusFilter] = useState('all');
+
+  const value = { statusFilter, setStatusFilter };
+
+  return <FilterContext.Provider value={value}>{children}</FilterContext.Provider>;
+}
+
+export function useFilter() {
+  const context = useContext(FilterContext);
+  if (context === null) {
+    throw new Error('useFilter는 FilterProvider 내부에서만 사용합니다.');
+  }
+  return context;
+}
+```
+
+`statusFilter`는 `'all'`, `'wish'`, `'reading'`, `'done'` 중 하나입니다. 테마와 필터는 서로 관련 없는 값이라 Context를 분리했습니다. 하나로 합치면 필터만 바뀌어도 테마 구독 컴포넌트까지 리렌더됩니다.
+
+### 3. main.jsx에서 Provider로 감싸기
+
+```jsx
+// src/main.jsx
+import { StrictMode } from 'react';
+import { createRoot } from 'react-dom/client';
+import './index.css';
+import App from './App.jsx';
+import { ThemeProvider } from './context/ThemeContext.jsx';
+import { FilterProvider } from './context/FilterContext.jsx';
+
+createRoot(document.getElementById('root')).render(
+  <StrictMode>
+    <ThemeProvider>
+      <FilterProvider>
+        <App />
+      </FilterProvider>
+    </ThemeProvider>
+  </StrictMode>,
+);
+```
+
+`App`과 그 아래 모든 컴포넌트가 이제 `useTheme()`, `useFilter()`를 어디서든 호출할 수 있습니다.
+
+### 4. Header 컴포넌트 만들기
+
+`App`에 있던 `<h1>bookshelf</h1>`를 `Header`로 옮기고, 테마 토글과 필터 버튼을 추가합니다.
+
+```jsx
+// src/components/Header.jsx
+import { useTheme } from '../context/ThemeContext.jsx';
+import { useFilter } from '../context/FilterContext.jsx';
+
+const FILTERS = [
+  { value: 'all', label: '전체' },
+  { value: 'wish', label: '읽고 싶음' },
+  { value: 'reading', label: '읽는 중' },
+  { value: 'done', label: '다 읽음' },
+];
+
+function Header() {
+  const { theme, toggleTheme } = useTheme();
+  const { statusFilter, setStatusFilter } = useFilter();
+
+  return (
+    <header className="header">
+      <h1>bookshelf</h1>
+      <button type="button" onClick={toggleTheme}>
+        {theme === 'light' ? '다크 모드' : '라이트 모드'}
+      </button>
+      <div className="filter-bar">
+        {FILTERS.map((filter) => (
+          <button
+            key={filter.value}
+            type="button"
+            className={statusFilter === filter.value ? 'active' : ''}
+            onClick={() => setStatusFilter(filter.value)}
+          >
+            {filter.label}
+          </button>
+        ))}
+      </div>
+    </header>
+  );
+}
+
+export default Header;
+```
+
+### 5. BookList에 필터 적용하기
+
+`BookList`는 12편에서 만든 `forwardRef` 구조(맨 끝 sentinel `<li>`로 자동 스크롤 대상 표시)를 그대로 유지하면서, `useFilter()`로 걸러진 목록만 그립니다.
+
+```jsx
+// src/components/BookList.jsx
+import { forwardRef } from 'react';
+import BookCard from './BookCard.jsx';
+import { useFilter } from '../context/FilterContext.jsx';
+
+const BookList = forwardRef(function BookList(
+  { books, onDelete, onRate, onToggleStatus },
+  scrollTargetRef,
+) {
+  const { statusFilter } = useFilter();
+
+  const visibleBooks =
+    statusFilter === 'all' ? books : books.filter((book) => book.status === statusFilter);
+
+  if (visibleBooks.length === 0) {
+    return <p className="empty-state">표시할 책이 없습니다.</p>;
+  }
+
+  return (
+    <ul className="book-list">
+      {visibleBooks.map((book) => (
+        <li key={book.id}>
+          <BookCard
+            book={book}
+            onDelete={onDelete}
+            onRate={onRate}
+            onToggleStatus={onToggleStatus}
+          />
+        </li>
+      ))}
+      <li ref={scrollTargetRef} className="scroll-sentinel" />
+    </ul>
+  );
+});
+
+export default BookList;
+```
+
+`BookList`는 `useFilter()`를 직접 호출합니다. `App`이 `statusFilter`를 props로 내려줄 필요가 없습니다 — 이것이 props 드릴링을 없앤 결과입니다.
+
+### 6. App.jsx에서 h1을 Header로 교체하기
+
+```jsx
+// src/App.jsx (관련 부분만 발췌 — books 상태·useEffect·핸들러는 12편 그대로 유지)
+import Header from './components/Header.jsx';
+// ...기존 import 유지
+
+function App() {
+  // ...기존 코드 유지
+
+  return (
+    <div className="app">
+      <Header />
+      <p>총 {books.length}권</p>
+      <BookList
+        ref={scrollTargetRef}
+        books={books}
+        onDelete={handleDeleteBook}
+        onRate={handleRateBook}
+        onToggleStatus={handleToggleStatus}
+      />
+      <BookForm onAddBook={handleAddBook} />
+    </div>
+  );
+}
+
+export default App;
+```
+
+### 7. 실행
+
+```text
+npm run dev
+```
+
+### 8. 확인
+
+- "다크 모드" 버튼을 누르면 텍스트가 "라이트 모드"로 바뀝니다. 배경색 규칙이 아직 없다면 텍스트 전환만으로 우선 확인합니다.
+- 필터 버튼("전체", "읽고 싶음", "읽는 중", "다 읽음")을 클릭하면 `BookList`에 해당 상태의 책만 남습니다.
+- DevTools Components 탭에서 `ThemeProvider`, `FilterProvider` 노드를 펼치면 `value` 객체를 볼 수 있습니다.
+
+</Steps>
+
+## 직접 해보기
+
+1. `index.css`에 `[data-theme="dark"]` 배경·글자색 규칙을 추가하고, `App` 최상위 `div`에 `data-theme={theme}`을 붙여 실제로 색이 바뀌게 만들어 보세요.
+2. 필터 버튼 옆에 각 상태별 책 권수를 괄호로 표시해 보세요(`읽는 중 (2)`).
+
+<details>
+<summary>정답 보기</summary>
+
+`App`에서 `useTheme()`으로 `theme`을 꺼내 최상위 `div`에 `data-theme={theme}` 속성을 추가합니다. 권수 표시는 `Header`가 `books`를 props로 받아, `FILTERS.map` 안에서 각 상태에 해당하는 책 개수를 `filter().length`로 계산해 라벨 옆에 붙이면 됩니다.
+
+</details>
+
+## 자주 하는 실수
+
+| 증상 | 원인 | 고치는 법 |
+|------|------|-----------|
+| `useTheme` 에러 발생 | 컴포넌트가 `ThemeProvider` 바깥에서 렌더링됨 | `main.jsx`에서 `App`이 `Provider` 안에 있는지 확인 |
+| 테마를 바꿔도 화면 색이 안 바뀜 | CSS 규칙 자체가 없음 | `index.css`에 `[data-theme="dark"]` 규칙 추가(직접 해보기 1번) |
+| 필터를 바꿨는데 무관한 컴포넌트까지 리렌더됨 | 테마와 필터를 하나의 Context에 함께 넣음 | 관련 없는 값은 분리(본문처럼 둘로 유지) |
+| `value`에 매 렌더 새 객체 전달로 자식이 불필요하게 리렌더 | 지금 단계에서는 무시 가능한 수준 | 최적화(`useMemo`)는 `react_2`에서 다룬다 |
+
+## 확인 문제
+
+<Quiz
+  questionNumber={1}
+  question="props 드릴링(props drilling)에 대한 설명으로 가장 알맞은 것은?"
+  options={['데이터를 쓰지 않는 중간 컴포넌트들이 전달만을 위해 props를 받는 현상', '자식이 부모의 상태를 직접 수정하는 패턴', 'props 이름을 층마다 다르게 바꿔 전달하는 기법', '여러 값을 객체 하나로 묶어 보내는 최적화 기법']}
+  correctAnswer={1}
+  explanation="드릴링은 값에 관심 없는 중간층들이 오직 아래로 넘기기 위해 props를 받는 현상이다. 층이 깊어질수록 중간 컴포넌트의 시그니처가 오염된다."
+  optionExplanations={['정답 — 전달만 하는 중간층이 쌓이는 것이 드릴링이다', '자식은 props를 직접 수정할 수 없다', '이름 변경은 드릴링의 정의와 무관하다', '객체로 묶는 것은 드릴링과 무관한 습관이다']}
+/>
+
+<Quiz
+  questionNumber={2}
+  question="Context 사용의 올바른 순서는?"
+  options={['createContext로 만들기 → Provider의 value로 공급 → useContext로 구독', 'useContext로 만들기 → Provider로 공급 → createContext로 구독', 'Provider로 만들기 → useContext로 공급 → value로 구독', 'createContext로 만들기 → useContext로 공급 → Provider로 구독']}
+  correctAnswer={1}
+  explanation="Context 객체를 createContext로 만들고, Provider의 value로 공급한 뒤, useContext로 구독하는 순서다."
+  optionExplanations={['정답 — 만들기·공급하기·구독하기 순서다', '만드는 것은 createContext, 구독은 useContext다', 'Provider는 만드는 도구가 아니다', '공급은 Provider, 구독은 useContext다']}
+/>
+
+<Quiz
+  questionNumber={3}
+  question="useContext(ThemeContext)가 돌려주는 값은?"
+  options={['트리 위쪽에서 가장 가까운 ThemeContext.Provider의 value', 'createContext에 넘긴 기본값이 항상 반환된다', '트리 최상단 Provider의 value만 반환된다', '모든 Provider의 value를 배열로 모아 반환한다']}
+  correctAnswer={1}
+  explanation="useContext는 자신을 감싸는 가장 가까운 위쪽 Provider의 value를 반환한다. 기본값은 Provider가 하나도 없을 때만 쓰인다."
+  optionExplanations={['정답 — 가장 가까운 상위 Provider의 값이다', '기본값은 Provider가 전혀 없을 때만 쓰이는 비상용 값이다', '중첩된 경우 최상단이 아니라 가장 가까운 쪽이 이긴다', '배열로 모으는 동작은 없다']}
+/>
+
+<Quiz
+  questionNumber={4}
+  question="이 편에서 ThemeContext와 FilterContext를 하나로 합치지 않고 분리한 이유로 가장 알맞은 것은?"
+  options={['서로 관련 없는 값을 하나로 묶으면 한쪽만 바뀌어도 다른 쪽 구독자까지 리렌더되기 때문', 'React가 Context를 하나만 만들도록 제한하기 때문', '파일 개수를 늘려야 빌드가 되기 때문', 'useContext는 한 파일에서 한 번만 호출할 수 있기 때문']}
+  correctAnswer={1}
+  explanation="Provider의 value가 바뀌면 그 Context를 구독하는 컴포넌트 전원이 리렌더된다. 관련 없는 값을 한 Context에 묶으면 불필요한 리렌더가 늘어난다."
+  optionExplanations={['정답 — 리렌더 범위를 좁히기 위한 분리다', 'Context 개수 제한은 없다', '파일 개수와 빌드 여부는 무관하다', 'useContext 호출 횟수 제한은 없다']}
+/>
+
+<Quiz
+  questionNumber={5}
+  question="BookList 컴포넌트가 App으로부터 statusFilter를 props로 받지 않고 useFilter()를 직접 호출하는 이유는?"
+  options={['App을 거치는 props 릴레이 없이 필요한 곳에서 바로 값을 구독할 수 있기 때문', 'props로 전달하면 문법 에러가 나기 때문', 'useFilter가 useState보다 항상 빠르기 때문', 'BookList는 App의 자식이 아니기 때문']}
+  correctAnswer={1}
+  explanation="Context를 구독하는 컴포넌트는 중간 컴포넌트를 거치지 않고 값을 직접 받을 수 있다. 이것이 props 드릴링을 없애는 핵심 효과다."
+  optionExplanations={['정답 — 중간 릴레이 없이 직접 구독한다', 'props로 전달해도 문법상 문제는 없다', '속도 비교가 아니라 코드 구조의 문제다', 'BookList는 App의 자식이며 Provider 안에 있어 구독 가능하다']}
+/>
+
+## 참고 자료
+
+- [React 공식 - Passing Data Deeply with Context](https://react.dev/learn/passing-data-deeply-with-context)

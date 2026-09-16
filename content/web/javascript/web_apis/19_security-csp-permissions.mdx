@@ -1,0 +1,191 @@
+---
+title: '19. 보안 — CSP·origin·권한'
+description: 'notes-app에 CSP를 적용하고, 권한 거부 시 대체 동작이 뜨는 것을 확인합니다.'
+---
+
+<Callout type="info">
+  **이번 편의 결과물:** `index.html`에 Content-Security-Policy를 적용해 위반을 콘솔에서 확인하고, 알림 권한이 거부되면 화면 안내(토스트)로 대체합니다. · **다루는 개념:** CSP 지시어, 권한 요청 UX, origin 격리
+</Callout>
+
+## 이 편에서 만드는 파일
+
+```
+notes-app/
+├── index.html         (~ CSP 메타 태그 추가)
+└── src/
+    ├── render.js       (~ showToast 추가)
+    └── main.js         (~ 알림 거부 시 대체 동작 연결)
+```
+
+## 개념 정리
+
+### Content Security Policy(CSP)
+
+CSP는 브라우저에게 "이 페이지에서 허용할 리소스 출처"를 알려주는 정책입니다. `<meta http-equiv="Content-Security-Policy">`나 서버 응답 헤더로 지정합니다. 정책을 어기는 리소스는 로드가 막히고 콘솔에 위반 메시지가 뜹니다.
+
+| 지시어 | 의미 |
+|--------|------|
+| `default-src` | 다른 지시어가 없을 때 적용되는 기본값 |
+| `script-src` | 스크립트를 불러올 수 있는 출처. `'self'`만 두면 인라인 스크립트·`eval`이 막힘 |
+| `img-src` | 이미지 출처. `data:`를 추가해야 첨부 이미지의 `dataUrl`이 보임 |
+| `connect-src` | `fetch`/`XMLHttpRequest`가 접속할 수 있는 출처 |
+
+notes-app은 17편의 첨부 이미지(`data:` URL)와 json-server(`http://localhost:3001`) 접속이 있으므로 이 둘을 명시적으로 허용해야 합니다.
+
+### origin과 격리
+
+origin은 `프로토콜 + 호스트 + 포트`의 조합입니다. `http://localhost:5173`과 `http://127.0.0.1:5173`은 호스트 문자열이 달라 **서로 다른 origin**입니다. 브라우저는 `localStorage`, `IndexedDB`, 쿠키를 origin 단위로 완전히 분리해서 저장합니다. 다른 origin의 페이지는 이 데이터를 읽을 방법이 없습니다.
+
+| 비교 대상 | 같은 origin 여부 |
+|-----------|-------------------|
+| `http://localhost:5173` vs `http://localhost:5173/notes/3` | 같음(경로는 origin에 포함 안 됨) |
+| `http://localhost:5173` vs `https://localhost:5173` | 다름(프로토콜) |
+| `http://localhost:5173` vs `http://localhost:3001` | 다름(포트) |
+| `http://localhost:5173` vs `http://127.0.0.1:5173` | 다름(호스트 문자열) |
+
+### 권한 요청 UX
+
+18편에서 `Notification.requestPermission()`을 썼습니다. 거부(`denied`) 상태에서는 다시 요청해도 팝업이 뜨지 않으므로, 앱은 권한이 없어도 핵심 기능(저장 완료 확인)을 사용자가 알 수 있는 대체 수단을 갖춰야 합니다.
+
+## 실습
+
+<Steps>
+
+### 1. index.html에 CSP 메타 태그 추가
+
+```html
+<!-- index.html의 head 안에 추가 -->
+<meta
+  http-equiv="Content-Security-Policy"
+  content="default-src 'self'; img-src 'self' data:; connect-src 'self' http://localhost:3001; script-src 'self'; style-src 'self' 'unsafe-inline';"
+/>
+```
+
+### 2. 위반 테스트
+
+개발자 도구 콘솔에서 아래 코드를 실행합니다.
+
+```js
+document.body.setAttribute('onclick', "alert('csp-test')");
+```
+
+인라인 이벤트 핸들러는 `script-src 'self'` 정책에 걸려 실행되지 않고, 콘솔에 `Refused to execute inline event handler` 위반 메시지가 뜹니다.
+
+### 3. src/render.js에 토스트 알림 함수 추가
+
+```js
+// src/render.js 맨 아래에 추가
+export function showToast(message) {
+  const toast = document.createElement('div');
+  toast.className = 'toast';
+  toast.textContent = message;
+  document.body.append(toast);
+  setTimeout(() => toast.remove(), 2000);
+}
+```
+
+### 4. src/main.js에서 권한 거부 시 대체 동작 연결
+
+18편에서 만든 `enableNotifBtn`, `notifySaved`를 아래처럼 바꿉니다.
+
+```js
+// src/main.js (18편의 enableNotifBtn 리스너와 notifySaved 함수만 교체)
+import { showToast } from './render.js';
+
+enableNotifBtn.addEventListener('click', async () => {
+  const permission = await Notification.requestPermission();
+  if (permission === 'granted') {
+    enableNotifBtn.textContent = '알림 켜짐';
+  } else {
+    enableNotifBtn.textContent = '알림 거부됨';
+    showToast('알림 권한이 거부되어 화면 안내로 대체합니다');
+  }
+});
+
+function notifySaved(note) {
+  if (Notification.permission === 'granted') {
+    new Notification('메모 저장됨', { body: note.title });
+  } else {
+    showToast(`저장됨: ${note.title}`);
+  }
+}
+```
+
+### 5. 실행
+
+```text
+npm run dev
+```
+
+</Steps>
+
+## 확인
+
+- 콘솔에 `Content-Security-Policy` 위반 로그 없이 앱이 정상 로드됩니다(이미지·json-server 접속 허용됨).
+- 2단계의 인라인 스크립트 테스트가 콘솔에 CSP 위반 메시지를 남기고 실행되지 않습니다.
+- 알림 권한을 거부한 뒤 메모를 저장하면, 화면 하단에 "저장됨: 제목" 토스트가 2초간 보입니다.
+- `http://localhost:5173`과 `http://127.0.0.1:5173`으로 각각 접속해 메모 목록이 서로 다르게(따로) 보이는 것을 확인합니다.
+
+## 직접 해보기
+
+1. `connect-src`에서 `http://localhost:3001`을 빼고 08편의 `fetch` 동기화를 실행해 콘솔에 어떤 에러가 뜨는지 확인해봅니다.
+2. `img-src`에서 `data:`를 빼고 첨부 이미지가 있는 메모를 새로고침해 무엇이 달라지는지 확인해봅니다.
+
+<details>
+<summary>정답 보기</summary>
+
+`connect-src`에서 `http://localhost:3001`을 빼면 `fetch`가 `net::ERR_BLOCKED_BY_CSP`(콘솔 표시는 `Refused to connect`)로 실패합니다.
+`img-src`에서 `data:`를 빼면 첨부 이미지가 안 뜨고 `Refused to load the image 'data:image/...'` 위반 메시지가 콘솔에 뜹니다. 두 경우 모두 정책 문자열에 필요한 값을 다시 추가하면 해결됩니다.
+
+</details>
+
+## 자주 하는 실수
+
+| 증상 | 원인 | 고치는 법 |
+|------|------|-----------|
+| 첨부 이미지가 갑자기 안 보임 | CSP `img-src`에 `data:` 누락 | `img-src 'self' data:`로 명시 |
+| json-server 동기화가 CSP 때문에 막힘 | `connect-src`에 서버 origin 누락 | `connect-src`에 `http://localhost:3001` 추가 |
+| 인라인 `style="..."` 속성이 다 깨짐 | `style-src`에서 `'unsafe-inline'` 뺌 | 인라인 스타일을 쓴다면 유지, 가능하면 CSS 파일로 옮겨 제거 |
+| 다른 포트에서 접속했더니 메모가 하나도 없음 | 정상 동작(origin이 달라 저장소가 분리됨) | 같은 origin(같은 호스트·포트)으로 접속 |
+
+## 확인 문제
+
+<Quiz
+  questionNumber={1}
+  question="CSP의 img-src 지시어에 data:를 추가하지 않으면 notes-app에서 생기는 문제는?"
+  options={['메모 삭제가 안 된다', '첨부 이미지(data URL)가 로드되지 않는다', 'json-server 연결이 끊긴다', 'IndexedDB 저장이 실패한다']}
+  correctAnswer={2}
+  explanation="첨부 이미지는 data: URL로 렌더링되므로, img-src에 data:가 없으면 CSP가 로드를 막습니다."
+  optionExplanations={['삭제 기능과는 무관합니다', '정답입니다', 'connect-src 문제입니다', 'IndexedDB와는 무관합니다']}
+/>
+
+<Quiz
+  questionNumber={2}
+  question="http://localhost:5173과 http://127.0.0.1:5173에 대한 설명으로 옳은 것은?"
+  options={['호스트 문자열이 달라 서로 다른 origin이며 저장소가 분리된다', '완전히 같은 origin이라 localStorage를 공유한다', '포트가 같으므로 같은 origin이다', 'IP와 도메인은 항상 같은 origin으로 취급된다']}
+  correctAnswer={1}
+  explanation="origin은 프로토콜, 호스트, 포트로 결정되며 호스트 문자열이 다르면 다른 origin입니다. localhost와 127.0.0.1은 같은 서버를 가리켜도 다른 origin으로 취급됩니다."
+  optionExplanations={['정답입니다', '호스트가 다르므로 공유되지 않습니다', '포트가 같아도 호스트가 다르면 다른 origin입니다', '문자열이 다르면 다른 origin으로 취급됩니다']}
+/>
+
+<Quiz
+  questionNumber={3}
+  question="Notification 권한이 denied인 사용자에게 notes-app이 취하는 대체 동작은?"
+  options={['알림을 강제로 띄운다', '화면에 토스트 메시지로 저장 완료를 알린다', '메모 저장을 막는다', '권한 팝업을 반복해서 띄운다']}
+  correctAnswer={2}
+  explanation="notifySaved 함수는 permission이 granted가 아니면 showToast로 화면 안내를 대신 띄웁니다."
+  optionExplanations={['거부 상태에서는 알림을 띄울 수 없습니다', '정답입니다', '저장 자체는 권한과 무관하게 계속됩니다', 'denied 상태에서는 팝업이 다시 뜨지 않습니다']}
+/>
+
+<Quiz
+  questionNumber={4}
+  question="script-src 'self' 정책이 있는 페이지에서 인라인 onclick 속성이 동작하지 않는 이유는?"
+  options={['onclick 문법 자체가 폐기되어서', 'self는 같은 출처의 외부 스크립트 파일만 허용하고 인라인 스크립트는 막기 때문에', 'CSP와 무관하게 브라우저 버그라서', 'HTTPS가 아니라서']}
+  correctAnswer={2}
+  explanation="script-src 'self'는 같은 origin에서 로드한 외부 스크립트 파일만 허용하며, 인라인 스크립트나 이벤트 핸들러는 별도로 'unsafe-inline'을 명시하지 않는 한 차단됩니다."
+  optionExplanations={['문법은 유효하지만 정책이 막습니다', '정답입니다', 'CSP 정책에 의한 의도된 차단입니다', 'HTTPS 여부와는 무관합니다']}
+/>
+
+## 참고 자료
+
+- [MDN - Content Security Policy(CSP)](https://developer.mozilla.org/en-US/docs/Web/HTTP/Guides/CSP)

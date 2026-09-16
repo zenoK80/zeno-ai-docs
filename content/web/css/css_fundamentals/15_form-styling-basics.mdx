@@ -1,0 +1,191 @@
+---
+title: '15. 폼 스타일링 기초'
+description: '연락 페이지의 입력·레이블·버튼을 시안대로 세로로 정렬하고 여백을 잡습니다.'
+---
+
+<Callout type="info">
+  **이번 편의 결과물:** `contact.html`의 폼이 레이블-입력 세로 스택으로 정리되고, 버튼이 시안의 모양대로 보입니다. **다루는 개념:** 입력·레이블·`textarea`·버튼 스타일링, 세로 스택 레이아웃, 스타일 가능한 입력의 범위
+</Callout>
+
+## 이 편에서 만드는 파일
+
+```
+web-practice/portfolio/
+└── css/
+    └── styles.css   ~ (.contact-form, .field, .contact-form button 규칙 추가)
+```
+
+`contact.html`의 폼 마크업(이름·이메일·문의 유형·메시지·개인정보 동의·제출 버튼)은 `modern_html`에서 검증 속성까지 포함해 이미 완성돼 있습니다. 각 필드는 `<div class="field">`로 감싸여 있고, 체크박스 필드만 `<div class="field field-checkbox">`입니다. 도움말 문구는 `<p class="help">`이고, 제출 버튼은 `<button type="submit">보내기</button>`로 별도 클래스가 없습니다. 이번 편은 CSS만 추가합니다.
+
+## 개념 정리
+
+폼 요소는 브라우저마다 기본 스타일이 다르므로, 먼저 무엇을 바꿀 수 있고 무엇을 바꾸기 어려운지 알아야 합니다.
+
+| 속성 | 스타일링 난이도 | 비고 |
+|------|------------------|------|
+| `border`, `padding`, `font-size`, `background` | 쉬움 | 대부분의 입력 요소에 그대로 적용 |
+| `width`, `box-sizing` | 쉬움 | `border-box`로 두면 padding 포함 폭 계산이 단순해짐 |
+| `select`의 화살표 아이콘 | 어려움 | 브라우저 기본 아이콘 제거는 `appearance: none` 필요(이 편은 기본 아이콘 유지) |
+| 체크박스·라디오 자체 모양 | 어려움 | 이 편에서는 손대지 않고 브라우저 기본을 쓴다 |
+
+세로 스택 레이아웃은 각 필드를 한 줄에 레이블 → 입력 → 도움말 순서로 쌓는 구조입니다. 감싸는 요소 `.field`(마크업에 이미 있는 클래스)에 `display: flex; flex-direction: column`을 주면 순서대로 세로로 쌓입니다.
+
+제출 버튼은 `<button type="submit">`으로 별도 클래스가 없으므로, 06편에서 히어로 버튼에 만든 `.button` 스타일을 그대로 가져다 쓰는 대신 `.contact-form button`으로 직접 고릅니다.
+
+흔한 오해: `<input>`에 `width: 100%`만 주면 `padding`만큼 부모보다 커집니다. 07편에서 전역으로 `box-sizing: border-box`를 이미 적용했으므로 이 문제는 자동으로 해결됩니다.
+
+## 실습
+
+<Steps>
+
+### 1. 파일 열기
+
+`web-practice/portfolio/css/styles.css` 맨 아래에 폼 관련 규칙을 추가합니다.
+
+### 2. 코드 작성
+
+```css
+/* web-practice/portfolio/css/styles.css */
+
+/* ...기존 규칙 유지... */
+
+.contact-form {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-6);
+  max-width: 32rem;
+}
+
+.field {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+}
+
+.field label {
+  font-size: var(--text-sm);
+  font-weight: 700;
+  color: var(--color-text);
+}
+
+.field input,
+.field select,
+.field textarea {
+  width: 100%;
+  padding: var(--space-3);
+  font: inherit;
+  color: var(--color-text);
+  background: var(--color-bg);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius);
+}
+
+.field textarea {
+  min-height: 8rem;
+  resize: vertical;
+}
+
+.field .help {
+  font-size: var(--text-xs);
+  color: var(--color-text-muted);
+}
+
+.field-checkbox {
+  flex-direction: row;
+  align-items: center;
+  gap: var(--space-2);
+}
+
+.contact-form button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  height: 2.75rem;
+  padding-inline: var(--space-6);
+  border-radius: var(--radius);
+  font-size: var(--text-base);
+  font-weight: 700;
+  cursor: pointer;
+  border: 1px solid transparent;
+  background: var(--color-primary);
+  color: #ffffff;
+}
+```
+
+체크박스 필드(`<div class="field field-checkbox">`)는 `.field`의 세로 스택을 `.field-checkbox`가 가로로 덮어써, 체크박스와 레이블이 한 줄에 나란히 놓입니다.
+
+### 3. 실행
+
+`contact.html`을 브라우저로 엽니다.
+
+### 4. 확인
+
+- 이름·이메일·문의 유형·메시지 필드가 각각 레이블 위, 입력 아래, 도움말 문구가 그 아래로 세로로 쌓입니다.
+- 입력 필드 폭이 폼 컨테이너(`max-width: 32rem`)를 넘지 않습니다.
+- 개인정보 동의 체크박스는 체크박스와 텍스트가 가로로 나란히 붙습니다.
+- 제출 버튼 "보내기"가 파란 배경에 흰 글자로 보입니다.
+
+</Steps>
+
+## 직접 해보기
+
+1. `select` 요소에만 `background: var(--color-surface)`를 주어 다른 입력과 구분되게 해 봅니다.
+2. `.help`가 오류 문구일 때 색을 `--color-accent`로 바꾸는 `.help-error` 클래스를 만들어 봅니다.
+
+<details>
+<summary>풀이 보기</summary>
+
+```css
+.field select {
+  background: var(--color-surface);
+}
+
+.help-error {
+  color: var(--color-accent);
+}
+```
+
+</details>
+
+## 자주 하는 실수
+
+| 증상 | 원인 | 고치는 법 |
+|------|------|-----------|
+| 입력 필드가 폼보다 넓게 삐져나옴 | `box-sizing`이 적용되지 않은 요소에만 `width: 100%`를 줌 | 전역 리셋의 `*, *::before, *::after { box-sizing: border-box }`가 남아 있는지 확인 |
+| textarea 크기를 조절할 수 없음 | `resize: none`이 다른 규칙에서 상속됨 | `.field textarea`에 `resize: vertical` 명시 |
+| 버튼 텍스트가 세로 중앙에 있지 않음 | `.contact-form button`에 `display: inline-flex`와 `align-items: center`가 빠짐 | 두 속성을 함께 지정 |
+| 필드 사이 간격이 제각각임 | 필드마다 `margin`을 따로 줘서 값이 흩어짐 | 개별 `margin` 대신 `.contact-form`의 `gap: var(--space-6)` 하나로 통일 |
+| select 화살표가 브라우저마다 다르게 보임 | 브라우저 기본 렌더링을 그대로 씀 | 이 편에서는 손대지 않고 그대로 둔다. 통일하려면 `appearance: none` 뒤 배경 이미지로 직접 그려야 하며, 이는 이 과목 범위 밖이다 |
+
+## 확인 문제
+
+<Quiz
+  questionNumber={1}
+  question="폼 필드를 레이블-입력-도움말 순서로 세로로 쌓을 때 가장 알맞은 방법은?"
+  options={['각 요소에 float: left를 지정한다', '감싸는 요소에 display: flex; flex-direction: column을 지정한다', 'position: absolute로 순서대로 배치한다', '표(table) 태그로 감싼다']}
+  correctAnswer={2}
+  explanation="flex-direction: column을 쓴 flex 컨테이너는 자식을 소스 순서대로 세로로 쌓습니다."
+  optionExplanations={['float는 레이아웃 흐름을 예측하기 어렵게 만들고 이 과목 범위에서도 제외했습니다', '정답입니다', 'absolute는 문서 흐름에서 빠져 순서를 스스로 계산해야 합니다', '폼은 표 형태 데이터가 아니므로 의미상 맞지 않습니다']}
+/>
+
+<Quiz
+  questionNumber={2}
+  question="전역 box-sizing: border-box가 폼 입력 요소에 주는 이점은?"
+  options={['입력 테두리 색이 자동으로 바뀐다', 'width에 padding과 border가 포함되어 계산이 단순해진다', '입력 폰트가 자동으로 상속된다', '자동완성 기능이 활성화된다']}
+  correctAnswer={2}
+  explanation="border-box는 지정한 width 안에 padding과 border가 포함되도록 계산 방식을 바꿔, width: 100%를 줘도 부모보다 커지지 않게 합니다."
+  optionExplanations={['색상과는 관련이 없습니다', '정답입니다', '폰트 상속은 font: inherit 선언이 담당합니다', '자동완성은 autocomplete 속성이 담당합니다']}
+/>
+
+<Quiz
+  questionNumber={3}
+  question="06편의 .button과 .button-secondary처럼 공통 클래스와 변형 클래스를 나누는 이유는?"
+  options={['브라우저 호환성을 높이기 위해', '크기·모양 같은 공통 값을 중복 없이 한 곳에 두기 위해', 'CSS 파일 용량을 줄이는 유일한 방법이라서', 'HTML 유효성 검사를 통과하기 위해']}
+  correctAnswer={2}
+  explanation="공통 클래스(.button)에 크기·정렬 같은 공통 값을 두고, 변형 클래스(.button-secondary)에는 달라지는 값(색상 등)만 두면 중복을 줄이고 유지보수가 쉬워집니다."
+  optionExplanations={['호환성과는 관련이 없습니다', '정답입니다', '용량을 줄이는 방법은 여러 가지가 있습니다', 'HTML 유효성과는 무관한 CSS 설계 습관입니다']}
+/>
+
+## 참고 자료
+
+- [MDN — Styling web forms](https://developer.mozilla.org/en-US/docs/Learn_web_development/Extensions/Forms/Styling_web_forms)

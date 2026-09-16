@@ -1,0 +1,233 @@
+---
+title: '17. 앵커 포지셔닝으로 카드 툴팁 배치하기'
+description: '프로젝트 카드에 정보 아이콘을 hover하면 앵커 위치 기준으로 툴팁이 뜨게 만듭니다'
+---
+
+<Callout type="info">
+  **이번 편의 결과물:** 프로젝트 카드의 정보 아이콘을 hover·포커스하면 그 아이콘 위치를 기준으로 툴팁이 뜨고, 화면 아래쪽 카드에서는 자동으로 반대편에 뜹니다. `anchor-name`을 지원하지 않는 브라우저에서는 카드 안쪽에 절대 위치로 대체됩니다. **다루는 개념:** `anchor-name`/`position-anchor`, `anchor()` 함수, `position-try-fallbacks`, `@supports` 폴백
+</Callout>
+
+## 이 편에서 만드는 파일
+
+```text
+web-practice/portfolio/
+├── projects.html              ~ (카드마다 정보 아이콘 버튼 + 툴팁 요소 추가)
+└── css/
+    └── styles.css             ~ (components 레이어에 툴팁 스타일 추가)
+web-practice/lessons/modern-css/
+└── 17_anchor-positioning-tooltip/
+    └── notes.md                + (앵커 포지셔닝 확인 메모)
+```
+
+## 개념 정리
+
+앵커 포지셔닝은 한 요소(툴팁)를 다른 요소(트리거)의 화면 좌표에 붙이는 CSS 기능입니다. 지금까지는 JavaScript로 트리거의 `getBoundingClientRect()`를 읽어 툴팁 좌표를 계산했지만, 앵커 포지셔닝은 이 계산을 CSS만으로 처리합니다.
+
+| 속성/함수 | 역할 |
+|-----------|------|
+| `anchor-name: --name` | 트리거 요소에 이름을 붙여 "앵커"로 등록 |
+| `position-anchor: --name` | `position: absolute`/`fixed` 요소를 그 앵커에 연결 |
+| `anchor(side)` | 앵커의 특정 변(`top`/`bottom`/`center` 등) 좌표를 가져옴. `position-anchor`가 있으면 이름 생략 가능 |
+| `position-try-fallbacks: flip-block` | 화면 밖으로 넘치면 반대 방향으로 자동 뒤집기 |
+
+`position-anchor`가 지정된 요소 안에서는 `anchor()`에 이름을 생략할 수 있습니다. `top: anchor(bottom)`은 "내가 연결된 앵커의 아래쪽 변"을 뜻합니다.
+
+`anchor-name`은 페이지 안에서 커스텀 식별자(custom ident)라 카드 6개처럼 같은 컴포넌트가 여러 번 반복되면 이름이 겹치지 않게 카드마다 다른 이름을 줘야 합니다. `01_학습방향.md` 확인표 기준 앵커 포지셔닝은 2026-01부터 Baseline 2026(newly available)이라, `@supports not (anchor-name: --a)`로 미지원 브라우저용 대체 위치를 반드시 마련합니다.
+
+## 실습
+
+<Steps>
+
+### 1. projects.html에 정보 아이콘과 툴팁 추가하기
+
+카드마다 `.info-trigger` 버튼과 그 바로 다음 형제로 `.card-tooltip`을 넣습니다. 형제 관계라야 다음 단계의 `:hover + `, `:focus-visible + ` 선택자가 동작합니다.
+
+```html
+<!-- portfolio/projects.html (카드 1개 예시, 나머지 5개도 같은 구조) -->
+<article class="project-card" data-tags="JavaScript,PWA">
+  <img src="images/project-01.svg" alt="오늘의 날씨 프로젝트 화면" width="1200" height="800" />
+  <h2>오늘의 날씨</h2>
+  <p>
+    위치 기반 날씨를 카드로 보여주는 웹앱입니다.
+    <button type="button" class="info-trigger" aria-describedby="tooltip-01">ⓘ</button>
+    <span role="tooltip" id="tooltip-01" class="card-tooltip">
+      오프라인에서도 마지막으로 받은 데이터를 Service Worker 캐시에서 보여줍니다.
+    </span>
+  </p>
+  <ul class="tags">
+    <li>JavaScript</li>
+    <li>PWA</li>
+  </ul>
+  <button type="button" data-open-project data-project-id="weather">자세히</button>
+</article>
+```
+
+### 2. 앵커 포지셔닝 스타일 작성하기
+
+카드마다 `anchor-name`이 겹치지 않도록 `:nth-of-type()`으로 카드 순서별 이름을 붙입니다. 공통 툴팁 모양과 표시 조건은 한 번만 씁니다.
+
+```css
+/* portfolio/css/styles.css — components 레이어에 추가 */
+@layer components {
+  .project-card:nth-of-type(1) .info-trigger {
+    anchor-name: --info-1;
+  }
+  .project-card:nth-of-type(2) .info-trigger {
+    anchor-name: --info-2;
+  }
+  .project-card:nth-of-type(3) .info-trigger {
+    anchor-name: --info-3;
+  }
+  .project-card:nth-of-type(4) .info-trigger {
+    anchor-name: --info-4;
+  }
+  .project-card:nth-of-type(5) .info-trigger {
+    anchor-name: --info-5;
+  }
+  .project-card:nth-of-type(6) .info-trigger {
+    anchor-name: --info-6;
+  }
+
+  .project-card:nth-of-type(1) .card-tooltip {
+    position-anchor: --info-1;
+  }
+  .project-card:nth-of-type(2) .card-tooltip {
+    position-anchor: --info-2;
+  }
+  .project-card:nth-of-type(3) .card-tooltip {
+    position-anchor: --info-3;
+  }
+  .project-card:nth-of-type(4) .card-tooltip {
+    position-anchor: --info-4;
+  }
+  .project-card:nth-of-type(5) .card-tooltip {
+    position-anchor: --info-5;
+  }
+  .project-card:nth-of-type(6) .card-tooltip {
+    position-anchor: --info-6;
+  }
+
+  .info-trigger {
+    display: inline-grid;
+    place-items: center;
+    inline-size: 1.25rem;
+    block-size: 1.25rem;
+    border-radius: 50%;
+    border: 1px solid var(--color-border);
+    background: var(--color-surface);
+    color: var(--color-text-muted);
+    font-size: var(--text-xs);
+    cursor: help;
+  }
+
+  .card-tooltip {
+    position: fixed;
+    top: calc(anchor(bottom) + var(--space-2));
+    left: anchor(center);
+    translate: -50% 0;
+    position-try-fallbacks: flip-block;
+    inline-size: max-content;
+    max-inline-size: 14rem;
+    padding: var(--space-2) var(--space-3);
+    border-radius: var(--radius);
+    background: var(--color-text);
+    color: var(--color-bg);
+    font-size: var(--text-xs);
+    line-height: var(--leading);
+    opacity: 0;
+    visibility: hidden;
+    transition: opacity 150ms ease;
+  }
+
+  .info-trigger:hover + .card-tooltip,
+  .info-trigger:focus-visible + .card-tooltip {
+    opacity: 1;
+    visibility: visible;
+  }
+
+  /* anchor-name 미지원 브라우저 폴백 — 카드 안쪽 상대 위치로 대체 */
+  @supports not (anchor-name: --info-1) {
+    .project-card {
+      position: relative;
+    }
+
+    .card-tooltip {
+      position: absolute;
+      top: auto;
+      bottom: calc(100% + var(--space-2));
+      left: var(--space-4);
+      translate: none;
+    }
+  }
+}
+```
+
+### 3. 실행
+
+```text
+VS Code에서 portfolio/projects.html을 브라우저로 엽니다(라이브 서버 확장 권장).
+```
+
+### 4. 확인
+
+- 카드 설명 옆 `ⓘ` 아이콘에 마우스를 올리면 아이콘 바로 아래에 검정 배경 툴팁이 뜬다
+- 키보드로 `Tab`을 눌러 아이콘에 포커스를 옮겨도 같은 툴팁이 뜬다(마우스 없이도 확인 가능)
+- 브라우저 개발자 도구에서 `styles.css`의 `anchor-name` 줄에 취소선이 그어져 있으면(미지원 표시) 툴팁이 카드 안쪽 왼쪽 위에 절대 위치로 뜨는 것을 확인한다
+- 화면 아래쪽 카드(5번, 6번)에서도 툴팁이 화면 밖으로 넘치지 않고 아이콘 근처에 붙어 있다
+
+</Steps>
+
+## 직접 해보기
+
+1. `position-try-fallbacks: flip-block`을 지우고 마지막 줄 카드의 툴팁이 화면 아래로 잘리는지 확인해 보세요. 다시 넣으면 어떻게 달라지나요.
+2. `.card-tooltip`의 `left: anchor(center)`를 `left: anchor(start)`로 바꾸면 툴팁이 아이콘의 어느 지점에 맞춰지는지 관찰해 보세요.
+
+<details>
+<summary>답 보기</summary>
+
+1. `flip-block`이 없으면 뷰포트 아래쪽 카드의 툴팁이 `top: anchor(bottom)` 규칙 그대로 화면 밑으로 밀려나 잘립니다. `flip-block`을 넣으면 공간이 부족할 때 자동으로 앵커 위쪽에 뜨도록 뒤집힙니다.
+2. `anchor(center)`는 아이콘의 가로 중앙에 맞추고, `anchor(start)`는 아이콘의 왼쪽 변(inline-start)에 맞춥니다. `translate: -50% 0`과 짝을 이루는 것은 `center`뿐이므로, `start`로 바꾸면 `translate` 값도 함께 조정해야 툴팁이 어긋나지 않습니다.
+
+</details>
+
+## 자주 하는 실수
+
+| 증상 | 원인 | 고치는 법 |
+|------|------|-----------|
+| 툴팁이 항상 화면 왼쪽 위(0, 0)에 붙는다 | `position-anchor`가 연결한 `anchor-name`을 가진 요소가 없다(이름 오타) | 트리거의 `anchor-name`과 툴팁의 `position-anchor` 값이 정확히 같은 문자열인지 확인 |
+| 6개 카드 툴팁이 전부 1번 카드 위치에 뜬다 | 모든 카드에 같은 `anchor-name`을 재사용했다 | 카드마다 `--info-1`부터 `--info-6`까지 고유한 이름을 부여 |
+| 미지원 브라우저에서 툴팁이 안 보인다 | `@supports not (anchor-name: --info-1)` 안 폴백에서 `position: relative`를 부모(`.project-card`)에 걸지 않았다 | 폴백 블록에서 기준 요소에 `position: relative`를 반드시 함께 지정 |
+| 툴팁 텍스트가 카드 폭만큼 넓게 퍼진다 | `.card-tooltip`이 `inline-size: max-content`가 아니라 부모 폭을 상속받는 다른 규칙과 충돌 | `max-inline-size`로 상한을 주고 `inline-size: max-content`를 유지 |
+
+## 확인 문제
+
+<Quiz
+  questionNumber={1}
+  question="position-anchor가 지정된 요소에서 anchor(bottom)이 뜻하는 것은?"
+  options={['뷰포트의 아래쪽 끝', '해당 요소 자신의 아래쪽 끝', 'position-anchor로 연결된 앵커 요소의 아래쪽 변', '가장 가까운 부모 요소의 아래쪽 끝']}
+  correctAnswer={3}
+  explanation="position-anchor가 있으면 anchor() 함수는 이름을 생략해도 그 앵커 요소의 지정한 변 좌표를 가져옵니다."
+  optionExplanations={['뷰포트 기준은 anchor()가 아니라 일반 fixed 포지셔닝의 동작입니다', '자기 자신의 변이 아니라 연결된 앵커 요소의 변입니다', '정답입니다', '부모가 아니라 anchor-name으로 명시적으로 연결된 요소를 가리킵니다']}
+/>
+
+<Quiz
+  questionNumber={2}
+  question="카드가 6개 반복되는 컴포넌트에서 anchor-name을 하나만 정의하면 생기는 문제는?"
+  options={['빌드 에러가 발생한다', '모든 카드의 툴팁이 같은 앵커 좌표를 참조해 한 곳에 몰린다', '첫 번째 카드만 스타일이 적용되고 나머지는 무시된다', 'CSS 우선순위 때문에 마지막 카드만 적용된다']}
+  correctAnswer={2}
+  explanation="anchor-name은 페이지 전체에서 참조되는 식별자라 여러 요소가 같은 이름을 쓰면 그중 하나(스펙상 마지막으로 유효한 것)만 앵커로 인정되어 나머지 툴팁도 그 좌표로 몰립니다."
+  optionExplanations={['빌드 단계가 아니라 런타임 레이아웃 문제입니다', '정답입니다', '스타일 자체는 모든 카드에 적용되지만 좌표 참조 대상이 겹치는 것이 문제입니다', 'CSS 우선순위 문제가 아니라 앵커 식별자 충돌 문제입니다']}
+/>
+
+<Quiz
+  questionNumber={3}
+  question="anchor-name을 지원하지 않는 브라우저를 위한 폴백으로 적절한 방법은?"
+  options={['@supports not (anchor-name: --a)로 감싸 절대 위치 대체안을 제공한다', 'anchor-name 대신 항상 JavaScript로만 좌표를 계산한다', '지원 브라우저가 늘어날 때까지 툴팁 기능 자체를 만들지 않는다', 'anchor() 함수를 미디어 쿼리 media (min-width) 안에 넣는다']}
+  correctAnswer={1}
+  explanation="기능 쿼리(@supports)로 지원 여부를 감지해 미지원 환경에서는 position: relative 기반의 대체 위치를 제공하는 것이 점진적 향상의 기본 패턴입니다."
+  optionExplanations={['정답입니다', 'CSS만으로 해결 가능한 상황에서 굳이 JavaScript로 전환할 필요는 없습니다', '지원이 갈리는 기능도 폴백을 갖추면 지금 바로 도입할 수 있습니다', 'min-width는 뷰포트 폭 조건이라 기능 지원 여부와는 무관합니다']}
+/>
+
+## 참고 자료
+
+- [MDN — anchor-name](https://developer.mozilla.org/en-US/docs/Web/CSS/anchor-name)

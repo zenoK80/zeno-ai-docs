@@ -1,0 +1,218 @@
+---
+title: '06. 컨테이너 쿼리로 반응형 프로젝트 카드 만들기'
+description: '뷰포트가 아니라 부모 폭을 기준으로 카드 레이아웃을 바꿉니다'
+---
+
+<Callout type="info">
+  **이번 편의 결과물:** projects.html 카드 그리드가 뷰포트가 아니라 **카드를 담은 컨테이너의 폭**에 따라 이미지·텍스트 배치를 바꿉니다. **다루는 개념:** `container-type`/`container-name`, `@container` 문법, 컨테이너 단위(`cqi`/`cqb`), 뷰포트 쿼리와의 차이
+</Callout>
+
+## 이 편에서 만드는 파일
+
+```text
+web-practice/portfolio/
+└─ css/styles.css                        ~ (components 레이어에 컨테이너 쿼리 추가)
+web-practice/lessons/modern-css/
+└─ 06_container-query-cards/             + (이번 편 스냅샷)
+   └─ notes.md
+```
+
+## 개념 정리
+
+미디어 쿼리(`@media`)는 **뷰포트 폭**을 기준으로 스타일을 바꿉니다. 같은 카드가 사이드바 옆(좁은 칸)에 있든 전체 폭(넓은 칸)에 있든, 뷰포트가 넓으면 똑같이 "넓은 화면용" 스타일을 받습니다. 컨테이너 쿼리는 **카드를 담은 부모 요소의 실제 폭**을 기준으로 삼기 때문에, 카드가 어디에 놓이든 그 자리의 폭에 맞춰 스스로 레이아웃을 바꿉니다.
+
+| 단계 | 무엇을 하는가 |
+|------|----------------|
+| ① 컨테이너 지정 | 부모 요소에 `container-type: inline-size;`(가로 폭만 관찰) |
+| ② 이름 부여(선택) | `container-name: card;`로 여러 컨테이너 중 하나를 지목 |
+| ③ 쿼리 작성 | 자손 요소에 `@container card (min-width: 400px) { ... }` |
+| ④ 컨테이너 단위 | `cqi`(컨테이너 inline 크기의 1%), `cqb`(block 크기의 1%)로 컨테이너 폭에 비례한 값 지정 |
+
+| 항목 | `@media` | `@container` |
+|------|----------|---------------|
+| 기준 | 뷰포트 | 가장 가까운 조상 컨테이너 |
+| 대상 | 페이지 전체 레이아웃 | 재사용되는 컴포넌트 |
+| 컴포넌트가 위치를 옮기면 | 스타일 그대로(뷰포트가 안 변했으므로) | 놓인 자리 폭에 맞춰 다시 계산됨 |
+
+**흔한 오해**: `container-type: inline-size`를 걸면 그 요소가 곧바로 무언가 달라 보인다고 생각하기 쉽지만, 이 속성 자체는 "이 요소를 기준으로 자손이 쿼리를 걸 수 있게 **등록**"하는 역할만 합니다. 실제 레이아웃 변화는 `@container` 규칙 쪽에서 일어납니다.
+
+## 실습
+
+<Steps>
+
+### 1. 카드를 감싸는 컨테이너 확인하기
+
+`.project-grid`가 카드를 감싸는 부모입니다. 이 요소에 컨테이너를 등록합니다.
+
+```css
+/* portfolio/css/styles.css */
+@layer components {
+  /* ...기존 코드 유지 */
+
+  .project-grid {
+    container-type: inline-size;
+    container-name: cards;
+    display: grid;
+    grid-template-columns: 1fr;
+    gap: var(--space-6);
+  }
+}
+```
+
+`grid-template-columns: 1fr`은 컨테이너 쿼리로 열 수를 바꾸기 전 기본값(1열)입니다. 미디어 쿼리로 3단계 열을 나누던 03편 이전 방식을, 이번 편에서 컨테이너 쿼리 기준으로 교체합니다.
+
+### 2. 카드 내부 배치를 컨테이너 쿼리로 나누기
+
+```css
+/* portfolio/css/styles.css */
+@layer components {
+  .project-card {
+    display: grid;
+    grid-template-rows: auto auto 1fr auto;
+    gap: var(--space-2);
+    background: var(--color-surface);
+    border: 1px solid var(--color-border);
+    border-radius: var(--radius);
+    padding: var(--space-4);
+
+    & img {
+      width: 100%;
+      aspect-ratio: 3 / 2;
+      object-fit: cover;
+      border-radius: var(--radius);
+    }
+  }
+
+  /* 컨테이너(.project-grid) 폭이 480px 이상이면 그리드를 2열로 */
+  @container cards (min-width: 480px) {
+    .project-grid {
+      grid-template-columns: repeat(2, 1fr);
+    }
+  }
+
+  /* 768px 이상이면 3열로 */
+  @container cards (min-width: 768px) {
+    .project-grid {
+      grid-template-columns: repeat(3, 1fr);
+    }
+  }
+
+  /* 카드 자신도 컨테이너로 등록해, 카드 폭이 넓어지면 내부를 가로 배치로 */
+  .project-card {
+    container-type: inline-size;
+    container-name: card;
+  }
+
+  @container card (min-width: 360px) {
+    .project-card {
+      grid-template-columns: 12rem 1fr;
+      grid-template-rows: auto auto 1fr;
+
+      & img {
+        grid-row: 1 / -1;
+        aspect-ratio: 3 / 4;
+      }
+    }
+  }
+}
+```
+
+두 종류의 컨테이너를 함께 씁니다. `.project-grid`(이름 `cards`)는 "그리드 전체가 몇 열인가"를, `.project-card`(이름 `card`) 자신은 "카드 한 장 안의 이미지·텍스트를 세로로 쌓을지 가로로 나란히 둘지"를 각자의 폭 기준으로 판단합니다. 컨테이너 이름을 다르게 줘야 `@container` 규칙이 어느 컨테이너를 보는지 헷갈리지 않습니다.
+
+### 3. 컨테이너 단위로 카드 안 제목 크기 조정하기
+
+```css
+/* portfolio/css/styles.css */
+@layer components {
+  .project-card h2 {
+    /* 카드 폭(cqi)의 6%와 최소 1rem, 최대 1.375rem 사이에서 결정 */
+    font-size: clamp(1rem, 6cqi, 1.375rem);
+  }
+}
+```
+
+`cqi`는 가장 가까운 컨테이너의 inline 크기(가로쓰기 기준 폭) 1퍼센트입니다. 카드가 넓어질수록 제목도 함께 커지되, `clamp()`로 정한 범위를 벗어나지 않습니다. `clamp()` 자체 문법은 14편에서 더 다룹니다.
+
+### 4. 실행 및 확인
+
+브라우저 개발자 도구에서 `.project-grid`의 폭을 뷰포트 크기와 무관하게 확인합니다.
+
+```text
+1. projects.html을 브라우저에서 엽니다.
+2. 창 폭을 700px 근처로 좁혀 카드가 2열로 배치되는지 확인합니다.
+3. 개발자 도구 반응형 모드에서 뷰포트는 그대로 두고, .project-grid에만
+   width: 300px를 임시로 걸어 봅니다 — 뷰포트는 넓은데도 카드가 1열로
+   돌아오면 컨테이너 쿼리가 부모 폭을 보고 있다는 뜻입니다.
+```
+
+- 카드 폭이 360px를 넘으면 이미지가 왼쪽, 텍스트가 오른쪽으로 나란히 배치됩니다.
+- 카드 폭이 360px 미만이면 이미지가 위, 텍스트가 아래로 쌓입니다.
+
+</Steps>
+
+## 직접 해보기
+
+1. `@container cards (min-width: 1024px)`를 추가해 4열 배치를 만들어 보세요.
+2. `.project-card .tags`(태그 칩 목록)에 `@container card (min-width: 360px)`일 때 `flex-direction: column`으로 세로 나열되게 해보세요. 가로 배치 카드에서는 텍스트 영역이 좁아지므로 태그를 세로로 쌓는 편이 자연스럽습니다.
+
+<details>
+<summary>풀이 보기</summary>
+
+```css
+@container cards (min-width: 1024px) {
+  .project-grid {
+    grid-template-columns: repeat(4, 1fr);
+  }
+}
+
+@container card (min-width: 360px) {
+  .project-card .tags {
+    flex-direction: column;
+    align-items: flex-start;
+  }
+}
+```
+
+</details>
+
+## 자주 하는 실수
+
+| 증상 | 원인 | 고치는 법 |
+|------|------|-----------|
+| `@container` 규칙이 전혀 안 먹힘 | 조상에 `container-type`을 안 걸었음 | 쿼리 대상 바로 위 조상에 `container-type: inline-size`를 지정한다 |
+| 카드 안 레이아웃이 안 바뀜 | `.project-grid`와 `.project-card`가 같은 이름을 씀 | 그리드용·카드용 `container-name`을 다르게 지어 구분한다 |
+| 컨테이너 쿼리를 걸었는데 레이아웃이 무한 반복되듯 흔들림 | 컨테이너 자신의 크기를 컨테이너 쿼리 조건으로 바꾸는 순환 참조 | 폭을 바꾸는 규칙은 컨테이너의 조상이 아니라 자손에만 적용한다 |
+| `cqi` 값이 이상하게 큼 | `container-type` 없는 요소를 기준으로 계산됨 | 가장 가까운 `container-type` 조상이 어디인지 개발자 도구로 확인한다 |
+
+## 확인 문제
+
+<Quiz
+  questionNumber={1}
+  question="컨테이너 쿼리와 미디어 쿼리의 가장 근본적인 차이는 무엇인가"
+  options={['컨테이너 쿼리는 색상만 바꿀 수 있다', '컨테이너 쿼리는 뷰포트가 아니라 부모 요소의 폭을 기준으로 삼는다', '미디어 쿼리는 최신 브라우저에서 지원되지 않는다', '컨테이너 쿼리는 자바스크립트가 있어야 동작한다']}
+  correctAnswer={2}
+  explanation="컨테이너 쿼리는 조상 컨테이너의 실제 크기를 기준으로 삼아, 같은 컴포넌트가 어디에 놓이든 그 자리 폭에 맞춰 반응한다."
+  optionExplanations={['색상 제한은 없으며 어떤 속성이든 바꿀 수 있다', '정답. 기준이 뷰포트가 아니라 컨테이너라는 점이 핵심 차이다', '미디어 쿼리는 여전히 널리 지원되는 기본 기능이다', '순수 CSS 기능이라 자바스크립트가 필요 없다']}
+/>
+
+<Quiz
+  questionNumber={2}
+  question="어떤 요소를 컨테이너 쿼리의 대상으로 만들려면 그 요소의 조상에 무엇을 지정해야 하는가"
+  options={['container-name만 지정하면 충분하다', 'container-type을 지정해야 한다', 'display: contents를 지정해야 한다', 'position: relative만 있으면 된다']}
+  correctAnswer={2}
+  explanation="container-type이 그 요소를 컨테이너로 등록하는 핵심 속성이다. container-name은 여러 컨테이너를 구분하기 위한 선택 사항이다."
+  optionExplanations={['이름만으로는 컨테이너로 등록되지 않는다', '정답. container-type이 있어야 컨테이너 쿼리의 기준점이 된다', 'display: contents는 컨테이너 등록과 관계없다', 'position 속성은 컨테이너 쿼리와 직접 관련이 없다']}
+/>
+
+<Quiz
+  questionNumber={3}
+  question="cqi 단위가 나타내는 것은"
+  options={['뷰포트 폭의 1퍼센트', '가장 가까운 컨테이너 inline 크기의 1퍼센트', '루트 요소 글자 크기의 1퍼센트', '이미지 원본 크기의 1퍼센트']}
+  correctAnswer={2}
+  explanation="cqi는 container query inline의 줄임말로, 가장 가까운 컨테이너의 inline 축 크기(가로쓰기 기준 폭) 1퍼센트를 뜻한다."
+  optionExplanations={['그것은 vw 단위의 정의다', '정답. 컨테이너의 inline 크기를 기준으로 계산된다', '그것은 rem 단위의 정의다', '이미지 크기와는 관계없는 단위다']}
+/>
+
+## 참고 자료
+
+- [MDN — CSS container queries](https://developer.mozilla.org/en-US/docs/Web/CSS/CSS_container_queries)

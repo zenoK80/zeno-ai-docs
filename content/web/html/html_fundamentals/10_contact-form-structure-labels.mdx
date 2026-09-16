@@ -1,0 +1,202 @@
+---
+title: '10. 연락 폼 구조와 레이블 연결하기'
+description: 'form 컨테이너와 label의 for로 접근성 있는 폼 뼈대를 만든다'
+---
+
+<Callout type="info">
+  **이번 편의 결과물:** `contact.html`에 레이블이 정확히 연결된 폼 뼈대(필드는 아직 비어 있음)가 만들어집니다. · **다루는 개념:** `form` 컨테이너, `label`의 `for`, `fieldset`/`legend` 그룹핑
+</Callout>
+
+## 이 편에서 만드는 파일
+
+```text
+web-practice/portfolio/
+└ contact.html   ~ (form 컨테이너, label-input 뼈대 추가)
+```
+
+## 개념 정리
+
+**폼**(form)은 사용자가 입력한 데이터를 서버로 보내는 UI 단위입니다. `<form>` 태그는 그 자체로는 화면에 아무것도 그리지 않는 **컨테이너**입니다. 안에 들어가는 `input`·`select`·`textarea`·`button`이 실제 입력 요소입니다.
+
+| 요소 | 역할 |
+|------|------|
+| `<form>` | 입력 요소들을 묶고 제출 동작(`method`/`action`)을 정의하는 컨테이너 |
+| `<label>` | 입력 요소의 설명 텍스트. `for` 속성으로 특정 입력과 연결 |
+| `<fieldset>` | 관련된 입력들을 하나의 그룹으로 묶는 테두리 상자 |
+| `<legend>` | `fieldset`의 제목. 그룹 전체를 설명 |
+
+**label과 input을 연결하는 두 가지 방법**이 있습니다.
+
+1. **명시적 연결**: `label`의 `for` 속성 값과 `input`의 `id` 값을 똑같이 맞춥니다.
+
+```html
+<label for="name">이름</label>
+<input type="text" id="name" name="name" />
+```
+
+2. **암묵적 연결**: `input`을 `label` 안에 직접 넣어 감쌉니다.
+
+```html
+<label>
+  이름
+  <input type="text" name="name" />
+</label>
+```
+
+이 과목에서는 **명시적 연결**(`for`/`id`)을 기본으로 씁니다. `for`/`id`가 마크업과 스타일을 분리하기 쉽고, `id`가 09편의 CSS 훅으로도 재사용되기 때문입니다.
+
+label 연결이 중요한 이유는 두 가지입니다. 첫째, 스크린 리더 사용자가 입력 칸에 포커스를 옮기면 "이름, 편집 가능"처럼 레이블 텍스트를 함께 읽어 줍니다. label 없이는 입력 칸이 무엇을 묻는지 알 수 없습니다. 둘째, 레이블 텍스트를 클릭해도 입력 칸에 포커스가 옮겨갑니다. 특히 체크박스·라디오처럼 클릭 영역이 작은 요소에서 이 동작이 사용성을 크게 높입니다.
+
+`fieldset`/`legend`는 연관된 입력을 묶을 때 씁니다. 이 폼은 필드 수가 적어 `fieldset` 하나로 전체를 감싸고, `legend`에 폼의 목적을 적습니다.
+
+**자주 하는 오해:** `placeholder`(입력 칸 안의 흐린 안내 텍스트)를 `label` 대신 쓰는 경우가 있습니다. `placeholder`는 입력이 시작되면 사라지고 스크린 리더 지원도 `label`만큼 일관되지 않습니다. **label은 항상 필수**이고, `placeholder`는 보조 힌트로만 씁니다.
+
+## 실습
+
+<Steps>
+
+### 1. contact.html의 폼 컨테이너 자리 확인하기
+
+09편에서 만들어 둔 `id="contact-form"` 자리에 `<form>` 태그를 넣습니다. `method`와 `action`은 12편에서 다루므로 지금은 비워 둡니다.
+
+### 2. form과 fieldset 뼈대 작성하기
+
+```html
+<!-- contact.html (main 내부) -->
+<main>
+  <h1>연락</h1>
+  <p>협업·채용 제안은 아래 폼으로 보내 주세요. 보통 2일 안에 답합니다.</p>
+
+  <div class="contact-form" id="contact-form">
+    <form>
+      <fieldset>
+        <legend>연락 정보 입력</legend>
+
+        <div class="form-field">
+          <label for="name">이름</label>
+          <input type="text" id="name" name="name" />
+        </div>
+
+        <div class="form-field">
+          <label for="email">이메일</label>
+          <input type="email" id="email" name="email" />
+          <p class="form-help">답장을 받을 주소를 적어 주세요.</p>
+        </div>
+
+        <div class="form-field">
+          <label for="inquiry-type">문의 유형</label>
+          <select id="inquiry-type" name="inquiryType">
+            <!-- 11편에서 option을 채웁니다 -->
+          </select>
+        </div>
+
+        <div class="form-field">
+          <label for="message">메시지</label>
+          <textarea id="message" name="message"></textarea>
+          <p class="form-help">프로젝트 내용이나 일정을 간단히 적어 주세요.</p>
+        </div>
+
+        <div class="form-field">
+          <label for="agree">
+            <input type="checkbox" id="agree" name="agree" />
+            개인정보 수집·이용에 동의합니다
+          </label>
+        </div>
+
+        <button type="submit">보내기</button>
+      </fieldset>
+    </form>
+  </div>
+</main>
+```
+
+체크박스는 짧은 문구라 `label`이 `input`을 직접 감싸는 **암묵적 연결**을 씁니다. 텍스트를 클릭해도 체크가 토글되는지 3단계에서 확인합니다.
+
+### 3. 실행
+
+VS Code에서 `contact.html`을 저장하고 브라우저에서 새로고침합니다(`Ctrl+S` → 브라우저 `F5`).
+
+### 4. 확인
+
+- 이름·이메일·메시지 레이블 텍스트를 클릭하면 커서가 해당 입력 칸으로 이동합니다.
+- 개인정보 동의 문구를 클릭하면 체크박스가 켜지고 꺼집니다.
+- 개발자 도구에서 `document.querySelector('label[for="email"]')`을 실행하면 `<label for="email">이메일</label>`이 출력됩니다.
+- `legend` 텍스트("연락 정보 입력")가 `fieldset` 테두리 위에 겹쳐 표시됩니다(브라우저 기본 스타일).
+
+</Steps>
+
+## 직접 해보기
+
+1. 이름 입력의 `label` 텍스트를 "성함"으로 바꾸되 `for`/`id` 값(`name`)은 그대로 두고, 레이블 클릭 시 여전히 포커스가 이동하는지 확인합니다.
+2. `fieldset`을 하나 더 만들어 "동의 항목"이라는 `legend`로 개인정보 동의 체크박스만 따로 묶어 봅니다.
+
+<details>
+<summary>답 보기</summary>
+
+```html
+<label for="name">성함</label>
+<input type="text" id="name" name="name" />
+```
+
+`for`/`id` 값은 연결의 기준이므로 레이블 텍스트만 바뀌어도 연결은 유지됩니다.
+
+```html
+<fieldset>
+  <legend>연락 정보 입력</legend>
+  <!-- 이름, 이메일, 문의 유형, 메시지 -->
+</fieldset>
+
+<fieldset>
+  <legend>동의 항목</legend>
+  <div class="form-field">
+    <label for="agree">
+      <input type="checkbox" id="agree" name="agree" />
+      개인정보 수집·이용에 동의합니다
+    </label>
+  </div>
+</fieldset>
+```
+
+</details>
+
+## 자주 하는 실수
+
+| 증상 | 원인 | 고치는 법 |
+|------|------|-----------|
+| 레이블을 클릭해도 포커스가 안 옮겨간다 | `for` 값과 `id` 값 철자가 다름 | 두 값을 정확히 똑같이 맞춘다(대소문자 포함) |
+| 같은 `id`를 두 입력에 씀 | 복사·붙여넣기 후 `id` 미변경 | 입력마다 고유한 `id`인지 확인한다 |
+| `label` 없이 `placeholder`만 씀 | 힌트 텍스트를 레이블로 착각 | `placeholder`는 보조 힌트로만 쓰고 `label`을 항상 추가한다 |
+
+## 확인 문제
+
+<Quiz
+  questionNumber={1}
+  question="label과 input을 명시적으로 연결하는 방법은"
+  options={['label 안에 input을 그냥 넣기만 하면 된다', 'label의 for 값과 input의 id 값을 동일하게 맞춘다', 'label에 name 속성을 추가한다', 'input에 label이라는 class를 붙인다']}
+  correctAnswer={2}
+  explanation="명시적 연결은 label의 for 속성 값과 input의 id 속성 값을 똑같이 맞추는 방식입니다."
+  optionExplanations={['그것은 암묵적 연결 방식입니다.', '정답입니다.', 'name은 제출 데이터의 키이지 연결 수단이 아닙니다.', 'class는 스타일 훅이며 연결과 무관합니다.']}
+/>
+
+<Quiz
+  questionNumber={2}
+  question="fieldset과 legend의 역할로 옳은 것은"
+  options={['입력 값의 형식을 검증한다', '관련된 입력들을 그룹으로 묶고 그룹 제목을 붙인다', '폼 제출 방식을 결정한다', '입력 칸의 기본값을 지정한다']}
+  correctAnswer={2}
+  explanation="fieldset은 연관된 입력들을 하나의 그룹으로 묶는 컨테이너이고, legend는 그 그룹의 제목입니다."
+  optionExplanations={['형식 검증은 input의 type이나 required 같은 속성이 담당합니다.', '정답입니다.', '제출 방식은 form의 method/action이 결정합니다.', '기본값은 value 속성이 담당합니다.']}
+/>
+
+<Quiz
+  questionNumber={3}
+  question="label 대신 placeholder만 쓰는 것이 문제가 되는 이유는"
+  options={['placeholder는 입력이 시작되면 사라지고 스크린 리더 지원이 label만큼 일관되지 않는다', 'placeholder는 HTML 표준에 없는 속성이다', 'placeholder를 쓰면 폼이 제출되지 않는다', 'placeholder는 CSS로 스타일링할 수 없다']}
+  correctAnswer={1}
+  explanation="placeholder는 입력을 시작하면 사라지는 힌트이고 스크린 리더 지원도 label만큼 일관되지 않으므로 label을 대체할 수 없습니다."
+  optionExplanations={['정답입니다.', 'placeholder는 표준 속성입니다.', 'placeholder 유무는 제출 가능 여부와 무관합니다.', 'placeholder도 CSS로 스타일링할 수 있습니다.']}
+/>
+
+## 참고 자료
+
+- [MDN — Your first form](https://developer.mozilla.org/en-US/docs/Learn_web_development/Extensions/Forms/Your_first_form)
+- [MDN — How to structure a web form](https://developer.mozilla.org/en-US/docs/Learn_web_development/Extensions/Forms/How_to_structure_a_web_form)

@@ -1,0 +1,250 @@
+---
+title: '14. useReducer로 책 목록 CRUD 통합'
+description: 'App에 흩어진 책 목록 변경 로직을 booksReducer 하나로 모아 dispatch 기반으로 통합한다'
+---
+
+<Callout type="info">
+  **이번 편의 결과물:** 책 추가·삭제·별점 변경·상태 변경이 `booksReducer` 하나의 `dispatch`로 통합되어 처리됩니다. · **다루는 개념:** reducer 함수, action 설계, `useReducer`, `dispatch`
+</Callout>
+
+## 이 편에서 만드는 파일
+
+```
+bookshelf/src/
+├── reducers/
+│   └── booksReducer.js      + 신규
+└── App.jsx                  ~ 수정 (useState → useReducer)
+```
+
+## 개념 정리
+
+지금까지 `App`은 `books` 배열 하나에 대해 `handleAddBook`, `handleDeleteBook`, `handleRatingChange`, `handleStatusChange` 네 개의 핸들러를 가지고 있습니다. 각 핸들러가 각자 `setBooks`를 부르고 각자 불변 업데이트를 반복합니다. 핸들러가 늘어날수록 "books가 대체 어떤 규칙으로 바뀌는가"라는 질문에 답하려면 파일 전체를 훑어야 합니다.
+
+**useReducer**는 상태 변경 규칙을 한곳에 모으는 훅입니다.
+
+```js
+const [state, dispatch] = useReducer(reducer, initialState);
+```
+
+| 이름 | 역할 |
+|------|------|
+| `state` | 현재 상태. `useState`의 상태 변수와 같은 자리 |
+| `dispatch` | **액션을 발송**하는 함수. `setState` 자리를 대신함 |
+| `reducer` | `(state, action)`을 받아 **다음 상태를 반환**하는 순수 함수 |
+| `initialState` | 초기 상태 |
+
+흐름은 이렇습니다.
+
+1. 이벤트 핸들러는 상태를 직접 바꾸지 않고 `dispatch({ type: 'ADD_BOOK', book })`처럼 **"무슨 일이 일어났는지"** 만 발송합니다.
+2. React가 그 액션과 현재 상태를 들고 reducer 함수를 호출합니다.
+3. reducer가 계산한 다음 상태로 React가 상태를 교체하고 리렌더합니다.
+
+액션은 `type`(사건 종류)과 처리에 필요한 최소 정보를 담은 객체입니다. "무엇을 하라"가 아니라 "무슨 일이 있었다"로 설계하는 것이 원칙입니다. reducer는 두 계약을 지켜야 합니다 — **순수 함수**여야 하고(부수 효과 금지), **기존 상태를 직접 고치지 않고 새 배열·객체를 반환**해야 합니다(불변 업데이트, 10편).
+
+| 판단 질문 | 예 → useReducer | 아니오 → useState |
+|-----------|-----------------|-------------------|
+| 변경 경우의 수가 3–4가지를 넘는가 | 규칙을 한곳에 모을 가치 있음 | 핸들러 하나로 충분 |
+| 여러 핸들러가 같은 배열을 각자 다르게 고치는가 | 액션으로 통일 | 공유할 것 없음 |
+| 로직을 컴포넌트 밖에서 단독 테스트하고 싶은가 | 순수 함수라 테스트 용이 | 필요성 낮음 |
+
+`books`는 추가·삭제·별점 변경·상태 변경 네 가지 경우가 있으므로 useReducer로 옮길 대상입니다. 반대로 `Header`의 `theme`, `BookForm`의 입력값처럼 변경 경우가 하나뿐인 상태는 `useState`로 남겨둡니다. 두 훅은 한 앱 안에서 자연스럽게 섞입니다.
+
+## 실습
+
+<Steps>
+
+### 1. booksReducer.js 만들기
+
+```js
+// src/reducers/booksReducer.js
+export const initialBooksState = [];
+
+export function booksReducer(books, action) {
+  switch (action.type) {
+    case 'ADD_BOOK':
+      return [...books, action.book];
+
+    case 'DELETE_BOOK':
+      return books.filter((book) => book.id !== action.id);
+
+    case 'SET_RATING':
+      return books.map((book) =>
+        book.id === action.id ? { ...book, rating: action.rating } : book,
+      );
+
+    case 'SET_STATUS':
+      return books.map((book) =>
+        book.id === action.id ? { ...book, status: action.status } : book,
+      );
+
+    default:
+      throw new Error(`알 수 없는 액션 타입입니다: ${action.type}`);
+  }
+}
+```
+
+`booksReducer`는 React를 몰라도 되는 순수 자바스크립트 함수입니다. `books` 상태가 바뀔 수 있는 경우 네 가지가 이 함수 하나에 전부 나열되어 있습니다.
+
+### 2. App.jsx를 useReducer로 전환하기
+
+```jsx
+// src/App.jsx
+import { useReducer, useEffect, useRef } from 'react';
+import initialBooks from './data/books.seed.json';
+import { booksReducer } from './reducers/booksReducer';
+import Header from './components/Header';
+import BookForm from './components/BookForm';
+import BookList from './components/BookList';
+
+function loadInitialState() {
+  const saved = localStorage.getItem('bookshelf-books');
+  return saved ? JSON.parse(saved) : initialBooks;
+}
+
+function App() {
+  const [books, dispatch] = useReducer(booksReducer, undefined, loadInitialState);
+  const scrollTargetRef = useRef(null);
+
+  useEffect(() => {
+    localStorage.setItem('bookshelf-books', JSON.stringify(books));
+    document.title = `bookshelf (${books.length}권)`;
+  }, [books]);
+
+  useEffect(() => {
+    scrollTargetRef.current?.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+  }, [books.length]);
+
+  function handleAddBook(newBook) {
+    dispatch({ type: 'ADD_BOOK', book: newBook });
+  }
+
+  function handleDeleteBook(id) {
+    dispatch({ type: 'DELETE_BOOK', id });
+  }
+
+  function handleRateBook(id, rating) {
+    dispatch({ type: 'SET_RATING', id, rating });
+  }
+
+  function handleToggleStatus(id, status) {
+    dispatch({ type: 'SET_STATUS', id, status });
+  }
+
+  return (
+    <div className="app">
+      <Header />
+      <p>총 {books.length}권</p>
+      <BookList
+        ref={scrollTargetRef}
+        books={books}
+        onDelete={handleDeleteBook}
+        onRate={handleRateBook}
+        onToggleStatus={handleToggleStatus}
+      />
+      <BookForm onAddBook={handleAddBook} />
+    </div>
+  );
+}
+
+export default App;
+```
+
+`useReducer(booksReducer, undefined, loadInitialState)`의 세 번째 인자는 **초기화 함수**입니다. React는 최초 렌더에서 딱 한 번만 이 함수를 호출해 초기 상태를 계산합니다. `localStorage` 읽기처럼 계산 비용이 있는 초기화는 이렇게 세 번째 인자로 넘겨야, 매 렌더마다 다시 읽는 낭비를 피할 수 있습니다.
+
+핸들러 본문을 눈여겨보세요. 네 핸들러 모두 **"무슨 일이 있었는지" 한 줄을 dispatch로 보내는 것**이 전부입니다. 불변 업데이트 코드는 전부 `booksReducer.js`로 이사했습니다. 포커스·스크롤(12편)과 필터(13편)는 그대로 유지됩니다 — `BookForm`은 여전히 자기 안의 `titleInputRef`로 제출 후 포커스를 되돌리고, `scrollTargetRef`는 12편처럼 `BookList`의 `forwardRef`에 연결됩니다.
+
+### 3. BookCard·StatusBadge·StarRating은 그대로 둔다
+
+이 컴포넌트들은 `onDelete`, `onRate`, `onToggleStatus`를 props로 받아 호출할 뿐, `books` 상태가 `useState`인지 `useReducer`인지 알 필요가 없습니다. props 인터페이스가 그대로이므로 수정할 필요가 없습니다.
+
+### 4. 실행
+
+```text
+npm run dev
+```
+
+### 5. 확인
+
+- 책 추가·삭제·별점 변경·상태 변경이 이전과 동일하게 동작합니다(사용자 눈에는 차이가 없어야 정상입니다).
+- React DevTools의 Components 탭에서 `App`을 선택하면 hooks 목록에 `Reducer`가 표시되고, 값으로 현재 `books` 배열을 볼 수 있습니다.
+- 콘솔에서 존재하지 않는 액션 타입을 임시로 `dispatch({ type: 'UNKNOWN' })`처럼 호출해 보면(브라우저 콘솔에서 직접 호출은 어려우므로, 코드에 임시로 넣어 테스트) `알 수 없는 액션 타입입니다` 에러가 던져지는지 확인합니다. 확인 후 테스트 코드는 제거합니다.
+
+</Steps>
+
+## 직접 해보기
+
+1. `booksReducer`에 `'DELETE_ALL_DONE'` 액션을 추가해, `status`가 `'done'`인 책을 한 번에 모두 지우는 기능을 만들어 보세요.
+2. `Header`나 별도 버튼에서 `dispatch({ type: 'DELETE_ALL_DONE' })`을 호출하도록 연결해 보세요.
+
+<details>
+<summary>정답 보기</summary>
+
+```js
+// src/reducers/booksReducer.js (case 추가)
+case 'DELETE_ALL_DONE':
+  return books.filter((book) => book.status !== 'done');
+```
+
+`App`에서 `dispatch`를 `Header`로 내려주거나, `App` 안에 버튼을 하나 추가해 `onClick={() => dispatch({ type: 'DELETE_ALL_DONE' })}`으로 연결합니다.
+
+</details>
+
+## 자주 하는 실수
+
+| 증상 | 원인 | 고치는 법 |
+|------|------|-----------|
+| 화면이 갱신되지 않음 | reducer 안에서 `books.push(...)`처럼 기존 배열을 직접 수정 | 전개 구문·`map`·`filter`로 새 배열을 반환 |
+| `dispatch` 직후 `books`를 읽었는데 이전 값 | 상태는 다음 렌더에서 갱신되는 스냅샷 | 최신 값이 필요하면 다음 렌더의 JSX나 `useEffect`에서 확인 |
+| `useReducer`의 초기화 함수가 렌더마다 다시 실행되는 것처럼 보임 | 세 번째 인자 없이 `useReducer(booksReducer, loadInitialState())`처럼 즉시 호출 | `useReducer(booksReducer, undefined, loadInitialState)`로 함수 자체를 넘김 |
+| 알 수 없는 액션 타입 에러가 자주 발생 | 오타로 `type` 문자열이 reducer의 `case`와 불일치 | 액션 타입 문자열을 상수로 뽑아 오타 방지(선택 사항) |
+
+## 확인 문제
+
+<Quiz
+  questionNumber={1}
+  question="useState 대비 useReducer가 해결하는 핵심 문제는?"
+  options={['상태 변경 규칙이 여러 이벤트 핸들러에 흩어져 관리가 어려워지는 문제', '상태 변경 시 리렌더가 일어나지 않는 문제', '상태를 브라우저에 영구 저장하지 못하는 문제', '컴포넌트 간에 상태를 공유하지 못하는 문제']}
+  correctAnswer={1}
+  explanation="useReducer의 존재 이유는 흩어진 상태 변경 로직을 reducer 함수 한곳에 모으는 것이다."
+  optionExplanations={['정답 — 규칙을 한곳에 모으는 것이 핵심 가치다', 'useReducer도 상태 교체 시 리렌더를 일으킨다', '영구 저장은 useEffect의 역할이다(11편)', '컴포넌트 간 공유는 Context의 영역이다(13편)']}
+/>
+
+<Quiz
+  questionNumber={2}
+  question="useReducer(reducer, initialState)가 반환하는 배열의 구성은?"
+  options={['현재 상태와, 액션을 발송하는 dispatch 함수', '현재 상태와, 상태를 직접 교체하는 setState 함수', 'reducer 함수와 초기 상태', '이전 상태와 다음 상태']}
+  correctAnswer={1}
+  explanation="useReducer는 현재 상태와 dispatch 함수의 쌍을 반환한다. dispatch는 액션 객체를 reducer에게 전달해 다음 상태 계산을 맡긴다."
+  optionExplanations={['정답 — 상태와 dispatch의 쌍이다', 'setState처럼 값을 직접 넣는 함수가 아니다', 'reducer와 초기 상태는 내가 넘기는 인자다', '이전·다음 상태 쌍을 주는 API가 아니다']}
+/>
+
+<Quiz
+  questionNumber={3}
+  question="booksReducer의 SET_RATING case에서 대상 id만 새 객체로 교체하고 나머지는 그대로 두는 map 패턴을 쓰는 이유는?"
+  options={['해당 id의 책만 새 객체로 교체하고 나머지는 그대로 유지하는 불변 업데이트를 위해', 'map을 쓰면 배열이 자동으로 정렬되기 때문에', 'forEach보다 map이 더 빠르다고 알려져 있기 때문에', '별점은 map으로만 계산할 수 있는 값이기 때문에']}
+  correctAnswer={1}
+  explanation="map은 조건에 맞는 항목만 새 객체로 교체한 새 배열을 반환한다. 나머지 항목은 참조가 그대로 유지되어 불변 업데이트 원칙을 지킨다."
+  optionExplanations={['정답 — 대상만 교체하고 나머지는 유지하는 불변 업데이트다', 'map은 정렬을 하지 않는다', '속도가 아니라 새 배열 반환 여부가 이유다', '별점 외의 필드 갱신도 같은 패턴을 쓴다']}
+/>
+
+<Quiz
+  questionNumber={4}
+  question="useReducer(booksReducer, undefined, loadInitialState)에서 세 번째 인자 loadInitialState의 역할은?"
+  options={['최초 렌더에서 한 번만 호출되어 초기 상태를 계산하는 함수', '매 렌더마다 호출되어 상태를 새로고침하는 함수', 'dispatch가 호출될 때마다 실행되는 후처리 함수', 'reducer 대신 사용되는 대체 함수']}
+  correctAnswer={1}
+  explanation="세 번째 인자는 지연 초기화 함수로, 최초 렌더에서 한 번만 호출된다. localStorage 읽기처럼 비용이 있는 초기화를 매 렌더 반복하지 않기 위해 사용한다."
+  optionExplanations={['정답 — 최초 1회만 호출되는 지연 초기화다', '매 렌더 재계산되면 지연 초기화의 목적이 사라진다', 'dispatch 후처리는 useEffect의 역할이다', 'reducer 자리는 첫 번째 인자다']}
+/>
+
+<Quiz
+  questionNumber={5}
+  question="booksReducer의 default 분기에서 에러를 던지도록 작성한 이유로 가장 알맞은 것은?"
+  options={['정의되지 않은 액션 타입의 오타를 즉시 발견하기 위해', '에러를 던지지 않으면 자바스크립트 문법 오류가 나기 때문에', 'reducer는 반드시 예외를 던져야 하는 React의 규칙이기 때문에', '에러를 던지면 자동으로 이전 상태로 되돌아가기 때문에']}
+  correctAnswer={1}
+  explanation="알 수 없는 타입을 조용히 넘기면 오타가 있어도 아무 변화 없이 동작해 버그를 늦게 발견한다. 에러를 던지면 즉시 알아챌 수 있다."
+  optionExplanations={['정답 — 오타를 즉시 드러내는 방어적 습관이다', '문법 오류와는 무관하다', 'React가 강제하는 규칙이 아니라 관례다', '에러를 던진다고 상태가 자동 복구되지는 않는다']}
+/>
+
+## 참고 자료
+
+- [React 공식 - useReducer 레퍼런스](https://react.dev/reference/react/useReducer)

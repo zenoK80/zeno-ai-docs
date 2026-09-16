@@ -1,0 +1,214 @@
+---
+title: '05. 링크로 3페이지 내비게이션 연결하기'
+description: '앵커 태그의 href 종류를 익히고 세 페이지를 실제로 이동 가능하게 연결한다'
+---
+
+<Callout type="info">
+  **이번 편의 결과물:** `index.html`·`projects.html`·`contact.html`의 내비게이션이 서로 링크되어 클릭만으로 페이지를 이동할 수 있다 · **다루는 개념:** `href`의 종류(상대·절대·프래그먼트·`mailto`), `target`과 `rel`의 전통적 값
+</Callout>
+
+## 이 편에서 만드는 파일
+
+```text
+web-practice/portfolio/
+├── index.html       ~ (nav 링크, 히어로 버튼, 푸터 SNS 링크)
+├── projects.html    ~ (nav 링크)
+└── contact.html     ~ (nav 링크)
+```
+
+## 개념 정리
+
+`a` 요소는 `href` 속성에 적힌 곳으로 이동하는 하이퍼링크를 만듭니다. `href` 값의 형태에 따라 이동 방식이 달라집니다.
+
+| 형태 | 예시 | 이동 위치 |
+|------|------|-----------|
+| 상대 경로 | `href="projects.html"` | 현재 파일과 같은 폴더의 다른 파일 |
+| 절대 URL | `href="https://github.com/example"` | 다른 사이트 |
+| 프래그먼트 | `href="#about"` | 같은 문서 안 `id="about"` 요소 |
+| 메일 링크 | `href="mailto:hello@zeno.example"` | 기본 메일 앱의 새 메일 작성 창 |
+
+`target`은 링크를 열 위치를 지정합니다. `target="_blank"`는 새 탭에서 엽니다. 외부 사이트로 나가는 링크에 `target="_blank"`를 쓸 때는 `rel="noopener noreferrer"`를 함께 씁니다. `noopener`는 새로 열린 탭이 원래 탭의 `window` 객체에 접근하지 못하게 막고, `noreferrer`는 어느 페이지에서 왔는지(Referer 정보)를 넘기지 않습니다. 같은 사이트 안에서 이동하는 링크(nav, CTA)는 `target` 없이 현재 탭에서 그대로 엽니다.
+
+내비게이션에서 현재 보고 있는 페이지의 링크에는 `aria-current="page"`를 붙입니다. 스크린 리더 사용자에게 "지금 이 페이지에 있다"를 알려주는 속성입니다. 자세한 접근성 규칙은 14편에서 다시 다룹니다.
+
+## 실습
+
+<Steps>
+
+### 1. 세 파일 열기
+
+VS Code에서 `web-practice/portfolio/index.html`, `projects.html`, `contact.html`을 각각 엽니다. 04편까지 작업한 header·nav·main·footer 골격이 남아 있어야 합니다.
+
+### 2. 코드 작성
+
+`index.html`의 헤더 nav를 실제 링크로 바꾸고, 히어로 버튼과 푸터 SNS 링크를 추가합니다.
+
+```html
+<!-- web-practice/portfolio/index.html -->
+<!doctype html>
+<html lang="ko">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Zeno Kim — 소개</title>
+  </head>
+  <body>
+    <header class="site-header">
+      <a class="logo" href="index.html">Zeno Kim</a>
+      <nav class="site-nav">
+        <ul>
+          <li><a href="index.html" aria-current="page">소개</a></li>
+          <li><a href="projects.html">프로젝트</a></li>
+          <li><a href="contact.html">연락</a></li>
+        </ul>
+      </nav>
+    </header>
+    <main>
+      <section class="hero">
+        <h1>웹을 만드는 개발자, Zeno Kim입니다.</h1>
+        <p>HTML·CSS·JavaScript로 누구나 쓸 수 있는 화면을 만듭니다.</p>
+        <a href="projects.html">프로젝트 보기</a>
+        <a href="contact.html">연락하기</a>
+      </section>
+      <section class="about" id="about">
+        <h2>소개</h2>
+        <p>
+          저는 3년째 프론트엔드를 공부하고 만들고 있습니다. 화면이 예뻐 보이는 것보다
+          <strong>누가 봐도 쓸 수 있는가</strong>를 먼저 생각합니다.
+        </p>
+        <p>
+          처음에는 디자인 툴로 화면을 그리다가, 직접 만들어 보고 싶어서 HTML과 CSS를
+          배웠습니다. 지금은 React로 서비스 화면을 만들고 있습니다.
+        </p>
+        <p>접근성과 웹 표준을 좋아합니다. 스크린 리더로 제 사이트를 읽어 보는 일이 습관이 됐습니다.</p>
+      </section>
+    </main>
+    <footer class="site-footer">
+      <p>&copy; 2026 Zeno Kim. 이 사이트는 학습용으로 제작되었습니다.</p>
+      <ul>
+        <li><a href="https://github.com/example" target="_blank" rel="noopener noreferrer">GitHub</a></li>
+        <li><a href="https://www.linkedin.com/in/example" target="_blank" rel="noopener noreferrer">LinkedIn</a></li>
+        <li><a href="https://blog.example.com" target="_blank" rel="noopener noreferrer">Blog</a></li>
+      </ul>
+    </footer>
+  </body>
+</html>
+```
+
+`projects.html`과 `contact.html`은 헤더 nav만 같은 방식으로 바꿉니다. `aria-current="page"`는 각 페이지의 자기 링크로 옮깁니다.
+
+```html
+<!-- web-practice/portfolio/projects.html (헤더 부분만) -->
+<header class="site-header">
+  <a class="logo" href="index.html">Zeno Kim</a>
+  <nav class="site-nav">
+    <ul>
+      <li><a href="index.html">소개</a></li>
+      <li><a href="projects.html" aria-current="page">프로젝트</a></li>
+      <li><a href="contact.html">연락</a></li>
+    </ul>
+  </nav>
+</header>
+```
+
+```html
+<!-- web-practice/portfolio/contact.html (헤더 부분만) -->
+<header class="site-header">
+  <a class="logo" href="index.html">Zeno Kim</a>
+  <nav class="site-nav">
+    <ul>
+      <li><a href="index.html">소개</a></li>
+      <li><a href="projects.html">프로젝트</a></li>
+      <li><a href="contact.html" aria-current="page">연락</a></li>
+    </ul>
+  </nav>
+</header>
+```
+
+두 파일의 `main`과 `footer`는 04편 상태를 그대로 둡니다(내용은 아직 비어 있거나 최소 상태입니다).
+
+### 3. 실행
+
+파일 탐색기에서 `web-practice/portfolio/index.html`을 더블클릭해 브라우저로 엽니다.
+
+### 4. 확인
+
+- 헤더에서 "프로젝트"를 클릭하면 `projects.html`로 이동한다
+- 헤더에서 "연락"을 클릭하면 `contact.html`로 이동한다
+- 각 페이지에서 로고를 클릭하면 `index.html`로 돌아온다
+- 히어로의 "프로젝트 보기"·"연락하기" 버튼이 각각 올바른 페이지로 이동한다
+- 푸터의 GitHub·LinkedIn·Blog 링크가 새 탭에서 열린다
+- 개발자 도구(F12) → Elements에서 현재 페이지의 nav 링크에 `aria-current="page"`가 붙어 있다
+
+</Steps>
+
+## 직접 해보기
+
+1. `contact.html`에 있는 연락처 이메일 텍스트 `hello@zeno.example`을 `mailto:` 링크로 바꿔 봅니다. 클릭하면 기본 메일 앱이 열려야 합니다(연락처 정보 섹션 자체는 10편에서 채웁니다. 지금은 히어로나 about 섹션에 임시로 이메일 문구를 하나 추가해 연습해도 됩니다).
+2. `index.html`의 헤더 로고 옆에 "본문 바로가기" 링크를 하나 추가하고 `href="#about"`으로 연결해, 클릭 시 소개 섹션으로 바로 이동하는지 확인합니다.
+
+<details>
+<summary>정답 보기</summary>
+
+```html
+<a href="mailto:hello@zeno.example">hello@zeno.example</a>
+```
+
+```html
+<a href="#about">본문 바로가기</a>
+```
+
+두 번째 문제에서 이동이 안 되면 `about` 섹션에 `id="about"`이 실제로 붙어 있는지 확인합니다. `id` 값과 `href="#..."` 뒤의 문자열은 대소문자까지 정확히 같아야 합니다.
+
+</details>
+
+## 자주 하는 실수
+
+| 증상 | 원인 | 고치는 법 |
+|------|------|-----------|
+| 링크를 눌러도 파일을 못 찾는다는 오류 | 상대 경로 오타 또는 파일명 대소문자 불일치 | `href` 값과 실제 파일명을 정확히 맞춘다 |
+| 프래그먼트 링크가 안 움직인다 | `href="#about"`은 있는데 `id="about"`이 없다 | 목적지 요소에 같은 값의 `id`를 붙인다 |
+| 새 탭으로 열리는데 원래 탭이 이상해진다 | `target="_blank"`만 쓰고 `rel="noopener"`을 빠뜨렸다 | `rel="noopener noreferrer"`를 함께 쓴다 |
+| 페이지 안 모든 링크가 파란 밑줄로만 보인다 | 아직 CSS를 입히지 않았다 | 정상입니다. 스타일은 `css_fundamentals`에서 입힙니다 |
+
+## 확인 문제
+
+<Quiz
+  questionNumber={1}
+  question="같은 폴더의 contact.html로 이동하는 링크를 만들 때 올바른 href 값은?"
+  options={['href=contact', 'href=./www.contact.html', 'href=contact.html', 'href=#contact.html']}
+  correctAnswer={3}
+  explanation="같은 폴더의 파일로 이동할 때는 파일명을 그대로 쓰는 상대 경로가 올바릅니다. 확장자를 빠뜨리면 브라우저가 파일을 찾지 못합니다."
+  optionExplanations={['확장자가 빠져 파일을 찾지 못합니다', '불필요한 도메인 형태가 섞여 잘못된 경로입니다', '정답입니다. 같은 폴더의 파일은 파일명만으로 연결합니다', '#은 같은 문서 안 프래그먼트 이동에 쓰는 기호입니다']}
+/>
+
+<Quiz
+  questionNumber={2}
+  question="외부 사이트를 새 탭에서 열면서 보안을 위해 함께 써야 하는 속성은?"
+  options={['rel=noopener noreferrer', 'target=_self', 'download', 'hreflang=ko']}
+  correctAnswer={1}
+  explanation="target=_blank로 새 탭을 열 때 rel=noopener noreferrer를 함께 쓰면 새 탭이 원래 탭의 window 객체에 접근하지 못하고 Referer 정보도 넘어가지 않습니다."
+  optionExplanations={['정답입니다. 새 탭 열기의 보안 관례입니다', '_self는 같은 탭에서 여는 값으로 새 탭과 무관합니다', 'download은 파일 다운로드를 유도하는 속성입니다', 'hreflang은 링크 대상 문서의 언어를 알려줄 뿐 보안과 무관합니다']}
+/>
+
+<Quiz
+  questionNumber={3}
+  question="같은 문서 안에서 id가 about인 요소로 바로 이동하는 링크는?"
+  options={['href=about', 'href=id:about', 'href=#about', 'href=/about']}
+  correctAnswer={3}
+  explanation="같은 문서 안 요소로 이동할 때는 #뒤에 id 값을 적는 프래그먼트 링크를 씁니다."
+  optionExplanations={['파일명으로 해석되어 다른 페이지를 찾으려 합니다', '그런 문법은 존재하지 않습니다', '정답입니다. #id 형태의 프래그먼트 링크입니다', '루트 경로의 about 파일을 찾으려 시도합니다']}
+/>
+
+<Quiz
+  questionNumber={4}
+  question="클릭하면 기본 메일 앱의 새 메일 작성 창이 열리는 href 값은?"
+  options={['href=email:hello@zeno.example', 'href=mailto:hello@zeno.example', 'href=hello@zeno.example', 'href=send:hello@zeno.example']}
+  correctAnswer={2}
+  explanation="mailto 스킴은 브라우저가 기본 메일 클라이언트를 열어 해당 주소로 새 메일 작성 창을 띄우게 합니다."
+  optionExplanations={['email이라는 스킴은 존재하지 않습니다', '정답입니다. mailto 스킴을 씁니다', '스킴 없이 이메일만 쓰면 상대 경로 파일로 해석됩니다', 'send라는 스킴은 존재하지 않습니다']}
+/>
+
+## 참고 자료
+
+- [MDN — a: The Anchor element](https://developer.mozilla.org/en-US/docs/Web/HTML/Reference/Elements/a)

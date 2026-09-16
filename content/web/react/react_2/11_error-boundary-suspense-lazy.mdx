@@ -1,0 +1,199 @@
+---
+title: '11. 에러 경계·Suspense·lazy'
+description: '상세 페이지를 lazy로 지연 로딩하고, 렌더 오류를 전체 앱 대신 해당 영역만 대체 화면으로 처리한다'
+---
+
+<Callout type="info">
+  **이번 편의 결과물:** 상세 페이지(`/books/:bookId`)가 처음 방문할 때만 코드가 로드되며 로딩 중에는 대체 화면이 보입니다. 렌더링 중 오류가 나도 앱 전체가 하얗게 멈추지 않고 해당 영역만 오류 화면으로 바뀝니다. **다루는 개념:** Error Boundary, `lazy`, `Suspense`
+</Callout>
+
+## 이 편에서 만드는 파일
+
+```
+bookshelf/src/
+├── components/
+│   └── ErrorBoundary.jsx   + 신규
+└── router.jsx               ~ lazy·Suspense·ErrorBoundary 배치
+```
+
+## 개념 정리
+
+렌더링 중 오류가 발생하면 React는 기본적으로 해당 컴포넌트 트리 전체를 화면에서 지웁니다. 처리하지 않으면 앱 전체가 하얗게 됩니다. **Error Boundary**는 하위 트리의 렌더링 오류를 잡아 대체 UI를 보여주는 컴포넌트입니다. 함수 컴포넌트로는 만들 수 없고, `getDerivedStateFromError`·`componentDidCatch`를 쓰는 **클래스 컴포넌트만** 이 역할을 할 수 있습니다.
+
+04편에서 이미 라우트마다 `errorElement`를 지정해 뒀습니다. `errorElement`는 그 라우트의 `loader`·`action`이 던진 오류와, 그 라우트 `element`가 렌더링 중 던진 오류를 함께 처리하는 React Router 전용 메커니즘입니다. 반면 **Error Boundary**는 React Router 유무와 무관하게 어떤 하위 트리에도 씌울 수 있는 일반적인 React 패턴입니다. 이 편에서는 `BookDetailPage`가 `lazy`로 지연 로딩되는 동안 발생할 수 있는 오류(예: 청크 로딩 실패)를 `errorElement`보다 더 좁은 범위에서 즉시 잡기 위해 지역 `ErrorBoundary`를 추가로 둡니다.
+
+`lazy`는 컴포넌트 코드를 처음 필요할 때 불러오도록 미룹니다. `import()` 동적 임포트를 기반으로 하며, 불러오는 동안 화면에 무엇을 보여줄지는 `lazy`가 결정하지 않습니다. 그 역할은 `Suspense`가 맡습니다.
+
+| 요소 | 역할 |
+|------|------|
+| `lazy(() => import('./Page.jsx'))` | 컴포넌트 코드를 별도 청크로 분리하고 필요 시점에 로드 |
+| `<Suspense fallback={...}>` | 하위의 지연 로딩이 끝날 때까지 보여줄 화면 |
+| `<ErrorBoundary>` | 하위 렌더링 오류를 잡아 대체 화면 표시 |
+| `errorElement`(라우트 객체) | 해당 라우트의 loader·action·렌더 오류를 라우터 차원에서 처리 |
+| `getDerivedStateFromError` | 오류 발생 시 다음 렌더에서 보여줄 state를 계산 |
+| `componentDidCatch` | 오류를 로깅하는 부수 효과(에러 리포팅 등) |
+
+`Suspense`는 오류를 잡지 않고, `ErrorBoundary`는 로딩 상태를 처리하지 않습니다. 지연 로딩 중 네트워크 오류가 나면 `Suspense`가 아니라 `ErrorBoundary`(또는 `errorElement`)가 처리 대상입니다. 그래서 `lazy` 컴포넌트는 보통 `ErrorBoundary`와 `Suspense`로 함께 감쌉니다.
+
+## 실습
+
+<Steps>
+
+### 1. 에러 경계 작성
+
+```jsx
+// src/components/ErrorBoundary.jsx
+import { Component } from 'react';
+
+class ErrorBoundary extends Component {
+  state = { hasError: false };
+
+  static getDerivedStateFromError() {
+    return { hasError: true };
+  }
+
+  componentDidCatch(error, info) {
+    console.error('렌더링 오류:', error, info.componentStack);
+  }
+
+  render() {
+    if (this.state.hasError) {
+      return (
+        <div role="alert" className="error-fallback">
+          <p>이 화면을 표시하는 중 문제가 발생했습니다.</p>
+          <button type="button" onClick={() => this.setState({ hasError: false })}>
+            다시 시도
+          </button>
+        </div>
+      );
+    }
+
+    return this.props.children;
+  }
+}
+
+export default ErrorBoundary;
+```
+
+### 2. 상세 페이지를 lazy로 전환하고 라우트에 배치
+
+`router.jsx`는 03편에서 만들고 04편에서 상세 라우트를 추가한 파일입니다. `BookDetailPage`의 정적 `import`를 `lazy`로 바꾸고, 그 라우트의 `element`를 `ErrorBoundary`+`Suspense`로 감쌉니다.
+
+```jsx
+// src/router.jsx
+import { lazy, Suspense } from 'react';
+import { createBrowserRouter, Link, useRouteError } from 'react-router';
+import ErrorBoundary from './components/ErrorBoundary.jsx';
+import BookListPage from './pages/BookListPage.jsx';
+import NewBookPage from './pages/NewBookPage.jsx';
+
+// 상세 페이지는 목록보다 무겁고 처음 진입 시에는 필요 없으므로 지연 로딩합니다.
+const BookDetailPage = lazy(() => import('./pages/BookDetailPage.jsx'));
+
+function RouteErrorPage() {
+  // ...04편에서 만든 내용 유지
+  const error = useRouteError();
+  return (
+    <div className="route-error">
+      <h1>{error?.status === 404 ? '페이지를 찾을 수 없습니다' : '문제가 발생했습니다'}</h1>
+      <Link to="/">목록으로 돌아가기</Link>
+    </div>
+  );
+}
+
+function DetailBoundary() {
+  return (
+    <ErrorBoundary>
+      <Suspense fallback={<p className="page-loading">상세 정보를 불러오는 중입니다...</p>}>
+        <BookDetailPage />
+      </Suspense>
+    </ErrorBoundary>
+  );
+}
+
+export const router = createBrowserRouter([
+  { path: '/', element: <BookListPage />, errorElement: <RouteErrorPage /> },
+  { path: '/books/new', element: <NewBookPage /> },
+  {
+    path: '/books/:bookId',
+    // loader는 컴포넌트 코드와 별개로 항상 즉시 로드됩니다. lazy 대상은 화면(element)만입니다.
+    loader: (args) => import('./pages/BookDetailPage.jsx').then((m) => m.bookDetailLoader(args)),
+    element: <DetailBoundary />,
+    errorElement: <RouteErrorPage />,
+    // ...04편에서 만든 children(BookSummaryView, BookMemoView) 유지
+  },
+]);
+```
+
+`main.jsx`는 03편에서 만든 대로 `import { router } from './router.jsx'`와 `<RouterProvider router={router} />`를 그대로 씁니다. 이번 편에서 바뀌지 않습니다.
+
+### 3. 실행
+
+```
+npm run dev
+```
+
+### 4. 확인
+
+- 브라우저 개발자 도구 Network 탭에서 "Slow 3G"로 속도를 제한하고 목록에서 책을 클릭합니다. "상세 정보를 불러오는 중입니다..."가 잠깐 보인 뒤 상세 페이지가 나타납니다.
+- Network 탭의 JS 파일 목록에서 상세 페이지 코드가 별도 청크로 분리되어, 목록 페이지만 볼 때는 로드되지 않는 것을 확인합니다.
+- `BookDetailPage.jsx` 안에 일부러 `throw new Error('테스트 오류')`를 넣고 상세 페이지에 진입하면, 앱 전체가 아니라 "이 화면을 표시하는 중 문제가 발생했습니다"만 보입니다.
+- 테스트가 끝나면 `throw` 문을 지웁니다.
+
+</Steps>
+
+## 직접 해보기
+
+1. `NewBookPage`도 `lazy`로 전환하고 같은 방식으로 `Suspense`·`ErrorBoundary`를 붙여 보세요.
+2. `ErrorBoundary`를 라우터 전체를 감싸는 최상위에 하나만 두는 방식과, 라우트마다 따로 두는 방식의 차이를 설명해 보세요.
+
+<details>
+<summary>풀이 보기</summary>
+
+최상위에 하나만 두면 코드는 간단하지만, 어느 라우트에서 오류가 나든 화면 전체가 오류 화면으로 바뀝니다. 라우트마다 두면 오류가 난 영역만 대체 화면이 되고 나머지(예: 헤더·네비게이션)는 그대로 남습니다. 이 편에서는 상세 페이지에만 지역 `ErrorBoundary`를 둬, 상세 페이지 오류가 목록으로 돌아갈 수단까지 가리지 않게 했습니다.
+
+</details>
+
+## 자주 하는 실수
+
+| 증상 | 원인 | 고치는 법 |
+|------|------|-----------|
+| `Suspense` fallback이 계속 보임 | `lazy`로 불러오는 모듈 경로가 틀림 | import 경로와 실제 파일 위치 확인 |
+| 오류가 나도 흰 화면만 보임 | `ErrorBoundary`로 감싸지 않음 | 오류 가능성이 있는 트리를 `ErrorBoundary`로 감쌈 |
+| 이벤트 핸들러 안 오류가 `ErrorBoundary`에 안 잡힘 | Error Boundary는 렌더링 오류만 잡음 | 이벤트 핸들러는 `try/catch`로 별도 처리 |
+| 함수 컴포넌트로 Error Boundary를 만들려다 실패 | `getDerivedStateFromError`는 클래스 전용 | 클래스 컴포넌트로 작성 |
+
+## 확인 문제
+
+<Quiz
+  questionNumber={1}
+  question="Error Boundary를 함수 컴포넌트가 아닌 클래스 컴포넌트로만 만들 수 있는 이유는 무엇인가"
+  options={['클래스가 더 빠르게 렌더되기 때문에', 'getDerivedStateFromError·componentDidCatch가 클래스 컴포넌트 생명주기 API이기 때문에', '함수 컴포넌트는 오류를 던질 수 없기 때문에', 'React 19에서 클래스 컴포넌트만 지원하기 때문에']}
+  correctAnswer={2}
+  explanation="Error Boundary 동작에 필요한 getDerivedStateFromError와 componentDidCatch는 클래스 컴포넌트 생명주기 메서드로만 제공됩니다."
+  optionExplanations={['성능 차이가 이유가 아닙니다', '정답입니다', '함수 컴포넌트에서도 오류는 발생할 수 있습니다', 'React 19도 함수 컴포넌트를 기본으로 지원합니다']}
+/>
+
+<Quiz
+  questionNumber={2}
+  question="Suspense와 Error Boundary의 역할 차이는 무엇인가"
+  options={['Suspense는 오류 처리, ErrorBoundary는 로딩 처리를 담당한다', 'Suspense는 로딩 상태 표시, ErrorBoundary는 렌더링 오류 처리를 담당한다', '둘 다 같은 역할을 하므로 하나만 쓰면 된다', 'Suspense는 라우팅, ErrorBoundary는 상태 관리를 담당한다']}
+  correctAnswer={2}
+  explanation="Suspense는 데이터·코드가 아직 준비되지 않은 동안 보여줄 화면을 담당하고, ErrorBoundary는 렌더링 중 발생한 오류를 잡아 대체 화면을 보여줍니다."
+  optionExplanations={['역할이 반대로 설명되어 있습니다', '정답입니다', '역할이 서로 다르므로 둘 다 필요합니다', '라우팅·상태 관리는 이들의 역할이 아닙니다']}
+/>
+
+<Quiz
+  questionNumber={3}
+  question="lazy로 불러온 컴포넌트가 로딩되는 동안 화면에 아무것도 지정하지 않으면 어떤 일이 일어나는가"
+  options={['자동으로 빈 화면이 잠깐 보이거나 상위 Suspense의 fallback이 표시된다', '앱이 즉시 크래시한다', 'lazy가 로딩을 무시하고 이전 화면을 유지한다', '브라우저가 새로고침된다']}
+  correctAnswer={1}
+  explanation="lazy 컴포넌트를 감싸는 Suspense가 없으면 에러가 발생하고, 있으면 그 fallback이 로딩 중 화면으로 쓰입니다. 이 편에서는 상세 페이지 전용 fallback을 지정했습니다."
+  optionExplanations={['정답입니다', '적절한 Suspense가 있으면 크래시하지 않습니다', 'lazy는 실제로 로딩을 수행하며 완료 전까지 fallback을 보여줍니다', '새로고침과는 무관합니다']}
+/>
+
+## 참고 자료
+
+- [React 공식 문서 - Suspense API 레퍼런스](https://react.dev/reference/react/Suspense)
+- [React 공식 문서 - lazy API 레퍼런스](https://react.dev/reference/react/lazy)
+- [React 공식 문서 - Catching rendering errors with an Error Boundary](https://react.dev/reference/react/Component#catching-rendering-errors-with-an-error-boundary)

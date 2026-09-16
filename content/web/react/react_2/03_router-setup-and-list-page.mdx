@@ -1,0 +1,296 @@
+---
+title: '03. 라우터 설치와 목록 페이지 분리'
+description: 'react-router를 설치하고 createBrowserRouter로 첫 라우트를 정의해 목록 페이지를 분리합니다.'
+---
+
+<Callout type="info">
+  **이번 편의 결과물:** `bookshelf`가 라우터로 감싸이고 책 목록이 `/` 라우트에서 동작합니다. · **다루는 개념:** `react-router` 설치, `createBrowserRouter`, `RouterProvider`, `Link`
+</Callout>
+
+## 이 편에서 만드는 파일
+
+```
+bookshelf/
+├── package.json                (~)
+└── src/
+    ├── main.jsx                 (~)
+    ├── router.jsx                (+)
+    ├── pages/
+    │   └── BookListPage.jsx      (+)
+    └── components/
+        └── BookCard.jsx          (~)
+```
+
+`src/App.jsx`는 이번 편부터 더 이상 쓰지 않습니다. 그 안의 로직은 `pages/BookListPage.jsx`로 옮깁니다.
+
+## 개념 정리
+
+### 데이터 모드 라우터의 세 조각
+
+React Router 데이터 모드는 라우트를 배열로 선언하고, 그 배열로 라우터 객체를 만들고, 그 객체를 트리 최상단에 공급하는 세 단계로 구성됩니다.
+
+| 조각 | 역할 |
+|------|------|
+| 라우트 객체 배열 | `path`(URL 패턴)와 `element`(렌더할 컴포넌트)를 짝짓는다 |
+| `createBrowserRouter(routes)` | 라우트 배열을 받아 History API 기반 라우터 인스턴스를 만든다 |
+| `<RouterProvider router={router} />` | 만든 라우터를 React 트리에 연결한다. 앱의 최상단에 한 번만 둔다 |
+
+### Link vs a 태그
+
+| 방식 | 클릭 시 동작 |
+|------|----------------|
+| `<a href="/books/3">` | 브라우저가 서버에 새 페이지를 요청(전체 새로고침) |
+| `<Link to="/books/3">` | 라우터가 History API로 URL만 바꾸고 React가 다시 렌더(새로고침 없음) |
+
+SPA 안에서 페이지를 이동할 때는 항상 `Link`(또는 `useNavigate`)를 씁니다. `a` 태그는 외부 사이트로 나갈 때만 남겨둡니다.
+
+### errorElement
+
+라우트에 매칭되는 화면이 없거나 렌더 중 오류가 나면 React Router는 `errorElement`로 지정한 컴포넌트를 대신 보여줍니다. `errorElement`를 두지 않으면 처리되지 않은 기본 오류 화면이 뜹니다.
+
+## 실습
+
+<Steps>
+
+### 1. react-router 설치
+
+React Router v7부터 `react-router-dom`과 `react-router`가 한 패키지(`react-router`)로 통합되었습니다. 이 패키지 하나만 설치합니다.
+
+```text
+npm install react-router
+```
+
+### 2. src/router.jsx 만들기
+
+```jsx
+// src/router.jsx
+import { createBrowserRouter, Link, useRouteError } from 'react-router';
+import BookListPage from './pages/BookListPage.jsx';
+
+function RouteErrorPage() {
+  const error = useRouteError();
+  const isNotFound = error?.status === 404;
+
+  return (
+    <div className="route-error">
+      <h1>{isNotFound ? '페이지를 찾을 수 없습니다' : '문제가 발생했습니다'}</h1>
+      <p>{error?.statusText ?? error?.message ?? '잠시 후 다시 시도해 주세요.'}</p>
+      <Link to="/">목록으로 돌아가기</Link>
+    </div>
+  );
+}
+
+export const router = createBrowserRouter([
+  {
+    path: '/',
+    element: <BookListPage />,
+    errorElement: <RouteErrorPage />,
+  },
+]);
+```
+
+`RouteErrorPage`는 아직 없는 경로(예: `/books/3`)로 이동했을 때 대신 보여줄 화면입니다. 04편에서 그 경로에 실제 라우트를 채웁니다.
+
+### 3. src/pages/BookListPage.jsx 만들기
+
+`App.jsx`에 있던 책 목록·추가 폼·필터·테마 전환 로직을 그대로 옮깁니다.
+
+```jsx
+// src/pages/BookListPage.jsx
+import { useReducer, useState, useEffect } from 'react';
+import { useTheme } from '../context/ThemeContext.jsx';
+import { booksReducer } from '../reducers/booksReducer.js';
+import BookForm from '../components/BookForm.jsx';
+import BookList from '../components/BookList.jsx';
+import ThemeToggle from '../components/ThemeToggle.jsx';
+
+const STORAGE_KEY = 'bookshelf-books';
+
+function loadInitialBooks() {
+  try {
+    const raw = localStorage.getItem(STORAGE_KEY);
+    return raw ? JSON.parse(raw) : [];
+  } catch {
+    return [];
+  }
+}
+
+export default function BookListPage() {
+  const [books, dispatch] = useReducer(booksReducer, undefined, loadInitialBooks);
+  const [filter, setFilter] = useState('all');
+  const { theme } = useTheme();
+
+  useEffect(() => {
+    localStorage.setItem(STORAGE_KEY, JSON.stringify(books));
+  }, [books]);
+
+  const visibleBooks =
+    filter === 'all' ? books : books.filter((book) => book.status === filter);
+
+  return (
+    <div className={`page page--${theme}`}>
+      <header className="page-header">
+        <h1>내 책장</h1>
+        <ThemeToggle />
+      </header>
+
+      <BookForm onAdd={(book) => dispatch({ type: 'added', payload: book })} />
+
+      <div className="filter-bar">
+        <label htmlFor="status-filter">상태 필터</label>
+        <select
+          id="status-filter"
+          value={filter}
+          onChange={(event) => setFilter(event.target.value)}
+        >
+          <option value="all">전체</option>
+          <option value="wish">읽고 싶음</option>
+          <option value="reading">읽는 중</option>
+          <option value="done">완독</option>
+        </select>
+      </div>
+
+      <BookList
+        books={visibleBooks}
+        onToggle={(id) => dispatch({ type: 'toggled', payload: { id } })}
+        onDelete={(id) => dispatch({ type: 'deleted', payload: { id } })}
+      />
+    </div>
+  );
+}
+```
+
+`localStorage` 키(`STORAGE_KEY`)는 이 페이지 안에 직접 두었습니다. 06편에서 `useLocalStorage` 훅으로 옮기면 이 중복이 사라집니다.
+
+### 4. src/components/BookCard.jsx 수정 — 제목에 Link 추가
+
+```jsx
+// src/components/BookCard.jsx
+import { Link } from 'react-router';
+
+export default function BookCard({ book, onToggle, onDelete }) {
+  return (
+    <li className="book-card" style={{ borderLeftColor: book.coverColor }}>
+      <Link to={`/books/${book.id}`} className="book-card__title">
+        {book.title}
+      </Link>
+      <span className="book-card__author">{book.author}</span>
+      <span className="book-card__status">{book.status}</span>
+      <button type="button" onClick={() => onToggle(book.id)}>
+        상태 변경
+      </button>
+      <button type="button" onClick={() => onDelete(book.id)}>
+        삭제
+      </button>
+    </li>
+  );
+}
+```
+
+### 5. src/main.jsx 수정 — App 대신 RouterProvider
+
+```jsx
+// src/main.jsx
+import { StrictMode } from 'react';
+import { createRoot } from 'react-dom/client';
+import { RouterProvider } from 'react-router';
+import { ThemeProvider } from './context/ThemeContext.jsx';
+import { router } from './router.jsx';
+import './App.css';
+
+createRoot(document.getElementById('root')).render(
+  <StrictMode>
+    <ThemeProvider>
+      <RouterProvider router={router} />
+    </ThemeProvider>
+  </StrictMode>,
+);
+```
+
+### 6. 실행
+
+```text
+npm run dev
+```
+
+</Steps>
+
+## 확인
+
+- 브라우저 주소창이 `http://localhost:5173/`이고 책 목록·추가 폼·필터가 그대로 보입니다.
+- 책 제목을 클릭하면 주소창이 `/books/1`처럼 바뀌고, 04편 이전이라 아직 라우트가 없으므로 `RouteErrorPage`의 "페이지를 찾을 수 없습니다" 화면이 뜹니다. 새로고침 없이 화면만 바뀌었다면 정상입니다.
+- 브라우저의 뒤로 가기 버튼을 누르면 다시 목록으로 돌아갑니다.
+
+## 직접 해보기
+
+1. `RouteErrorPage`에 "홈으로" 대신 다른 문구의 `Link`를 하나 더 추가해봅니다.
+2. `router.jsx`의 `path`를 `/`에서 `/home`으로 바꾸고 `http://localhost:5173/`로 접속했을 때 어떤 화면이 뜨는지 확인해봅니다.
+
+<details>
+<summary>정답 보기</summary>
+
+`path`를 `/home`으로 바꾸면 `/`에는 매칭되는 라우트가 없어 `RouteErrorPage`가 뜹니다. 라우트 경로와 실제로 이동할 URL이 일치해야 합니다.
+
+</details>
+
+## 자주 하는 실수
+
+| 증상 | 원인 | 고치는 법 |
+|------|------|-----------|
+| `Link is not defined` 오류 | `react-router`에서 import하지 않음 | `import { Link } from 'react-router';` 추가 |
+| 클릭하면 페이지가 새로고침됨 | `Link` 대신 `a` 태그를 그대로 씀 | `to` prop을 쓰는 `Link`로 바꾼다 |
+| `RouterProvider`를 두 번 렌더링함 | `main.jsx`와 다른 파일에 중복으로 둠 | 트리 최상단 한 곳에만 둔다 |
+| 화면이 하얗게 뜸 | `errorElement`가 없어 오류가 그대로 노출됨 | 라우트에 `errorElement`를 지정한다 |
+
+## 확인 문제
+
+<Quiz
+  questionNumber={1}
+  question="createBrowserRouter에 넘기는 값의 형태는?"
+  options={['문자열 하나', '{ path, element } 형태 객체의 배열', 'CSS 선택자 배열', 'Promise 객체']}
+  correctAnswer={2}
+  explanation="createBrowserRouter는 path와 element를 가진 라우트 객체의 배열을 받아 라우터 인스턴스를 만듭니다."
+  optionExplanations={['문자열 하나로는 라우트를 구성할 수 없습니다', '정답입니다', 'CSS 선택자와는 무관합니다', 'Promise가 아니라 동기적으로 만들어지는 라우터 설정 객체입니다']}
+/>
+
+<Quiz
+  questionNumber={2}
+  question="a 태그 대신 Link 컴포넌트를 쓰는 이유는?"
+  options={['a 태그는 스타일을 지정할 수 없어서', 'Link는 서버 요청 없이 History API로만 URL을 바꾸고 다시 렌더해서', 'Link가 a 태그보다 접근성이 나빠서', 'a 태그는 SPA에서 아예 렌더되지 않아서']}
+  correctAnswer={2}
+  explanation="Link는 클릭 시 브라우저의 전체 페이지 요청을 막고 History API로 URL만 바꾼 뒤 React가 화면을 다시 그립니다."
+  optionExplanations={['스타일 지정과는 무관합니다', '정답입니다', '적절히 구현된 Link는 접근성 문제가 없습니다', 'a 태그도 렌더는 되지만 클릭 동작이 다릅니다']}
+/>
+
+<Quiz
+  questionNumber={3}
+  question="RouterProvider를 두는 위치로 옳은 것은?"
+  options={['각 페이지 컴포넌트 안에 하나씩', '앱 트리 최상단에 한 번', 'App.css 안', '라우트마다 새로 만들어서']}
+  correctAnswer={2}
+  explanation="RouterProvider는 만들어 둔 라우터 인스턴스를 트리에 연결하는 역할이므로 최상단에 한 번만 둡니다."
+  optionExplanations={['페이지마다 두면 라우터가 중복됩니다', '정답입니다', 'CSS 파일에는 컴포넌트를 둘 수 없습니다', '라우터 인스턴스는 하나만 만들어 재사용합니다']}
+/>
+
+<Quiz
+  questionNumber={4}
+  question="라우트에 errorElement를 지정하지 않았을 때 매칭되는 라우트가 없으면 일어나는 일은?"
+  options={['자동으로 / 라우트로 이동한다', '처리되지 않은 기본 오류 화면이 뜬다', '아무 일도 일어나지 않고 이전 화면이 유지된다', '앱이 즉시 종료된다']}
+  correctAnswer={2}
+  explanation="errorElement가 없으면 React Router가 제공하는 처리되지 않은 기본 오류 화면이 그대로 노출됩니다."
+  optionExplanations={['자동 이동은 일어나지 않습니다', '정답입니다', '화면은 오류 상태로 바뀝니다', '앱이 종료되지는 않습니다']}
+/>
+
+<Quiz
+  questionNumber={5}
+  question="이번 편에서 책 제목을 클릭했을 때 RouteErrorPage가 뜨는 이유는?"
+  options={['BookCard.jsx에 오타가 있어서', '/books/:bookId에 매칭되는 라우트를 아직 등록하지 않아서', 'localStorage 용량이 가득 차서', 'React 버전이 맞지 않아서']}
+  correctAnswer={2}
+  explanation="이번 편의 라우터에는 / 하나만 등록되어 있어 /books/1 같은 경로는 아직 매칭되는 라우트가 없습니다."
+  optionExplanations={['오타 문제가 아니라 라우트 부재가 원인입니다', '정답입니다', 'localStorage와는 무관합니다', '버전 문제가 아닙니다']}
+/>
+
+## 참고 자료
+
+- [React Router 공식 문서 - Routing](https://reactrouter.com/start/data/routing)
+- [React Router 공식 문서 - Route Object](https://reactrouter.com/start/data/route-object)
+- [React Router 공식 문서 - Navigating](https://reactrouter.com/start/framework/navigating)

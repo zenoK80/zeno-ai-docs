@@ -1,0 +1,315 @@
+---
+title: '13. react-i18next로 다국어 지원'
+description: 'i18next를 초기화하고 번역 리소스를 분리해 헤더의 언어 전환 버튼으로 화면 텍스트와 날짜 표시를 한국어/영어로 바꿉니다'
+---
+
+<Callout type="info">
+  **이번 편의 결과물:** 헤더의 언어 전환 버튼을 누르면 화면 텍스트와 날짜 표시가 한국어/영어로 바뀝니다. · **다루는 개념:** `i18next` 초기화, 번역 리소스 분리, 언어 전환 UI, 날짜/숫자 로케일 포맷
+</Callout>
+
+## 이 편에서 만드는 파일
+
+```
+bookshelf/src/
+├── i18n/
+│   ├── index.js              (+) i18next 초기화
+│   └── locales/
+│       ├── ko.json           (+) 한국어 리소스
+│       └── en.json           (+) 영어 리소스
+├── main.jsx                  (~) i18n 초기화 파일 import
+├── components/Header.jsx     (~) 언어 전환 버튼, useTranslation 적용
+└── components/BookCard.jsx   (~) 날짜·상태 텍스트를 t()와 Intl 포맷으로 교체
+```
+
+## 개념 정리
+
+### i18next와 react-i18next의 역할 분담
+
+`i18next`는 번역 문자열을 언어별로 관리하고 꺼내 쓰는 프레임워크 비의존 라이브러리입니다. `react-i18next`는 그 위에 `useTranslation` 훅을 얹어 React 컴포넌트에서 쓰기 쉽게 만듭니다. 초기화는 앱 전체에서 한 번만 하면 됩니다.
+
+| 개념 | 역할 |
+|------|------|
+| `resources` | 언어 코드별 번역 객체(`{ ko: { translation: {...} }, en: { translation: {...} } }`) |
+| `lng` / `fallbackLng` | 시작 언어와, 키가 없을 때 대신 쓸 언어 |
+| `useTranslation()` | 컴포넌트에서 `t` 함수와 `i18n` 인스턴스를 반환하는 훅 |
+| `t('key')` | 현재 언어의 번역 문자열을 찾아 반환 |
+| `t('key', { count })` | 값 보간(interpolation). `{{count}}`처럼 리소스 안에 자리표시자를 둠 |
+| `i18n.changeLanguage('en')` | 런타임에 언어를 바꾸고 구독 중인 컴포넌트를 리렌더 |
+
+### 번역 키는 화면 텍스트를 그대로 옮기지 않는다
+
+번역 파일의 키는 의미 단위로 짓습니다. `header.title`, `bookCard.statusDone`처럼 화면 영역과 용도를 드러내면, 나중에 문구가 바뀌어도 키는 그대로 두고 값만 고칠 수 있습니다.
+
+### 날짜·숫자는 t()가 아니라 Intl로 포맷한다
+
+번역 문자열은 언어별 "단어"를 바꾸지만, 날짜·숫자 표기 규칙(`2026-09-01` vs `Sep 1, 2026`)은 `Intl.DateTimeFormat`·`Intl.NumberFormat`이 담당합니다. `i18n.language` 값을 로케일 인자로 넘기면 두 포맷터가 자동으로 현재 언어에 맞춰집니다.
+
+```js
+new Intl.DateTimeFormat(i18n.language, { dateStyle: 'medium' }).format(new Date(startedAt))
+```
+
+## 실습
+
+<Steps>
+
+### 1. 패키지 설치
+
+```bash
+npm install react-i18next@17.0.14 i18next@26.4.2
+```
+
+### 2. i18n 초기화 파일 작성
+
+```js
+// bookshelf/src/i18n/index.js
+import i18n from 'i18next';
+import { initReactI18next } from 'react-i18next';
+import ko from './locales/ko.json';
+import en from './locales/en.json';
+
+const STORAGE_KEY = 'bookshelf-lang';
+const savedLang = localStorage.getItem(STORAGE_KEY);
+
+i18n.use(initReactI18next).init({
+  resources: {
+    ko: { translation: ko },
+    en: { translation: en },
+  },
+  lng: savedLang || 'ko',
+  fallbackLng: 'ko',
+  interpolation: {
+    escapeValue: false, // React가 이미 XSS를 방지하므로 이중 이스케이프 불필요
+  },
+});
+
+i18n.on('languageChanged', (lang) => {
+  localStorage.setItem(STORAGE_KEY, lang);
+});
+
+export default i18n;
+```
+
+### 3. 번역 리소스 작성
+
+```json
+// bookshelf/src/i18n/locales/ko.json
+{
+  "header": {
+    "title": "내 서재",
+    "newBook": "새 책 등록",
+    "logout": "로그아웃"
+  },
+  "bookCard": {
+    "statusWish": "읽고 싶어요",
+    "statusReading": "읽는 중",
+    "statusDone": "완독",
+    "pages": "{{count}}쪽",
+    "startedAt": "시작일: {{date}}"
+  },
+  "language": {
+    "label": "언어",
+    "ko": "한국어",
+    "en": "영어"
+  }
+}
+```
+
+```json
+// bookshelf/src/i18n/locales/en.json
+{
+  "header": {
+    "title": "My Bookshelf",
+    "newBook": "New Book",
+    "logout": "Log out"
+  },
+  "bookCard": {
+    "statusWish": "Want to read",
+    "statusReading": "Reading",
+    "statusDone": "Done",
+    "pages": "{{count}} pages",
+    "startedAt": "Started: {{date}}"
+  },
+  "language": {
+    "label": "Language",
+    "ko": "Korean",
+    "en": "English"
+  }
+}
+```
+
+### 4. main.jsx에서 초기화 파일 import
+
+```js
+// bookshelf/src/main.jsx
+import { StrictMode } from 'react';
+import { createRoot } from 'react-dom/client';
+import { RouterProvider } from 'react-router';
+import { router } from './router.jsx';
+import './i18n'; // 부작용 import — 앱 시작 전에 i18next를 초기화
+import './index.css';
+// ...QueryClientProvider·AuthProvider는 04·07편 코드 유지
+
+createRoot(document.getElementById('root')).render(
+  <StrictMode>
+    <RouterProvider router={router} />
+  </StrictMode>,
+);
+```
+
+### 5. Header에 언어 전환 버튼 추가
+
+`Header.jsx`는 react_2 15편부터 있던 컴포넌트입니다(`BookListPage`가 렌더). 테마 버튼 옆에 언어 선택 상자를 추가합니다.
+
+```jsx
+// bookshelf/src/components/Header.jsx
+import { Link } from 'react-router';
+import { useTheme } from '../context/ThemeContext';
+import { useTranslation } from 'react-i18next';
+import styles from './Header.module.css';
+
+function Header() {
+  const { theme, toggleTheme } = useTheme();
+  const { t, i18n } = useTranslation();
+
+  function handleLanguageChange(event) {
+    i18n.changeLanguage(event.target.value);
+  }
+
+  return (
+    <header className={styles.header}>
+      <nav className={styles.nav}>
+        <Link to="/">{t('header.title')}</Link>
+        <Link to="/books/new">{t('header.newBook')}</Link>
+      </nav>
+      <label>
+        {t('language.label')}
+        <select value={i18n.language} onChange={handleLanguageChange}>
+          <option value="ko">{t('language.ko')}</option>
+          <option value="en">{t('language.en')}</option>
+        </select>
+      </label>
+      <button type="button" onClick={toggleTheme} className={styles.themeButton}>
+        {theme === 'dark' ? '라이트 모드' : '다크 모드'}
+      </button>
+    </header>
+  );
+}
+
+export default Header;
+```
+
+### 6. BookCard에 번역·날짜 포맷 적용
+
+```jsx
+// bookshelf/src/components/BookCard.jsx
+import { useTranslation } from 'react-i18next';
+
+const STATUS_KEY = {
+  wish: 'statusWish',
+  reading: 'statusReading',
+  done: 'statusDone',
+};
+
+function formatDate(dateString, locale) {
+  if (!dateString) return '-';
+  return new Intl.DateTimeFormat(locale, { dateStyle: 'medium' }).format(new Date(dateString));
+}
+
+function BookCard({ book }) {
+  const { t, i18n } = useTranslation();
+
+  return (
+    <li className="book-card" style={{ borderColor: book.coverColor }}>
+      <h3>{book.title}</h3>
+      <p>{book.author}</p>
+      <p>{t(`bookCard.${STATUS_KEY[book.status]}`)}</p>
+      <p>{t('bookCard.pages', { count: book.pages })}</p>
+      <p>{t('bookCard.startedAt', { date: formatDate(book.startedAt, i18n.language) })}</p>
+    </li>
+  );
+}
+
+export default BookCard;
+```
+
+### 7. 실행
+
+```bash
+npm run dev
+```
+
+### 8. 확인
+
+- 헤더 언어 선택 상자를 `영어`로 바꾸면 제목·버튼·책 상태 텍스트가 즉시 영어로 바뀝니다.
+- 책 카드의 시작일이 한국어일 때는 `2026. 8. 10.` 형식, 영어일 때는 `Aug 10, 2026` 형식으로 다르게 표시됩니다.
+- 새로고침해도 마지막에 고른 언어가 유지됩니다(`localStorage`에 저장).
+
+</Steps>
+
+## 직접 해보기
+
+<details>
+<summary>페이지네이션 안내 문구("총 12권 중 1~6권")에 count 보간을 적용해 영어 버전도 자연스럽게 만들어 보세요.</summary>
+
+`t('pagination.range', { from: 1, to: 6, total: 12 })` 형태의 키를 만들고, `ko.json`에는 `"{{from}}~{{to}}권 / 총 {{total}}권"`, `en.json`에는 `"{{from}}-{{to}} of {{total}} books"`처럼 언어별로 어순을 다르게 둡니다. 번역은 단어만 바꾸는 게 아니라 문장 구조 자체가 언어마다 다를 수 있다는 점을 확인합니다.
+</details>
+
+## 자주 하는 실수
+
+| 증상 | 원인 | 고치는 법 |
+|------|------|-----------|
+| 언어를 바꿔도 날짜 표기가 그대로다 | 날짜를 `t()`로 번역하려 함 | 날짜·숫자는 `Intl.DateTimeFormat`/`Intl.NumberFormat`으로 별도 포맷 |
+| 새로고침하면 언어가 한국어로 돌아간다 | 선택한 언어를 저장하지 않음 | `languageChanged` 이벤트에서 `localStorage`에 저장하고 초기화 시 읽기 |
+| 특수문자가 `&amp;`처럼 깨져 보인다 | `escapeValue`가 기본값(`true`)으로 이중 이스케이프됨 | React 사용 시 `interpolation.escapeValue: false` 설정 |
+| 번역 키가 없을 때 화면이 빈칸이다 | `fallbackLng` 미설정 | `fallbackLng: 'ko'`처럼 대체 언어 지정 |
+
+## 확인 문제
+
+<Quiz
+  questionNumber={1}
+  question="i18next와 react-i18next의 역할 차이로 옳은 것은 무엇입니까"
+  options={['둘 다 완전히 같은 기능이다', 'i18next는 번역 관리, react-i18next는 React용 훅 제공', 'react-i18next만 번역 리소스를 저장한다', 'i18next는 날짜 포맷 전용 라이브러리다']}
+  correctAnswer={2}
+  explanation="i18next가 번역 리소스와 언어 전환 로직을 담당하고, react-i18next는 그 위에 useTranslation 같은 React 훅을 제공합니다."
+  optionExplanations={['역할이 분리되어 있습니다', '정답입니다', '리소스는 i18next가 관리합니다', '날짜 포맷은 Intl의 역할입니다']}
+/>
+
+<Quiz
+  questionNumber={2}
+  question="번역 리소스의 키를 화면 문구 그대로가 아니라 의미 단위로 짓는 이유는 무엇입니까"
+  options={['파일 용량을 줄이기 위해', '문구가 바뀌어도 키는 유지한 채 값만 고칠 수 있어서', 'React가 강제하는 규칙이라서', '한글 키를 쓸 수 없어서']}
+  correctAnswer={2}
+  explanation="header.title처럼 의미 단위 키를 쓰면 문구 자체가 바뀌어도 코드에서 참조하는 키는 그대로 둘 수 있습니다."
+  optionExplanations={['용량과는 무관합니다', '정답입니다', 'React의 강제 규칙이 아닙니다', '한글 키도 기술적으로는 가능합니다']}
+/>
+
+<Quiz
+  questionNumber={3}
+  question="날짜 표시를 로케일에 맞게 바꾸는 올바른 방법은 무엇입니까"
+  options={['t() 함수 안에 날짜 문자열을 직접 넣는다', 'Intl.DateTimeFormat에 i18n.language를 로케일로 전달한다', '날짜를 항상 한국어로 고정한다', 'CSS로 날짜 형식을 바꾼다']}
+  correctAnswer={2}
+  explanation="Intl.DateTimeFormat(locale, options)에 현재 언어 코드를 전달하면 언어별 날짜 표기 규칙을 자동으로 따릅니다."
+  optionExplanations={['t()는 문자열 번역용입니다', '정답입니다', '고정하면 다국어 지원이 되지 않습니다', 'CSS는 날짜 형식을 바꾸지 못합니다']}
+/>
+
+<Quiz
+  questionNumber={4}
+  question="interpolation.escapeValue를 false로 설정하는 이유는 무엇입니까"
+  options={['번역을 빠르게 하기 위해', 'React가 이미 값을 이스케이프하므로 이중 이스케이프를 막기 위해', '숫자를 문자열로 바꾸기 위해', 'JSON 파일을 압축하기 위해']}
+  correctAnswer={2}
+  explanation="React는 렌더링 시 값을 자동으로 이스케이프하므로, i18next까지 이스케이프하면 특수문자가 이중으로 변환됩니다."
+  optionExplanations={['속도와는 무관합니다', '정답입니다', '타입 변환과는 무관합니다', '파일 압축과는 무관합니다']}
+/>
+
+<Quiz
+  questionNumber={5}
+  question="i18n.changeLanguage('en')을 호출했을 때 일어나는 일로 옳은 것은 무엇입니까"
+  options={['페이지가 새로고침된다', '현재 언어가 바뀌고 useTranslation을 쓰는 컴포넌트가 리렌더된다', '번역 파일이 서버에서 다시 다운로드된다', 'localStorage가 자동으로 삭제된다']}
+  correctAnswer={2}
+  explanation="changeLanguage는 i18next 인스턴스의 언어 상태를 바꾸고, 이를 구독하는 useTranslation 훅이 컴포넌트를 리렌더시킵니다."
+  optionExplanations={['새로고침은 일어나지 않습니다', '정답입니다', '리소스는 이미 번들에 포함되어 있습니다', 'localStorage 삭제와는 무관합니다']}
+/>
+
+## 참고 자료
+
+- [react-i18next 공식 문서](https://react.i18next.com/)

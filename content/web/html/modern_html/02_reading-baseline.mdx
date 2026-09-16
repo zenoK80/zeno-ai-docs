@@ -1,0 +1,142 @@
+---
+title: '02. Baseline과 호환성 표 읽는 법'
+description: 'MDN 호환성 표와 Baseline 배지를 스스로 읽고, 지금 이 기능을 프로덕션에 써도 되는지 판단하는 습관을 세운다'
+---
+
+<Callout type="info">
+  **이번 편의 결과물:** (실습 없음) 03편부터 매 편에서 반복할 "이 기능, 지금 써도 되는가" 조사 습관 · **다루는 개념:** Baseline 세 단계, MDN 호환성 표 읽는 법, `@supports`와 JS feature detection
+</Callout>
+
+## 이 편에서 하는 일
+
+이 편은 파일을 고치지 않습니다. 대신 03편부터 만나는 모든 새 기능마다 "이거 지금 실제 서비스에 써도 되나?"를 스스로 확인하는 방법을 세웁니다. 이 과목은 `<dialog>`(2022년)부터 customizable `<select>`(2026년 기준 미도달)까지 지원 시기가 제각각인 기능을 다룹니다. 한 번 배운 지원 상태를 외우는 게 아니라, **여러분이 이 문서를 읽는 시점에 직접 다시 확인하는 절차**를 배웁니다.
+
+## Baseline 세 단계
+
+[web.dev의 Baseline](https://web.dev/baseline)은 웹 플랫폼 기능의 지원 상태를 세 단계로 나눕니다.
+
+| 단계 | 뜻 | 실무 판단 |
+|------|-----|-----------|
+| Limited availability | 일부 브라우저만 지원 | 실험 목적 외 프로덕션 사용은 위험하다 |
+| Newly available | 주요 브라우저 전부가 최근에 지원 시작 | 구형 브라우저 사용자 비율을 확인하고 폴백을 준비한다 |
+| Widely available | 2년 이상 모든 주요 브라우저가 안정적으로 지원 | 폴백 없이 바로 써도 된다고 본다 |
+
+이 과목에서 `<dialog>`·popover·`<details name>`은 이미 Widely available입니다. 반면 customizable `<select>`(18편)는 2026년 9월 기준 Baseline에 아직 도달하지 못했습니다. 같은 "HTML 기능"이라도 단계가 다르면 실무에서 쓰는 방식이 완전히 달라집니다.
+
+## MDN 호환성 표 읽는 법
+
+MDN의 모든 API·요소 문서 하단에는 "Browser compatibility" 표가 있습니다. 표에서 확인할 항목은 세 가지입니다.
+
+1. **각 브라우저 열의 첫 지원 버전 숫자.** 숫자가 비어 있거나 각주가 달려 있으면 아직 부분 지원입니다.
+2. **표 위의 Baseline 배지.** 초록(Widely) · 파랑(Newly) · 회색(Limited)으로 한눈에 단계를 알려줍니다.
+3. **문서 상단의 "최종 업데이트" 또는 각주 날짜.** 오늘 날짜와 비교해 최근 정보인지 확인합니다.
+
+> **쉽게 말하면:** 표의 초록 배지만 보고 넘어가지 말고, 배지 아래 실제 버전 숫자와 각주까지 읽는 것이 이 습관의 전부입니다.
+
+## `@supports`와 JS feature detection
+
+Baseline 배지가 Newly이거나 Limited인 기능은 지원하지 않는 브라우저를 위한 폴백을 함께 설계합니다. CSS는 `@supports`, JavaScript는 기능 자체가 있는지 직접 검사하는 feature detection을 씁니다.
+
+```css
+/* 지원 브라우저에서만 popover 관련 스타일 적용 */
+@supports selector(:popover-open) {
+  [popover]:popover-open {
+    animation: fade-in 200ms ease;
+  }
+}
+```
+
+```js
+// portfolio/js/main.js (개념 예시, 아직 실제로 쓰지 않음)
+if (typeof HTMLDialogElement.prototype.showModal === 'function') {
+  // dialog API를 정상적으로 쓸 수 있는 환경
+}
+```
+
+`@supports`는 CSS 속성 자체가 아니라 **셀렉터** 지원 여부를 검사할 때 `selector()` 함수를 함께 씁니다. `:popover-open`처럼 새 의사 클래스는 이 방식으로 검사합니다.
+
+## 실습
+
+<Steps>
+
+### 1. `<dialog>` 호환성 표 찾아가기
+
+MDN에서 `<dialog>` 문서를 열어 하단 "Browser compatibility" 표까지 스크롤합니다.
+
+### 2. Baseline 배지와 버전 숫자 대조하기
+
+표 위 배지가 Widely available인지 확인하고, Chrome·Firefox·Safari 열의 첫 지원 버전 숫자를 각각 적어 봅니다.
+
+### 3. Popover API로 같은 절차 반복하기
+
+MDN Popover API 문서에서 같은 절차를 반복합니다. `<dialog>`보다 나중에 Baseline에 도달했으므로 배지 색이나 도달 시점이 다른지 비교합니다.
+
+### 4. 확인
+
+- `<dialog>`와 Popover API 둘 다 Widely available 배지를 확인했다.
+- 두 기능의 Baseline 도달 시점이 다르다는 것을 실제 표에서 확인했다(`02_목차.md` 참고 자료의 시점과 비교해도 좋습니다).
+
+</Steps>
+
+## 직접 해보기
+
+MDN에서 `<selectedcontent>` 문서를 찾아 호환성 표를 확인해 보세요. 18편에서 다룰 기능입니다. 지금 시점 배지가 무슨 색인지, 어떤 브라우저가 아직 지원하지 않는지 적어 보세요.
+
+<details>
+<summary>답 확인</summary>
+
+`01_학습방향.md` 작성 시점(2026-09-16) 기준으로 `<selectedcontent>`는 Limited availability였습니다. Chrome·Edge는 안정 지원, Safari는 Technology Preview, Firefox는 프로토타입 단계였습니다. 여러분이 지금 확인한 값이 이와 다르다면, 그사이 지원 상태가 바뀐 것이니 18편에서 최신 값을 다시 반영합니다.
+
+</details>
+
+## 자주 하는 실수
+
+| 증상 | 원인 | 고치는 법 |
+|------|------|-----------|
+| 블로그 글만 보고 "이제 다 지원한다"고 단정한다 | 블로그 작성 시점과 지금 시점의 지원 상태가 다를 수 있다 | MDN 호환성 표를 직접 열어 오늘 날짜 기준으로 재확인한다 |
+| Newly available 기능을 폴백 없이 그대로 배포한다 | Newly는 "최근에 지원 시작"이지 "오래 안정적"이 아니다 | 구형 브라우저 비율을 확인하고 `@supports`나 feature detection을 함께 넣는다 |
+| `@supports`에 속성만 검사하고 의사 클래스는 검사하지 않는다 | `@supports(prop: value)`와 `@supports selector(...)`가 다른 문법이라는 것을 모른다 | 의사 클래스·의사 요소는 반드시 `selector()`로 감싼다 |
+
+## 확인 문제
+
+<Quiz
+  questionNumber={1}
+  question="Baseline Widely available 단계의 뜻으로 옳은 것은?"
+  options={['일부 브라우저만 최근 지원을 시작했다', '2년 이상 모든 주요 브라우저가 안정적으로 지원한다', '아직 실험 단계라 프로덕션에 쓰면 안 된다', '한 브라우저 회사만 지원을 선언했다']}
+  correctAnswer={2}
+  explanation="Widely available은 모든 주요 브라우저가 2년 이상 안정적으로 지원해 온 상태를 뜻하며, 폴백 없이 사용해도 된다고 보는 기준이다."
+  optionExplanations={['그 설명은 Newly available에 가깝다', '정답 — 2년 이상의 안정적 지원이 Widely available의 정의다', 'Limited availability에 대한 설명이다', '단일 브라우저 지원만으로는 어떤 Baseline 단계도 부여되지 않는다']}
+/>
+
+<Quiz
+  questionNumber={2}
+  question="MDN 호환성 표를 읽을 때 배지 색 외에 추가로 확인해야 할 것은?"
+  options={['표의 배경색', '각 브라우저 열의 실제 첫 지원 버전 숫자와 각주', '표의 글꼴 크기', '문서의 전체 단어 수']}
+  correctAnswer={2}
+  explanation="배지는 요약일 뿐이므로 실제 버전 숫자와 각주(부분 지원 조건 등)까지 확인해야 정확한 판단이 가능하다."
+  optionExplanations={['배경색은 정보를 담고 있지 않다', '정답 — 버전 숫자와 각주가 실제 지원 조건을 알려준다', '글꼴 크기는 호환성과 무관하다', '단어 수는 지원 여부와 관련이 없다']}
+/>
+
+<Quiz
+  questionNumber={3}
+  question="CSS에서 새 의사 클래스 지원 여부를 검사하는 올바른 문법은?"
+  options={['@supports (popover: open)', '@supports selector(:popover-open)', '@media (popover: open)', '@popover-support']}
+  correctAnswer={2}
+  explanation="의사 클래스·의사 요소 지원 여부는 @supports selector() 함수로 검사한다. 일반 속성-값 쌍 문법과는 다르다."
+  optionExplanations={['이 문법은 속성 값 검사용이며 의사 클래스에는 쓰지 않는다', '정답 — selector() 함수가 의사 클래스 검사에 쓰인다', '@media는 뷰포트·환경 조건을 검사하는 규칙이라 목적이 다르다', '이런 at-rule은 존재하지 않는다']}
+/>
+
+<Quiz
+  questionNumber={4}
+  question="이 과목에서 dialog·popover와 customizable select의 실무 취급이 다른 이유는?"
+  options={['둘 다 같은 시기에 등장해서', '둘 다 아직 실험적이라서', 'dialog·popover는 Widely available이고 select는 아직 Baseline 미도달이라서', 'select가 더 오래됐기 때문에']}
+  correctAnswer={3}
+  explanation="dialog·popover는 이미 Widely available이라 바로 써도 되지만, customizable select는 2026-09 기준 Baseline에 도달하지 못해 점진적 향상 전략이 필요하다."
+  optionExplanations={['등장 시기가 서로 다르다', 'dialog·popover는 이미 Widely available이라 실험적이지 않다', '정답 — Baseline 단계 차이가 실무 취급을 가른다', 'select 관련 기능이 더 최근에 제안되었다']}
+/>
+
+## 참고 자료
+
+- [web.dev — Baseline](https://web.dev/baseline)
+- [MDN — Browser compatibility data](https://developer.mozilla.org/en-US/docs/MDN/Writing_guidelines/Page_structures/Compatibility_tables)
+- [MDN — @supports](https://developer.mozilla.org/en-US/docs/Web/CSS/@supports)

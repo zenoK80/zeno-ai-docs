@@ -1,0 +1,146 @@
+---
+title: '16. DevTools로 렌더링 관찰하기'
+description: 'React Developer Tools를 설치해 컴포넌트 트리·props·state를 확인하고, 어떤 컴포넌트가 언제 왜 리렌더되는지 관찰한다'
+---
+
+<Callout type="info">
+  **이번 편의 결과물:** React DevTools로 책 추가·별점 변경 시 어떤 컴포넌트가 리렌더되는지 확인하고 기록합니다. · **다루는 개념:** React Developer Tools 설치, Components 탭, 리렌더 하이라이트
+</Callout>
+
+## 이 편에서 만드는 파일
+
+```
+bookshelf/
+(새 파일 없음 — 브라우저 확장 설치와 관찰이 이번 편의 전부입니다)
+```
+
+## 개념 정리
+
+지금까지 "state가 바뀌면 리렌더된다"는 규칙을 여러 번 다뤘지만, **실제로 어떤 컴포넌트가 언제 리렌더됐는지**는 코드만 보고는 확인하기 어렵습니다. React Developer Tools(리액트 개발자 도구)는 브라우저 확장 프로그램으로, 이 과정을 눈으로 보여줍니다.
+
+| 탭 | 용도 |
+|------|------|
+| Components | 컴포넌트 트리, 각 컴포넌트의 props·state·hooks 값 확인 |
+| Profiler | 렌더링에 걸린 시간과 렌더 원인 기록(이 편에서는 가볍게만 다룸) |
+
+리렌더가 일어나는 이유를 다시 정리하면 이렇습니다.
+
+- 컴포넌트 자신의 `state`가 바뀌면 그 컴포넌트가 리렌더된다.
+- 부모가 리렌더되면 **기본적으로 모든 자식도 함께 리렌더**된다(자식의 props가 그대로여도).
+- `Context`의 `value`가 바뀌면 그 Context를 구독하는 모든 컴포넌트가 리렌더된다.
+
+이번 과목(`react_1`)에서는 이 세 규칙을 **관찰**하는 데 집중합니다. 불필요한 리렌더를 막는 `memo`·`useMemo`·`useCallback` 같은 최적화 도구는 `react_2`에서 다룹니다. 지금은 "왜 이렇게 많은 컴포넌트가 다시 그려지는가"를 눈으로 확인하고 이해하는 것이 목표입니다.
+
+## 실습
+
+<Steps>
+
+### 1. React Developer Tools 설치하기
+
+사용 중인 브라우저의 확장 프로그램 스토어에서 "React Developer Tools"를 검색해 설치합니다. 설치 후 `bookshelf`를 `npm run dev`로 실행하고 브라우저에서 열면, 개발자 도구(F12)에 **Components**와 **Profiler** 탭이 새로 나타납니다.
+
+### 2. Components 탭에서 트리 살펴보기
+
+Components 탭을 열고 왼쪽 트리에서 `App`을 클릭합니다. 오른쪽 패널에 다음이 보입니다.
+
+- `hooks` 목록 — `Reducer`(14편에서 만든 `booksReducer`), `State`(`selectedBook`), `Ref`(`scrollTargetRef`)가 순서대로 나열됩니다. `titleInputRef`는 `App`이 아니라 `BookForm` 자신의 훅 목록에 보입니다.
+- 트리를 펼치면 `Layout` → `Header`, `BookList` → `BookCard`(책 권수만큼), `BookForm` 구조가 그대로 보입니다.
+
+`BookCard` 하나를 클릭하면 `props`에 `book` 객체 전체와 `onDelete`, `onRate`, `onToggleStatus`, `onOpenDetail` 함수들이 보입니다. 콘솔이 아니라 도구에서 직접 현재 값을 확인할 수 있다는 점이 핵심입니다.
+
+### 3. 리렌더 하이라이트 켜기
+
+Components 탭 오른쪽 위의 설정(톱니바퀴) 아이콘을 클릭하고 **"Highlight updates when components render"**(컴포넌트가 렌더링될 때 하이라이트) 옵션을 켭니다. 이제 화면에서 리렌더되는 컴포넌트 주위에 색 테두리가 잠깐 나타납니다.
+
+### 4. 별점 변경 관찰하기
+
+책 카드 하나의 별점을 클릭해 바꿔봅니다. 하이라이트되는 범위를 확인합니다.
+
+- `App`이 하이라이트됩니다 — `dispatch({ type: 'SET_RATING', ... })`로 `books` 상태(reducer 상태)가 바뀌었기 때문입니다.
+- `App`의 자식인 `Layout`, `Header`, `BookForm`, `BookList`, 그리고 **모든** `BookCard`가 함께 하이라이트됩니다 — 부모가 리렌더되면 기본적으로 자식도 함께 리렌더되기 때문입니다.
+- 별점을 바꾸지 않은 다른 책의 `BookCard`까지 리렌더된 것을 확인하세요. **화면에 보이는 내용이 안 바뀌어도 컴포넌트 함수는 다시 호출됩니다.**
+
+### 5. 테마 토글 관찰하기
+
+`Header`의 다크 모드 버튼을 클릭합니다.
+
+- `ThemeProvider`의 `value`가 바뀌므로 `useTheme()`을 호출하는 컴포넌트(`Header`)가 리렌더됩니다.
+- `useTheme()`을 호출하지 **않는** `BookForm`, `BookList`, `BookCard`는 `Context` 때문에 리렌더되지는 않습니다. 다만 `App`을 감싼 `ThemeProvider`가 `main.jsx`에서 `App`보다 위에 있으므로, `App` 자신이 리렌더되는지는 `App`이 `useTheme()`을 직접 호출하는지에 달려 있습니다(13편의 `직접 해보기`에서 `App`이 `useTheme()`을 호출하도록 만들었다면 `App`도 함께 하이라이트됩니다).
+
+### 6. 관찰 기록표 채우기
+
+아래 표를 실제 관찰 결과로 채워 봅니다(정답은 실습 환경에 따라 다를 수 있으므로, 직접 하이라이트를 보고 기록하는 것이 목적입니다).
+
+| 동작 | 리렌더된 컴포넌트 | 리렌더 이유 |
+|------|-------------------|-------------|
+| 별점 변경 | `App`, `BookList`, 전체 `BookCard` | `App`의 reducer 상태 변경 → 자식 전파 |
+| 필터 버튼 클릭 | `FilterContext` 구독 컴포넌트(`BookList`) | Context `value` 변경 |
+| 테마 토글 | `ThemeContext` 구독 컴포넌트(`Header`) | Context `value` 변경 |
+| 책 상세 모달 열기 | `App`, `Modal` | `App`의 `selectedBook` 상태 변경 |
+
+</Steps>
+
+## 직접 해보기
+
+1. 책을 하나 추가해 보고, 하이라이트되는 컴포넌트 범위를 기록해 보세요. 새로 추가된 카드뿐 아니라 기존 카드들도 함께 리렌더되는지 확인합니다.
+2. Profiler 탭에서 녹화 버튼을 누른 뒤 별점을 두세 번 바꾸고 녹화를 멈춰, 각 렌더에 걸린 시간을 확인해 보세요.
+
+<details>
+<summary>정답 보기</summary>
+
+책 추가는 `dispatch({ type: 'ADD_BOOK', ... })`로 `App`의 reducer 상태를 바꾸므로, 별점 변경과 같은 범위(`App`과 모든 `BookCard`)가 하이라이트됩니다. 목록에 항목이 하나 늘어나는 것뿐 아니라 기존 항목들의 컴포넌트 함수도 다시 호출된다는 점이 포인트입니다.
+
+Profiler는 각 커밋(렌더 결과가 실제 화면에 반영된 시점)마다 막대 그래프로 소요 시간을 보여줍니다. `bookshelf`처럼 작은 앱에서는 각 렌더가 대부분 1밀리초 안팎으로 매우 빠르게 끝나는 것을 확인할 수 있습니다.
+
+</details>
+
+## 자주 하는 실수
+
+| 증상 | 원인 | 고치는 법 |
+|------|------|-----------|
+| Components·Profiler 탭이 안 보임 | 확장 프로그램 미설치 또는 개발 모드가 아닌 프로덕션 빌드 확인 중 | 확장 설치 확인, `npm run dev`로 개발 서버 사용 |
+| 하이라이트가 너무 빨리 지나가 못 봄 | 정상 동작(렌더는 매우 빠름) | 클릭을 반복하거나 브라우저 확대(zoom)로 화면을 크게 보기 |
+| props가 안 바뀐 컴포넌트까지 리렌더되는 것을 버그로 착각 | React의 기본 동작(부모 리렌더 → 자식 리렌더) | 정상 동작이다. 이를 줄이는 `memo` 등은 `react_2`에서 다룬다 |
+| Profiler 탭에 아무 기록도 안 남음 | 녹화 시작 전에 동작을 수행함 | 빨간 녹화 버튼을 먼저 누른 뒤 화면을 조작 |
+
+## 확인 문제
+
+<Quiz
+  questionNumber={1}
+  question="React DevTools의 Components 탭에서 확인할 수 없는 것은?"
+  options={['컴포넌트의 현재 props와 state 값', '컴포넌트 트리 구조', '서버의 데이터베이스 스키마', '훅(useState, useReducer 등)의 현재 값']}
+  correctAnswer={3}
+  explanation="Components 탭은 브라우저에서 실행 중인 React 컴포넌트 트리와 그 props·state·hooks 값을 보여준다. 서버 쪽 데이터베이스 정보는 다루지 않는다."
+  optionExplanations={['확인 가능한 항목이다', '확인 가능한 항목이다', '정답 — 서버 데이터베이스는 DevTools의 영역이 아니다', '확인 가능한 항목이다']}
+/>
+
+<Quiz
+  questionNumber={2}
+  question="bookshelf에서 책 하나의 별점을 변경했을 때, 별점을 바꾸지 않은 다른 책의 BookCard까지 하이라이트되는 이유는?"
+  options={['부모 App이 리렌더되면 기본적으로 모든 자식도 함께 리렌더되기 때문', 'React DevTools의 버그이기 때문', '모든 책의 별점이 실제로 함께 바뀌었기 때문', 'BookCard가 Context를 구독하고 있기 때문']}
+  correctAnswer={1}
+  explanation="React는 부모가 리렌더되면 자식의 props가 그대로여도 기본적으로 함께 리렌더한다. booksReducer의 상태 변경으로 App이 리렌더되면 모든 BookCard가 함께 리렌더된다."
+  optionExplanations={['정답 — 부모 리렌더가 자식에 전파되는 기본 동작이다', 'DevTools는 실제 리렌더를 있는 그대로 보여준다', '별점 데이터 자체는 해당 책만 바뀐다', '이 예제에서 BookCard는 Context를 직접 구독하지 않는다']}
+/>
+
+<Quiz
+  questionNumber={3}
+  question="테마를 토글했을 때 useTheme()을 호출하지 않는 BookList가 Context 때문에 리렌더되지 않는 이유는?"
+  options={['Context는 그 값을 useContext로 구독하는 컴포넌트만 리렌더시키기 때문', 'BookList는 항상 리렌더가 금지된 컴포넌트이기 때문', 'ThemeContext와 FilterContext가 이름이 다르기 때문', 'BookList는 App보다 상위 컴포넌트이기 때문']}
+  correctAnswer={1}
+  explanation="Context 값 변경은 그 값을 구독(useContext 호출)하는 컴포넌트에만 리렌더를 일으킨다. BookList는 useTheme을 호출하지 않으므로 테마 변경으로는 리렌더되지 않는다."
+  optionExplanations={['정답 — 구독자만 영향을 받는다', '리렌더 금지 컴포넌트라는 개념은 없다', '이름과는 무관하며 구독 여부가 기준이다', 'BookList는 App의 하위 컴포넌트다']}
+/>
+
+<Quiz
+  questionNumber={4}
+  question="이번 편에서 memo, useMemo, useCallback 같은 리렌더 최적화 도구를 다루지 않은 이유는?"
+  options={['이 과목의 목표는 리렌더를 관찰하고 이해하는 것이며, 최적화 도구는 react_2의 범위이기 때문', 'React 19에서는 해당 훅들이 모두 폐지되었기 때문', '최적화 도구는 DevTools 확장을 설치해야만 쓸 수 있기 때문', 'bookshelf 앱에는 리렌더가 전혀 발생하지 않기 때문']}
+  correctAnswer={1}
+  explanation="01_학습방향 문서의 범위 제외 항목에 명시된 대로, 성능 최적화 훅은 react_2에서 다룬다. 이번 과목은 리렌더가 왜 일어나는지 관찰하고 이해하는 데 집중한다."
+  optionExplanations={['정답 — 범위 밖이며 후속 과목으로 넘어간다', '해당 훅들은 React 19에서도 계속 제공된다', 'DevTools 설치와 최적화 훅 사용은 별개다', 'bookshelf도 상태가 바뀔 때마다 리렌더가 발생한다']}
+/>
+
+## 참고 자료
+
+- [React 공식 - React Developer Tools](https://react.dev/learn/react-developer-tools)

@@ -1,0 +1,235 @@
+---
+title: '04. JSX로 정적 책 카드 만들기'
+description: 'BookCard 컴포넌트를 만들어 책 한 권의 표지·제목·저자를 정적 JSX로 그립니다.'
+---
+
+<Callout type="info">
+  **이번 편의 결과물:** `App.jsx`에 책 한 권의 표지·제목·저자가 보이는 정적 카드. · **다루는 개념:** JSX로 표·이미지·텍스트 마크업 작성, 중괄호로 변수 값 표시, 인라인 스타일 vs CSS 클래스
+</Callout>
+
+## 이 편에서 만드는 파일
+
+```
+bookshelf/src/
+├── App.jsx                      (~)
+├── index.css                    (~)
+└── components/
+    └── BookCard.jsx              (+)
+```
+
+## 개념 정리
+
+### 카드 하나를 컴포넌트로 만드는 이유
+
+`bookshelf`는 책 목록을 카드 형태로 보여주는 앱입니다. 카드마다 표지 색, 제목, 저자, 페이지 수를 보여줘야 하므로, 이 마크업을 `BookCard`라는 컴포넌트로 따로 둡니다. 이번 편에서는 아직 여러 책을 다루지 않고, 책 한 권의 데이터를 `BookCard` 내부에 직접 적어(하드코딩) 화면에 그리는 데만 집중합니다. 데이터를 props로 외부에서 받는 방법은 05편에서 다룹니다.
+
+### 표지를 이미지 대신 색 블록으로 표현
+
+`books.seed.json`에는 실제 이미지 파일 대신 `coverColor`(16진수 색상 문자열)가 들어 있습니다. 이 과목에서는 표지 이미지를 준비하는 대신, `coverColor`를 배경색으로 쓰는 `div`로 표지를 대신합니다. 실무에서도 이미지가 없는 데이터의 자리표시자(placeholder)로 색 블록이나 이니셜을 쓰는 경우가 흔합니다.
+
+### 인라인 스타일 vs CSS 클래스
+
+| 방식 | 언제 쓰는가 | 예시 |
+|------|-------------|------|
+| CSS 클래스(`className`) | 고정된 스타일(카드 테두리, 여백, 폰트 크기) | `<div className="book-card">` |
+| 인라인 스타일(`style={{ ... }}`) | 데이터 값에 따라 매번 바뀌는 스타일(표지 색) | `<div style={{ backgroundColor: coverColor }}>` |
+
+`coverColor`처럼 책마다 다른 값은 CSS 파일에 미리 클래스로 정의해 둘 수 없으므로 인라인 스타일을 씁니다. 카드 테두리나 여백처럼 모든 카드에 공통인 스타일은 CSS 클래스로 뺍니다.
+
+### 중괄호로 값 표시하기
+
+JSX 태그 사이에 중괄호를 쓰면 그 안의 JS 표현식 결과가 텍스트로 렌더링됩니다. 02편에서 다룬 규칙 그대로, 변수·함수 호출·문자열 연결식을 넣을 수 있습니다.
+
+```jsx
+<p>{title}</p>
+<p>{pages}쪽</p>
+<p>{author} 지음</p>
+```
+
+## 실습
+
+<Steps>
+
+### 1. 전역 스타일에 카드 레이아웃 추가
+
+`src/index.css` 파일 끝에 아래 스타일을 추가합니다. 카드 공통 모양(테두리, 여백, 정렬)은 CSS 클래스로 관리합니다.
+
+```css
+/* src/index.css (기존 내용 유지 후 아래 추가) */
+.book-card {
+  display: flex;
+  gap: 16px;
+  width: 320px;
+  padding: 16px;
+  border: 1px solid #d1d5db;
+  border-radius: 8px;
+  font-family: sans-serif;
+}
+
+.book-card__cover {
+  width: 64px;
+  height: 96px;
+  border-radius: 4px;
+  flex-shrink: 0;
+}
+
+.book-card__info h3 {
+  margin: 0 0 4px;
+  font-size: 16px;
+}
+
+.book-card__info p {
+  margin: 2px 0;
+  font-size: 13px;
+  color: #4b5563;
+}
+```
+
+### 2. components 폴더와 BookCard.jsx 작성
+
+`src/components/` 폴더를 만들고 `BookCard.jsx` 파일을 작성합니다. 지금은 `books.seed.json`의 첫 번째 책 데이터를 컴포넌트 안에 그대로 적습니다.
+
+```jsx
+// src/components/BookCard.jsx
+function BookCard() {
+  const title = '클린 코드';
+  const author = '로버트 C. 마틴';
+  const pages = 584;
+  const coverColor = '#2563eb';
+
+  return (
+    <div className="book-card">
+      <div className="book-card__cover" style={{ backgroundColor: coverColor }} />
+      <div className="book-card__info">
+        <h3>{title}</h3>
+        <p>{author} 지음</p>
+        <p>{pages}쪽</p>
+      </div>
+    </div>
+  );
+}
+
+export default BookCard;
+```
+
+`book-card__cover`는 표지를 대신하는 색 블록이므로 자식 요소 없이 self-closing 태그(`<div ... />`)로 닫습니다.
+
+### 3. App.jsx에서 BookCard 렌더링
+
+```jsx
+// src/App.jsx
+import BookCard from './components/BookCard';
+
+function App() {
+  return (
+    <div className="app">
+      <h1>bookshelf</h1>
+      <BookCard />
+    </div>
+  );
+}
+
+export default App;
+```
+
+`BookCard`는 대문자로 시작하므로 React가 HTML 태그가 아니라 사용자 정의 컴포넌트로 인식합니다(02편 태그 규칙).
+
+### 4. 실행
+
+```text
+npm run dev
+```
+
+</Steps>
+
+## 확인
+
+- 브라우저에 "bookshelf" 제목 아래로 카드 하나가 보입니다.
+- 카드 왼쪽에 파란색(`#2563eb`) 사각형, 오른쪽에 "클린 코드", "로버트 C. 마틴 지음", "584쪽"이 순서대로 보입니다.
+- 브라우저 개발자도구에서 `.book-card__cover` 요소를 선택해 `background-color`가 `rgb(37, 99, 235)`(`#2563eb`)로 적용됐는지 확인합니다.
+
+## 직접 해보기
+
+1. `BookCard` 내부 변수를 `books.seed.json`의 두 번째 책("리팩터링 2판", 마틴 파울러, 550쪽, `#16a34a`)으로 바꿔 카드가 바뀌는지 확인합니다.
+2. 카드 안에 `status` 값("독서 중" 같은 한국어 문구로 직접 적어도 됨)을 표시하는 `<p>`를 한 줄 추가합니다.
+
+<details>
+<summary>정답 보기</summary>
+
+```jsx
+// src/components/BookCard.jsx
+function BookCard() {
+  const title = '리팩터링 2판';
+  const author = '마틴 파울러';
+  const pages = 550;
+  const coverColor = '#16a34a';
+  const status = '읽는 중';
+
+  return (
+    <div className="book-card">
+      <div className="book-card__cover" style={{ backgroundColor: coverColor }} />
+      <div className="book-card__info">
+        <h3>{title}</h3>
+        <p>{author} 지음</p>
+        <p>{pages}쪽</p>
+        <p>{status}</p>
+      </div>
+    </div>
+  );
+}
+
+export default BookCard;
+```
+
+</details>
+
+## 자주 하는 실수
+
+| 증상 | 원인 | 고치는 법 |
+|------|------|-----------|
+| 표지 색이 안 보임 | `style` 값을 문자열로 작성(`style="background-color: ..."`) | `style={{ backgroundColor: coverColor }}` 객체로 작성 |
+| `<BookCard>`가 화면에 안 보임 | `import` 경로 오타 또는 `export default` 누락 | 파일 경로(`./components/BookCard`)와 export 여부를 확인 |
+| 화면에 `[object Object]`가 보임 | 중괄호 안에 객체를 그대로 넣음(예: `{book}`) | 문자열·숫자 같은 표시 가능한 값만 중괄호에 넣는다 |
+| CSS가 적용되지 않음 | `index.css`가 `main.jsx`에서 import되지 않음 | Vite 템플릿 기본 `import './index.css'`가 `main.jsx`에 있는지 확인 |
+
+## 확인 문제
+
+<Quiz
+  questionNumber={1}
+  question="책마다 다른 coverColor 값을 화면에 반영하는 올바른 방법은?"
+  options={['CSS 파일에 색상별 클래스를 미리 만들어 둔다', 'style={{ backgroundColor: coverColor }}처럼 인라인 스타일로 값을 전달한다', 'coverColor를 className에 그대로 넣는다', '색상은 JSX에서 표현할 수 없다']}
+  correctAnswer={2}
+  explanation="데이터 값에 따라 매번 바뀌는 스타일은 인라인 스타일 객체로 전달하는 것이 적절합니다."
+  optionExplanations={['값의 종류가 무한하므로 비효율적입니다', '정답입니다', 'className은 클래스 이름 문자열을 받습니다', 'style 속성으로 표현할 수 있습니다']}
+/>
+
+<Quiz
+  questionNumber={2}
+  question="자식 요소 없이 스타일만 적용하는 div를 올바르게 닫는 방법은?"
+  options={['<div style={{...}}>', '<div style={{...}} />', '<div style={{...}}></div ends>', '닫지 않아도 된다']}
+  correctAnswer={2}
+  explanation="자식이 없는 요소는 self-closing 태그로 닫아야 하는 JSX 규칙에 따라 슬래시로 닫습니다."
+  optionExplanations={['닫는 태그가 없어 에러가 납니다', '정답입니다', '올바른 JSX 문법이 아닙니다', 'JSX는 태그를 반드시 닫아야 합니다']}
+/>
+
+<Quiz
+  questionNumber={3}
+  question="App.jsx에서 BookCard 컴포넌트를 인식하지 못하는 흔한 원인은?"
+  options={['컴포넌트 이름이 소문자로 시작함', 'index.css 파일이 없음', 'books.seed.json 파일이 없음', 'npm run build를 실행하지 않음']}
+  correctAnswer={1}
+  explanation="소문자로 시작하면 React가 HTML 태그로 해석해 사용자 정의 컴포넌트로 인식하지 못합니다."
+  optionExplanations={['정답입니다', 'CSS 누락은 스타일 문제일 뿐 인식 실패의 원인이 아닙니다', '이 편에서는 seed 데이터를 아직 사용하지 않습니다', 'dev 서버는 build 없이도 동작합니다']}
+/>
+
+<Quiz
+  questionNumber={4}
+  question="공통으로 반복되는 카드 테두리·여백 스타일을 관리하기에 더 적절한 방식은?"
+  options={['매 카드마다 인라인 스타일로 반복 작성한다', 'CSS 클래스(className)로 정의해 재사용한다', 'JS 변수에 문자열로 저장한다', '표지 색과 같은 방식으로 처리한다']}
+  correctAnswer={2}
+  explanation="모든 카드에 공통인 고정 스타일은 CSS 클래스로 관리하는 것이 반복을 줄이고 유지보수하기 쉽습니다."
+  optionExplanations={['반복 작성은 비효율적입니다', '정답입니다', 'CSS는 스타일시트로 관리하는 것이 표준입니다', '표지 색은 값이 매번 달라 인라인 스타일이 적절합니다']}
+/>
+
+## 참고 자료
+
+- [React 공식 - Your First Component](https://react.dev/learn/your-first-component)

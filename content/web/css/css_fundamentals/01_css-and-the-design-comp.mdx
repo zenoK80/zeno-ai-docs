@@ -1,0 +1,167 @@
+---
+title: '01. CSS 연결하기와 시안 읽는 법'
+description: '포트폴리오 3개 페이지에 CSS를 연결하고, 디자인 시안과 토큰 문서를 읽는 법을 익힙니다.'
+---
+
+<Callout type="info">
+  **이번 편의 결과물:** 스타터 zip을 내려받아 `index.html`·`projects.html`·`contact.html`에 빈 `css/styles.css`가 연결됩니다(화면은 아직 바뀌지 않습니다). **다루는 개념:** CSS의 역할, 시안·토큰 문서 읽는 법, `<link rel="stylesheet">`, CSS 규칙 문법
+</Callout>
+
+`html_fundamentals`·`modern_html`을 마친 여러분에게는 시맨틱 마크업만 있고 CSS가 한 줄도 없는 포트폴리오 사이트가 있습니다. 이번 과목은 그 사이트를 디자인 시안 그대로 스타일링하는 20편짜리 실습입니다. 첫 편에서는 새 파일을 만들지 않고, 이미 있는 파일에 스타일시트 하나를 연결합니다.
+
+## 이 편에서 만드는 파일
+
+```text
+web-practice/portfolio/
+├── index.html          ~ (<link> 태그 추가)
+├── projects.html        ~ (<link> 태그 추가)
+├── contact.html          ~ (<link> 태그 추가)
+├── css/
+│   └── styles.css       + (빈 파일)
+└── design/
+    ├── desktop-index.png, mobile-index.png
+    ├── desktop-projects.png, mobile-projects.png
+    ├── desktop-contact.png, mobile-contact.png
+    └── design-tokens.md
+```
+
+## 개념 정리
+
+**CSS**(Cascading Style Sheets)는 HTML이 만든 문서 구조에 색·간격·배치 같은 표현을 입힙니다. 구조와 표현을 나누면 마크업을 건드리지 않고도 디자인을 통째로 바꿀 수 있습니다.
+
+CSS를 문서에 넣는 방법은 세 가지입니다.
+
+| 방법 | 위치 | 언제 쓰는가 |
+|------|------|-------------|
+| 외부 스타일시트 | `<link>`로 별도 `.css` 파일 연결 | 여러 페이지가 스타일을 공유할 때(이 프로젝트 방식) |
+| 내부 스타일시트 | `<head>` 안 `<style>` 태그 | 한 페이지에만 필요한 임시 스타일 |
+| 인라인 스타일 | 태그의 `style` 속성 | 자바스크립트가 동적으로 값 하나만 바꿀 때 |
+
+세 페이지가 같은 디자인을 공유하므로 외부 스타일시트 하나를 씁니다. 연결 문법은 다음과 같습니다.
+
+```html
+<link rel="stylesheet" href="css/styles.css" />
+```
+
+`rel="stylesheet"`는 이 파일이 스타일시트라는 뜻이고, `href`는 경로입니다. 반드시 `<head>` 안, `<title>` 아래쪽에 둡니다.
+
+CSS 규칙 문법은 선택자와 선언으로 이루어집니다.
+
+```css
+/* 선택자가 어떤 요소를 고를지, 선언이 그 요소를 어떻게 바꿀지 정한다 */
+selector {
+  property: value;
+}
+```
+
+**시안**(design comp)은 완성됐을 때의 모습을 미리 그린 이미지입니다. 스타터 zip의 `design/` 폴더에는 데스크톱·모바일 이미지 6장과 `design-tokens.md`가 들어 있습니다. `design-tokens.md`에는 색상·타이포·간격 값이 이름과 함께 정리돼 있어, 이미지를 보고 색을 눈대중으로 추측하지 않아도 됩니다. 앞으로 모든 편에서 이 문서의 이름·값을 그대로 씁니다.
+
+## 실습
+
+<Steps>
+
+### 1. 스타터 zip 내려받고 풀기
+
+`public/practice/css_fundamentals/starter.zip`을 내려받아 `web-practice/portfolio/`에 풉니다. `index.html`·`projects.html`·`contact.html`은 `modern_html`에서 완성한 마크업 그대로이고, `css/` 폴더와 `design/` 폴더가 새로 들어 있습니다.
+
+### 2. 빈 스타일시트 연결하기
+
+`css/styles.css`는 비어 있는 채로 둡니다. 세 HTML 파일의 `<head>`에 `<link>` 태그만 추가합니다. `index.html`의 `<head>`는 다음과 같이 바뀝니다.
+
+```html
+<!-- web-practice/portfolio/index.html -->
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Zeno Kim — 프론트엔드 개발자</title>
+  <meta
+    name="description"
+    content="HTML·CSS·JavaScript로 접근 가능한 화면을 만드는 프론트엔드 개발자 Zeno Kim의 포트폴리오입니다."
+  />
+  <link rel="icon" href="favicon.svg" type="image/svg+xml" />
+  <link rel="stylesheet" href="css/styles.css" />
+</head>
+<body>
+  <!-- ...기존 body 내용 유지... -->
+</body>
+</html>
+```
+
+추가한 줄은 `<link rel="stylesheet" href="css/styles.css" />` 하나입니다. `projects.html`·`contact.html`의 `<head>`에도 같은 위치(파비콘 링크 다음 줄)에 같은 줄을 그대로 추가합니다. `<title>`과 `<meta name="description">`은 페이지마다 다르므로 손대지 않습니다.
+
+### 3. 실행
+
+VS Code의 Live Server 확장으로 `index.html`을 열거나, 파일 탐색기에서 `index.html`을 더블클릭해 브라우저로 엽니다.
+
+### 4. 확인
+
+- 화면 모습은 스타일시트를 연결하기 전과 **똑같습니다**. `styles.css`가 비어 있으니 정상입니다.
+- 브라우저 개발자 도구를 열고(`F12` 또는 `Ctrl+Shift+I`) Network 탭에서 새로고침하면 `styles.css` 요청이 상태 코드 `200`으로 찍힙니다.
+- Elements(요소) 탭에서 `<head>`를 펼쳐 `<link rel="stylesheet" href="css/styles.css">` 태그가 있는지 확인합니다.
+- 세 페이지 모두 같은 방식으로 확인합니다.
+
+</Steps>
+
+## 직접 해보기
+
+`styles.css`에 임시로 `body { background: red; }`를 넣고 세 페이지를 새로고침해 배경이 빨간색으로 바뀌는지 확인해 보세요. 확인했다면 그 줄은 지웁니다(다음 편부터 진짜 스타일을 쌓습니다).
+
+<details>
+<summary>확인 방법</summary>
+
+`styles.css`에 한 줄만 저장하고 브라우저를 새로고침하면 즉시 반영됩니다. 배경이 안 바뀐다면 `<link>` 경로(`css/styles.css`)에 오타가 없는지, 파일을 저장했는지 확인합니다.
+
+</details>
+
+## 자주 하는 실수
+
+| 증상 | 원인 | 고치는 법 |
+|------|------|-----------|
+| 스타일이 전혀 안 먹는다 | `<link>`를 `<body>` 안에 넣었거나 `href` 경로 오타 | `<head>` 안으로 옮기고 상대 경로(`css/styles.css`)를 다시 확인 |
+| Network 탭에 `styles.css`가 안 보인다 | `rel="stylesheet"` 오타(`stylsheet` 등) | 속성값 철자를 다시 확인 |
+| 세 페이지 중 하나만 스타일이 적용된다 | 그 페이지의 `<head>`에 `<link>` 추가를 빠뜨림 | 세 파일 모두 같은 줄이 있는지 대조 |
+| VS Code에서 저장해도 브라우저가 그대로다 | 브라우저 새로고침을 안 함 | `Ctrl+R`로 새로고침(Live Server는 자동 새로고침) |
+
+## 확인 문제
+
+<Quiz
+  questionNumber={1}
+  question="세 페이지가 같은 디자인을 공유할 때 CSS를 넣는 가장 적절한 방법은?"
+  options={['각 페이지의 style 속성에 값을 반복해서 적는다', 'head 안에 style 태그로 각각 따로 적는다', '외부 스타일시트 하나를 만들어 link로 연결한다', 'CSS는 body 태그 안에서만 동작하므로 body에 적는다']}
+  correctAnswer={3}
+  explanation="여러 페이지가 스타일을 공유하면 외부 스타일시트 하나를 두고 각 페이지에서 link로 연결하는 방식이 유지보수에 유리합니다."
+  optionExplanations={['페이지마다 값을 반복하면 수정할 때 모든 페이지를 고쳐야 합니다', '내부 스타일시트는 한 페이지 전용 임시 스타일에 적합합니다', '정답입니다. 공유 스타일은 외부 스타일시트 하나로 관리합니다', 'CSS는 body 안 요소에도 head의 link로 얼마든지 적용됩니다']}
+/>
+
+<Quiz
+  questionNumber={2}
+  question="CSS를 외부 스타일시트로 연결하는 태그와 위치로 올바른 것은?"
+  options={['body 안의 script 태그', 'head 안의 link 태그', 'html 태그의 속성', 'body 태그의 속성']}
+  correctAnswer={2}
+  explanation="외부 스타일시트는 head 안에 rel을 stylesheet로 지정한 link 태그로 연결합니다."
+  optionExplanations={['script는 자바스크립트 파일을 연결할 때 씁니다', '정답입니다', 'html 태그 자체에는 스타일시트를 연결하는 속성이 없습니다', 'body 속성으로는 외부 스타일시트를 연결할 수 없습니다']}
+/>
+
+<Quiz
+  questionNumber={3}
+  question="CSS 규칙 하나를 이루는 두 부분은?"
+  options={['태그와 속성', '선택자와 선언', '헤드와 바디', '클래스와 아이디']}
+  correctAnswer={2}
+  explanation="CSS 규칙은 어떤 요소를 고를지 정하는 선택자와, 그 요소를 어떻게 바꿀지 정하는 선언(중괄호 안 property: value)으로 이루어집니다."
+  optionExplanations={['태그와 속성은 HTML 문법 용어입니다', '정답입니다', '헤드와 바디는 문서 구조 용어입니다', '클래스와 아이디는 선택자의 한 종류일 뿐입니다']}
+/>
+
+<Quiz
+  questionNumber={4}
+  question="디자인 시안(design comp)과 design-tokens.md를 함께 확인하는 이유로 가장 적절한 것은?"
+  options={['이미지 파일 용량을 줄이기 위해', '색·간격 값을 눈대중이 아니라 정확한 값으로 확인하기 위해', 'HTML 태그 구조를 다시 설계하기 위해', '자바스크립트 동작을 확인하기 위해']}
+  correctAnswer={2}
+  explanation="시안 이미지만으로는 정확한 색상값·간격값을 알 수 없으므로, 토큰 문서에 적힌 이름과 값을 그대로 사용합니다."
+  optionExplanations={['이미지 용량과는 관련이 없습니다', '정답입니다', 'CSS 과목에서는 기존 마크업을 수정하지 않습니다', '이 과목은 자바스크립트를 다루지 않습니다']}
+/>
+
+## 참고 자료
+
+- [MDN — CSS selectors](https://developer.mozilla.org/en-US/docs/Web/CSS/Guides/Selectors)

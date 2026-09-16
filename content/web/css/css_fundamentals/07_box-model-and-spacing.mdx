@@ -1,0 +1,157 @@
+---
+title: '07. 박스 모델로 여백 잡기'
+description: '간격 토큰으로 섹션·카드 사이 여백을 시안의 스케일대로 정리합니다.'
+---
+
+<Callout type="info">
+  **이번 편의 결과물:** 섹션·카드 사이 여백이 시안의 간격 스케일대로 정리됩니다. **다루는 개념:** 박스 모델 4요소, 변수 기반 `padding`/`margin`/`border`, 인접 마진 상쇄가 카드 사이에서 일어나는 상황과 회피
+</Callout>
+
+## 이 편에서 만드는 파일
+
+```
+web-practice/portfolio/
+└── css/
+    └── styles.css   ~ (여백 규칙 추가)
+```
+
+## 개념 정리
+
+박스 모델은 모든 요소를 안쪽부터 content → padding → border → margin 4겹으로 계산합니다. 03편에서 전역 `box-sizing: border-box`를 적용해 뒀으므로, `width`에 지정한 값에는 이미 `padding`과 `border`가 포함됩니다.
+
+| 요소 | 뜻 | 이 사이트에서 쓰는 값 |
+|------|-----|----------------------|
+| content | 실제 내용 영역 | 텍스트·이미지 너비 |
+| padding | 테두리 안쪽 여백 | `var(--space-2)` – `var(--space-8)` |
+| border | 테두리 두께 | 대부분 `1px solid var(--color-border)` |
+| margin | 테두리 바깥 여백(다른 요소와의 간격) | `var(--space-6)` – `var(--space-16)` |
+
+**인접 마진 상쇄**는 위아래로 붙어 있는 두 블록 요소의 `margin`이 더해지지 않고 더 큰 값 하나로 합쳐지는 현상입니다. 예를 들어 `.about`의 `margin-bottom: 3rem`과 다음 `.skills`의 `margin-top: 2rem`이 만나면 실제 간격은 5rem이 아니라 3rem(더 큰 값)입니다. 이 사이트는 마진 상쇄로 계산이 헷갈리는 상황을 피하려고, 섹션 사이 간격은 **위쪽 방향(`margin-top`) 한쪽으로만** 지정하는 규칙을 씁니다.
+
+## 실습
+
+<Steps>
+
+### 1. styles.css 열기
+
+06편 색·배경 규칙 아래에 이어서 작성합니다.
+
+### 2. 섹션 사이 여백을 margin-top으로 통일
+
+```css
+/* web-practice/portfolio/css/styles.css */
+/* ...03~06편 리셋·타이포그래피·색 유지... */
+
+.about,
+.skills,
+.career,
+.contact-form,
+.faq {
+  margin-top: var(--space-16);
+}
+
+.site-header + * {
+  margin-top: 0;
+}
+```
+
+`.site-header + *`는 헤더 바로 다음 요소(주로 `.hero`)의 `margin-top`을 0으로 눌러, 헤더와 히어로 사이에 이중 여백이 생기지 않게 합니다.
+
+### 3. 카드 내부 padding 정리
+
+```css
+.project-card {
+  padding: var(--space-4);
+  border-radius: var(--radius);
+}
+
+.project-card > * + * {
+  margin-top: var(--space-2);
+}
+```
+
+`.project-card > * + *`는 카드 안에서 첫 번째 자식을 제외한 나머지 요소에만 `margin-top`을 줘, 카드 맨 위에 불필요한 여백이 생기지 않게 하는 패턴입니다.
+
+### 4. 카드 사이 마진 상쇄 확인하고 회피
+
+카드를 아직 Grid로 배치하기 전(11편 이전)에는 `.project-card`가 세로로 쌓입니다. 이때 위아래 카드의 `margin`을 각각 지정하면 상쇄가 일어나 간격이 예상보다 좁아 보일 수 있습니다.
+
+```css
+.project-card {
+  margin-top: var(--space-6);
+}
+
+.project-card:first-child {
+  margin-top: 0;
+}
+```
+
+카드 양쪽에 `margin`을 다 주는 대신 `margin-top` 한쪽만 쓰고 첫 카드만 예외 처리하면, 11편에서 `gap`으로 전환할 때도 규칙을 그대로 지우기만 하면 됩니다.
+
+### 5. 실행
+
+파일을 저장하고 `index.html`·`projects.html`을 브라우저로 새로고침합니다.
+
+### 6. 확인
+
+- 헤더와 히어로 사이에 빈 틈이 생기지 않습니다(이중 여백 없음).
+- `index.html`의 소개·기술 스택·경력 섹션 사이 간격이 모두 동일하게 `--space-16`(4rem)만큼 벌어집니다.
+- 프로젝트 카드 안에서 썸네일과 제목, 제목과 설명 사이에 `--space-2`만큼의 여백이 보입니다.
+- 개발자 도구에서 `.project-card`를 선택하면 Computed 패널의 박스 모델 다이어그램에 padding·border·margin 값이 지정한 대로 표시됩니다.
+
+</Steps>
+
+## 직접 해보기
+
+1. `.about,` 목록에서 `.skills`를 잠깐 지워보고 새로고침해, 그 섹션만 이전 섹션에 바짝 붙는 모습을 확인해 보세요. 확인 후 다시 되돌립니다.
+2. `.project-card`의 `margin-top`과 `.project-card:first-child`의 `margin-top: 0`을 둘 다 지워 보고, 첫 카드 위에 불필요한 여백이 생기는지 개발자 도구 박스 모델로 확인해 보세요.
+
+<details>
+<summary>정답 확인</summary>
+
+1. `.skills`를 목록에서 지우면 `margin-top`이 사라져 `.about` 바로 아래에 여백 없이 붙습니다. 이 실습은 유틸리티성 선택자 목록에서 하나를 빠뜨렸을 때 생기는 실수를 미리 체감하기 위한 것입니다.
+2. 두 규칙을 지우면 첫 번째 카드 위에도 `--space-6`만큼의 여백이 생겨, 카드 그룹 전체가 아래로 밀립니다. `:first-child` 예외 처리가 없으면 그룹 맨 앞뒤에 의도치 않은 여백이 남는다는 것을 확인하는 실습입니다.
+
+</details>
+
+## 자주 하는 실수
+
+| 증상 | 원인 | 고치는 법 |
+|------|------|-----------|
+| 섹션 사이 간격이 기대보다 좁다 | 위아래 요소에 각각 margin을 줘서 인접 마진 상쇄가 일어났다 | 한쪽 방향(margin-top)으로만 통일 |
+| 카드 맨 위에 불필요한 여백이 생긴다 | `:first-child` 예외 처리를 빠뜨렸다 | `.project-card:first-child { margin-top: 0; }` 추가 |
+| `padding`을 줬는데 요소 너비가 커진다 | `box-sizing: border-box`가 적용 안 된 개별 요소가 있다 | 03편 리셋이 `*`에 적용됐는지, 개별 규칙이 이를 덮어쓰지 않았는지 확인 |
+| 헤더와 히어로 사이에 틈이 남는다 | `.site-header + *` 규칙이 없거나 다른 규칙에 덮였다 | 선택자 명시도와 소스 순서를 개발자 도구로 확인 |
+
+## 확인 문제
+
+<Quiz
+  questionNumber={1}
+  question="인접 마진 상쇄에 대한 설명으로 옳은 것은?"
+  options={['위아래 마진이 항상 더해진다', '위아래 마진 중 더 큰 값 하나로 합쳐진다', 'padding에서만 발생한다', 'border가 있으면 항상 발생한다']}
+  correctAnswer={2}
+  explanation="세로로 인접한 블록 요소의 margin은 더해지지 않고 더 큰 값 하나로 합쳐집니다."
+  optionExplanations={['더해지지 않습니다', '정답입니다', '마진 상쇄는 margin에서만 발생합니다', 'border가 있으면 오히려 상쇄가 끊기는 경우가 많습니다']}
+/>
+
+<Quiz
+  questionNumber={2}
+  question=".project-card 안의 자식 결합자 선택자(첫 자식 제외 나머지)의 동작으로 옳은 것은?"
+  options={['모든 project-card에 적용된다', 'project-card의 첫 번째 자식을 제외한 나머지 자식에 적용된다', 'project-card의 마지막 자식에만 적용된다', 'project-card 바깥 요소에 적용된다']}
+  correctAnswer={2}
+  explanation="* + *는 형제 요소 중 앞에 다른 요소가 있는 경우에만 매치되므로, 첫 번째 자식은 제외되고 두 번째 자식부터 적용됩니다."
+  optionExplanations={['첫 번째 자식은 제외됩니다', '정답입니다', '모든 나머지 자식에 적용되며 마지막에만 적용되는 것은 아닙니다', '자식 결합자이므로 바깥 요소와는 무관합니다']}
+/>
+
+<Quiz
+  questionNumber={3}
+  question="box-sizing: border-box가 적용된 요소의 width에 이미 포함되는 것은?"
+  options={['margin만', 'padding과 border', 'content만', 'margin과 padding 모두']}
+  correctAnswer={2}
+  explanation="border-box에서는 지정한 width 안에 padding과 border가 포함되어 계산됩니다."
+  optionExplanations={['margin은 border-box에서도 항상 별도로 계산됩니다', '정답입니다', 'content만 포함된다면 content-box와 같습니다', 'margin은 포함되지 않습니다']}
+/>
+
+## 참고 자료
+
+- [MDN — CSS box model](https://developer.mozilla.org/en-US/docs/Web/CSS/Guides/Box_model)

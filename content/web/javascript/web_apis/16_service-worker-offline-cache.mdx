@@ -1,0 +1,213 @@
+---
+title: '16. Service Worker와 Cache로 오프라인 사용'
+description: '서비스 워커를 등록하고 정적 자산과 API 응답을 캐시해, 오프라인에서도 마지막 화면과 메모 목록이 뜨게 만듭니다.'
+---
+
+<Callout type="info">
+  **이번 편의 결과물:** 오프라인 상태에서 앱을 새로고침해도 화면과 마지막 메모 목록이 뜹니다. · **다루는 개념:** Service Worker 등록, install/activate/fetch 이벤트, `CacheStorage`로 정적 자산·API 응답 캐시
+</Callout>
+
+## 이 편에서 만드는 파일
+
+```
+notes-app/
+├── public/
+│   └── sw.js         (+)
+└── src/
+    └── main.js        (~)
+```
+
+## 개념 정리
+
+### Service Worker의 위치와 역할
+
+`Service Worker`는 페이지와 네트워크 사이에 끼어드는 프록시 스레드입니다. 페이지가 보내는 모든 네트워크 요청을 가로채, 캐시에서 응답할지 실제 네트워크로 보낼지 결정할 수 있습니다. `Web Worker`처럼 DOM에 접근할 수 없고, 페이지를 닫아도 브라우저가 필요하면 계속 실행합니다.
+
+### 세 가지 생명주기 이벤트
+
+| 이벤트 | 발생 시점 | 이번 편에서 하는 일 |
+|--------|-----------|----------------------|
+| `install` | 서비스 워커가 처음 등록될 때 한 번 | `CacheStorage`를 열어 앱 셸(정적 파일)을 미리 캐시 |
+| `activate` | 새 서비스 워커가 이전 워커를 대체할 때 | 이전 버전의 캐시를 정리 |
+| `fetch` | 페이지가 네트워크 요청을 보낼 때마다 | 요청 종류에 따라 캐시 우선 또는 네트워크 우선으로 응답 |
+
+### 캐시 전략 두 가지
+
+| 전략 | 동작 순서 | 적합한 대상 |
+|------|-----------|-------------|
+| 캐시 우선(cache-first) | 캐시에 있으면 캐시 응답, 없으면 네트워크 요청 후 캐시에 저장 | 거의 안 바뀌는 정적 자산(`index.html`, `main.js`, `styles.css`) |
+| 네트워크 우선(network-first) | 네트워크 요청을 먼저 시도, 실패하면(오프라인) 캐시로 대체 | 자주 바뀌는 API 응답(메모 목록) |
+
+정적 자산은 캐시 우선으로 응답 속도를 높이고, 메모 목록처럼 최신 값이 중요한 데이터는 네트워크 우선으로 최신성을 지키되 오프라인일 때만 캐시로 대체합니다.
+
+## 실습
+
+<Steps>
+
+### 1. public/sw.js 만들기
+
+`public` 폴더에 넣은 파일은 Vite가 빌드 시 그대로 루트 경로(`/`)로 복사합니다. 서비스 워커는 등록 스크립트와 같은 origin, 가급적 루트에 두어야 앱 전체를 제어 범위(scope)로 가질 수 있습니다.
+
+### 2. 코드 작성
+
+```js
+// public/sw.js
+const CACHE_NAME = 'notes-app-v1';
+const APP_SHELL = ['/', '/index.html', '/src/styles.css', '/src/main.js'];
+
+self.addEventListener('install', (event) => {
+  event.waitUntil(
+    caches.open(CACHE_NAME).then((cache) => cache.addAll(APP_SHELL))
+  );
+  self.skipWaiting();
+});
+
+self.addEventListener('activate', (event) => {
+  event.waitUntil(
+    caches.keys().then((keys) =>
+      Promise.all(
+        keys.filter((key) => key !== CACHE_NAME).map((key) => caches.delete(key))
+      )
+    )
+  );
+  self.clients.claim();
+});
+
+self.addEventListener('fetch', (event) => {
+  if (event.request.method !== 'GET') return;
+
+  const url = new URL(event.request.url);
+
+  if (url.pathname.startsWith('/notes')) {
+    event.respondWith(networkFirst(event.request));
+    return;
+  }
+
+  event.respondWith(cacheFirst(event.request));
+});
+
+async function cacheFirst(request) {
+  const cached = await caches.match(request);
+  if (cached) return cached;
+
+  const response = await fetch(request);
+  const cache = await caches.open(CACHE_NAME);
+  cache.put(request, response.clone());
+  return response;
+}
+
+async function networkFirst(request) {
+  try {
+    const response = await fetch(request);
+    const cache = await caches.open(CACHE_NAME);
+    cache.put(request, response.clone());
+    return response;
+  } catch (error) {
+    const cached = await caches.match(request);
+    if (cached) return cached;
+    throw error;
+  }
+}
+```
+
+`install`에서 `event.waitUntil`로 캐시 준비가 끝날 때까지 설치 완료를 미룹니다. `self.skipWaiting()`은 새 서비스 워커가 이전 워커의 종료를 기다리지 않고 바로 활성화되게 합니다. `fetch` 핸들러는 요청 경로가 `/notes`로 시작하면(json-server API) 네트워크 우선, 그 외(정적 자산)는 캐시 우선으로 나눕니다. `response.clone()`을 쓰는 이유는 응답 본문(body)이 한 번만 읽을 수 있는 스트림이라, 캐시에 저장할 몫과 페이지에 돌려줄 몫을 각각 따로 소비해야 하기 때문입니다.
+
+```js
+// src/main.js (등록 부분만 추가)
+
+// 04~15편에서 만든 초기화(스토리지 로드, 라우팅, 검색 워커 등)는 그대로 유지합니다.
+
+if ('serviceWorker' in navigator) {
+  window.addEventListener('load', () => {
+    navigator.serviceWorker.register('/sw.js').then((registration) => {
+      console.log('서비스 워커 등록 완료:', registration.scope);
+    }).catch((error) => {
+      console.error('서비스 워커 등록 실패:', error);
+    });
+  });
+}
+```
+
+`window.load` 이후에 등록하는 이유는, 서비스 워커 등록 자체가 초기 페이지 로드 속도에 영향을 주지 않게 하기 위해서입니다.
+
+### 3. 실행
+
+```text
+npm run dev
+```
+
+### 4. 확인
+
+- 개발자 도구 Application 탭 → Service Workers에서 `activated and is running` 상태를 확인한다.
+- Application 탭 → Cache Storage에서 `notes-app-v1`에 `index.html`, `main.js`, `styles.css`가 담겼는지 확인한다.
+- 개발자 도구 Network 탭에서 `Offline` 체크박스를 켠 뒤 페이지를 새로고침해도 화면이 그대로 뜨는지 확인한다.
+- json-server(`http://localhost:3001`)를 실행한 상태로 메모 목록을 한 번 불러온 뒤 서버를 끄고 새로고침하면, 마지막으로 받은 메모 목록이 캐시에서 그대로 뜬다.
+
+</Steps>
+
+## 직접 해보기
+
+1. `APP_SHELL` 배열에 `favicon.ico`를 추가해 파비콘도 오프라인에서 뜨게 해봅니다.
+2. `CACHE_NAME`을 `notes-app-v2`로 바꾸고 새로고침한 뒤, `activate` 단계에서 `notes-app-v1` 캐시가 삭제되는지 Application 탭에서 확인해봅니다.
+
+<details>
+<summary>정답 보기</summary>
+
+```js
+const APP_SHELL = ['/', '/index.html', '/src/styles.css', '/src/main.js', '/favicon.ico'];
+```
+
+`CACHE_NAME`을 바꾸면 `activate` 이벤트의 `caches.keys()`가 반환하는 캐시 이름 목록에 이전 버전(`notes-app-v1`)이 여전히 남아 있고, `key !== CACHE_NAME` 조건에 걸려 삭제됩니다.
+
+</details>
+
+## 자주 하는 실수
+
+| 증상 | 원인 | 고치는 법 |
+|------|------|-----------|
+| 코드를 고쳐도 브라우저에 반영이 안 됨 | 브라우저가 이전 서비스 워커를 캐시해 계속 씀 | 개발 중에는 Application 탭에서 `Update on reload`를 켜거나 수동으로 `Unregister` 후 새로고침한다 |
+| 캐시에 저장한 응답이 비어 있음 | `response`를 페이지에 반환한 뒤 같은 객체를 `cache.put`에도 넘김(스트림 재사용) | `response.clone()`으로 복제본을 만들어 하나는 캐시에, 하나는 반환용으로 쓴다 |
+| 오프라인에서 API 요청이 그냥 실패함 | `networkFirst`에서 `catch` 없이 `fetch`만 호출 | `try/catch`로 감싸 실패 시 `caches.match`로 대체 응답을 돌려준다 |
+
+## 확인 문제
+
+<Quiz
+  questionNumber={1}
+  question="Service Worker의 install 이벤트에서 하는 일로 옳은 것은?"
+  options={['페이지의 DOM을 직접 렌더링한다', '캐시를 열어 앱 셸(정적 파일)을 미리 저장한다', '서버에 새 배포를 요청한다', 'localStorage 데이터를 초기화한다']}
+  correctAnswer={2}
+  explanation="install 이벤트는 서비스 워커가 처음 등록될 때 한 번 발생하고, 이 시점에 CacheStorage를 열어 앱이 오프라인에서도 뜨는 데 필요한 정적 자산을 미리 캐시합니다."
+  optionExplanations={['서비스 워커는 DOM을 직접 렌더링하지 않습니다', '정답입니다', '배포 요청과는 무관합니다', 'localStorage와는 별개의 저장소인 CacheStorage를 다룹니다']}
+/>
+
+<Quiz
+  questionNumber={2}
+  question="캐시 우선(cache-first) 전략이 정적 자산에 적합한 이유로 옳은 것은?"
+  options={['정적 자산은 매번 내용이 달라지기 때문에', '거의 바뀌지 않아 캐시 응답으로도 최신성 문제가 적기 때문에', '정적 자산은 캐시할 수 없기 때문에', '네트워크 요청보다 항상 느리기 때문에']}
+  correctAnswer={2}
+  explanation="index.html, main.js 같은 정적 자산은 배포 사이 자주 바뀌지 않으므로, 캐시에서 바로 응답해도 최신성 문제가 크지 않고 응답 속도만 빨라집니다."
+  optionExplanations={['정적 자산은 자주 바뀌지 않는 편입니다', '정답입니다', '정적 자산도 캐시할 수 있습니다', '캐시 응답이 네트워크 요청보다 보통 더 빠릅니다']}
+/>
+
+<Quiz
+  questionNumber={3}
+  question="networkFirst 함수에서 response.clone()을 호출하는 이유로 옳은 것은?"
+  options={['응답 속도를 두 배로 높이기 위해서', '응답 본문은 한 번만 읽을 수 있는 스트림이라 캐시 저장용과 반환용을 따로 만들기 위해서', 'clone하지 않으면 CORS 오류가 나기 때문에', 'JSON 응답만 clone이 가능하기 때문에']}
+  correctAnswer={2}
+  explanation="Response의 body는 한 번 읽으면 소비되는 스트림입니다. cache.put에 넘길 몫과 페이지에 반환할 몫이 모두 필요하므로 clone으로 복제본을 만듭니다."
+  optionExplanations={['속도와는 무관합니다', '정답입니다', 'CORS 오류와는 무관합니다', '모든 응답 타입에 clone을 쓸 수 있습니다']}
+/>
+
+<Quiz
+  questionNumber={4}
+  question="activate 이벤트에서 이전 버전의 캐시를 caches.delete로 지우는 이유로 옳은 것은?"
+  options={['디스크 용량을 확보하고 오래된 캐시로 응답하는 것을 막기 위해서', 'activate에서 캐시를 지우지 않으면 서비스 워커가 등록되지 않아서', 'install 이벤트가 자동으로 처리해주지 않는 필수 문법이라서', '오래된 캐시가 fetch 이벤트를 막기 때문에']}
+  correctAnswer={1}
+  explanation="캐시 이름에 버전을 넣고 activate에서 현재 버전과 다른 캐시를 정리하면, 디스크 공간을 아끼고 갱신 후에도 오래된 캐시 응답이 계속 쓰이는 것을 막을 수 있습니다."
+  optionExplanations={['정답입니다', '캐시를 지우지 않아도 서비스 워커 등록 자체는 됩니다', '필수 문법이 아니라 정리를 위한 선택적 로직입니다', '오래된 캐시가 fetch 이벤트 자체를 막지는 않습니다']}
+/>
+
+## 참고 자료
+
+- [MDN - Service Worker API](https://developer.mozilla.org/en-US/docs/Web/API/Service_Worker_API)
+- [MDN - Cache](https://developer.mozilla.org/en-US/docs/Web/API/Cache)

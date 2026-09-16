@@ -1,0 +1,281 @@
+---
+title: '05. 추가 페이지와 폼 액션'
+description: 'React 19 useActionState로 새 라우트에서 폼 제출 상태를 관리한다'
+---
+
+<Callout type="info">
+  **이번 편의 결과물:** 새 책 추가 폼이 `/books/new`라는 별도 페이지에서 동작하고, 제출 중·실패 상태가 화면에 표시됩니다. **다루는 개념:** 새 라우트 추가, `useNavigate`로 제출 후 이동, React 19 `useActionState`로 제출 상태(pending·에러) 관리
+</Callout>
+
+## 이 편에서 만드는 파일
+
+```
+bookshelf/src/
+├── router.jsx                  ~ /books/new 라우트 추가
+└── pages/
+    ├── NewBookPage.jsx         + 신규
+    └── BookListPage.jsx        ~ 인라인 BookForm 제거, "책 추가" 링크로 교체
+```
+
+## 개념 정리
+
+지금까지 책 추가 폼(`BookForm`)은 목록 페이지 안에 그대로 있었습니다. 이번 편은 그 폼을 `/books/new`라는 별도 라우트로 옮기고, 제출 방식도 바꿉니다.
+
+React Router의 라우트 객체에는 `<Form>` 제출을 가로채는 `action` 필드가 있지만, 이 폼은 페이지 하나 안에서 완결되고 다른 라우트의 로더를 다시 실행할 필요가 없으므로 라우트 `action` 대신 React 19의 `useActionState`를 컴포넌트 안에서 직접 씁니다.
+
+| 요소 | 역할 |
+|------|------|
+| `useActionState(fn, initialState)` | 폼 제출 함수 `fn`을 감싸 `[state, formAction, isPending]`을 반환 |
+| `fn(prevState, formData)` | 폼이 제출될 때 실행. 이전 상태와 제출된 `FormData`를 받음 |
+| `formAction` | `<form action={formAction}>`에 그대로 연결 |
+| `isPending` | `fn`이 실행 중이면 `true`. 버튼 비활성화·로딩 문구에 사용 |
+
+`useActionState`로 만든 폼은 **비제어 컴포넌트**입니다. `value`·`onChange`를 각 입력마다 연결하지 않고, 제출 시점에 `FormData`에서 값을 한 번에 꺼냅니다. `react_1`에서 쓰던 `useState` 여러 개 대신 `formData.get('title')` 같은 방식으로 값을 읽습니다. 입력 개수가 늘어나도 상태 선언이 늘지 않는 점이 장점입니다.
+
+제출이 실패해도 브라우저는 입력창의 DOM 값을 그대로 유지합니다. React가 `value`를 강제하지 않기 때문입니다. 그래서 검증 실패 후 사용자가 입력을 다시 치지 않아도 됩니다(08편에서 에러 표시와 함께 확인합니다).
+
+이번 편의 저장 로직(`localStorage` 읽기·쓰기)은 `BookListPage.jsx`와 마찬가지로 `NewBookPage.jsx` 안에 그대로 둡니다. 같은 코드가 두 파일에 반복되는 것은 06편에서 `useLocalStorage` 훅으로 정리합니다.
+
+React 19에는 이 밖에도 `use()`로 Context를 조건부로 읽는 기능과, 서버 왕복이 있는 폼에서 화면을 먼저 갱신하는 `useOptimistic`이 있습니다. `bookshelf`는 로컬 저장소만 쓰는 클라이언트 앱이라 이 두 기능은 이번 과목에서 실습으로 확장하지 않습니다.
+
+## 실습
+
+<Steps>
+
+### 1. 파일 만들기
+
+`src/pages/NewBookPage.jsx`를 새로 만듭니다.
+
+### 2. 코드 작성
+
+```jsx
+// src/pages/NewBookPage.jsx
+import { useActionState } from 'react';
+import { useNavigate } from 'react-router';
+
+const STORAGE_KEY = 'bookshelf-books';
+const COVER_COLORS = ['#2563eb', '#16a34a', '#f59e0b', '#db2777', '#7c3aed', '#0891b2'];
+const initialState = { error: null };
+
+function loadBooks() {
+  try {
+    const raw = localStorage.getItem(STORAGE_KEY);
+    return raw ? JSON.parse(raw) : [];
+  } catch {
+    return [];
+  }
+}
+
+function saveBooks(books) {
+  localStorage.setItem(STORAGE_KEY, JSON.stringify(books));
+}
+
+export default function NewBookPage() {
+  const navigate = useNavigate();
+
+  async function submitNewBook(prevState, formData) {
+    const title = formData.get('title').trim();
+    const author = formData.get('author').trim();
+
+    if (title === '' || author === '') {
+      return { error: '제목과 저자는 반드시 입력합니다.' };
+    }
+
+    const books = loadBooks();
+    const nextId = books.length === 0 ? 1 : Math.max(...books.map((book) => book.id)) + 1;
+    const pagesInput = Number(formData.get('pages'));
+
+    const newBook = {
+      id: nextId,
+      title,
+      author,
+      status: formData.get('status'),
+      rating: 0,
+      pages: Number.isNaN(pagesInput) ? 0 : pagesInput,
+      coverColor: COVER_COLORS[Math.floor(Math.random() * COVER_COLORS.length)],
+      startedAt: null,
+      finishedAt: null,
+      memo: formData.get('memo').trim(),
+    };
+
+    saveBooks([...books, newBook]);
+    navigate('/');
+    return { error: null };
+  }
+
+  const [state, formAction, isPending] = useActionState(submitNewBook, initialState);
+
+  return (
+    <div className="page">
+      <h1>책 추가</h1>
+
+      <form action={formAction}>
+        <label htmlFor="new-book-title">제목</label>
+        <input id="new-book-title" name="title" type="text" placeholder="예: 클린 코드" />
+
+        <label htmlFor="new-book-author">저자</label>
+        <input id="new-book-author" name="author" type="text" placeholder="예: 로버트 씨 마틴" />
+
+        <label htmlFor="new-book-pages">쪽수</label>
+        <input id="new-book-pages" name="pages" type="number" min="0" placeholder="예: 584" />
+
+        <label htmlFor="new-book-status">상태</label>
+        <select id="new-book-status" name="status" defaultValue="wish">
+          <option value="wish">읽고 싶어요</option>
+          <option value="reading">읽는 중</option>
+          <option value="done">다 읽음</option>
+        </select>
+
+        <label htmlFor="new-book-memo">메모</label>
+        <textarea id="new-book-memo" name="memo" placeholder="선택 입력" />
+
+        {state.error && (
+          <p className="form-error" role="alert">
+            {state.error}
+          </p>
+        )}
+
+        <button type="submit" disabled={isPending}>
+          {isPending ? '추가하는 중...' : '추가'}
+        </button>
+      </form>
+    </div>
+  );
+}
+```
+
+라우트를 등록합니다. `router.jsx`의 라우트 배열은 04편에서 이미 `/`, `/books/:bookId`를 가지고 있습니다. 형제 라우트를 하나 더합니다.
+
+```jsx
+// src/router.jsx (일부)
+import NewBookPage from './pages/NewBookPage.jsx';
+// ...기존 import 유지
+
+export const router = createBrowserRouter([
+  // ...기존 '/' 라우트 유지
+  {
+    path: '/books/new',
+    element: <NewBookPage />,
+    errorElement: <RouteErrorPage />,
+  },
+  // ...기존 '/books/:bookId' 라우트 유지
+]);
+```
+
+목록 페이지의 인라인 `BookForm`을 지우고 새 페이지로 가는 링크로 바꿉니다.
+
+```jsx
+// src/pages/BookListPage.jsx (일부)
+import { Link } from 'react-router';
+import { useReducer, useState, useEffect } from 'react';
+import { useTheme } from '../context/ThemeContext.jsx';
+import { booksReducer } from '../reducers/booksReducer.js';
+import BookList from '../components/BookList.jsx';
+import ThemeToggle from '../components/ThemeToggle.jsx';
+// BookForm import는 지웁니다. 더 이상 이 페이지에서 쓰지 않습니다.
+
+// ...기존 STORAGE_KEY, loadInitialBooks 유지
+
+export default function BookListPage() {
+  // ...기존 useReducer, useState, useEffect 유지
+
+  return (
+    <div className={`page page--${theme}`}>
+      <header className="page-header">
+        <h1>내 책장</h1>
+        <ThemeToggle />
+      </header>
+
+      <Link to="/books/new" className="add-book-link">
+        책 추가
+      </Link>
+
+      {/* ...기존 filter-bar, BookList 유지 */}
+    </div>
+  );
+}
+```
+
+### 3. 실행
+
+```
+npm run dev
+```
+
+### 4. 확인
+
+- 목록 페이지 상단의 "책 추가" 링크를 누르면 `/books/new`로 이동합니다.
+- 제목·저자를 채우고 추가를 누르면 버튼이 잠깐 "추가하는 중..."으로 바뀌고, 목록 페이지(`/`)로 자동 이동합니다.
+- 목록에 방금 추가한 책이 보입니다(새로고침해도 남아 있습니다).
+- 제목이나 저자를 비운 채 추가를 누르면 페이지 이동 없이 빨간 에러 문구가 폼 아래에 나타납니다.
+
+</Steps>
+
+## 직접 해보기
+
+1. `NewBookPage`에 "취소" 링크(`Link to="/"`)를 추가해 폼을 채우다 그만둘 수 있게 만들어 보세요.
+2. `submitNewBook`이 만든 `newBook` 객체를 `saveBooks` 호출 전에 `console.log`로 찍어, `id`가 기존 책들과 겹치지 않고 하나씩 늘어나는지 확인해 보세요.
+
+<details>
+<summary>풀이 보기</summary>
+
+```jsx
+import { Link } from 'react-router';
+// ...기존 import 유지
+
+// </form> 바로 아래
+<Link to="/">취소</Link>
+```
+
+```js
+console.log('생성된 책:', newBook);
+saveBooks([...books, newBook]);
+```
+
+책이 하나도 없는 상태에서 첫 추가라면 `id`가 `1`로 찍힙니다. 이미 책이 있다면 가장 큰 `id`보다 1 큰 값이 찍힙니다.
+
+</details>
+
+## 자주 하는 실수
+
+| 증상 | 원인 | 고치는 법 |
+|------|------|-----------|
+| 제출해도 아무 반응이 없음 | `<form>`에 `action={formAction}`을 안 붙임 | `action` 속성에 `useActionState`가 반환한 두 번째 값을 그대로 연결 |
+| 버튼이 "추가하는 중..."에서 멈춤 | `submitNewBook`이 `return`을 안 함(모든 코드 경로에서 상태 객체를 반환해야 함) | 성공·실패 각 분기 끝에 `return { error: ... }` 확인 |
+| 새로고침하면 추가한 책이 사라짐 | `saveBooks` 호출을 빼먹음 | `saveBooks([...books, newBook])` 호출 여부 확인 |
+| 목록에 새 책이 안 보임 | `NewBookPage`와 `BookListPage`의 `STORAGE_KEY` 문자열이 다름 | 두 파일 모두 `'bookshelf-books'`로 동일한지 확인 |
+
+## 확인 문제
+
+<Quiz
+  questionNumber={1}
+  question="useActionState가 반환하는 세 값의 순서로 올바른 것은"
+  options={['formAction, state, isPending', 'state, formAction, isPending', 'isPending, state, formAction', 'state, isPending, formAction']}
+  correctAnswer={2}
+  explanation="useActionState(fn, initialState)는 [state, formAction, isPending] 순서로 반환합니다."
+  optionExplanations={['순서가 바뀌었습니다', '정답입니다', '순서가 바뀌었습니다', '순서가 바뀌었습니다']}
+/>
+
+<Quiz
+  questionNumber={2}
+  question="이번 편에서 만든 NewBookPage의 입력창이 제어 컴포넌트가 아닌 이유는 무엇인가"
+  options={['input 태그를 안 써서', 'value와 onChange 대신 제출 시점에 FormData로 값을 읽어서', 'useState를 한 번도 안 써서 문법 오류가 나서', 'React 19에서 제어 컴포넌트가 폐지돼서']}
+  correctAnswer={2}
+  explanation="value·onChange로 각 입력을 상태와 동기화하지 않고, 제출될 때 FormData에서 값을 한 번에 꺼내므로 비제어 컴포넌트입니다."
+  optionExplanations={['input 태그는 그대로 사용합니다', '정답입니다', 'useState 사용 여부와 문법 오류는 무관합니다', '제어 컴포넌트는 여전히 유효한 패턴입니다']}
+/>
+
+<Quiz
+  questionNumber={3}
+  question="NewBookPage와 BookListPage에 저장 로직이 각각 따로 있는 지금 상태를 다음 편에서 정리하는 방법으로 알맞은 것은"
+  options={['두 페이지 중 하나를 완전히 삭제한다', '반복되는 localStorage 읽기·쓰기 로직을 useLocalStorage라는 커스텀 훅으로 뽑아낸다', 'localStorage 대신 전역 변수를 쓴다', '두 페이지를 하나의 파일로 합친다']}
+  correctAnswer={2}
+  explanation="여러 컴포넌트에 반복되는 로직은 커스텀 훅으로 추출해 하나의 구현만 유지하는 것이 React의 표준 해법입니다."
+  optionExplanations={['페이지 삭제는 해결책이 아닙니다', '정답입니다', '전역 변수는 새로고침 시 사라집니다', '파일을 합치는 것이 목적이 아닙니다']}
+/>
+
+## 참고 자료
+
+- [React 공식 문서 - useActionState API 레퍼런스](https://react.dev/reference/react/useActionState)
+- [React v19 공식 블로그](https://react.dev/blog/2024/12/05/react-19)
+- [React Router 공식 문서 - Navigating](https://reactrouter.com/start/framework/navigating)

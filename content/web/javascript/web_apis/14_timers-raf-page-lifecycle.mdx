@@ -1,0 +1,228 @@
+---
+title: '14. 타이머·requestAnimationFrame·Page Lifecycle'
+description: '타이핑이 멈추면 디바운스로 저장하고, requestAnimationFrame으로 저장 완료를 보여주고, 탭을 벗어나면 즉시 저장합니다.'
+---
+
+<Callout type="info">
+  **이번 편의 결과물:** 타이핑을 멈추면 500ms 후 자동 저장되고, 탭을 벗어나면 즉시 저장됩니다. · **다루는 개념:** `setTimeout` 디바운스, `requestAnimationFrame`으로 저장 애니메이션, `visibilitychange`로 백그라운드 저장
+</Callout>
+
+## 이 편에서 만드는 파일
+
+```
+notes-app/
+└── src/
+    ├── render.js    (~)
+    └── main.js      (~)
+```
+
+## 개념 정리
+
+### 디바운스: 마지막 입력 뒤에만 실행
+
+디바운스(debounce)는 짧은 시간 안에 이벤트가 여러 번 발생해도, 마지막 이벤트 뒤 일정 시간이 지나야 실제 동작을 한 번만 실행하는 패턴입니다. 타이핑마다 저장을 시도하면 스토리지 호출이 낭비되므로, 입력이 멈춘 뒤에만 저장합니다.
+
+```js
+let timer = null
+function debounceSave() {
+  clearTimeout(timer)
+  timer = setTimeout(save, 500)
+}
+```
+
+키를 누를 때마다 `clearTimeout`으로 이전 예약을 취소하고 새로 예약합니다. 500ms 안에 다음 키 입력이 없어야 `save`가 실행됩니다.
+
+### requestAnimationFrame으로 애니메이션 만들기
+
+`requestAnimationFrame`(줄여서 `rAF`)은 콜백을 다음 화면 갱신 직전에 호출해달라고 브라우저에 요청합니다. `setInterval`로 애니메이션을 만들면 화면 주사율과 어긋나 끊기거나 낭비가 생기지만, `rAF`는 브라우저의 실제 렌더링 타이밍에 맞춰 호출됩니다.
+
+| 방식 | 호출 시점 | 탭이 백그라운드일 때 |
+|------|-----------|----------------------|
+| `setInterval(fn, 16)` | 고정 간격(대략) | 계속 실행됨(배터리 낭비) |
+| `requestAnimationFrame(fn)` | 다음 리페인트 직전 | 브라우저가 자동으로 쉼 |
+
+`rAF` 콜백은 인자로 현재 시각(고정밀 타임스탬프)을 받습니다. 이전 프레임과의 시간 차(delta)를 계산해 진행률을 구하는 것이 표준 패턴입니다.
+
+### Page Lifecycle과 visibilitychange
+
+탭을 다른 창으로 전환하거나 최소화하면 `document.visibilityState`가 `'visible'`에서 `'hidden'`으로 바뀌고, `document`에서 `visibilitychange` 이벤트가 발생합니다. 저장 대기 중인 타이머가 있는데 탭이 백그라운드로 가면, 타이머가 끝나기 전에 브라우저가 탭을 완전히 종료시킬 수도 있습니다. `visibilitychange`에서 대기 중인 저장을 즉시 실행해 이 위험을 없앱니다.
+
+| 이벤트 | 발생 시점 | 이번 편에서의 용도 |
+|--------|-----------|---------------------|
+| `visibilitychange` | 탭이 보이거나 숨겨질 때 | `hidden`이 되면 대기 중인 저장을 즉시 실행 |
+
+`beforeunload`는 탭을 완전히 닫을 때만 발생하고 모바일 브라우저에서는 신뢰도가 낮으므로, 이번 편에서는 `visibilitychange`를 기본으로 씁니다.
+
+## 실습
+
+<Steps>
+
+### 1. src/render.js 열기
+
+13편에서 만든 `renderDetail`, `watchEditorChanges`, `getEditorText`, `watchListLayout`은 그대로 두고, `setSaveStatus`에 투명도 처리를 더하고 `rAF` 기반 저장 완료 애니메이션 함수를 추가합니다.
+
+### 2. 코드 작성
+
+```js
+// src/render.js (renderDetail, watchEditorChanges, getEditorText, watchListLayout은 그대로 유지)
+export function setSaveStatus(text) {
+  const statusEl = document.querySelector('#save-status')
+  if (!statusEl) return
+  statusEl.textContent = text
+  statusEl.style.opacity = text === '' ? '0' : '1'
+}
+
+export function animateSavedBadge() {
+  const statusEl = document.querySelector('#save-status')
+  if (!statusEl) return
+
+  statusEl.textContent = '저장됨'
+  statusEl.style.opacity = '0'
+
+  const duration = 300
+  let start = null
+
+  function step(timestamp) {
+    if (start === null) start = timestamp
+    const elapsed = timestamp - start
+    const progress = Math.min(elapsed / duration, 1)
+    statusEl.style.opacity = String(progress)
+
+    if (progress < 1) {
+      requestAnimationFrame(step)
+    } else {
+      setTimeout(() => setSaveStatus(''), 800)
+    }
+  }
+
+  requestAnimationFrame(step)
+}
+```
+
+`animateSavedBadge`는 `rAF`를 재귀 호출하는 루프입니다. 첫 호출에서 받은 타임스탬프를 `start`에 저장해두고, 이후 프레임마다 경과 시간(`elapsed`)을 계산해 `opacity`를 0에서 1로 서서히 올립니다. 애니메이션이 끝나면 0.8초 뒤 문구를 지웁니다.
+
+```js
+// src/main.js (showDetail과 저장 관련 로직만 표시. registerRoute 등 라우팅 로직은 그대로 유지)
+import { getEditorText, watchEditorChanges, setSaveStatus, animateSavedBadge, renderDetail } from './render.js'
+import { editNote } from './notes.js'
+
+let saveTimer = null
+let editingId = null
+
+function scheduleSave() {
+  clearTimeout(saveTimer)
+  setSaveStatus('저장 중...')
+  saveTimer = setTimeout(runSave, 500)
+}
+
+async function runSave() {
+  if (!editingId) return
+  const body = getEditorText()
+  await editNote(editingId, { body })
+  saveTimer = null
+  animateSavedBadge()
+}
+
+function flushPendingSave() {
+  if (saveTimer === null) return
+  clearTimeout(saveTimer)
+  saveTimer = null
+  runSave()
+}
+
+document.addEventListener('visibilitychange', () => {
+  if (document.visibilityState === 'hidden') flushPendingSave()
+})
+
+async function showDetail(params) {
+  // 기존 로직으로 notes를 불러와 note를 찾는 부분은 그대로 둡니다.
+  renderDetail(note, viewRoot)
+  if (note) {
+    editingId = note.id
+    watchEditorChanges(scheduleSave)
+  }
+}
+```
+
+`scheduleSave`는 편집 영역이 바뀔 때마다 호출되지만, `clearTimeout`으로 이전 예약을 취소하므로 실제 `runSave`는 마지막 변경 뒤 500ms가 지나야 실행됩니다. `editNote`는 11편에서 만든 `notes.js`의 함수로, IndexedDB에 변경분을 반영합니다. `flushPendingSave`는 예약된 타이머가 있으면 즉시 실행해, 탭이 백그라운드로 가기 전에 저장을 끝냅니다.
+
+### 3. 실행
+
+```text
+npm run dev
+```
+
+### 4. 확인
+
+- 메모 상세 화면의 편집 영역에 글자를 입력하고 바로 멈추면, 0.5초 뒤 "저장됨" 문구가 서서히 나타났다가 0.8초 후 사라진다(부드러운 opacity 전환 확인).
+- 글자를 계속 이어서 입력하면 "저장 중..."이 유지되고 "저장됨"으로 바뀌지 않는다(디바운스 확인).
+- 편집 중 다른 탭으로 전환하면(`visibilitychange`) 0.5초를 기다리지 않고 즉시 저장이 실행된다. 개발자 도구 Application 탭에서 IndexedDB 값을 확인해 반영 여부를 본다.
+
+</Steps>
+
+## 직접 해보기
+
+1. 디바운스 대기 시간을 500ms에서 1000ms로 늘려, 저장까지 걸리는 시간이 어떻게 달라지는지 확인해봅니다.
+2. `animateSavedBadge`의 `duration`을 800으로 늘려 애니메이션이 더 천천히 진행되게 해봅니다.
+
+<details>
+<summary>정답 보기</summary>
+
+```js
+saveTimer = setTimeout(runSave, 1000)
+```
+
+`animateSavedBadge` 내부의 `const duration = 300`을 `const duration = 800`으로 바꾸면 됩니다. `progress`가 `elapsed / duration`이므로 값이 커질수록 같은 경과 시간에 대한 진행률이 낮아져 애니메이션이 느리게 보입니다.
+
+</details>
+
+## 자주 하는 실수
+
+| 증상 | 원인 | 고치는 법 |
+|------|------|-----------|
+| 저장이 계속 미뤄져서 영영 실행 안 됨 | 매번 `clearTimeout` 없이 `setTimeout`만 계속 호출해 타이머가 계속 쌓임 | 새로 예약하기 전에 반드시 `clearTimeout(saveTimer)`를 먼저 호출한다 |
+| 애니메이션이 뚝뚝 끊김 | `setInterval`로 애니메이션을 구현해 화면 갱신 주기와 어긋남 | `requestAnimationFrame`으로 바꿔 브라우저 리페인트에 맞춘다 |
+| 탭을 벗어난 순간 입력한 내용이 저장되지 않음 | `visibilitychange`를 등록하지 않았거나 `flushPendingSave`를 호출하지 않음 | `hidden` 상태가 되는 즉시 대기 중인 저장을 실행하도록 연결한다 |
+
+## 확인 문제
+
+<Quiz
+  questionNumber={1}
+  question="디바운스 패턴에서 clearTimeout을 먼저 호출하는 이유로 옳은 것은?"
+  options={['메모리 누수를 완전히 없애기 위해서', '이전에 예약한 타이머를 취소해 마지막 이벤트 뒤에만 함수가 실행되게 하려고', 'setTimeout이 두 번 이상 호출되면 에러가 나서', '타이머 ID를 재사용하기 위해서']}
+  correctAnswer={2}
+  explanation="clearTimeout으로 이전 예약을 취소하지 않으면 이벤트가 발생할 때마다 예약된 함수가 각각 실행되어, 마지막 이벤트 뒤에만 한 번 실행되는 디바운스 효과를 낼 수 없습니다."
+  optionExplanations={['메모리 누수 방지가 핵심 목적은 아닙니다', '정답입니다', 'setTimeout은 여러 번 호출해도 에러가 나지 않습니다', '타이머 ID 재사용이 목적이 아닙니다']}
+/>
+
+<Quiz
+  questionNumber={2}
+  question="requestAnimationFrame이 setInterval보다 애니메이션에 적합한 이유로 옳은 것은?"
+  options={['requestAnimationFrame은 별도 스레드에서 실행돼서', '브라우저의 실제 리페인트 타이밍에 맞춰 호출되고 백그라운드 탭에서는 자동으로 쉬어서', 'setInterval은 콜백 인자를 전달하지 않아서', 'requestAnimationFrame은 정확히 1초마다 호출돼서']}
+  correctAnswer={2}
+  explanation="requestAnimationFrame은 다음 리페인트 직전에 호출되어 화면 갱신과 자연스럽게 맞고, 탭이 백그라운드일 때는 브라우저가 호출을 멈춰 자원을 아낍니다."
+  optionExplanations={['둘 다 메인 스레드에서 실행됩니다', '정답입니다', '콜백 인자 유무가 핵심 이유는 아닙니다', '고정된 1초 간격이 아니라 리페인트 타이밍에 맞춰 호출됩니다']}
+/>
+
+<Quiz
+  questionNumber={3}
+  question="document.visibilityState가 hidden으로 바뀌는 시점으로 옳은 것은?"
+  options={['브라우저를 완전히 종료할 때만', '사용자가 다른 탭으로 전환하거나 창을 최소화할 때', '네트워크 연결이 끊어질 때', '자바스크립트 오류가 발생할 때']}
+  correctAnswer={2}
+  explanation="다른 탭으로 전환하거나 창을 최소화하는 등 현재 탭이 화면에서 보이지 않게 되면 document.visibilityState가 hidden으로 바뀌고 visibilitychange 이벤트가 발생합니다."
+  optionExplanations={['종료 시점보다 먼저 hidden이 발생할 수 있습니다', '정답입니다', '네트워크 상태와는 무관합니다', '오류 발생과는 무관합니다']}
+/>
+
+<Quiz
+  questionNumber={4}
+  question="이번 편의 runSave 함수가 saveTimer를 null로 되돌리는 이유로 옳은 것은?"
+  options={['null로 되돌리지 않으면 브라우저가 멈춰서', 'flushPendingSave가 대기 중인 타이머가 있는지 정확히 판단하도록 상태를 정리하기 위해', 'IndexedDB 저장에 null 값이 필요해서', 'setTimeout의 반환값은 항상 null이라서']}
+  correctAnswer={2}
+  explanation="saveTimer가 null이 아니면 flushPendingSave가 대기 중인 저장이 있다고 판단해 다시 실행을 시도합니다. 저장이 끝난 뒤 null로 되돌려야 상태가 꼬이지 않습니다."
+  optionExplanations={['브라우저가 멈추는 것과는 무관합니다', '정답입니다', 'IndexedDB 저장값과는 무관한 내부 상태입니다', 'setTimeout은 숫자(타이머 ID)를 반환합니다']}
+/>
+
+## 참고 자료
+
+- [MDN - Window: requestAnimationFrame](https://developer.mozilla.org/en-US/docs/Web/API/Window/requestAnimationFrame)
+- [MDN - Page Visibility API](https://developer.mozilla.org/en-US/docs/Web/API/Page_Visibility_API)

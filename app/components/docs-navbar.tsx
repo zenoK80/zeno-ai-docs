@@ -5,17 +5,14 @@ import { usePathname } from 'next/navigation'
 import type { Folder, MdxFile, PageMapItem } from 'nextra'
 import { Search } from 'nextra/components'
 import { ThemeSwitch, setMenu, useMenu } from 'nextra-theme-docs'
-import { FocusEvent, MouseEvent, useEffect, useMemo, useState } from 'react'
+import { useEffect, useMemo, useRef, useState } from 'react'
+import { flushSync } from 'react-dom'
 
-interface NavItem {
+interface NavNode {
   title: string
   href: string
   section: string
-}
-
-interface NavGroup extends NavItem {
-  section: string
-  items: NavItem[]
+  children: NavNode[]
 }
 
 function isFolder(item: PageMapItem): item is Folder {
@@ -23,165 +20,97 @@ function isFolder(item: PageMapItem): item is Folder {
 }
 
 function isPage(item: PageMapItem): item is MdxFile {
-  return 'route' in item && !('children' in item)
+  return 'route' in item && !isFolder(item)
 }
 
-/** 폴더 children 중 _meta 데이터({ data }) 항목을 찾는다. */
-function metaOf(children: PageMapItem[]): Record<string, unknown> {
-  for (const child of children) {
-    if ('data' in child) return child.data as Record<string, unknown>
-  }
-  return {}
+function metaOf(items: PageMapItem[]): Record<string, unknown> {
+  const meta = items.find(item => 'data' in item)
+  return meta && 'data' in meta ? meta.data as Record<string, unknown> : {}
 }
 
-/** _meta 제목 → frontMatter 제목 → 이름 순으로 표시 제목을 정한다. */
-function titleOf(
-  item: Folder | MdxFile,
-  parentMeta: Record<string, unknown>,
-): string {
-  const metaValue = parentMeta[item.name]
-  if (typeof metaValue === 'string') return metaValue
-  if (
-    metaValue &&
-    typeof metaValue === 'object' &&
-    'title' in metaValue &&
-    typeof metaValue.title === 'string'
-  ) {
-    return metaValue.title
-  }
+function titleOf(item: Folder | MdxFile, meta: Record<string, unknown>): string {
+  const value = meta[item.name]
+  if (typeof value === 'string') return value
+  if (value && typeof value === 'object' && 'title' in value && typeof value.title === 'string') return value.title
   if ('frontMatter' in item) {
-    const { sidebarTitle, title } = item.frontMatter ?? {}
-    if (typeof sidebarTitle === 'string') return sidebarTitle
+    const title = item.frontMatter?.sidebarTitle ?? item.frontMatter?.title
     if (typeof title === 'string') return title
   }
-  if ('title' in item && typeof item.title === 'string') return item.title
-  return item.name
+  return 'title' in item && typeof item.title === 'string' ? item.title : item.name
 }
 
-function isHidden(name: string, parentMeta: Record<string, unknown>): boolean {
-  const metaValue = parentMeta[name]
-  return (
-    !!metaValue &&
-    typeof metaValue === 'object' &&
-    'display' in metaValue &&
-    metaValue.display === 'hidden'
-  )
+function isHidden(name: string, meta: Record<string, unknown>): boolean {
+  const value = meta[name]
+  return !!value && typeof value === 'object' && 'display' in value && value.display === 'hidden'
 }
 
-/** 폴더를 따라 내려가며 첫 번째 실제 페이지 route를 찾는다. */
-function firstPageRoute(item: PageMapItem): string | undefined {
-  if (isPage(item)) return item.route
-  if (isFolder(item)) {
-    for (const child of item.children) {
-      const route = firstPageRoute(child)
+function firstPageRoute(items: PageMapItem[]): string | undefined {
+  const meta = metaOf(items)
+  for (const item of items) {
+    if (!('name' in item) || isHidden(item.name, meta)) continue
+    if (isFolder(item)) {
+      const route = firstPageRoute(item.children)
       if (route) return route
-    }
+    } else if (isPage(item)) return item.route
   }
-  return undefined
 }
 
-/**
- * 사이드바처럼 pageMap(content 폴더 구조)에서 헤더 메뉴를 만든다.
- * 최상위 폴더 = 메뉴, 하위 폴더(없으면 페이지들) = 드롭다운 항목.
- */
-function getNavGroups(pageMap: PageMapItem[]): NavGroup[] {
-  const rootMeta = metaOf(pageMap)
-  const groups: NavGroup[] = []
-
-  for (const item of pageMap) {
-    if (!('name' in item) || isHidden(item.name, rootMeta)) continue
-
-    // Nextra는 실제 폴더가 없는 type: 'menu' 항목도 pageMap에 포함한다.
-    // 준비중 메뉴도 _meta.js의 제목·링크·순서를 그대로 사용한다.
-    if (!isFolder(item)) {
-      const meta = rootMeta[item.name] as {
-        title?: string
-        type?: string
-        items?: Record<string, { title?: string; href?: string }>
-      } | undefined
-      if (meta?.type !== 'menu' || !meta.items) continue
-      const items: NavItem[] = Object.entries(meta.items).flatMap(([name, link]) =>
-        link.href ? [{ title: link.title ?? name, href: link.href, section: link.href }] : [],
-      )
-      if (items.length) {
-        groups.push({
-          title: meta.title ?? item.name,
-          href: items[0].href,
-          section: `/${item.name}`,
-          items,
-        })
-      }
-      continue
+/** 중간 폴더는 펼침 메뉴, 문서가 들어 있는 과목 폴더는 첫 문서 링크다. */
+function getNavNodes(items: PageMapItem[]): NavNode[] {
+  const meta = metaOf(items)
+  return items.flatMap(item => {
+    if (!('name' in item) || isHidden(item.name, meta)) return []
+    if (isFolder(item)) {
+      const children = getNavNodes(item.children)
+      const href = firstPageRoute(item.children) ?? children[0]?.href
+      return href ? [{ title: titleOf(item, meta), href, section: item.route, children }] : []
     }
 
-    const href = firstPageRoute(item)
-    if (!href) continue
-
-    const folderMeta = metaOf(item.children)
-    const subFolders = item.children.filter(isFolder)
-    const children: (Folder | MdxFile)[] =
-      subFolders.length > 0 ? subFolders : item.children.filter(isPage)
-
-    const items: NavItem[] = []
-    for (const child of children) {
-      if (isHidden(child.name, folderMeta)) continue
-      const childHref = firstPageRoute(child)
-      if (childHref) {
-        const childSection = isFolder(child) ? child.route : childHref
-        items.push({ title: titleOf(child, folderMeta), href: childHref, section: childSection })
-      }
-    }
-
-    groups.push({
-      title: titleOf(item, rootMeta),
-      href,
-      section: item.route,
-      items,
-    })
-  }
-
-  return groups
+    // 실제 문서가 없는 준비중 메뉴는 Nextra의 가상 menu 항목을 사용한다.
+    const value = meta[item.name] as {
+      title?: string
+      type?: string
+      items?: Record<string, { title?: string; href?: string }>
+    } | undefined
+    if (value?.type !== 'menu' || !value.items) return []
+    const children = Object.entries(value.items).flatMap(([key, link]) =>
+      link.href ? [{ title: link.title ?? key, href: link.href, section: link.href, children: [] }] : [],
+    )
+    return children.length ? [{ title: value.title ?? item.name, href: children[0].href, section: item.name, children }] : []
+  })
 }
 
 export function DocsNavbar({ pageMap }: { pageMap: PageMapItem[] }) {
-  const pathname = usePathname()
-  const navGroups = useMemo(() => getNavGroups(pageMap), [pageMap])
+  const pathname = decodeURIComponent(usePathname())
+  const groups = useMemo(() => getNavNodes(pageMap), [pageMap])
   const mobileMenuOpen = useMenu()
   const [openMenu, setOpenMenu] = useState<string | null>(null)
+  const [openSubmenu, setOpenSubmenu] = useState<string | null>(null)
+  const headerRef = useRef<HTMLElement>(null)
+
+  function closeMenus() {
+    setOpenMenu(null)
+    setOpenSubmenu(null)
+  }
+
+  function isActive(section: string) {
+    const route = decodeURIComponent(section)
+    return route.startsWith('/') && (pathname === route || pathname.startsWith(`${route}/`))
+  }
 
   useEffect(() => {
-    // 1780px부터 전체 헤더와 데스크톱 문서 내비게이션을 표시한다.
+    // 기존 반응형 기준과 사이드바 폭 복구를 유지한다.
     const mediaQuery = window.matchMedia('(min-width: 1780px)')
-
-    // Nextra Collapse(horizontal)는 사이드바 remount 시 inline width를 px로 고정하는데,
-    // 모바일 폭에서는 데스크톱 사이드바가 display:none이라 clientWidth가 0으로 측정되어
-    // "width: 0px"가 남는다 (열림 상태에서는 height만 제거하고 width는 제거하지 않음).
-    // 데스크톱으로 전환될 때 이 잘못된 0px inline width만 걷어내 Nextra 기본 레이아웃을 복원한다.
-    function resetStaleSidebarWidth() {
-      const sidebar = document.querySelector('aside.nextra-sidebar')
-      if (!sidebar) return
-
-      for (const element of sidebar.querySelectorAll<HTMLElement>(
-        '[style*="width"]',
-      )) {
-        if (element.style.width === '0px') {
-          element.style.removeProperty('width')
-        }
-      }
-    }
-
     function handleDesktopChange() {
-      if (mediaQuery.matches) {
-        setMenu(false)
-        resetStaleSidebarWidth()
-      }
+      if (!mediaQuery.matches) return
+      setMenu(false)
+      document.querySelectorAll<HTMLElement>('aside.nextra-sidebar [style*="width"]').forEach(element => {
+        if (element.style.width === '0px') element.style.removeProperty('width')
+      })
     }
-
     handleDesktopChange()
     mediaQuery.addEventListener('change', handleDesktopChange)
-    // 일부 환경에서는 matchMedia change가 누락될 수 있어 resize도 함께 감지한다.
     window.addEventListener('resize', handleDesktopChange)
-
     return () => {
       mediaQuery.removeEventListener('change', handleDesktopChange)
       window.removeEventListener('resize', handleDesktopChange)
@@ -189,92 +118,115 @@ export function DocsNavbar({ pageMap }: { pageMap: PageMapItem[] }) {
   }, [])
 
   useEffect(() => {
-    // 커스텀 헤더와 Nextra 모바일 메뉴의 준비중 링크를 함께 처리한다.
-    function handleComingSoon(event: globalThis.MouseEvent) {
+    function handleClick(event: globalThis.MouseEvent) {
       if (!(event.target instanceof Element)) return
-      const link = event.target.closest('a')
-      if (link?.getAttribute('href') !== '#coming-soon') return
-      event.preventDefault()
-      event.stopPropagation()
-      setOpenMenu(null)
-      setMenu(false)
-      window.alert('준비중입니다.')
+      if (event.target.closest('a')?.getAttribute('href') === '#coming-soon') {
+        event.preventDefault()
+        event.stopPropagation()
+        closeMenus()
+        setMenu(false)
+        window.alert('준비중입니다.')
+      } else if (!headerRef.current?.contains(event.target)) closeMenus()
     }
-
-    document.addEventListener('click', handleComingSoon, true)
-    return () => document.removeEventListener('click', handleComingSoon, true)
+    document.addEventListener('click', handleClick, true)
+    return () => document.removeEventListener('click', handleClick, true)
   }, [])
 
-  function closeMenu(event?: MouseEvent<HTMLAnchorElement>) {
-    event?.currentTarget.blur()
-    setOpenMenu(null)
-    setMenu(false)
-  }
-
-  function closeMenuAfterFocusLeaves(event: FocusEvent<HTMLDivElement>) {
-    if (!event.currentTarget.contains(event.relatedTarget)) {
-      setOpenMenu(null)
-    }
+  function courseLink(item: NavNode) {
+    return (
+      <Link
+        key={item.section}
+        href={item.href}
+        className="docs-navbar-panel-link"
+        aria-current={isActive(item.section) ? 'page' : undefined}
+        onClick={event => {
+          event.currentTarget.blur()
+          closeMenus()
+          setMenu(false)
+        }}
+      >
+        {item.title}
+      </Link>
+    )
   }
 
   return (
-    <header className="docs-navbar">
+    <header className="docs-navbar" ref={headerRef}>
       <nav className="docs-navbar-inner" aria-label="Main navigation">
         <Link className="docs-navbar-logo" href="/" aria-label="Home page">
           <img src="/zenoLogo.svg" alt="" width="24" height="24" />
           <b>Zeno AI Docs</b>
         </Link>
-
-        <button
-          aria-label="Menu"
-          aria-expanded={mobileMenuOpen}
-          className="docs-navbar-mobile-menu-button"
-          onClick={() => setMenu((open) => !open)}
-          type="button"
-        >
-          <span />
-          <span />
-          <span />
+        <button aria-label="Menu" aria-expanded={mobileMenuOpen} className="docs-navbar-mobile-menu-button"
+          onClick={() => setMenu(open => !open)} type="button">
+          <span /><span /><span />
         </button>
-
         <div className="docs-navbar-menu">
-          {navGroups.map((group) => {
-            const active = pathname.startsWith(group.section)
-
+          {groups.map((group, groupIndex) => {
+            const panelId = `docs-nav-${groupIndex}`
             return (
-              <div
-                className="docs-navbar-group"
-                data-open={openMenu === group.title}
-                key={group.title}
-                onBlur={closeMenuAfterFocusLeaves}
-                onFocus={() => setOpenMenu(group.title)}
-                onMouseEnter={() => setOpenMenu(group.title)}
-                onMouseLeave={() => setOpenMenu(null)}
-              >
-                <Link
-                  aria-current={active ? 'page' : undefined}
-                  aria-expanded={openMenu === group.title}
-                  className="docs-navbar-trigger"
-                  href={group.href}
-                  onClick={closeMenu}
-                >
-                  {group.title}
-                  <span className="docs-navbar-chevron" aria-hidden="true" />
-                </Link>
-                <div className="docs-navbar-panel">
+              <div className="docs-navbar-group" key={group.section} data-open={openMenu === group.section}
+                onPointerEnter={event => { if (event.pointerType === 'mouse') { setOpenMenu(group.section); setOpenSubmenu(null) } }}
+                onPointerLeave={event => { if (event.pointerType === 'mouse') closeMenus() }}
+                onBlur={event => { if (!event.currentTarget.contains(event.relatedTarget)) closeMenus() }}
+                onKeyDown={event => {
+                  if (event.key === 'Escape') {
+                    closeMenus()
+                    event.currentTarget.querySelector<HTMLButtonElement>('.docs-navbar-trigger')?.focus()
+                  }
+                }}>
+                <button type="button" className="docs-navbar-trigger" aria-controls={panelId}
+                  aria-expanded={openMenu === group.section} data-active={isActive(group.section)}
+                  onClick={() => { setOpenMenu(openMenu === group.section ? null : group.section); setOpenSubmenu(null) }}
+                  onKeyDown={event => {
+                    if (event.key === 'ArrowDown') {
+                      event.preventDefault()
+                      flushSync(() => setOpenMenu(group.section))
+                      document.getElementById(panelId)?.querySelector<HTMLElement>('button, a')?.focus()
+                    }
+                  }}>
+                  {group.title}<span className="docs-navbar-chevron" aria-hidden="true" />
+                </button>
+                <div className="docs-navbar-panel" id={panelId} inert={openMenu !== group.section}>
                   <div className="docs-navbar-panel-inner">
                     <div className="docs-navbar-panel-links">
-                      {group.items.map((item) => (
-                        <Link
-                          aria-current={pathname.startsWith(item.section) ? 'page' : undefined}
-                          className="docs-navbar-panel-link"
-                          href={item.href}
-                          key={item.href}
-                          onClick={closeMenu}
-                        >
-                          {item.title}
-                        </Link>
-                      ))}
+                      {group.children.map((item, itemIndex) => {
+                        if (!item.children.length) return courseLink(item)
+                        const submenuId = `${panelId}-${itemIndex}`
+                        const expanded = openSubmenu === submenuId
+                        return (
+                          <div className="docs-navbar-branch" key={item.section} data-open={expanded}
+                            onPointerEnter={event => { if (event.pointerType === 'mouse') setOpenSubmenu(submenuId) }}
+                            onPointerLeave={event => { if (event.pointerType === 'mouse') setOpenSubmenu(null) }}
+                            onBlur={event => { if (!event.currentTarget.contains(event.relatedTarget)) setOpenSubmenu(null) }}
+                            onKeyDown={event => {
+                              if (expanded && (event.key === 'ArrowLeft' || event.key === 'Escape')) {
+                                event.preventDefault()
+                                event.stopPropagation()
+                                setOpenSubmenu(null)
+                                event.currentTarget.querySelector<HTMLButtonElement>('button')?.focus()
+                              }
+                            }}>
+                            <button className="docs-navbar-panel-link docs-navbar-branch-trigger" type="button"
+                              aria-expanded={expanded} aria-controls={submenuId} data-active={isActive(item.section)}
+                              onClick={() => setOpenSubmenu(expanded ? null : submenuId)}
+                              onKeyDown={event => {
+                                if (event.key === 'ArrowRight') {
+                                  event.preventDefault()
+                                  flushSync(() => setOpenSubmenu(submenuId))
+                                  document.getElementById(submenuId)?.querySelector<HTMLElement>('a')?.focus()
+                                }
+                              }}>
+                              {item.title}<span className="docs-navbar-side-chevron" aria-hidden="true" />
+                            </button>
+                            <div className="docs-navbar-submenu" id={submenuId} inert={!expanded}>
+                              <div className="docs-navbar-panel-inner docs-navbar-submenu-inner">
+                                {item.children.map(courseLink)}
+                              </div>
+                            </div>
+                          </div>
+                        )
+                      })}
                     </div>
                   </div>
                 </div>
@@ -282,11 +234,7 @@ export function DocsNavbar({ pageMap }: { pageMap: PageMapItem[] }) {
             )
           })}
         </div>
-
-        <div className="docs-navbar-tools">
-          <Search />
-          <ThemeSwitch />
-        </div>
+        <div className="docs-navbar-tools"><Search /><ThemeSwitch /></div>
       </nav>
     </header>
   )

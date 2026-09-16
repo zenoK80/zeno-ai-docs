@@ -1,63 +1,63 @@
 {
-  "generatedAt": "2026-09-16T07:45:01.714Z",
+  "generatedAt": "2026-09-16T08:39:20.447Z",
   "groupCount": 9,
   "seriesCount": 41,
   "groups": [
     {
-      "title": "CSS",
-      "description": "2개 시리즈 · 문서 63편",
+      "title": "Web · HTML",
+      "description": "2개 시리즈 · 문서 54편",
       "order": "01",
       "series": [
         {
-          "title": "CSS 기본기",
-          "description": "CSS라는 이름의 어원과 스타일시트 개념을 통해, HTML·CSS·JS가 왜 각자 다른 역할을 맡는지, 브라우저가 CSS를 화면에 반영하기까지 어떤 큰 흐름을 거치는지 지도를 그린다",
-          "href": "/css/css_fundamentals/01_what-is-css",
-          "documentCount": 32,
+          "title": "HTML 기본기",
+          "description": "HTML을 HyperText·Markup·Language 세 조각으로 쪼개 뜻을 풀고, CSS·JS와의 역할 분담, WHATWG Living Standard와 옛 버전 표기의 관계를 정리한다",
+          "href": "/web/html/html_fundamentals/01_what-is-html-and-its-role",
+          "documentCount": 25,
           "preview": "code",
           "accent": "blue"
         },
         {
-          "title": "모던 CSS",
-          "description": "CSS Fundamentals가 끝나는 지점을 경계선으로 긋고, \"최근 몇 년 사이 새로 생겼거나 작성 방식 자체를 바꾼 것\"이라는 이 과목의 기준을 지도로 그린다",
-          "href": "/css/modern_css/01_modern-css-boundary",
-          "documentCount": 31,
+          "title": "모던 HTML",
+          "description": "JS 라이브러리가 흉내 내던 모달·툴팁·아코디언이 표준 HTML로 들어온 배경과 Baseline 개념을 잡고, 이 과목 전체의 3대 축 지도를 그린다",
+          "href": "/web/html/modern_html/01_why-modern-html",
+          "documentCount": 29,
           "preview": "code",
           "accent": "green"
         }
       ]
     },
     {
-      "title": "HTML",
-      "description": "2개 시리즈 · 문서 54편",
+      "title": "Web · CSS",
+      "description": "2개 시리즈 · 문서 63편",
       "order": "02",
       "series": [
         {
-          "title": "HTML 기본기",
-          "description": "HTML을 HyperText·Markup·Language 세 조각으로 쪼개 뜻을 풀고, CSS·JS와의 역할 분담, WHATWG Living Standard와 옛 버전 표기의 관계를 정리한다",
-          "href": "/html/html_fundamentals/01_what-is-html-and-its-role",
-          "documentCount": 25,
+          "title": "CSS 기본기",
+          "description": "CSS라는 이름의 어원과 스타일시트 개념을 통해, HTML·CSS·JS가 왜 각자 다른 역할을 맡는지, 브라우저가 CSS를 화면에 반영하기까지 어떤 큰 흐름을 거치는지 지도를 그린다",
+          "href": "/web/css/css_fundamentals/01_what-is-css",
+          "documentCount": 32,
           "preview": "code",
           "accent": "amber"
         },
         {
-          "title": "모던 HTML",
-          "description": "JS 라이브러리가 흉내 내던 모달·툴팁·아코디언이 표준 HTML로 들어온 배경과 Baseline 개념을 잡고, 이 과목 전체의 3대 축 지도를 그린다",
-          "href": "/html/modern_html/01_why-modern-html",
-          "documentCount": 29,
+          "title": "모던 CSS",
+          "description": "CSS Fundamentals가 끝나는 지점을 경계선으로 긋고, \"최근 몇 년 사이 새로 생겼거나 작성 방식 자체를 바꾼 것\"이라는 이 과목의 기준을 지도로 그린다",
+          "href": "/web/css/modern_css/01_modern-css-boundary",
+          "documentCount": 31,
           "preview": "code",
           "accent": "red"
         }
       ]
     },
     {
-      "title": "JavaScript",
+      "title": "Web · JavaScript",
       "description": "2개 시리즈 · 문서 65편",
       "order": "03",
       "series": [
         {
           "title": "ECMAScript",
           "description": "JavaScript와 ECMAScript의 관계에서 출발해, 표준·구현·엔진을 구분하고 명세 문서를 직접 읽어내는 최소 문법을 익힌다",
-          "href": "/javascript/ECMAscript/01_ecmascript-overview",
+          "href": "/web/javascript/ECMAscript/01_ecmascript-overview",
           "documentCount": 35,
           "preview": "code",
           "accent": "blue"
@@ -65,7 +65,7 @@
         {
           "title": "Web APIs",
           "description": "자바스크립트 엔진이 할 수 있는 일과 브라우저가 빌려주는 일의 경계를 나누고, 이벤트 루프·메인 스레드·origin이라는 플랫폼의 세 축을 지도로 그린다",
-          "href": "/javascript/web_apis/01_web-platform-basics",
+          "href": "/web/javascript/web_apis/01_web-platform-basics",
           "documentCount": 30,
           "preview": "browser",
           "accent": "green"
@@ -73,14 +73,14 @@
       ]
     },
     {
-      "title": "React",
+      "title": "Web · React",
       "description": "3개 시리즈 · 문서 46편",
       "order": "04",
       "series": [
         {
           "title": "React 기초",
           "description": "명령형 DOM 조작의 고통에서 출발해, 선언적 UI와 컴포넌트 모델이라는 React의 핵심 사고방식을 원리부터 이해한다",
-          "href": "/react/react_1/01_react-as-a-ui-library",
+          "href": "/web/react/react_1/01_react-as-a-ui-library",
           "documentCount": 15,
           "preview": "code",
           "accent": "amber"
@@ -88,7 +88,7 @@
         {
           "title": "React 중급",
           "description": "상속이 아니라 합성 — children과 슬롯으로 컴포넌트를 조립하는 React의 설계 철학을 원리부터 세운다",
-          "href": "/react/react_2/01_component-composition-basics",
+          "href": "/web/react/react_2/01_component-composition-basics",
           "documentCount": 16,
           "preview": "code",
           "accent": "red"
@@ -96,7 +96,7 @@
         {
           "title": "React 실무",
           "description": "내 메모리 안의 상태와 서버에 사는 상태는 성격이 완전히 다르다 — 요청-응답 라이프사이클과 캐시 개념으로 이 과목 전체의 토대를 세운다",
-          "href": "/react/react_3/01_server-vs-client-state",
+          "href": "/web/react/react_3/01_server-vs-client-state",
           "documentCount": 15,
           "preview": "code",
           "accent": "blue"
@@ -104,45 +104,45 @@
       ]
     },
     {
-      "title": "독학사 1단계",
+      "title": "독학사 · 독학사 1단계",
       "description": "3개 시리즈 · 문서 78편",
       "order": "05",
       "series": [
         {
-          "title": "기초통계학",
-          "description": "독학사 제도와 기초통계학 출제범위, 시험 운영 방식을 파악하고 합격까지의 학습 전략을 세운다.",
-          "href": "/독학사1/기초통계학/01_exam-overview",
-          "documentCount": 24,
-          "preview": "chart",
-          "accent": "green"
-        },
-        {
           "title": "영어",
           "description": "독학사 1과정 교양과정 인정시험에서 영어 과목이 어떻게 구성되고 채점되는지, 출제 영역과 합격 기준을 정리한다.",
-          "href": "/독학사1/영어/01_exam-structure",
+          "href": "/독학사/1단계/영어/01_exam-structure",
           "documentCount": 28,
           "preview": "code",
-          "accent": "amber"
+          "accent": "green"
         },
         {
           "title": "일반수학",
           "description": "집합 기호, 논리 기호, 조건문·역·대우, 참·거짓을 판단하는 법을 처음부터 정리한다",
-          "href": "/독학사1/일반수학/01_math-language",
+          "href": "/독학사/1단계/일반수학/01_math-language",
           "documentCount": 26,
           "preview": "sets",
+          "accent": "amber"
+        },
+        {
+          "title": "기초통계학",
+          "description": "독학사 제도와 기초통계학 출제범위, 시험 운영 방식을 파악하고 합격까지의 학습 전략을 세운다.",
+          "href": "/독학사/1단계/기초통계학/01_exam-overview",
+          "documentCount": 24,
+          "preview": "chart",
           "accent": "red"
         }
       ]
     },
     {
-      "title": "독학사 2단계",
+      "title": "독학사 · 독학사 2단계",
       "description": "8개 시리즈 · 문서 182편",
       "order": "06",
       "series": [
         {
           "title": "C프로그래밍",
           "description": "독학사 제도에서 2단계 C프로그래밍이 차지하는 위치, 출제기준 문서를 읽는 법, 평가 수준과 문제 유형을 먼저 지도로 그린다",
-          "href": "/독학사2/C프로그래밍/01_exam-structure",
+          "href": "/독학사/2단계/C프로그래밍/01_exam-structure",
           "documentCount": 27,
           "preview": "code",
           "accent": "blue"
@@ -150,190 +150,190 @@
         {
           "title": "논리회로",
           "description": "집합과 원소 표기, 명제와 논리값, 논리함수·변수 표기법을 논리회로 시험에 쓰는 언어로 정리한다",
-          "href": "/독학사2/논리회로/01_math-basics",
+          "href": "/독학사/2단계/논리회로/01_math-basics",
           "documentCount": 27,
           "preview": "code",
           "accent": "green"
         },
         {
-          "title": "머신러닝",
-          "description": "인공지능·머신러닝·딥러닝의 포함 관계와 지도·비지도·강화학습이라는 학습 패러다임, 모델·파라미터·하이퍼파라미터·특징·레이블 같은 핵심 용어를 정리한다",
-          "href": "/독학사2/머신러닝/01_ml-basics",
-          "documentCount": 24,
-          "preview": "chart",
+          "title": "이산수학",
+          "description": "명제·논리기호, 집합 기호, 수열·함수 표기, 그래프·트리 기본 기호까지 이 과목 전체에서 반복해 쓰이는 표기법을 한 번에 정리한다.",
+          "href": "/독학사/2단계/이산수학/01_basic-notation",
+          "documentCount": 26,
+          "preview": "sets",
           "accent": "amber"
         },
         {
-          "title": "운영체제",
-          "description": "운영체제의 역할, 커널·쉘·유틸리티의 구분, 시스템 호출과 인터럽트, 그리고 독학사 시험에서 반복되는 용어를 한 장에 정리한다",
-          "href": "/독학사2/운영체제/01_os-terminology-map",
-          "documentCount": 21,
+          "title": "자료구조",
+          "description": "데이터·자료형·자료구조·추상자료형(ADT)의 관계를 하나의 위계로 정리해 이후 모든 편에서 쓰이는 용어의 기준을 잡는다.",
+          "href": "/독학사/2단계/자료구조/01_prereq-data-structure-basics",
+          "documentCount": 18,
           "preview": "code",
           "accent": "red"
         },
         {
           "title": "웹프로그래밍",
           "description": "인터넷과 WWW의 관계, URL·도메인·IP, 클라이언트-서버 구조, HTTP 요청과 응답의 흐름을 독학사 2단계 출제 범위에 맞춰 정리한다.",
-          "href": "/독학사2/웹프로그래밍/01_internet-and-web-basics",
+          "href": "/독학사/2단계/웹프로그래밍/01_internet-and-web-basics",
           "documentCount": 19,
           "preview": "code",
           "accent": "blue"
         },
         {
-          "title": "이산수학",
-          "description": "명제·논리기호, 집합 기호, 수열·함수 표기, 그래프·트리 기본 기호까지 이 과목 전체에서 반복해 쓰이는 표기법을 한 번에 정리한다.",
-          "href": "/독학사2/이산수학/01_basic-notation",
-          "documentCount": 26,
-          "preview": "sets",
+          "title": "컴퓨터구조",
+          "description": "2진법·8진법·16진법의 자리값과 상호 변환, 이진수 덧셈·뺄셈의 의미를 처음부터 끝까지 손으로 계산하며 익힌다.",
+          "href": "/독학사/2단계/컴퓨터구조/01_number-system-basics",
+          "documentCount": 20,
+          "preview": "code",
           "accent": "green"
         },
         {
-          "title": "자료구조",
-          "description": "데이터·자료형·자료구조·추상자료형(ADT)의 관계를 하나의 위계로 정리해 이후 모든 편에서 쓰이는 용어의 기준을 잡는다.",
-          "href": "/독학사2/자료구조/01_prereq-data-structure-basics",
-          "documentCount": 18,
+          "title": "운영체제",
+          "description": "운영체제의 역할, 커널·쉘·유틸리티의 구분, 시스템 호출과 인터럽트, 그리고 독학사 시험에서 반복되는 용어를 한 장에 정리한다",
+          "href": "/독학사/2단계/운영체제/01_os-terminology-map",
+          "documentCount": 21,
           "preview": "code",
           "accent": "amber"
         },
         {
-          "title": "컴퓨터구조",
-          "description": "2진법·8진법·16진법의 자리값과 상호 변환, 이진수 덧셈·뺄셈의 의미를 처음부터 끝까지 손으로 계산하며 익힌다.",
-          "href": "/독학사2/컴퓨터구조/01_number-system-basics",
-          "documentCount": 20,
-          "preview": "code",
+          "title": "머신러닝",
+          "description": "인공지능·머신러닝·딥러닝의 포함 관계와 지도·비지도·강화학습이라는 학습 패러다임, 모델·파라미터·하이퍼파라미터·특징·레이블 같은 핵심 용어를 정리한다",
+          "href": "/독학사/2단계/머신러닝/01_ml-basics",
+          "documentCount": 24,
+          "preview": "chart",
           "accent": "red"
         }
       ]
     },
     {
-      "title": "독학사 3단계",
+      "title": "독학사 · 독학사 3단계",
       "description": "8개 시리즈 · 문서 190편",
       "order": "07",
       "series": [
         {
-          "title": "객체지향프로그래밍",
-          "description": "독학사 제도에서 3단계 객체지향프로그래밍이 차지하는 위치, 평가 수준, 문항 유형을 먼저 지도로 그린다",
-          "href": "/독학사3/객체지향프로그래밍/01_exam-structure",
-          "documentCount": 24,
+          "title": "프로그래밍언어론",
+          "description": "프로그래밍 언어를 개념적으로 정의하고 언어와 구현을 구분하며, 4대 패러다임과 독학사 프로그래밍언어론의 시험 범위를 지도로 정리한다",
+          "href": "/독학사/3단계/프로그래밍언어론/01_programming-language-vs-implementation",
+          "documentCount": 28,
           "preview": "code",
           "accent": "blue"
-        },
-        {
-          "title": "딥러닝",
-          "description": "독학사 3단계 전공심화과정에서 딥러닝 과목이 어떤 위치에 있는지, 출제기준을 어떻게 읽고 학습 계획으로 옮기는지 정리한다.",
-          "href": "/독학사3/딥러닝/01_exam-overview",
-          "documentCount": 28,
-          "preview": "chart",
-          "accent": "green"
         },
         {
           "title": "소프트웨어공학",
           "description": "독학사 3단계 소프트웨어공학의 정의, 시험 범위를 해석하는 방법, 생명주기와 산출물의 큰 구조를 잡는다",
-          "href": "/독학사3/소프트웨어공학/01_software-engineering-overview",
+          "href": "/독학사/3단계/소프트웨어공학/01_software-engineering-overview",
           "documentCount": 22,
-          "preview": "code",
-          "accent": "amber"
-        },
-        {
-          "title": "임베디드시스템",
-          "description": "임베디드 시스템이 무엇을 다루는 분야인지 범위를 먼저 잡고, 실시간·자원 제약이라는 이 과목 전체를 관통하는 용어와 MCU·MPU 구분을 예고편으로 훑는다.",
-          "href": "/독학사3/임베디드시스템/01_embedded-prerequisites",
-          "documentCount": 21,
-          "preview": "code",
-          "accent": "red"
-        },
-        {
-          "title": "정보보호",
-          "description": "독학사 전공심화과정에서 정보보호학 3단계가 차지하는 위치와 출제기준 문장을 실전 학습 계획으로 바꾸는 방법을 정리한다.",
-          "href": "/독학사3/정보보호/01_exam-structure",
-          "documentCount": 24,
-          "preview": "code",
-          "accent": "blue"
-        },
-        {
-          "title": "컴퓨터그래픽스",
-          "description": "래스터·벡터 그래픽스의 차이, 그래픽스 파이프라인의 단계, 디스플레이와 프레임버퍼의 동작 원리를 정리한다",
-          "href": "/독학사3/컴퓨터그래픽스/01_graphics-overview",
-          "documentCount": 16,
           "preview": "code",
           "accent": "green"
         },
         {
-          "title": "컴퓨터네트워크",
-          "description": "링크·노드·호스트, 패킷·프레임·세그먼트, 계층도의 화살표까지 — 뒤에 나올 모든 편이 전제로 쓰는 최소 용어와 그림 읽는 법",
-          "href": "/독학사3/컴퓨터네트워크/01_network-basics",
-          "documentCount": 27,
-          "preview": "browser",
+          "title": "객체지향프로그래밍",
+          "description": "독학사 제도에서 3단계 객체지향프로그래밍이 차지하는 위치, 평가 수준, 문항 유형을 먼저 지도로 그린다",
+          "href": "/독학사/3단계/객체지향프로그래밍/01_exam-structure",
+          "documentCount": 24,
+          "preview": "code",
           "accent": "amber"
         },
         {
-          "title": "프로그래밍언어론",
-          "description": "프로그래밍 언어를 개념적으로 정의하고 언어와 구현을 구분하며, 4대 패러다임과 독학사 프로그래밍언어론의 시험 범위를 지도로 정리한다",
-          "href": "/독학사3/프로그래밍언어론/01_programming-language-vs-implementation",
-          "documentCount": 28,
+          "title": "컴퓨터그래픽스",
+          "description": "래스터·벡터 그래픽스의 차이, 그래픽스 파이프라인의 단계, 디스플레이와 프레임버퍼의 동작 원리를 정리한다",
+          "href": "/독학사/3단계/컴퓨터그래픽스/01_graphics-overview",
+          "documentCount": 16,
           "preview": "code",
+          "accent": "red"
+        },
+        {
+          "title": "컴퓨터네트워크",
+          "description": "링크·노드·호스트, 패킷·프레임·세그먼트, 계층도의 화살표까지 — 뒤에 나올 모든 편이 전제로 쓰는 최소 용어와 그림 읽는 법",
+          "href": "/독학사/3단계/컴퓨터네트워크/01_network-basics",
+          "documentCount": 27,
+          "preview": "browser",
+          "accent": "blue"
+        },
+        {
+          "title": "임베디드시스템",
+          "description": "임베디드 시스템이 무엇을 다루는 분야인지 범위를 먼저 잡고, 실시간·자원 제약이라는 이 과목 전체를 관통하는 용어와 MCU·MPU 구분을 예고편으로 훑는다.",
+          "href": "/독학사/3단계/임베디드시스템/01_embedded-prerequisites",
+          "documentCount": 21,
+          "preview": "code",
+          "accent": "green"
+        },
+        {
+          "title": "정보보호",
+          "description": "독학사 전공심화과정에서 정보보호학 3단계가 차지하는 위치와 출제기준 문장을 실전 학습 계획으로 바꾸는 방법을 정리한다.",
+          "href": "/독학사/3단계/정보보호/01_exam-structure",
+          "documentCount": 24,
+          "preview": "code",
+          "accent": "amber"
+        },
+        {
+          "title": "딥러닝",
+          "description": "독학사 3단계 전공심화과정에서 딥러닝 과목이 어떤 위치에 있는지, 출제기준을 어떻게 읽고 학습 계획으로 옮기는지 정리한다.",
+          "href": "/독학사/3단계/딥러닝/01_exam-overview",
+          "documentCount": 28,
+          "preview": "chart",
           "accent": "red"
         }
       ]
     },
     {
-      "title": "독학사 4단계",
+      "title": "독학사 · 독학사 4단계",
       "description": "7개 시리즈 · 문서 175편",
       "order": "08",
       "series": [
         {
-          "title": "국사",
-          "description": "독학사 학위취득 종합시험 체계에서 국사 과목이 차지하는 위치, 시험 형태·문항수·배점, 평가영역·출제기준표를 읽는 법을 정리한다.",
-          "href": "/독학사4/국사/01_exam-structure",
+          "title": "알고리즘",
+          "description": "독학학위제 4단계 종합시험의 제도적 성격과 알고리즘 과목의 출제범위·평가 수준·문항 유형을 정리해, 이후 학습의 깊이 기준을 잡는다.",
+          "href": "/독학사/4단계/알고리즘/01_exam-outline",
           "documentCount": 24,
           "preview": "code",
           "accent": "blue"
-        },
-        {
-          "title": "국어",
-          "description": "국어국문학 4단계 학위취득 종합시험의 과목 구성, 문항 유형과 배점, 합격 기준, 효율적인 학습 전략을 정리한다",
-          "href": "/독학사4/국어/01_korean-exam-overview",
-          "documentCount": 27,
-          "preview": "code",
-          "accent": "green"
         },
         {
           "title": "데이터베이스",
           "description": "독학사 학위취득 종합시험 제도와 컴퓨터공학 전공 구조, 4단계 평가 수준, 데이터베이스 과목의 위치와 난이도, 문항 유형·시간 전략을 정리한다",
-          "href": "/독학사4/데이터베이스/01_exam-overview",
+          "href": "/독학사/4단계/데이터베이스/01_exam-overview",
           "documentCount": 26,
           "preview": "sql",
-          "accent": "amber"
-        },
-        {
-          "title": "실용영어",
-          "description": "독학사 제도와 4단계 학위취득 종합시험의 구조, 실용영어 과목의 위치, 합격 기준과 시간 배분 전략을 정리한다.",
-          "href": "/독학사4/실용영어/01_exam-structure",
-          "documentCount": 24,
-          "preview": "code",
-          "accent": "red"
-        },
-        {
-          "title": "알고리즘",
-          "description": "독학학위제 4단계 종합시험의 제도적 성격과 알고리즘 과목의 출제범위·평가 수준·문항 유형을 정리해, 이후 학습의 깊이 기준을 잡는다.",
-          "href": "/독학사4/알고리즘/01_exam-outline",
-          "documentCount": 24,
-          "preview": "code",
-          "accent": "blue"
-        },
-        {
-          "title": "통합컴퓨터시스템",
-          "description": "독학사 4단계 학위취득종합시험에서 통합컴퓨터시스템 과목이 차지하는 위치와 출제기준의 얼개를 정리한다",
-          "href": "/독학사4/통합컴퓨터시스템/01_exam-structure",
-          "documentCount": 24,
-          "preview": "code",
           "accent": "green"
         },
         {
           "title": "통합프로그래밍",
           "description": "독학사 학위취득 종합시험에서 통합프로그래밍이 차지하는 위치, 총점합격제·과목별합격제의 의미, 통합프로그래밍이 왜 여러 과목을 코드로 묶어 내는 시험인지 먼저 지도를 그린다",
-          "href": "/독학사4/통합프로그래밍/01_exam-structure",
+          "href": "/독학사/4단계/통합프로그래밍/01_exam-structure",
           "documentCount": 26,
+          "preview": "code",
+          "accent": "amber"
+        },
+        {
+          "title": "통합컴퓨터시스템",
+          "description": "독학사 4단계 학위취득종합시험에서 통합컴퓨터시스템 과목이 차지하는 위치와 출제기준의 얼개를 정리한다",
+          "href": "/독학사/4단계/통합컴퓨터시스템/01_exam-structure",
+          "documentCount": 24,
+          "preview": "code",
+          "accent": "red"
+        },
+        {
+          "title": "국어",
+          "description": "국어국문학 4단계 학위취득 종합시험의 과목 구성, 문항 유형과 배점, 합격 기준, 효율적인 학습 전략을 정리한다",
+          "href": "/독학사/4단계/국어/01_korean-exam-overview",
+          "documentCount": 27,
+          "preview": "code",
+          "accent": "blue"
+        },
+        {
+          "title": "국사",
+          "description": "독학사 학위취득 종합시험 체계에서 국사 과목이 차지하는 위치, 시험 형태·문항수·배점, 평가영역·출제기준표를 읽는 법을 정리한다.",
+          "href": "/독학사/4단계/국사/01_exam-structure",
+          "documentCount": 24,
+          "preview": "code",
+          "accent": "green"
+        },
+        {
+          "title": "실용영어",
+          "description": "독학사 제도와 4단계 학위취득 종합시험의 구조, 실용영어 과목의 위치, 합격 기준과 시간 배분 전략을 정리한다.",
+          "href": "/독학사/4단계/실용영어/01_exam-structure",
+          "documentCount": 24,
           "preview": "code",
           "accent": "amber"
         }
@@ -345,36 +345,12 @@
       "order": "09",
       "series": [
         {
-          "title": "ADsP",
-          "description": "ADsP 3과목 50문항 구성과 합격 기준을 정확히 파악하고, R과 RStudio를 설치해 첫 코드를 실행하며 학습 전략을 세운다",
-          "href": "/자격증/ADSP/01_adsp-exam-and-r-setup",
-          "documentCount": 30,
-          "preview": "code",
+          "title": "빅데이터분석기사 필기",
+          "description": "필기 4과목 구성, 80문항 120분이라는 시험 형식, 과목당 40점·평균 60점이라는 합격 규칙이 실제 공부 순서를 어떻게 바꾸는지까지 계산으로 확인한다",
+          "href": "/자격증/빅데이터분석기사_필기/01_exam-overview",
+          "documentCount": 32,
+          "preview": "chart",
           "accent": "red"
-        },
-        {
-          "title": "PC정비사 2급 실기",
-          "description": "80분 18문항이라는 실기 시험의 실제 얼굴을 문항 유형별로 해부하고, 채점자가 무엇을 보고 점수를 주는지를 기준으로 시간 배분과 수행 태도를 설계한다",
-          "href": "/자격증/PC정비사_2급_실기/01_pc-exam-roadmap",
-          "documentCount": 17,
-          "preview": "code",
-          "accent": "blue"
-        },
-        {
-          "title": "SQLD",
-          "description": "Docker로 Oracle Database Free를 띄우고 DBeaver로 접속해 공통 실습 데이터 seed.sql을 적재하는 법을 처음부터 끝까지 안내한다",
-          "href": "/자격증/SQLD/00_practice-environment",
-          "documentCount": 31,
-          "preview": "sql",
-          "accent": "green"
-        },
-        {
-          "title": "네트워크관리사 2급 실기",
-          "description": "실기 18문제가 요구하는 최소 개념 — OSI 계층·TCP/IP·IP 주소·서브넷 마스크·게이트웨이·DNS를 시험 화면의 입력칸과 직접 연결해 이해한다",
-          "href": "/자격증/네트워크관리사_2급_실기/01_network-basics-for-practical-use",
-          "documentCount": 13,
-          "preview": "browser",
-          "accent": "amber"
         },
         {
           "title": "리눅스마스터 2급 1차",
@@ -382,14 +358,38 @@
           "href": "/자격증/리눅스마스터_2급_1차/00_practice-environment",
           "documentCount": 31,
           "preview": "code",
+          "accent": "blue"
+        },
+        {
+          "title": "네트워크관리사 2급 실기",
+          "description": "실기 18문제가 요구하는 최소 개념 — OSI 계층·TCP/IP·IP 주소·서브넷 마스크·게이트웨이·DNS를 시험 화면의 입력칸과 직접 연결해 이해한다",
+          "href": "/자격증/네트워크관리사_2급_실기/01_network-basics-for-practical-use",
+          "documentCount": 13,
+          "preview": "browser",
+          "accent": "green"
+        },
+        {
+          "title": "PC정비사 2급 실기",
+          "description": "80분 18문항이라는 실기 시험의 실제 얼굴을 문항 유형별로 해부하고, 채점자가 무엇을 보고 점수를 주는지를 기준으로 시간 배분과 수행 태도를 설계한다",
+          "href": "/자격증/PC정비사_2급_실기/01_pc-exam-roadmap",
+          "documentCount": 17,
+          "preview": "code",
+          "accent": "amber"
+        },
+        {
+          "title": "SQLD",
+          "description": "Docker로 Oracle Database Free를 띄우고 DBeaver로 접속해 공통 실습 데이터 seed.sql을 적재하는 법을 처음부터 끝까지 안내한다",
+          "href": "/자격증/SQLD/00_practice-environment",
+          "documentCount": 31,
+          "preview": "sql",
           "accent": "red"
         },
         {
-          "title": "빅데이터분석기사 필기",
-          "description": "필기 4과목 구성, 80문항 120분이라는 시험 형식, 과목당 40점·평균 60점이라는 합격 규칙이 실제 공부 순서를 어떻게 바꾸는지까지 계산으로 확인한다",
-          "href": "/자격증/빅데이터분석기사_필기/01_exam-overview",
-          "documentCount": 32,
-          "preview": "chart",
+          "title": "ADsP",
+          "description": "ADsP 3과목 50문항 구성과 합격 기준을 정확히 파악하고, R과 RStudio를 설치해 첫 코드를 실행하며 학습 전략을 세운다",
+          "href": "/자격증/ADSP/01_adsp-exam-and-r-setup",
+          "documentCount": 30,
+          "preview": "code",
           "accent": "blue"
         }
       ]

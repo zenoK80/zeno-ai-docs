@@ -1,106 +1,99 @@
 # 메뉴 구조 가이드
 
-## 원리: content 폴더 구조 = 사이트 메뉴 구조
+## 현재 구조
 
-`content/` 아래의 폴더·파일 구조가 그대로 사이트의 URL과 메뉴가 됩니다.
+헤더는 **Web / 독학사 / 자격증** 세 개다. Web과 독학사는 과목까지 3뎁스이며, 자격증은 중간 분류 없이 과목으로 이어진다. 과목 안의 개별 문서는 문서 사이드바에서 탐색한다.
 
 ```
 content/
-├── _meta.js                  ← 최상위 메뉴 (네비게이션 바)
-├── index.mdx                 ← 홈 화면
-└── [카테고리]/               ← 예: React
-    ├── _meta.js              ← 카테고리 안 과목 목록
-    └── [과목]/               ← 예: react
-        ├── _meta.js          ← 과목 안 문서 목록 (사이드바)
-        └── NN_kebab-case.mdx ← 개별 문서
+├── _meta.js
+├── index.mdx
+├── web/
+│   ├── _meta.js
+│   ├── html/
+│   │   ├── _meta.js
+│   │   ├── html_fundamentals/
+│   │   │   ├── _meta.js
+│   │   │   └── NN_document.mdx
+│   │   └── modern_html/
+│   ├── css/
+│   ├── javascript/
+│   └── react/
+├── 독학사/
+│   ├── _meta.js
+│   ├── 1단계/
+│   │   ├── _meta.js
+│   │   ├── 영어/
+│   │   ├── 일반수학/
+│   │   └── 기초통계학/
+│   ├── 2단계/
+│   ├── 3단계/
+│   └── 4단계/
+└── 자격증/
+    ├── _meta.js
+    ├── SQLD/
+    └── ...
 ```
 
-- URL: `content/react/react_1/04_jsx.mdx` → `/react/react_1/04_jsx`
-- **파일과 `_meta.js` 항목은 항상 세트입니다.** 파일만 만들면 메뉴에 나타나지 않거나 정렬이 깨지고, `_meta.js`에만 적으면 빌드가 깨집니다.
-- **폴더명 규칙**: 과목·카테고리 폴더는 `react_1`처럼 **소문자+언더스코어(_)**만 사용. 하이픈(-)이 들어가면 `_meta.js`에서 키를 따옴표로 감싸야 하고, 빠뜨리면 문법 오류로 사이트 전체가 깨집니다 (실제 사고 사례 있음). 하이픈은 **파일명**(`01_react-as-a-ui-library.mdx`)에만 씁니다.
+- Web → HTML → HTML 기본기 / 모던 HTML.
+- Web → CSS → CSS 기본기 / 모던 CSS.
+- Web → JavaScript → ECMAScript / Web APIs.
+- Web → React → React 기초 / 중급 / 실무.
+- Web → Web Platform / UI Libraries / Backend / DevOps → 준비중.
+- 독학사 → 독학사 1~4단계 → 각 단계의 과목.
+- 자격증 → 기존 자격증 과목.
 
-## `_meta.js` 2가지 형식
+## 헤더와 사이드바
 
-### 형식 1 — 최하위(과목) 폴더: key-value
+`app/components/docs-navbar.tsx`는 Nextra의 pageMap을 재귀 탐색한다. 중간 폴더는 펼침 메뉴, 실제 MDX가 있는 과목 폴더는 첫 문서 링크가 된다.
 
-파일명(확장자 제외)을 key, 사이드바 표시 제목을 value로 적습니다.
-적힌 순서가 곧 사이드바 순서입니다.
+데스크톱에서는 상단 메뉴에 호버하면 첫 드롭다운이 열리고, HTML 등의 중간 분류에 호버하면 오른쪽 과목 패널이 열린다. 버튼 클릭과 키보드도 지원한다. 아래 화살표는 첫 목록, 오른쪽 화살표는 과목 패널로 진입하고, 왼쪽 화살표와 Escape로 닫는다.
+
+모바일은 동일한 pageMap을 사용하는 Nextra 계층형 메뉴를 이용한다. 현재 반응형 기준은 1780px이며 CSS와 컴포넌트의 matchMedia를 함께 변경해야 한다. CSS 중간 폭 규칙은 문서 사이드바·목차에도 영향을 준다.
+
+## _meta.js 작성
+
+최상위와 중간 폴더는 실제 하위 폴더명에 표시 제목과 순서를 연결한다.
 
 ```js
 const meta = {
-  '01_html-css-for-react': '01. HTML·CSS 기초',
-  '02_js-for-react': '02. React를 위한 JavaScript',
-  '03_react-overview': '03. React란?',
+  html: { title: 'HTML', type: 'page' },
+  css: { title: 'CSS', type: 'page' },
 }
 export default meta
 ```
 
-### 형식 2 — 상위(카테고리·최상위) 폴더: `type: 'menu'` + `items` + `href`
-
-최상위 `content/_meta.js`는 네비게이션 바 드롭다운 메뉴를 정의합니다.
-`href`는 그 과목의 **첫 번째 문서 전체 경로**로 지정합니다.
+과목 폴더에서는 실제 문서 파일명과 제목을 연결한다.
 
 ```js
 const meta = {
-  index: {
-    title: '홈',
-    theme: { layout: 'full', sidebar: false, toc: false },
-  },
-  React: {
-    title: 'React',
-    type: 'menu',
-    items: {
-      react: {
-        title: 'React',
-        href: '/React/react/01_html-css-for-react',
-      },
-    },
-  },
+  '01_what-is-html-and-its-role': '01. HTML은 무엇이며 어떤 역할을 하는가',
 }
 export default meta
 ```
 
-카테고리 폴더의 `_meta.js`는 과목 폴더를 `type: 'page'`로 나열합니다.
+문서가 없는 준비중 카테고리만 `type: 'menu'`와 `href: '#coming-soon'`을 사용한다. 이 가상 메뉴는 실제 폴더 없이 등록할 수 있으며, 클릭하면 알림이 표시된다. 현재 네 개의 준비중 카테고리는 `content/web/_meta.js`에서 관리한다.
 
-## 절차
+실제 과목이 생기면 가상 메뉴를 `type: 'page'`로 바꾸고 해당 폴더와 `_meta.js`, 과목 폴더와 MDX를 추가한다. 실제 페이지를 가리키는 메타 항목은 반드시 파일과 함께 유지한다.
 
-### 문서 1개 추가
+폴더명은 공백·하이픈 없이 영문 소문자·한글·언더스코어를 사용한다. 기존 `ECMAscript` 등의 폴더명은 유지한다. 문서 파일은 `NN_kebab-case.mdx` 형식을 사용한다.
 
-1. 과목 폴더에 `NN_kebab-case.mdx` 생성 (번호는 기존 순서에 맞게)
-2. 같은 폴더 `_meta.js`에 `'NN_파일명': 'NN. 제목'` 항목을 같은 위치에 추가
-3. 중간에 끼워 넣는 경우: 뒤 파일들의 번호와 `_meta.js` key·제목을 모두 밀어서 갱신
-4. 홈(`content/index.mdx`)에 과목별 문서 수가 표기되어 있으면 그 숫자도 갱신
-5. `npm run build`로 확인
+## 문서·과목 추가 및 삭제
 
-### 문서 1개 삭제
+1. 해당 경로에 실제 문서 또는 과목 폴더를 추가·이동·삭제한다.
+2. 해당 계층의 `_meta.js`에 동일한 변경을 반영한다.
+3. 내부 링크와 생성 작업의 배치 경로를 함께 확인한다.
+4. `npm run build`로 메타 검증·정적 출력·검색 인덱스를 확인한다.
+5. 브라우저에서 헤더의 오른쪽 과목 패널, 모바일 탐색, 문서와 홈 카드 링크를 확인한다.
 
-1. `.mdx` 파일 삭제
-2. `_meta.js`에서 해당 항목 삭제
-3. 뒤 파일들의 번호 당김 + 홈 문서 수 갱신 (추가와 동일)
+새 Web 과목 경로 예: `content/web/html/html_fundamentals`.
+독학사 과목 경로 예: `content/독학사/2단계/자료구조`.
+자격증 과목 경로 예: `content/자격증/SQLD`.
 
-### 과목 추가
+## 홈 카드와 기존 주소
 
-1. `content/[카테고리]/[과목]/` 폴더 생성
-2. 과목 폴더에 문서들 + 형식 1 `_meta.js` 생성
-3. 카테고리 `_meta.js`에 과목 항목 추가
-4. 최상위 `content/_meta.js`의 해당 카테고리 `items`에 `href`(첫 문서 경로) 추가
-5. 홈 화면에 과목 카드·문서 수 반영
+`scripts/gen-home-data.js`는 폴더 깊이에 관계없이 실제 MDX가 있는 과목까지 재귀 탐색한다. 과목의 바로 위 계층별로 카드를 묶고, 각 폴더의 `_meta.js` 순서와 제목을 사용한다. 첫 문서도 메타 순서를 따른다.
 
-### 과목 삭제
+설명 우선순위는 `app/components/home-overrides.json`의 과목 폴더명 키 → 첫 문서의 description → 기본 문구다. 준비중 메뉴는 실제 문서가 없으므로 홈 카드에 포함하지 않는다.
 
-과목 폴더 삭제 → 카테고리 `_meta.js` 항목 삭제 → 최상위 `_meta.js`의 `items` 항목 삭제 → 홈 반영. (역순으로 전부)
-
-### 카테고리 추가·삭제
-
-과목 절차와 동일하되, 최상위 `content/_meta.js`에 `type: 'menu'` 블록 자체를 추가·삭제합니다.
-
-**공통:** 어떤 변경이든 마지막에 `npm run build`가 통과하는지 확인하고, 새 경로로 브라우저 접속까지 확인합니다.
-
-## 홈 화면 자동 연동
-
-홈의 과목 카드는 손으로 만들지 않습니다 — `scripts/gen-home-data.js`가 `content/`를 스캔해 자동 생성합니다 (`npm run dev`/`build` 시작 시와 5단계 실행 시 갱신).
-
-- **카드 제목**: 카테고리 `_meta.js` → 최상위 `_meta.js` 메뉴 항목 → 폴더명 순으로 가져옴
-- **문서 수·시작 링크**: 폴더의 .mdx 개수와 첫 문서로 자동 계산
-- **카드 설명**: ① `app/components/home-overrides.json`에 과목 폴더명 키로 적으면 그 문구 (직접 지정) ② 없으면 첫 문서의 frontmatter description ③ 그것도 없으면 기본 문구. ※ `content/` 안에 .txt 등 잡파일을 두면 빌드가 깨지므로 오버라이드는 반드시 이 json에.
-- 과목 폴더를 지우면 카드도 다음 갱신 때 자동으로 사라집니다.
+2026-09 구조 변경의 이전 주소 매핑은 `scripts/lib/content-route-migrations.json`에 있다. `npm run build`의 postbuild에서 `scripts/export-legacy-redirects.js`가 예전 문서 주소에 이동용 HTML을 생성한다. 검색 인덱스와 사이트맵은 새 실제 문서를 사용하며, 이전 주소는 정적 배포 후 새 문서로 이동한다.

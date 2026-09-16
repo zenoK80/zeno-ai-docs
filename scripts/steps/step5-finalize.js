@@ -25,7 +25,7 @@ function resolveContentPath(opts, toc) {
   if (opts.path) {
     const p = opts.path.trim().replace(/\\/g, '/').replace(/\/$/, '')
     if (!/^content\//.test(p)) {
-      throw new Error(`경로는 content/ 로 시작해야 합니다: "${opts.path}" (예: content/react/react_1)`)
+      throw new Error(`경로는 content/ 로 시작해야 합니다: "${opts.path}" (예: content/web/react/react_1)`)
     }
     console.log(`  배치 경로(작업지시서 지정): ${p}`)
     return p

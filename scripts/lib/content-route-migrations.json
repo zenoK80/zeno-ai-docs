@@ -1,0 +1,10 @@
+{
+  "html": "web/html",
+  "css": "web/css",
+  "javascript": "web/javascript",
+  "react": "web/react",
+  "독학사1": "독학사/1단계",
+  "독학사2": "독학사/2단계",
+  "독학사3": "독학사/3단계",
+  "독학사4": "독학사/4단계"
+}

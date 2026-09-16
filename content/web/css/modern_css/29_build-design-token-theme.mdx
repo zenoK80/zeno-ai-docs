@@ -1,0 +1,338 @@
+---
+title: '29. 종합 실습 1: 색 토큰과 다크모드 테마 시스템'
+description: 'oklch·color-mix()·light-dark()·@property를 조합해 라이트/다크를 동시에 지원하는 디자인 토큰 시스템을 처음부터 끝까지 직접 만든다'
+---
+
+<Callout type="info">
+  **이번 문서의 목표:** 이 실습을 끝내면 `oklch` 기반 브랜드 색 하나에서 `color-mix()`로 파생 색을 계산하고, `light-dark()`와 `color-scheme`으로 라이트/다크를 동시에 지원하며, `@property`로 애니메이션 가능한 커스텀 속성까지 갖춘 색 토큰 시스템을 처음부터 끝까지 직접 만들 수 있게 됩니다.
+</Callout>
+
+## 이 실습에서 하나로 모으는 것
+
+지금까지 15편에서 색 공간이 `hsl`에서 `oklch`로 바뀐 이유를, 16편에서 `color-mix()`로 색을 섞는 문법을, 17편에서 `light-dark()`와 `color-scheme`을, 13·14편에서 커스텀 속성과 `@property`를 각각 따로 배웠습니다. 이번 편은 그 네 조각을 실제 프로젝트에서 쓰는 순서대로 이어 붙여 하나의 **디자인 토큰**(design token, 디자인을 값 단위로 쪼갠 것) 시스템을 만듭니다.
+
+디자인 토큰이란 색·간격·글자 크기처럼 디자인을 이루는 값 하나하나를 이름 붙은 변수로 만들어 관리하는 방식입니다. `#3366ff` 같은 값을 컴포넌트마다 직접 적는 대신 `--color-brand`라는 이름을 한 번 정의해 두고 어디서나 그 이름을 부릅니다. 이렇게 하면 브랜드 색 하나만 바꿔도 전체 화면이 따라 바뀌고, 라이트/다크 모드 전환도 값 하나를 뒤집는 문제로 줄어듭니다.
+
+> **쉽게 말하면:** 토큰 시스템은 페인트 회사의 "색상 코드표"입니다. 벽마다 페인트 통을 새로 사 오는 대신, 코드표에 적힌 번호(`--color-brand`)만 부르면 항상 같은 색이 나옵니다. 그 코드표 자체를 밝은 버전·어두운 버전 두 벌 만들어 두는 것이 다크모드 대응입니다.
+
+## 준비 — CSS Fundamentals에서 이미 안다고 전제하는 것
+
+이 실습은 커스텀 속성 문법 자체(`--이름: 값`, `var()`)와 캐스케이드·상속 기본 규칙을 이미 안다고 전제합니다. 처음 보는 개념이라면 `content/web/css/css_fundamentals`를 먼저 확인하세요. 여기서는 그 위에서 "토큰을 어떻게 계산하고 전환하는가"만 다룹니다.
+
+## 구현 절차
+
+<Steps>
+
+1. **기준 브랜드 색을 `oklch()`로 정의한다**: 색상(hue, 색상환의 각도)·채도(chroma)·명도(lightness) 세 축으로 브랜드 색 하나를 잡는다. `hsl`과 달리 같은 명도값이 실제로도 눈에 비슷한 밝기로 보인다는 것이 핵심 근거다(15편).
+2. **`color-mix()`로 파생 색을 계산식으로 만든다**: 진한 버전·연한 버전·테두리색을 각각 `#`값으로 새로 고르지 않고, 기준 색에 검정·흰색을 섞는 비율로 계산한다. 브랜드 색 하나만 바꾸면 파생 색 전부가 따라 바뀐다.
+3. **`light-dark()`와 `color-scheme`으로 배경·글자색을 라이트/다크 한 쌍으로 묶는다**: 값을 두 벌 따로 관리하지 않고 한 선언 안에 라이트용·다크용을 함께 적는다.
+4. **`@property`로 애니메이션이 필요한 토큰에 타입을 준다**: 색상 각도(hue)처럼 트랜지션이 걸려야 하는 숫자 커스텀 속성은 `@property`로 등록해야 브라우저가 중간값을 계산할 수 있다(14편 원리 재사용).
+5. **테마 전환 스위치를 `color-scheme` 오버라이드로 구현한다**: 시스템 설정(`prefers-color-scheme`)을 기본값으로 따르되, 사용자가 버튼을 누르면 `:root`의 `color-scheme`을 강제로 바꿔 `light-dark()`가 즉시 반응하게 한다.
+
+</Steps>
+
+## 1단계 — 기준 색과 파생 색 계산
+
+브랜드 색을 색상·채도·명도 세 숫자로 쪼개 커스텀 속성에 담아 두면, 나중에 색조만 슬쩍 바꾸는 실험이 훨씬 쉬워집니다. 아래 표는 `oklch`의 세 인자가 각각 무엇을 뜻하는지 정리한 것입니다.
+
+| 인자 | 뜻 | 예시 값 |
+|------|------|---------|
+| 명도(lightness) | 0퍼센트(검정)부터 100퍼센트(흰색)까지 | 60% |
+| 채도(chroma) | 색의 선명함 정도, 보통 0부터 0.4 사이 | 0.15 |
+| 색상(hue) | 0도부터 360도까지의 색상환 각도 | 250 |
+
+```css
+:root {
+  /* 1단계 — 브랜드 색의 세 축을 각각 커스텀 속성으로 분리 */
+  --brand-hue: 250;
+  --brand-chroma: 0.15;
+  --brand-lightness: 62%;
+  --color-brand: oklch(var(--brand-lightness) var(--brand-chroma) var(--brand-hue));
+
+  /* 2단계 — color-mix()로 파생 색을 "계산식"으로 만든다 */
+  --color-brand-strong: color-mix(in oklch, var(--color-brand) 75%, black);
+  --color-brand-subtle: color-mix(in oklch, var(--color-brand) 20%, white);
+  --color-brand-border: color-mix(in oklch, var(--color-brand) 40%, transparent);
+}
+```
+
+`color-mix()`의 첫 인자 `in oklch`는 "어느 색 공간에서 섞을 것인가"를 지정합니다. 같은 두 색이라도 `in srgb`로 섞을 때와 `in oklch`로 섞을 때 중간색이 다르게 나옵니다. `oklch`는 지각적으로 균일하도록 설계된 공간이라, 중간값이 눈에 보기에도 실제로 "딱 중간"에 가깝게 나온다는 것이 16편에서 다룬 핵심입니다.
+
+<Callout type="warning">
+  **자주 틀리는 점:** `color-mix()`는 "널리 사용 가능"(2023-05 Baseline widely available) 상태지만, 상대 색 문법(`from` 키워드로 기존 색을 변형하는 문법)은 **최신 브라우저 기준**으로 세부 기능별 지원 편차가 있습니다(16편). 이번 실습은 지원이 넓은 `color-mix()`만 사용합니다.
+</Callout>
+
+## 2단계 — light-dark()로 라이트/다크를 한 선언에 담기
+
+`light-dark()`는 인자 두 개를 받아 "라이트 모드일 때 첫 번째, 다크 모드일 때 두 번째"를 돌려주는 함수입니다. 이 함수가 어떤 값을 돌려줄지는 그 요소에 적용된 `color-scheme` 값을 따릅니다.
+
+```css
+:root {
+  /* 이 요소가 라이트/다크 둘 다 지원한다고 브라우저에 알린다 */
+  color-scheme: light dark;
+
+  --color-surface: light-dark(oklch(98% 0.01 250), oklch(22% 0.02 250));
+  --color-surface-raised: light-dark(oklch(100% 0 0), oklch(28% 0.02 250));
+  --color-text: light-dark(oklch(25% 0.02 250), oklch(95% 0.01 250));
+  --color-text-muted: light-dark(oklch(45% 0.02 250), oklch(75% 0.01 250));
+}
+
+body {
+  background: var(--color-surface);
+  color: var(--color-text);
+}
+```
+
+`color-scheme: light dark`는 "둘 다 준비돼 있으니 사용자 운영체제 설정(`prefers-color-scheme`)을 따르라"는 선언입니다. `light-dark()`(2024-05 Baseline newly available)는 아직 오래된 브라우저에서는 동작하지 않으므로, 지원하지 않는 환경을 위한 대비는 3단계 표에서 다시 정리합니다.
+
+| 방식 | 코드량 | 전환 시점 | 비고 |
+|------|--------|-----------|------|
+| `prefers-color-scheme` 미디어 쿼리로 값 두 벌 작성 | 변수마다 두 블록 필요 | OS 설정 변경 시 | 널리 사용 가능, 자바스크립트 토글은 별도 구현 필요 |
+| `light-dark()` + `color-scheme` | 변수 선언 한 줄 | OS 설정 또는 `color-scheme` 오버라이드 즉시 | 최신 브라우저 기준(2024-05 이후), 자바스크립트 토글이 자연스럽다 |
+
+## 3단계 — @property로 애니메이션 가능한 토큰 만들기
+
+일반 커스텀 속성은 브라우저가 "그냥 텍스트"로 취급하기 때문에, 값이 바뀌어도 중간 단계를 계산하지 못해 트랜지션이 걸리지 않습니다. `@property`로 타입을 알려주면 이 문제가 풀립니다(14편에서 다룬 원리).
+
+```css
+@property --brand-hue {
+  syntax: "<number>";
+  inherits: true;
+  initial-value: 250;
+}
+
+.hue-demo {
+  background: oklch(60% 0.15 var(--brand-hue));
+  transition: --brand-hue 600ms ease;
+}
+
+.hue-demo:hover {
+  --brand-hue: 340;
+}
+```
+
+`syntax` 서술어(descriptor)는 "이 값이 숫자다"라고 못박는 역할을 합니다. `inherits`는 자식 요소가 이 값을 물려받을지, `initial-value`는 아무도 값을 정하지 않았을 때의 기본값입니다. 이 세 가지가 갖춰져야 브라우저가 250에서 340까지 색상 각도를 부드럽게 계산하며 넘어갈 수 있습니다.
+
+<Callout type="warning">
+  **자주 틀리는 점:** `@property`는 **최신 브라우저 기준**(2024-07 Baseline newly available) 기능입니다. 지원하지 않는 브라우저는 `@property` 블록 자체를 무시하고 `--brand-hue`를 여전히 문자열로 취급하므로, 트랜지션은 그냥 즉시 값이 바뀌는 것으로 대체됩니다. 레이아웃이 깨지지는 않으므로 안전한 점진적 향상입니다.
+</Callout>
+
+## 완성 코드 — 값을 바꿔서 확인하기
+
+아래 실습기에서 `styles.css`의 `--brand-hue`, `--brand-chroma` 값을 바꾸거나, 버튼을 눌러 테마를 전환해 보세요. 브랜드 색 하나만 고쳐도 진한 색·연한 색·테두리색이 전부 같은 계산식을 따라 함께 바뀌는 것과, 라이트/다크 전환이 배경·글자·카드색을 한 번에 뒤집는 것을 확인할 수 있습니다.
+
+<CodePlayground
+  template="static"
+  activeFile="/styles.css"
+  label="색 토큰 + 다크모드 전환 — brand-hue 값을 바꾸거나 테마 버튼을 눌러보세요"
+  files={{
+    '/index.html': `<!doctype html>
+<html lang="ko">
+<head>
+  <meta charset="utf-8" />
+  <link rel="stylesheet" href="styles.css" />
+</head>
+<body>
+  <main class="card">
+    <button id="toggle" type="button">테마 전환</button>
+    <h1>색 토큰 데모</h1>
+    <p class="muted">brand-hue, brand-chroma 값을 styles.css에서 바꿔보세요.</p>
+    <div class="swatch-row">
+      <span class="swatch strong">strong</span>
+      <span class="swatch base">brand</span>
+      <span class="swatch subtle">subtle</span>
+    </div>
+  </main>
+  <script src="index.js"></script>
+</body>
+</html>`,
+    '/styles.css': `:root {
+  color-scheme: light dark;
+
+  /* 1단계 — 브랜드 색의 세 축 */
+  --brand-hue: 250;
+  --brand-chroma: 0.15;
+  --brand-lightness: 62%;
+  --color-brand: oklch(var(--brand-lightness) var(--brand-chroma) var(--brand-hue));
+
+  /* 2단계 — 파생 색 계산 */
+  --color-brand-strong: color-mix(in oklch, var(--color-brand) 75%, black);
+  --color-brand-subtle: color-mix(in oklch, var(--color-brand) 20%, white);
+  --color-brand-border: color-mix(in oklch, var(--color-brand) 40%, transparent);
+
+  /* 3단계 — 라이트/다크 표면·글자색 */
+  --color-surface: light-dark(oklch(98% 0.01 250), oklch(22% 0.02 250));
+  --color-text: light-dark(oklch(25% 0.02 250), oklch(95% 0.01 250));
+  --color-text-muted: light-dark(oklch(45% 0.02 250), oklch(75% 0.01 250));
+}
+
+/* 사용자가 버튼으로 강제 전환할 때만 이 선택자가 이긴다 */
+:root[data-theme="light"] { color-scheme: light; }
+:root[data-theme="dark"] { color-scheme: dark; }
+
+@property --brand-hue {
+  syntax: "<number>";
+  inherits: true;
+  initial-value: 250;
+}
+
+* { box-sizing: border-box; }
+
+body {
+  margin: 0;
+  min-height: 100vh;
+  display: grid;
+  place-items: center;
+  background: var(--color-surface);
+  color: var(--color-text);
+  font-family: system-ui, sans-serif;
+  transition: background 300ms ease, color 300ms ease;
+}
+
+.card {
+  width: min(420px, 90vw);
+  padding: 1.5rem;
+  border-radius: 12px;
+  border: 1px solid var(--color-brand-border);
+  background: color-mix(in oklch, var(--color-surface) 92%, var(--color-brand) 8%);
+}
+
+.muted { color: var(--color-text-muted); }
+
+.swatch-row { display: flex; gap: 0.5rem; margin-top: 1rem; }
+
+.swatch {
+  flex: 1;
+  padding: 0.75rem 0.25rem;
+  border-radius: 8px;
+  text-align: center;
+  font-size: 0.8rem;
+  color: white;
+  transition: --brand-hue 400ms ease;
+}
+
+.swatch.strong { background: var(--color-brand-strong); }
+.swatch.base { background: var(--color-brand); }
+.swatch.subtle { background: var(--color-brand-subtle); color: var(--color-text); }
+
+#toggle {
+  border: 1px solid var(--color-brand-border);
+  background: transparent;
+  color: inherit;
+  padding: 0.4rem 0.8rem;
+  border-radius: 999px;
+  cursor: pointer;
+}`,
+    '/index.js': `const 루트 = document.documentElement;
+const 버튼 = document.getElementById("toggle");
+
+버튼.addEventListener("click", () => {
+  const 현재 = 루트.dataset.theme === "dark" ? "light" : "dark";
+  루트.dataset.theme = 현재;
+  버튼.textContent = 현재 === "dark" ? "라이트로 전환" : "다크로 전환";
+});`,
+  }}
+/>
+
+`data-theme` 속성이 없을 때는 `:root { color-scheme: light dark }`가 그대로 적용되어 운영체제 설정을 따르고, 버튼을 누르면 `:root[data-theme="light"]` 또는 `["dark"]` 선택자가 `color-scheme`을 강제로 덮어써 `light-dark()`가 즉시 다른 값을 돌려줍니다. 명시도로 보면 속성 선택자(`[data-theme="dark"]`)가 요소 선택자(`:root`)보다 높아 항상 이깁니다 — 03·04편에서 다룬 캐스케이드 규칙이 여기서도 그대로 작동합니다.
+
+## 접근성 — 대비와 사용자 선호
+
+색 토큰을 설계할 때 명도값만 대충 정하면 텍스트 대비(contrast, 배경과 글자색의 밝기 차이)가 기준에 못 미쳐 저시력 사용자가 읽기 어려워질 수 있습니다. `--color-text`와 `--color-surface`를 정할 때는 명도 차이를 충분히 벌려야 합니다(일반 텍스트 기준 WCAG 최소 대비 4.5대1). 또한 `prefers-contrast: more`를 감지해 대비를 더 벌린 토큰 세트를 추가로 준비하면 좋습니다. 이 미디어 기능은 26편에서 자세히 다룹니다.
+
+## 핵심 정리
+
+- 브랜드 색을 명도·채도·색상 세 숫자로 쪼개 `oklch()`에 담고, 파생 색은 `color-mix()`로 계산식화하면 브랜드 색 하나만 바꿔도 시스템 전체가 따라간다.
+- `light-dark()`는 `color-scheme` 값을 따라 두 값 중 하나를 돌려준다. `:root`에 `color-scheme`을 강제로 덮어써 자바스크립트 없이도(속성 선택자만으로) 즉시 반응하는 테마 스위치를 만들 수 있다.
+- `@property`로 `syntax`·`inherits`·`initial-value`를 지정한 커스텀 속성만 트랜지션 중간값을 계산할 수 있다. 지원하지 않는 브라우저에서는 조용히 즉시 전환으로 대체되는 안전한 향상이다.
+- `color-mix()`·`light-dark()`·`@property`는 각각 널리 사용 가능, 최신 브라우저 기준, 최신 브라우저 기준으로 지원 수준이 다르다. 상태를 뭉뚱그리지 않고 매번 확인하는 습관이 이 과목 전체의 태도다.
+
+## 마무리 복습
+
+<Quiz
+  questionNumber={1}
+  question="oklch 색 공간이 hsl보다 색 토큰 설계에 유리한 핵심 이유는 무엇인가?"
+  options={['파일 용량이 더 작아서', '같은 명도 값이면 실제로도 비슷한 밝기로 지각되는 균일성 때문에', '오래된 브라우저에서도 항상 동작해서', '색상 각도를 0에서 100 사이로 단순화해서']}
+  correctAnswer={2}
+  explanation="oklch는 지각적 균일성을 갖도록 설계되어 같은 명도 값이면 색상이 달라도 눈에 비슷한 밝기로 보인다. hsl의 명도는 이 균일성이 없어 같은 숫자라도 색마다 실제 밝기가 다르게 느껴진다."
+  optionExplanations={['색 공간 선택은 파일 용량과 무관하다', '정답 — 지각적 균일성이 oklch 채택의 핵심 근거다', '오래된 브라우저 지원 여부는 별개의 문제다', '색상 각도는 hsl과 동일하게 0에서 360도를 쓴다']}
+/>
+
+<Quiz
+  questionNumber={2}
+  question="color-mix(in oklch, var(--color-brand) 75%, black) 선언에서 in oklch가 하는 역할은?"
+  options={['혼합 결과를 저장할 변수 이름을 지정한다', '두 색을 섞을 때 계산에 사용할 색 공간을 지정한다', '브라우저 지원 여부를 확인하는 조건문이다', '색상 각도를 고정값으로 강제한다']}
+  correctAnswer={2}
+  explanation="color-mix()의 첫 인자는 혼합 계산이 이뤄질 색 공간이다. 같은 두 색이라도 어느 공간에서 섞느냐에 따라 중간 결과가 달라진다."
+  optionExplanations={['변수 이름은 별도의 커스텀 속성 선언에서 정해진다', '정답 — 혼합 계산의 기준 색 공간을 지정하는 인자다', '@supports처럼 조건을 검사하는 문법이 아니다', '색상 각도는 첫 인자가 아니라 결과값 전체에 영향을 줄 뿐 고정하지 않는다']}
+/>
+
+<Quiz
+  questionNumber={3}
+  question="light-dark(A, B) 함수가 A와 B 중 무엇을 반환할지 결정하는 기준은?"
+  options={['미디어 쿼리 min-width 값', '해당 요소에 적용된 color-scheme 값', 'CSS 파일이 로드된 순서', '브라우저 창의 가로세로 비율']}
+  correctAnswer={2}
+  explanation="light-dark()는 요소에 적용된 color-scheme 속성값(light 또는 dark, 혹은 이를 통해 반영되는 prefers-color-scheme)을 기준으로 두 인자 중 하나를 고른다."
+  optionExplanations={['min-width는 뷰포트 폭을 보는 미디어 쿼리이며 light-dark와 무관하다', '정답 — color-scheme 값이 반환 결과를 결정한다', '로드 순서는 캐스케이드 우선순위 문제이지 light-dark의 동작 기준이 아니다', '종횡비는 색 함수의 판단 기준이 아니다']}
+/>
+
+<Quiz
+  questionNumber={4}
+  question="다음 중 자바스크립트 없이 CSS 선택자만으로 강제 다크모드 전환을 만들 때 사용한 방식은?"
+  options={['미디어 쿼리 prefers-reduced-motion 감지', 'root 요소의 data-theme 속성값에 따라 color-scheme을 다르게 선언', '뷰 전환 API의 startViewTransition 호출', 'CSS 애니메이션 keyframes로 배경색을 반복 순환']}
+  correctAnswer={2}
+  explanation="root의 data-theme 속성값에 따른 속성 선택자로 color-scheme 값을 덮어써, 사용자가 버튼으로 data-theme 속성만 바꾸면 light-dark()가 즉시 반응하게 만들었다."
+  optionExplanations={['모션 선호 감지는 다른 접근성 기능이며 테마 전환과는 별개다', '정답 — 속성 선택자로 color-scheme을 덮어쓰는 방식이다', '뷰 전환 API는 이번 실습 범위가 아니며 31편에서 다룬다', '반복 순환 애니메이션은 테마 고정 전환과 다른 용도다']}
+/>
+
+<Quiz
+  questionNumber={5}
+  question="@property로 --brand-hue를 등록할 때 syntax 서술어에 숫자 타입을 지정하는 것이 하는 역할은?"
+  options={['이 속성이 상속되는지 여부를 결정한다', '이 속성의 초기값을 지정한다', '이 속성의 값이 숫자 타입임을 브라우저에 알려 트랜지션 중간값 계산을 가능하게 한다', '이 속성을 미디어 쿼리 조건으로 사용할 수 있게 한다']}
+  correctAnswer={3}
+  explanation="syntax 서술어는 값의 타입을 규정한다. 숫자로 등록되면 브라우저가 시작값과 끝값 사이의 중간값을 계산할 수 있어 트랜지션·애니메이션이 가능해진다."
+  optionExplanations={['상속 여부는 inherits 서술어가 결정한다', '초기값은 initial-value 서술어가 결정한다', '정답 — 타입 지정이 애니메이션 가능 여부를 가른다', '미디어 쿼리 조건과는 무관한 서술어다']}
+/>
+
+<Quiz
+  questionNumber={6}
+  question="@property를 지원하지 않는 오래된 브라우저에서 --brand-hue에 transition을 걸면 어떤 일이 일어나는가?"
+  options={['페이지 렌더링이 중단되고 오류가 표시된다', '@property 블록이 무시되고 값이 즉시(중간 단계 없이) 바뀐다', 'oklch 색 자체가 표시되지 않는다', '브랜드 색이 항상 검정으로 고정된다']}
+  correctAnswer={2}
+  explanation="지원하지 않는 브라우저는 @property 규칙 자체를 이해하지 못해 건너뛴다. 커스텀 속성은 여전히 문자열로 취급되어 중간값을 계산하지 못하므로 트랜지션 없이 값이 즉시 바뀐다."
+  optionExplanations={['CSS의 알 수 없는 규칙은 조용히 무시될 뿐 오류를 내지 않는다', '정답 — 안전하게 즉시 전환으로 대체되는 점진적 향상이다', 'oklch 지원 여부는 @property 지원과 별개의 문제다', '값이 고정되는 것이 아니라 트랜지션만 사라진다']}
+/>
+
+<Quiz
+  questionNumber={7}
+  question="color-mix()와 light-dark()의 2026년 9월 기준 지원 상태를 올바르게 짝지은 것은?"
+  options={['둘 다 제한적·실험적이다', 'color-mix()는 널리 사용 가능, light-dark()는 최신 브라우저 기준이다', 'color-mix()는 최신 브라우저 기준, light-dark()는 제한적이다', '둘 다 널리 사용 가능한 지 5년이 넘었다']}
+  correctAnswer={2}
+  explanation="color-mix()는 2023-05에 Baseline widely available에 도달했고, light-dark()는 2024-05에 Baseline newly available에 진입한 비교적 최신 기능이다."
+  optionExplanations={['color-mix()는 이미 널리 사용 가능한 상태다', '정답 — 두 기능의 Baseline 도달 시점이 다르다', 'color-mix()가 더 먼저 널리 사용 가능해졌다', 'light-dark()는 2024년에 막 newly available에 도달했다']}
+/>
+
+<Quiz
+  questionNumber={8}
+  question="디자인 토큰 시스템에서 색을 #16진수 값으로 컴포넌트마다 직접 적지 않고 커스텀 속성 이름으로 참조하는 이유로 가장 알맞은 것은?"
+  options={['커스텀 속성이 16진수 값보다 파일 용량이 작아서', '브랜드 색 하나를 바꾸면 그 이름을 참조하는 모든 곳이 함께 바뀌도록 하기 위해', '커스텀 속성만 애니메이션이 가능해서', '16진수 값은 문법 오류를 일으켜서']}
+  correctAnswer={2}
+  explanation="토큰화의 목적은 값 하나의 변경이 전체 시스템에 일관되게 반영되도록 하는 것이다. 이것이 색상 코드표를 만드는 이유와 같다."
+  optionExplanations={['용량 차이는 무시할 수준이며 토큰화의 목적이 아니다', '정답 — 한 곳을 고치면 전체가 따라 바뀌는 일관성이 목적이다', '16진수 값도 @property로 등록하면 조건부로 애니메이션이 가능하다', '16진수 값 자체는 유효한 CSS 문법이다']}
+/>
+
+<Quiz
+  questionNumber={9}
+  question="접근성 관점에서 --color-text와 --color-surface 토큰을 설계할 때 반드시 확인해야 하는 것은?"
+  options={['두 색의 색상(hue) 각도가 정확히 180도 차이가 나는지', '두 색의 명도 차이가 충분해 텍스트 대비 기준을 만족하는지', '두 색 모두 채도가 0.2 이상인지', '두 색이 같은 oklch 색 공간에서 정의됐는지 여부만']}
+  correctAnswer={2}
+  explanation="텍스트 가독성은 배경과 글자색의 명도 대비로 결정된다. 색상 각도나 채도가 아니라 밝기 차이가 대비 기준(WCAG)의 핵심이다."
+  optionExplanations={['색상 각도 차이는 대비 기준과 직접 관련이 없다', '정답 — 명도 차이가 대비 기준을 좌우한다', '채도 값 자체가 대비를 보장하지 않는다', '같은 색 공간에서 정의됐는지는 대비와 무관하다']}
+/>
+
+## 참고 자료
+
+- [MDN - oklch()](https://developer.mozilla.org/en-US/docs/Web/CSS/color_value/oklch)
+- [MDN - color-mix()](https://developer.mozilla.org/en-US/docs/Web/CSS/color_value/color-mix)
+- [MDN - light-dark()](https://developer.mozilla.org/en-US/docs/Web/CSS/color_value/light-dark)
+- [MDN - @property](https://developer.mozilla.org/en-US/docs/Web/CSS/@property)

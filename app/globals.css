@@ -164,7 +164,7 @@ article table {
   position: absolute;
   top: 100%;
   left: 0;
-  width: 176px;
+  width: 204px;
   padding-top: 4px;
   opacity: 0;
   visibility: hidden;
@@ -172,8 +172,7 @@ article table {
   transform: translateY(-4px);
   transition:
     opacity 120ms ease,
-    transform 120ms ease,
-    visibility 120ms ease;
+    transform 120ms ease;
 }
 
 .docs-navbar-group[data-open='true'] .docs-navbar-panel {
@@ -194,6 +193,66 @@ article table {
 .docs-navbar-panel-links {
   display: grid;
   gap: 1px;
+}
+
+.docs-navbar-trigger,
+.docs-navbar-branch-trigger {
+  cursor: pointer;
+  text-align: left;
+}
+
+.docs-navbar-branch {
+  position: relative;
+}
+
+.docs-navbar-branch-trigger {
+  width: 100%;
+  justify-content: space-between;
+  gap: 16px;
+}
+
+.docs-navbar-side-chevron {
+  flex: none;
+  width: 7px;
+  height: 7px;
+  border-top: 1.5px solid currentColor;
+  border-right: 1.5px solid currentColor;
+  transform: rotate(45deg);
+}
+
+.docs-navbar-submenu {
+  position: absolute;
+  z-index: 1;
+  top: -6px;
+  left: 100%;
+  width: 244px;
+  padding-left: 6px;
+  visibility: hidden;
+  opacity: 0;
+  pointer-events: none;
+}
+
+.docs-navbar-branch[data-open='true'] > .docs-navbar-submenu {
+  visibility: visible;
+  opacity: 1;
+  pointer-events: auto;
+}
+
+.docs-navbar-submenu-inner {
+  max-height: min(480px, 70vh);
+  overflow-y: auto;
+}
+
+.docs-navbar-trigger[data-active='true'],
+.docs-navbar-panel-link[data-active='true'],
+.docs-navbar-branch[data-open='true'] > .docs-navbar-panel-link {
+  color: var(--x-color-primary-600);
+}
+
+.docs-navbar-trigger:focus-visible,
+.docs-navbar-panel-link:focus-visible {
+  outline: 2px solid var(--x-color-primary-600);
+  outline-offset: -2px;
 }
 
 .docs-navbar-panel-link {
@@ -442,13 +501,6 @@ html.dark .docs-navbar-panel-link[aria-current='page'] {
 
 html.dark .docs-navbar-panel-inner {
   box-shadow: 0 18px 42px rgb(0 0 0 / 36%);
-}
-
-/* 긴 메뉴명 10개와 검색·테마 도구가 1780px에서도 한 줄에 들어가도록 한다. */
-@media (1780px <= width < 1940px) {
-  .docs-navbar-trigger {
-    padding-inline: 8px;
-  }
 }
 
 /* 1780px 미만에서는 Nextra 모바일 내비게이션을 사용한다. */

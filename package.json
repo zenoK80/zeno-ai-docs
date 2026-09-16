@@ -8,7 +8,7 @@
     "prebuild": "node scripts/gen-home-data.js",
     "build": "next build",
     "start": "next start",
-    "postbuild": "pagefind --site .next/server/app --output-path out/_pagefind",
+    "postbuild": "pagefind --site .next/server/app --output-path out/_pagefind && node scripts/export-legacy-redirects.js",
     "lint": "eslint"
   },
   "dependencies": {

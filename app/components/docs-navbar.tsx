@@ -89,7 +89,30 @@ function getNavGroups(pageMap: PageMapItem[]): NavGroup[] {
   const groups: NavGroup[] = []
 
   for (const item of pageMap) {
-    if (!isFolder(item) || isHidden(item.name, rootMeta)) continue
+    if (!('name' in item) || isHidden(item.name, rootMeta)) continue
+
+    // Nextra는 실제 폴더가 없는 type: 'menu' 항목도 pageMap에 포함한다.
+    // 준비중 메뉴도 _meta.js의 제목·링크·순서를 그대로 사용한다.
+    if (!isFolder(item)) {
+      const meta = rootMeta[item.name] as {
+        title?: string
+        type?: string
+        items?: Record<string, { title?: string; href?: string }>
+      } | undefined
+      if (meta?.type !== 'menu' || !meta.items) continue
+      const items: NavItem[] = Object.entries(meta.items).flatMap(([name, link]) =>
+        link.href ? [{ title: link.title ?? name, href: link.href, section: link.href }] : [],
+      )
+      if (items.length) {
+        groups.push({
+          title: meta.title ?? item.name,
+          href: items[0].href,
+          section: `/${item.name}`,
+          items,
+        })
+      }
+      continue
+    }
 
     const href = firstPageRoute(item)
     if (!href) continue
@@ -127,8 +150,8 @@ export function DocsNavbar({ pageMap }: { pageMap: PageMapItem[] }) {
   const [openMenu, setOpenMenu] = useState<string | null>(null)
 
   useEffect(() => {
-    // 커스텀 헤더와 문서 내비게이션의 모바일 전환 기준을 1080px로 맞춘다.
-    const mediaQuery = window.matchMedia('(min-width: 1081px)')
+    // 1780px부터 전체 헤더와 데스크톱 문서 내비게이션을 표시한다.
+    const mediaQuery = window.matchMedia('(min-width: 1780px)')
 
     // Nextra Collapse(horizontal)는 사이드바 remount 시 inline width를 px로 고정하는데,
     // 모바일 폭에서는 데스크톱 사이드바가 display:none이라 clientWidth가 0으로 측정되어
@@ -163,6 +186,23 @@ export function DocsNavbar({ pageMap }: { pageMap: PageMapItem[] }) {
       mediaQuery.removeEventListener('change', handleDesktopChange)
       window.removeEventListener('resize', handleDesktopChange)
     }
+  }, [])
+
+  useEffect(() => {
+    // 커스텀 헤더와 Nextra 모바일 메뉴의 준비중 링크를 함께 처리한다.
+    function handleComingSoon(event: globalThis.MouseEvent) {
+      if (!(event.target instanceof Element)) return
+      const link = event.target.closest('a')
+      if (link?.getAttribute('href') !== '#coming-soon') return
+      event.preventDefault()
+      event.stopPropagation()
+      setOpenMenu(null)
+      setMenu(false)
+      window.alert('준비중입니다.')
+    }
+
+    document.addEventListener('click', handleComingSoon, true)
+    return () => document.removeEventListener('click', handleComingSoon, true)
   }, [])
 
   function closeMenu(event?: MouseEvent<HTMLAnchorElement>) {

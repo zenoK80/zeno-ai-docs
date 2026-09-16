@@ -1,0 +1,54 @@
+[
+  {
+    "id": 1,
+    "title": "ECMAScript 03편 실습 끝내기",
+    "done": true,
+    "tags": [
+      "study"
+    ],
+    "due": "2026-09-18",
+    "createdAt": "2026-09-15T09:00:00+09:00"
+  },
+  {
+    "id": 2,
+    "title": "포트폴리오 프로젝트 카드 6개 채우기",
+    "done": false,
+    "tags": [
+      "portfolio",
+      "html"
+    ],
+    "due": "2026-09-20",
+    "createdAt": "2026-09-15T10:30:00+09:00"
+  },
+  {
+    "id": 3,
+    "title": "todo-cli에 검색 명령 추가",
+    "done": false,
+    "tags": [
+      "study",
+      "node"
+    ],
+    "due": "2026-09-22",
+    "createdAt": "2026-09-16T08:10:00+09:00"
+  },
+  {
+    "id": 4,
+    "title": "운동 30분",
+    "done": false,
+    "tags": [
+      "health"
+    ],
+    "due": null,
+    "createdAt": "2026-09-16T07:00:00+09:00"
+  },
+  {
+    "id": 5,
+    "title": "독서 기록 앱 별점 기능",
+    "done": true,
+    "tags": [
+      "react"
+    ],
+    "due": "2026-09-14",
+    "createdAt": "2026-09-12T20:00:00+09:00"
+  }
+]

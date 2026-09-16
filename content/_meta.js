@@ -113,113 +113,131 @@ const meta = {
       },
     },
   },
-  독학사: {
-    title: '독학사',
+  독학사1: {
+    title: '독학사 1단계',
     type: 'menu',
     items: {
-      '1단계_영어': {
-        title: '1단계 영어',
-        href: '/독학사/1단계_영어/01_exam-structure',
+      '영어': {
+        title: '영어',
+        href: '/독학사1/영어/01_exam-structure',
       },
-      '1단계_일반수학': {
-        title: '1단계 일반수학',
-        href: '/독학사/1단계_일반수학/01_math-language',
+      '일반수학': {
+        title: '일반수학',
+        href: '/독학사1/일반수학/01_math-language',
       },
-      '1단계_기초통계학': {
-        title: '1단계 기초통계학',
-        href: '/독학사/1단계_기초통계학/01_exam-overview',
+      '기초통계학': {
+        title: '기초통계학',
+        href: '/독학사1/기초통계학/01_exam-overview',
       },
-      '2단계_C프로그래밍': {
-        title: '2단계 C프로그래밍',
-        href: '/독학사/2단계_C프로그래밍/01_exam-structure',
+    },
+  },
+  독학사2: {
+    title: '독학사 2단계',
+    type: 'menu',
+    items: {
+      'C프로그래밍': {
+        title: 'C프로그래밍',
+        href: '/독학사2/C프로그래밍/01_exam-structure',
       },
-      '2단계_논리회로': {
-        title: '2단계 논리회로',
-        href: '/독학사/2단계_논리회로/01_math-basics',
+      '논리회로': {
+        title: '논리회로',
+        href: '/독학사2/논리회로/01_math-basics',
       },
-      '2단계_이산수학': {
-        title: '2단계 이산수학',
-        href: '/독학사/2단계_이산수학/01_basic-notation',
+      '이산수학': {
+        title: '이산수학',
+        href: '/독학사2/이산수학/01_basic-notation',
       },
-      '2단계_자료구조': {
-        title: '2단계 자료구조',
-        href: '/독학사/2단계_자료구조/01_prereq-data-structure-basics',
+      '자료구조': {
+        title: '자료구조',
+        href: '/독학사2/자료구조/01_prereq-data-structure-basics',
       },
-      '2단계_웹프로그래밍': {
-        title: '2단계 웹프로그래밍',
-        href: '/독학사/2단계_웹프로그래밍/01_internet-and-web-basics',
+      '웹프로그래밍': {
+        title: '웹프로그래밍',
+        href: '/독학사2/웹프로그래밍/01_internet-and-web-basics',
       },
-      '2단계_컴퓨터구조': {
-        title: '2단계 컴퓨터구조',
-        href: '/독학사/2단계_컴퓨터구조/01_number-system-basics',
+      '컴퓨터구조': {
+        title: '컴퓨터구조',
+        href: '/독학사2/컴퓨터구조/01_number-system-basics',
       },
-      '2단계_운영체제': {
-        title: '2단계 운영체제',
-        href: '/독학사/2단계_운영체제/01_os-terminology-map',
+      '운영체제': {
+        title: '운영체제',
+        href: '/독학사2/운영체제/01_os-terminology-map',
       },
-      '2단계_머신러닝': {
-        title: '2단계 머신러닝',
-        href: '/독학사/2단계_머신러닝/01_ml-basics',
+      '머신러닝': {
+        title: '머신러닝',
+        href: '/독학사2/머신러닝/01_ml-basics',
       },
-      '3단계_프로그래밍언어론': {
-        title: '3단계 프로그래밍언어론',
-        href: '/독학사/3단계_프로그래밍언어론/01_programming-language-vs-implementation',
+    },
+  },
+  독학사3: {
+    title: '독학사 3단계',
+    type: 'menu',
+    items: {
+      '프로그래밍언어론': {
+        title: '프로그래밍언어론',
+        href: '/독학사3/프로그래밍언어론/01_programming-language-vs-implementation',
       },
-      '3단계_소프트웨어공학': {
-        title: '3단계 소프트웨어공학',
-        href: '/독학사/3단계_소프트웨어공학/01_software-engineering-overview',
+      '소프트웨어공학': {
+        title: '소프트웨어공학',
+        href: '/독학사3/소프트웨어공학/01_software-engineering-overview',
       },
-      '3단계_객체지향프로그래밍': {
-        title: '3단계 객체지향프로그래밍',
-        href: '/독학사/3단계_객체지향프로그래밍/01_exam-structure',
+      '객체지향프로그래밍': {
+        title: '객체지향프로그래밍',
+        href: '/독학사3/객체지향프로그래밍/01_exam-structure',
       },
-      '3단계_컴퓨터그래픽스': {
-        title: '3단계 컴퓨터그래픽스',
-        href: '/독학사/3단계_컴퓨터그래픽스/01_graphics-overview',
+      '컴퓨터그래픽스': {
+        title: '컴퓨터그래픽스',
+        href: '/독학사3/컴퓨터그래픽스/01_graphics-overview',
       },
-      '3단계_컴퓨터네트워크': {
-        title: '3단계 컴퓨터네트워크',
-        href: '/독학사/3단계_컴퓨터네트워크/01_network-basics',
+      '컴퓨터네트워크': {
+        title: '컴퓨터네트워크',
+        href: '/독학사3/컴퓨터네트워크/01_network-basics',
       },
-      '3단계_임베디드시스템': {
-        title: '3단계 임베디드시스템',
-        href: '/독학사/3단계_임베디드시스템/01_embedded-prerequisites',
+      '임베디드시스템': {
+        title: '임베디드시스템',
+        href: '/독학사3/임베디드시스템/01_embedded-prerequisites',
       },
-      '3단계_정보보호': {
-        title: '3단계 정보보호',
-        href: '/독학사/3단계_정보보호/01_exam-structure',
+      '정보보호': {
+        title: '정보보호',
+        href: '/독학사3/정보보호/01_exam-structure',
       },
-      '3단계_딥러닝': {
-        title: '3단계 딥러닝',
-        href: '/독학사/3단계_딥러닝/01_exam-overview',
+      '딥러닝': {
+        title: '딥러닝',
+        href: '/독학사3/딥러닝/01_exam-overview',
       },
-      '4단계_알고리즘': {
-        title: '4단계 알고리즘',
-        href: '/독학사/4단계_알고리즘/01_exam-outline',
+    },
+  },
+  독학사4: {
+    title: '독학사 4단계',
+    type: 'menu',
+    items: {
+      '알고리즘': {
+        title: '알고리즘',
+        href: '/독학사4/알고리즘/01_exam-outline',
       },
-      '4단계_데이터베이스': {
-        title: '4단계 데이터베이스',
-        href: '/독학사/4단계_데이터베이스/01_exam-overview',
+      '데이터베이스': {
+        title: '데이터베이스',
+        href: '/독학사4/데이터베이스/01_exam-overview',
       },
-      '4단계_통합프로그래밍': {
-        title: '4단계 통합프로그래밍',
-        href: '/독학사/4단계_통합프로그래밍/01_exam-structure',
+      '통합프로그래밍': {
+        title: '통합프로그래밍',
+        href: '/독학사4/통합프로그래밍/01_exam-structure',
       },
-      '4단계_통합컴퓨터시스템': {
-        title: '4단계 통합컴퓨터시스템',
-        href: '/독학사/4단계_통합컴퓨터시스템/01_exam-structure',
+      '통합컴퓨터시스템': {
+        title: '통합컴퓨터시스템',
+        href: '/독학사4/통합컴퓨터시스템/01_exam-structure',
       },
-      '4단계_국어': {
-        title: '4단계 국어',
-        href: '/독학사/4단계_국어/01_korean-exam-overview',
+      '국어': {
+        title: '국어',
+        href: '/독학사4/국어/01_korean-exam-overview',
       },
-      '4단계_국사': {
-        title: '4단계 국사',
-        href: '/독학사/4단계_국사/01_exam-structure',
+      '국사': {
+        title: '국사',
+        href: '/독학사4/국사/01_exam-structure',
       },
-      '4단계_실용영어': {
-        title: '4단계 실용영어',
-        href: '/독학사/4단계_실용영어/01_exam-structure',
+      '실용영어': {
+        title: '실용영어',
+        href: '/독학사4/실용영어/01_exam-structure',
       },
     },
   },

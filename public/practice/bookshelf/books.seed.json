@@ -1,0 +1,74 @@
+[
+  {
+    "id": 1,
+    "title": "클린 코드",
+    "author": "로버트 C. 마틴",
+    "status": "done",
+    "rating": 5,
+    "pages": 584,
+    "coverColor": "#2563eb",
+    "startedAt": "2026-07-01",
+    "finishedAt": "2026-07-20",
+    "memo": "함수는 한 가지 일만."
+  },
+  {
+    "id": 2,
+    "title": "리팩터링 2판",
+    "author": "마틴 파울러",
+    "status": "reading",
+    "rating": 4,
+    "pages": 550,
+    "coverColor": "#16a34a",
+    "startedAt": "2026-08-10",
+    "finishedAt": null,
+    "memo": ""
+  },
+  {
+    "id": 3,
+    "title": "모던 자바스크립트 Deep Dive",
+    "author": "이웅모",
+    "status": "done",
+    "rating": 5,
+    "pages": 956,
+    "coverColor": "#f59e0b",
+    "startedAt": "2026-05-01",
+    "finishedAt": "2026-06-15",
+    "memo": "클로저 장이 특히 좋았다."
+  },
+  {
+    "id": 4,
+    "title": "함께 자라기",
+    "author": "김창준",
+    "status": "wish",
+    "rating": 0,
+    "pages": 224,
+    "coverColor": "#db2777",
+    "startedAt": null,
+    "finishedAt": null,
+    "memo": ""
+  },
+  {
+    "id": 5,
+    "title": "HTTP 완벽 가이드",
+    "author": "데이빗 고울리 외",
+    "status": "reading",
+    "rating": 3,
+    "pages": 760,
+    "coverColor": "#7c3aed",
+    "startedAt": "2026-09-01",
+    "finishedAt": null,
+    "memo": ""
+  },
+  {
+    "id": 6,
+    "title": "누구나 자료 구조와 알고리즘",
+    "author": "제이 웬그로우",
+    "status": "done",
+    "rating": 4,
+    "pages": 384,
+    "coverColor": "#0891b2",
+    "startedAt": "2026-03-02",
+    "finishedAt": "2026-03-30",
+    "memo": ""
+  }
+]

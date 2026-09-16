@@ -1,0 +1,45 @@
+{
+  "notes": [
+    {
+      "id": "n1",
+      "title": "Vite 프로젝트 만들기",
+      "body": "npm create vite@latest notes-app -- --template vanilla 로 시작한다.",
+      "tags": [
+        "setup"
+      ],
+      "pinned": true,
+      "updatedAt": "2026-09-15T09:00:00+09:00"
+    },
+    {
+      "id": "n2",
+      "title": "이벤트 위임 메모",
+      "body": "목록 전체에 리스너 하나를 달고 event.target.closest 로 버튼을 찾는다.",
+      "tags": [
+        "dom",
+        "events"
+      ],
+      "pinned": false,
+      "updatedAt": "2026-09-15T11:20:00+09:00"
+    },
+    {
+      "id": "n3",
+      "title": "fetch 취소",
+      "body": "AbortController 의 signal 을 fetch 옵션으로 넘기고 abort() 로 취소한다.",
+      "tags": [
+        "fetch"
+      ],
+      "pinned": false,
+      "updatedAt": "2026-09-16T08:00:00+09:00"
+    },
+    {
+      "id": "n4",
+      "title": "IndexedDB 는 트랜잭션 단위",
+      "body": "objectStore 접근은 transaction 안에서만 가능하다.",
+      "tags": [
+        "storage"
+      ],
+      "pinned": false,
+      "updatedAt": "2026-09-16T09:30:00+09:00"
+    }
+  ]
+}

@@ -100,7 +100,7 @@ export function DocsNavbar({ pageMap }: { pageMap: PageMapItem[] }) {
 
   useEffect(() => {
     // 기존 반응형 기준과 사이드바 폭 복구를 유지한다.
-    const mediaQuery = window.matchMedia('(min-width: 1780px)')
+    const mediaQuery = window.matchMedia('(min-width: 1024px)')
     function handleDesktopChange() {
       if (!mediaQuery.matches) return
       setMenu(false)

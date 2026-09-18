@@ -137,7 +137,7 @@ int main(void) {
   options={['① 13 24', '② 3 4', '③ 13 4', '④ 3 24']}
   correctAnswer={1}
   explanation="ptr은 p1의 주소를 가리키는 구조체 포인터다. ptr-&gt;x는 (*ptr).x와 완전히 같은 의미로, 화살표 연산자(-&gt;)는 포인터를 통해 구조체 멤버에 접근하는 축약 표기다. ptr-&gt;x = ptr-&gt;x + 10;은 p1.x를 3에서 13으로 바꾸고, (*ptr).y = (*ptr).y + 20;은 p1.y를 4에서 24로 바꾼다. 둘 다 p1과 같은 메모리를 가리키므로 변경 사항이 p1에 그대로 반영된다."
-  optionExplanations={['ptr-&gt;x와 (*ptr).y를 통한 수정이 모두 p1에 반영되어 13, 24가 되는 것이 정확한 결과이므로 정답이다.', '포인터를 통한 수정이 원본 구조체에 반영되지 않는다고 착각한 오답이다.', 'y에 대한 수정만 반영되지 않았다고 본 오답이다.', 'x에 대한 수정만 반영되지 않았다고 본 오답이다.']}
+  optionExplanations={['ptr->x와 (*ptr).y를 통한 수정이 모두 p1에 반영되어 13, 24가 되는 것이 정확한 결과이므로 정답이다.', '포인터를 통한 수정이 원본 구조체에 반영되지 않는다고 착각한 오답이다.', 'y에 대한 수정만 반영되지 않았다고 본 오답이다.', 'x에 대한 수정만 반영되지 않았다고 본 오답이다.']}
 />
 
 ```c
@@ -156,10 +156,10 @@ struct Person {
 <Quiz
   questionNumber={8}
   question="p.addr.city와 같은 값을 pp를 통해 표현하는 방법으로 옳은 것은?"
-  options={['① pp-&gt;addr.city', '② pp.addr-&gt;city', '③ pp-&gt;addr-&gt;city', '④ (*pp).addr-&gt;city']}
+  options={['① pp->addr.city', '② pp.addr->city', '③ pp->addr->city', '④ (*pp).addr->city']}
   correctAnswer={1}
   explanation="pp는 구조체 Person을 가리키는 포인터이므로 pp가 가리키는 구조체의 멤버에 접근할 때는 화살표 연산자(pp-&gt;addr)를 쓴다. 다만 addr 자신은 포인터가 아니라 struct Address 타입의 값(내장된 구조체)이므로, addr에서 city로 넘어갈 때는 화살표가 아니라 점 연산자(.)를 써야 한다. 따라서 pp-&gt;addr.city가 올바른 표현이다."
-  optionExplanations={['첫 단계는 포인터이므로 화살표(-&gt;), 두 번째 단계는 값이므로 점(.)을 쓰는 규칙을 정확히 적용한 정답이다.', 'pp 자체가 포인터이므로 첫 단계에서 점(.) 연산자를 쓰면 문법 오류가 된다.', 'addr는 포인터가 아니라 구조체 값이므로 addr 다음에 화살표(-&gt;)를 쓰면 문법 오류가 된다.', '(*pp)로 역참조한 뒤에는 이미 구조체 값이 되므로 그다음 addr은 점(.)으로 접근해야 하는데 화살표를 써서 문법 오류가 된다.']}
+  optionExplanations={['첫 단계는 포인터이므로 화살표(->), 두 번째 단계는 값이므로 점(.)을 쓰는 규칙을 정확히 적용한 정답이다.', 'pp 자체가 포인터이므로 첫 단계에서 점(.) 연산자를 쓰면 문법 오류가 된다.', 'addr는 포인터가 아니라 구조체 값이므로 addr 다음에 화살표(->)를 쓰면 문법 오류가 된다.', '(*pp)로 역참조한 뒤에는 이미 구조체 값이 되므로 그다음 addr은 점(.)으로 접근해야 하는데 화살표를 써서 문법 오류가 된다.']}
 />
 
 ```c
@@ -430,7 +430,7 @@ int main(void) {
   options={['① 1 2', '② 2 1', '③ 1 1', '④ 컴파일 오류가 발생한다']}
   correctAnswer={1}
   explanation="head는 malloc으로 할당한 첫 번째 노드를 가리키는 구조체 포인터이며, data 멤버에 1이 저장된다. head-&gt;next는 malloc으로 할당한 두 번째 노드를 가리키도록 연결되고, 그 노드의 data 멤버에는 2가 저장된다. 따라서 head-&gt;data는 1, head-&gt;next-&gt;data는 2이며, 이렇게 여러 노드를 포인터로 연결한 구조가 연결 리스트(linked list)의 기본 형태다."
-  optionExplanations={['head-&gt;data와 head-&gt;next-&gt;data에 각각 대입된 1과 2를 정확히 반영한 정답이다.', '두 값의 순서가 서로 바뀐 오답이다.', 'head-&gt;next-&gt;data도 head-&gt;data와 같은 값이라고 착각한 오답으로, 두 노드는 서로 다른 메모리에 각각 값을 저장한다.', '구조체 포인터로 다른 구조체를 동적으로 연결하는 것은 C에서 유효한 문법이므로 컴파일 오류가 아니다.']}
+  optionExplanations={['head->data와 head->next->data에 각각 대입된 1과 2를 정확히 반영한 정답이다.', '두 값의 순서가 서로 바뀐 오답이다.', 'head->next->data도 head->data와 같은 값이라고 착각한 오답으로, 두 노드는 서로 다른 메모리에 각각 값을 저장한다.', '구조체 포인터로 다른 구조체를 동적으로 연결하는 것은 C에서 유효한 문법이므로 컴파일 오류가 아니다.']}
 />
 
 ```c

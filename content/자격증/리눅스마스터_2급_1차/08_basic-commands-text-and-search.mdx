@@ -346,7 +346,7 @@ find / -name "log.txt" 2>/dev/null
 
 <Quiz
   questionNumber={4}
-  question="find /var/log -type f -mtime +30 -name '*.log' -exec rm -f {} \\; 명령이 삭제하는 대상으로 가장 올바른 것은?"
+  question="find /var/log -type f -mtime +30 -name '*.log' -exec rm -f {} \; 명령이 삭제하는 대상으로 가장 올바른 것은?"
   options={['수정된 지 정확히 30일 된 로그 파일', '최근 30일 이내에 수정된 로그 파일', '수정된 지 30일을 초과한 로그 파일', '크기가 30메가바이트를 초과하는 로그 파일']}
   correctAnswer={3}
   explanation="-mtime 뒤에 붙은 플러스 부호(+30)는 수정된 지 30일을 초과한(더 오래된) 파일을 의미한다. 부호가 없으면 정확히 일치, 마이너스면 그 기간 이내(더 최근)를 뜻한다."

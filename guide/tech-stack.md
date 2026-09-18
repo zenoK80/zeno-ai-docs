@@ -37,13 +37,25 @@ MDX 작성 시 지켜야 하는 문법 금지 규칙은 [prompts/05_최종완성
 
 | 컴포넌트 | 파일 | 용도 |
 |----------|------|------|
-| `Quiz` | `quiz.tsx` | 4지선다 퀴즈 (정답·해설 표시) |
+| `Quiz` | `quiz.tsx` + `quiz-text.tsx` | 4지선다 퀴즈 (정답·해설 표시). 문자열 prop 안에서 `$...$` 수식, `` `code` ``, `**강조**`, 줄바꿈·마크다운 표·들여쓴 출력 블록을 직접 렌더링 |
 | `CodePlayground` | `code-playground.tsx` | Sandpack 기반 JS·React 코드 편집·실행 |
 | `OneDriveVideo` | `one-drive-video.tsx` | OneDrive 학습 영상 iframe 삽입 |
 | `DataBarChart` | `data-bar-chart.tsx` | Recharts 기반 차트 |
 | `SetDiagram` | `set-diagram.tsx` | JSXGraph 기반 수학 그래프·도형 |
 | `ConceptFlow` | `concept-flow.tsx` | React Flow 기반 노드 흐름도 |
 | `HomeLanding` | `home-landing.tsx` | 홈 랜딩 (문서용 아님, 홈 전용) |
+
+#### Quiz 문자열 prop 작성 규칙
+
+Quiz의 `question`·`explanation`·`options`·`optionExplanations`는 MDX 본문이 아니라 **문자열 prop**이라 MDX 파이프라인을 거치지 않는다. 문자열이 어느 문법으로 해석되는지가 표기 방식에 따라 다르므로 아래를 지킨다.
+
+| 표기 | 해석 주체 | 규칙 |
+|------|-----------|------|
+| `question="..."` (JSX 문자열 속성) | MDX | 역슬래시 이스케이프를 처리하지 않는다. `\\ls`라고 쓰면 화면에 `\\ls`가 그대로 나오므로 **역슬래시는 한 번만** 쓴다(`\ls`, `\0`, `\nabla`). `&lt;` 같은 문자 참조는 `<`로 바뀐다. `\n`은 줄바꿈이 아니라 글자 그대로다 |
+| `question={"..."}`, `options={['...']}` (JS 표현식) | JavaScript | 일반 JS 문자열 규칙. 역슬래시 하나를 보이려면 `\\`, 줄바꿈은 `\n`, 작은따옴표는 `\'`. `&lt;`·`&quot;` 같은 문자 참조는 **글자 그대로 출력**되므로 쓰지 말고 `<`·`"`를 직접 쓴다 |
+
+- 줄바꿈이나 표·프로그램 출력을 문제에 넣어야 하면 `question={"첫 줄\n\n| a | b |\n| --- | --- |\n| 1 | 2 |"}`처럼 JS 문자열로 쓴다. 빈 줄로 문단이 나뉘고, 마크다운 표는 표로, 들여쓰기가 있는 여러 줄은 `pre` 블록으로 렌더링된다.
+- `$...$`는 여는 `$` 뒤와 닫는 `$` 앞에 공백이 없을 때만 수식이며, 안에 한글이 들어가면 수식으로 보지 않는다. `$SHELL`, `$0`, `$5` 같은 셸 변수·가격 표기는 그대로 써도 된다.
 
 ## 시각화 라이브러리 ↔ 래퍼 매핑
 

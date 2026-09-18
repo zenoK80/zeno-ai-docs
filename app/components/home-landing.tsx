@@ -6,18 +6,26 @@ import Link from 'next/link'
 import { ArrowRightIcon } from 'nextra/icons'
 import gsap from 'gsap'
 import { ScrollTrigger } from 'gsap/ScrollTrigger'
-import { DiIllustrator, DiPhotoshop } from 'react-icons/di'
 import {
   SiCss,
-  SiFigma,
   SiHtml5,
   SiJavascript,
+  SiLinux,
   SiNextdotjs,
   SiNextra,
   SiNodedotjs,
   SiReact,
   SiTypescript,
 } from 'react-icons/si'
+import {
+  TbBuildingBank,
+  TbCertificate,
+  TbChartBar,
+  TbDatabase,
+  TbDeviceDesktop,
+  TbNetwork,
+  TbSchool,
+} from 'react-icons/tb'
 import styles from './home-landing-v2.module.css'
 // content/ 폴더를 스캔해 자동 생성되는 데이터 (scripts/gen-home-data.js — npm run dev/build 시 갱신)
 import homeData from './home-data.json'
@@ -49,11 +57,27 @@ const techLogos = [
   { label: 'Next.js', Icon: SiNextdotjs, color: '#151515' },
   { label: 'Nextra', Icon: SiNextra, color: '#4913ec' },
   { label: 'Node.js', Icon: SiNodedotjs, color: '#339933' },
-  { label: 'Figma', Icon: SiFigma, color: '#f24e1e' },
-  { label: 'Photoshop', Icon: DiPhotoshop, color: '#31a8ff' },
-  { label: 'Illustrator', Icon: DiIllustrator, color: '#ff9a00' },
+  // 학습 트랙·자격증 주관사
+  { label: '독학학위제', Icon: TbSchool, color: '#0b5fb2' },
+  { label: '학점은행제', Icon: TbBuildingBank, color: '#1b7f5f' },
+  { label: 'Q-Net 한국산업인력공단', Icon: TbCertificate, color: '#004c97' },
+  { label: 'SQLD · ADsP K-DATA', Icon: TbDatabase, color: '#0055a5' },
+  { label: '빅데이터분석기사', Icon: TbChartBar, color: '#2b6cb0' },
+  { label: '네트워크관리사 ICQA', Icon: TbNetwork, color: '#c8102e' },
+  { label: '리눅스마스터 KAIT', Icon: SiLinux, color: '#151515' },
+  { label: 'PC정비사 ICQA', Icon: TbDeviceDesktop, color: '#c8102e' },
 ]
 const groups = homeData.groups as SeriesGroup[]
+
+// 파트 제목으로 대표 로고를 고른다 (home-data.json은 자동 생성이라 여기서 매핑)
+function groupLogo(title: string): { Icon: typeof SiHtml5; color: string } {
+  if (title.includes('HTML')) return { Icon: SiHtml5, color: '#e34f26' }
+  if (title.includes('CSS')) return { Icon: SiCss, color: '#1572b6' }
+  if (title.includes('JavaScript')) return { Icon: SiJavascript, color: '#d4a900' }
+  if (title.includes('React')) return { Icon: SiReact, color: '#149eca' }
+  if (title.includes('독학사')) return { Icon: TbSchool, color: '#0b5fb2' }
+  return { Icon: TbCertificate, color: '#1b7f5f' }
+}
 const firstDocHref = groups[0]?.series[0]?.href ?? '#series'
 const seriesTotal = groups.reduce((n, g) => n + g.series.length, 0)
 
@@ -169,7 +193,7 @@ export function HomeLanding() {
           )}
           {groups.map((group) => (
             <section className={styles.group} data-gsap="scroll-reveal" key={group.title} aria-labelledby={`group-${group.order}`}>
-              <header className={styles.groupHeader}><span>{group.order}</span><div><h3 id={`group-${group.order}`}>{group.title}</h3><p>{group.description}</p></div></header>
+              <header className={styles.groupHeader}><span>{group.order}</span><div><h3 id={`group-${group.order}`}>{group.title}</h3><p>{group.description}</p></div>{(() => { const { Icon, color } = groupLogo(group.title); return <Icon aria-hidden="true" className={styles.groupLogo} style={{ color }} /> })()}</header>
                 <span className={`${styles.groupJoint} ${styles.groupJointLeft}`} aria-hidden="true" data-grid-junction />
                 <span className={`${styles.groupJoint} ${styles.groupJointRight}`} aria-hidden="true" data-grid-junction />
                 <div className={styles.seriesGrid}>

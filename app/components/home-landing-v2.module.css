@@ -484,8 +484,8 @@
   --junction-y: -50%;
   position: absolute;
   z-index: 5;
-  width: 8px;
-  height: 8px;
+  width: 4px;
+  height: 4px;
   background: var(--junction);
   opacity: 1;
   pointer-events: none;
@@ -698,7 +698,8 @@
 
 .groupHeader {
   display: grid;
-  grid-template-columns: 54px 1fr;
+  grid-template-columns: 54px 1fr auto;
+  align-items: center;
   gap: 18px;
   margin-inline: calc(0px - var(--catalog-gutter));
   padding: 24px var(--catalog-gutter) 26px;
@@ -726,6 +727,12 @@
   color: var(--ink);
   font-size: 24px;
   font-weight: 650;
+}
+
+.groupLogo {
+  width: 44px;
+  height: 44px;
+  opacity: 0.85;
 }
 
 .groupHeader p {

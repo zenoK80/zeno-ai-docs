@@ -54,6 +54,7 @@
 .block + .pre,
 .block + .tableWrap,
 .pre + .block,
+.pre + .pre,
 .tableWrap + .block {
   margin-top: 0.6rem;
 }

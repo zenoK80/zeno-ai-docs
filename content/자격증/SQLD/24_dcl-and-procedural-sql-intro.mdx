@@ -181,7 +181,7 @@ DROP USER 실습생 CASCADE;
 
 <Quiz
   questionNumber={2}
-  question="GRANT SELECT ON 사원 TO 김대리; (WITH GRANT OPTION 없음) 이후, 김대리가 GRANT SELECT ON 사원 TO 이과장;을 실행하면 어떻게 되는가?"
+  question={"다음처럼 GRANT SELECT ON 사원 TO 김대리;를 WITH GRANT OPTION 없이 실행한 이후, 김대리가 이과장에게 권한을 재부여하려 하면 어떻게 되는가?\n\n```sql\nGRANT SELECT ON 사원 TO 김대리;\n\n-- 이후 김대리가 실행\nGRANT SELECT ON 사원 TO 이과장;\n```"}
   options={['정상적으로 이과장에게 SELECT 권한이 부여된다', 'WITH GRANT OPTION 없이 권한을 받았으므로 김대리는 이 권한을 재부여할 수 없어 오류가 발생한다', 'REVOKE 없이는 GRANT를 두 번 실행할 수 없다는 오류가 발생한다', '김대리 본인의 SELECT 권한이 자동으로 취소된다']}
   correctAnswer={2}
   explanation="WITH GRANT OPTION 없이 권한을 부여받은 사용자는 그 권한을 다른 사용자에게 재부여할 권한 자체가 없다. 따라서 김대리가 이과장에게 SELECT를 재부여하려는 시도는 권한 부족으로 실패한다."

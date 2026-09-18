@@ -252,7 +252,7 @@ form.addEventListener("submit", function (event) {
 
 <Quiz
   questionNumber={3}
-  question="다음 CSS 규칙이 모두 같은 p 태그(id=&quot;notice&quot;, class=&quot;highlight&quot;)에 적용될 때 최종 적용되는 색은? p { color: black; } .highlight { color: blue; } #notice { color: red; }"
+  question={"다음 CSS 규칙이 모두 같은 p 태그(id=\"notice\", class=\"highlight\")에 적용될 때 최종 적용되는 색은?\n\n```css\np {\n  color: black;\n}\n.highlight {\n  color: blue;\n}\n#notice {\n  color: red;\n}\n```"}
   options={['black', 'blue', 'red', '셋 중 어느 것도 적용되지 않는다']}
   correctAnswer={3}
   explanation="CSS는 명시도가 높은 선택자를 우선 적용하며, 아이디 선택자(#notice)가 클래스 선택자·태그 선택자보다 명시도가 높으므로 red가 최종 적용된다."
@@ -261,7 +261,7 @@ form.addEventListener("submit", function (event) {
 
 <Quiz
   questionNumber={4}
-  question="width: 200px; padding: 10px; border: 5px solid black; margin: 20px; 로 설정된 요소가 기본 박스 모델에서 실제로 차지하는 가로 폭은?"
+  question={"다음처럼 설정된 요소가 기본 박스 모델에서 실제로 차지하는 가로 폭은?\n\n```css\nwidth: 200px;\npadding: 10px;\nborder: 5px solid black;\nmargin: 20px;\n```"}
   options={['200px', '220px', '230px', '270px']}
   correctAnswer={3}
   explanation="기본 박스 모델에서 전체 가로 폭은 width + padding × 2 + border × 2로 계산된다. 200 + (10 × 2) + (5 × 2) = 230이며, margin은 이 계산에 포함되지 않는다."

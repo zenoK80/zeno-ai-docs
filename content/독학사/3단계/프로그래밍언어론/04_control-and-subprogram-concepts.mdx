@@ -183,7 +183,7 @@ int main() {
 
 <Quiz
   questionNumber={6}
-  question="다음 코드에서 매개변수와 인자를 바르게 짝지은 것은? (코드: int 더하기(int a, int b) { return a + b; } 를 int 결과 = 더하기(3, 4); 로 호출)"
+  question={"다음 코드에서 매개변수와 인자를 바르게 짝지은 것은?\n\n```c\nint 더하기(int a, int b) {\n  return a + b;\n}\n\nint 결과 = 더하기(3, 4);\n```"}
   options={['a, b가 인자이고 3, 4가 매개변수다', 'a, b가 매개변수이고 3, 4가 인자다', 'a, b와 3, 4 모두 매개변수이며 인자라는 개념은 존재하지 않는다', '결과라는 변수 이름이 매개변수이고 a, b는 인자다']}
   correctAnswer={2}
   explanation="a, b는 함수를 정의할 때 선언된 매개변수(형식 매개변수)이고, 3, 4는 함수를 호출할 때 실제로 건네는 인자(실 매개변수)다."

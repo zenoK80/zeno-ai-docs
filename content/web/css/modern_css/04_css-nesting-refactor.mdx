@@ -281,7 +281,7 @@ CSS 네이티브 중첩은 부모 선택자 안에 자식 선택자를 그대로
 
 <Quiz
   questionNumber={3}
-  question=".card { & .title { color: red; } } 와 .card .title { color: red; } 의 명시도 차이는?"
+  question={"다음 두 CSS 규칙의 명시도 차이는?\n\n```css\n.card {\n  & .title {\n    color: red;\n  }\n}\n```\n\n```css\n.card .title {\n  color: red;\n}\n```"}
   options={['차이가 없다, 컴파일 결과가 같은 선택자다', '중첩 쪽이 명시도가 더 높다', '중첩 쪽이 명시도가 더 낮다', '중첩은 명시도를 계산하지 않는다']}
   correctAnswer={1}
   explanation="중첩은 작성 방식일 뿐 최종적으로 만들어지는 선택자와 명시도는 후손 선택자를 직접 쓴 것과 동일하다."

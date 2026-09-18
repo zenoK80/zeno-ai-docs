@@ -83,7 +83,7 @@ flowchart LR
 
 <Quiz
   questionNumber={3}
-  question="다음 자바 코드의 출력 결과는? class A 안에 void show 메서드가 있고 System.out.println(부모)를 출력한다. class B는 A를 상속하며 show를 재정의해 System.out.println(자식)을 출력한다. A obj = new B(); obj.show();"
+  question={"다음 자바 코드의 출력 결과는?\n\n```java\nclass A {\n  void show() {\n    System.out.println(\"부모\");\n  }\n}\n\nclass B extends A {\n  void show() {\n    System.out.println(\"자식\");\n  }\n}\n\nA obj = new B();\nobj.show();\n```"}
   options={['부모', '자식', '부모와 자식이 모두 출력', '컴파일 오류']}
   correctAnswer={2}
   explanation="obj의 정적 타입은 A지만 실제 타입은 B이므로, 동적 바인딩에 의해 B에서 재정의한 show가 실행되어 자식이 출력된다."
@@ -200,7 +200,7 @@ flowchart LR
 
 <Quiz
   questionNumber={16}
-  question="다음 자바 코드에서 발생하는 예외의 종류로 옳은 것은? int[] arr = new int[3]; System.out.println(arr[3]);"
+  question={"다음 자바 코드에서 발생하는 예외의 종류로 옳은 것은?\n\n```java\nint[] arr = new int[3];\nSystem.out.println(arr[3]);\n```"}
   options={['NullPointerException', 'ArrayIndexOutOfBoundsException', 'ClassCastException', 'NumberFormatException']}
   correctAnswer={2}
   explanation="크기 3인 배열은 인덱스 0, 1, 2만 유효하다. 인덱스 3은 범위를 벗어나므로 ArrayIndexOutOfBoundsException이 발생한다."

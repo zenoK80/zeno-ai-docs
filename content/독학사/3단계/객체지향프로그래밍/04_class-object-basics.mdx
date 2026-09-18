@@ -266,7 +266,7 @@ null
 
 <Quiz
   questionNumber={2}
-  question="다음 코드에서 s1과 s2가 생성된 후의 관계에 대한 설명으로 옳은 것은? Student s1 = new Student('민준', 90); Student s2 = new Student('서연', 85);"
+  question={"다음 코드에서 s1과 s2가 생성된 후의 관계에 대한 설명으로 옳은 것은?\n\n```java\nStudent s1 = new Student('민준', 90);\nStudent s2 = new Student('서연', 85);\n```"}
   options={['s1과 s2는 힙에서 같은 객체를 공유한다.', 's1과 s2는 힙에 각각 독립된 객체를 가지므로 서로의 필드 값에 영향을 주지 않는다.', 's1과 s2는 스택에 저장된 객체이므로 값이 그대로 복사된다.', 's2를 생성하는 순간 s1이 가리키던 객체는 사라진다.']}
   correctAnswer={2}
   explanation="new를 두 번 호출했으므로 힙에 서로 다른 두 개의 Student 객체가 만들어지고, s1과 s2는 각각 다른 객체를 가리킨다."
@@ -275,7 +275,7 @@ null
 
 <Quiz
   questionNumber={3}
-  question="다음 코드의 실행 결과로 옳은 것은? Student s1 = new Student('민준', 90); Student s3 = s1; s3.score = 100; System.out.println(s1.score);"
+  question={"다음 코드의 실행 결과로 옳은 것은?\n\n```java\nStudent s1 = new Student('민준', 90);\nStudent s3 = s1;\ns3.score = 100;\nSystem.out.println(s1.score);\n```"}
   options={['90', '100', '0', '컴파일 오류가 발생한다.']}
   correctAnswer={2}
   explanation="Student s3 = s1;은 새 객체를 만드는 것이 아니라 s1이 가리키는 같은 힙 객체의 주소를 s3에도 복사하는 것이므로, s3를 통해 값을 바꾸면 s1을 통해서도 바뀐 값이 보인다."
@@ -293,7 +293,7 @@ null
 
 <Quiz
   questionNumber={5}
-  question="다음 코드의 실행 결과로 옳은 것은? Box b = new Box(); System.out.println(b.count); System.out.println(b.label); (Box는 int count, String label 필드만 선언하고 초기화하지 않았다)"
+  question={"다음 코드의 실행 결과로 옳은 것은?\n\n```java\nBox b = new Box();\nSystem.out.println(b.count);\nSystem.out.println(b.label);\n```\n\n(Box는 int count, String label 필드만 선언하고 초기화하지 않았다)"}
   options={['0과 null이 순서대로 출력된다.', '컴파일 오류가 발생한다.', '실행 시 예외가 발생하며 프로그램이 종료된다.', 'count와 label 모두 빈 문자열로 출력된다.']}
   correctAnswer={1}
   explanation="클래스의 필드는 초기화하지 않아도 자료형에 따른 기본값으로 자동 초기화된다. int는 0, 참조형인 String은 null이 기본값이므로 순서대로 0과 null이 출력된다."

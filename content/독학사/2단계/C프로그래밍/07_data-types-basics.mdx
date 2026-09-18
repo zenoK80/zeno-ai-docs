@@ -197,7 +197,7 @@ $$
 
 <Quiz
   questionNumber={2}
-  question="int a = 7, b = 2; double result = a / b;를 실행했을 때 result의 값은?"
+  question={"다음 코드를 실행했을 때 result의 값은?\n\n```c\nint a = 7, b = 2;\ndouble result = a / b;\n```"}
   options={['3.5', '3.0', '4.0', '컴파일 오류가 발생한다']}
   correctAnswer={2}
   explanation="a와 b가 모두 int이므로 a / b는 정수 나눗셈으로 먼저 계산되어 3이 되고, 이 정수 3이 double로 변환되어 result에 대입되므로 최종 값은 3.0이다."
@@ -206,7 +206,7 @@ $$
 
 <Quiz
   questionNumber={3}
-  question="int big = 300; char small = big;를 실행했을 때 발생하는 현상으로 옳은 것은?"
+  question={"다음 코드를 실행했을 때 발생하는 현상으로 옳은 것은?\n\n```c\nint big = 300;\nchar small = big;\n```"}
   options={['컴파일 오류로 프로그램이 실행되지 않는다', '자동으로 반올림되어 127이 저장된다', '경고는 발생할 수 있지만 오류 없이 실행되며 하위 1바이트만 남아 값이 달라진다', 'small에는 항상 0이 저장된다']}
   correctAnswer={3}
   explanation="큰 자료형의 값을 작은 자료형에 대입하면 컴파일 경고는 발생할 수 있어도 오류 없이 실행되며, 값의 하위 바이트만 남기고 잘려서 예상과 다른 값이 저장된다."

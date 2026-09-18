@@ -344,7 +344,7 @@ const 빼기 = (a, b) => a - b;
 
 <Quiz
   questionNumber={3}
-  question="다음 코드의 출력 결과로 옳은 것은? console.log(&quot;5&quot; + 3); console.log(&quot;5&quot; - 3);"
+  question={"다음 코드의 출력 결과로 옳은 것은?\n\n```js\nconsole.log(\"5\" + 3);\nconsole.log(\"5\" - 3);\n```"}
   options={['8 그리고 8', '"53" 그리고 2', '2 그리고 "53"', '"53" 그리고 "2"']}
   correctAnswer={2}
   explanation="+ 연산자는 피연산자에 문자열이 있으면 문자열 연결로 동작해 &quot;53&quot;이 되고, - 연산자는 문자열 연결 기능이 없어 양쪽을 숫자로 변환해 2가 된다."
@@ -353,7 +353,7 @@ const 빼기 = (a, b) => a - b;
 
 <Quiz
   questionNumber={4}
-  question="&quot;10&quot; == 10 과 &quot;10&quot; === 10 의 결과를 순서대로 옳게 나열한 것은?"
+  question={"다음 두 비교식의 결과를 순서대로 옳게 나열한 것은?\n\n```js\n\"10\" == 10\n\"10\" === 10\n```"}
   options={['true, true', 'false, false', 'true, false', 'false, true']}
   correctAnswer={3}
   explanation="==는 형 변환 후 값만 비교해 true가 되고, ===는 자료형까지 같아야 하므로 문자열과 숫자는 다른 자료형이라 false가 된다."
@@ -380,7 +380,7 @@ const 빼기 = (a, b) => a - b;
 
 <Quiz
   questionNumber={7}
-  question="for (let i = 1; i &lt;= 5; i++) { if (i === 3) continue; if (i === 5) break; console.log(i); } 의 출력 결과로 옳은 것은?"
+  question={"다음 코드의 출력 결과로 옳은 것은?\n\n```js\nfor (let i = 1; i <= 5; i++) {\n  if (i === 3) continue;\n  if (i === 5) break;\n  console.log(i);\n}\n```"}
   options={['1, 2, 3, 4', '1, 2, 4', '1, 2, 4, 5', '1, 2, 3, 4, 5']}
   correctAnswer={2}
   explanation="continue는 i가 3일 때 그 회차의 출력만 건너뛰고 반복을 계속하며, break는 i가 5일 때 반복 자체를 즉시 종료시켜 5는 출력되지 않는다."

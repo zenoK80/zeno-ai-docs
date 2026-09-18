@@ -244,7 +244,7 @@ p->x=3, p->y=4
 
 <Quiz
   questionNumber={1}
-  question="void f(int n) { n = n + 1; } 함수를 int a = 5; f(a); 로 호출한 뒤 a의 값은?"
+  question={"다음 함수를 호출한 뒤 a의 값은?\n\n```c\nvoid f(int n) {\n  n = n + 1;\n}\n\nint a = 5;\nf(a);\n```"}
   options={['4', '5', '6', '정의되지 않음']}
   correctAnswer={2}
   explanation="f는 값에 의한 전달(call by value)이므로 a의 값 5가 매개변수 n에 복사되어 전달된다. 함수 안에서 n을 바꿔도 원본 a는 영향을 받지 않으므로 a는 여전히 5다."
@@ -253,7 +253,7 @@ p->x=3, p->y=4
 
 <Quiz
   questionNumber={2}
-  question="void f(int *p) { *p = *p + 1; } 함수를 int a = 5; f(&a); 로 호출한 뒤 a의 값은?"
+  question={"다음 함수를 호출한 뒤 a의 값은?\n\n```c\nvoid f(int *p) {\n  *p = *p + 1;\n}\n\nint a = 5;\nf(&a);\n```"}
   options={['4', '5', '6', '컴파일 에러']}
   correctAnswer={3}
   explanation="a의 주소가 p로 전달되므로 *p는 곧 a를 가리킨다. *p = *p + 1;은 a의 값을 직접 6으로 바꾼다."
@@ -280,7 +280,7 @@ p->x=3, p->y=4
 
 <Quiz
   questionNumber={5}
-  question="free(p); 를 호출한 직후 p = NULL; 을 실행하는 이유로 가장 적절한 것은?"
+  question={"다음처럼 free(p); 를 호출한 직후 p = NULL; 을 실행하는 이유로 가장 적절한 것은?\n\n```c\nfree(p);\np = NULL;\n```"}
   options={['메모리 누수를 방지하기 위해', 'free 이후에도 유효한 주소를 계속 가리키던 p를 통해 이미 반납된 메모리를 잘못 접근하는 것(댕글링 포인터)을 막기 위해', 'free 함수가 실패했을 때 재시도하기 위해', 'p의 자료형을 바꾸기 위해']}
   correctAnswer={2}
   explanation="free는 메모리를 반납할 뿐 포인터 변수 p의 값을 지우지 않으므로, p는 이미 반납된 메모리를 가리키는 댕글링 포인터로 남는다. p = NULL;로 명시적으로 무효화해야 이후 실수로 그 주소를 사용하는 것을 막을 수 있다."

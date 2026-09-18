@@ -213,7 +213,7 @@ graph TD
 
 <Quiz
   questionNumber={4}
-  question="다음 Java 코드의 실행 결과로 옳은 것은? class Animal { void makeSound() { System.out.println(&quot;동물 소리&quot;); } } class Dog extends Animal { void makeSound() { System.out.println(&quot;멍멍&quot;); } } Animal a = new Dog(); a.makeSound();"
+  question={"다음 Java 코드의 실행 결과로 옳은 것은?\n\n```java\nclass Animal {\n  void makeSound() {\n    System.out.println(\"동물 소리\");\n  }\n}\n\nclass Dog extends Animal {\n  void makeSound() {\n    System.out.println(\"멍멍\");\n  }\n}\n\nAnimal a = new Dog();\na.makeSound();\n```"}
   options={['동물 소리', '멍멍', '동물 소리와 멍멍이 모두 출력된다', '컴파일 오류가 발생한다']}
   correctAnswer={2}
   explanation="변수 a는 Animal 타입으로 선언되었지만 실제로 가리키는 객체는 Dog다. 오버라이딩된 메서드 호출은 실제 객체 타입을 기준으로 동적 바인딩되므로 Dog의 makeSound가 실행되어 멍멍이 출력된다."

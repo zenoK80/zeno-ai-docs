@@ -141,14 +141,43 @@ function renderBlock(block: string, keyPrefix: string): ReactNode {
   )
 }
 
+function renderBlocks(text: string, keyPrefix: string): ReactNode[] {
+  const blocks = text
+    .split(/\n[ \t]*\n+/)
+    .map((block) => block.replace(/^\n+|\n+$/g, ''))
+    .filter((block) => block.trim().length > 0)
+  return blocks.map((block, index) => renderBlock(block, `${keyPrefix}-b${index}`))
+}
+
+// ```lang ... ``` 코드 펜스: 문제 속 코드를 줄 단위로 정리해 보여 준다
+const FENCE = /```[^\n]*\n([\s\S]*?)\n?```/g
+
 export function renderRichText(text: string, keyPrefix = 't'): ReactNode {
   const normalized = (text ?? '').replace(/\r\n?/g, '\n')
   if (!normalized.includes('\n')) {
     return renderInline(normalized, keyPrefix)
   }
-  const blocks = normalized
-    .split(/\n[ \t]*\n+/)
-    .map((block) => block.replace(/^\n+|\n+$/g, ''))
-    .filter((block) => block.trim().length > 0)
-  return blocks.map((block, index) => renderBlock(block, `${keyPrefix}-b${index}`))
+  if (!normalized.includes('```')) {
+    return renderBlocks(normalized, keyPrefix)
+  }
+  const nodes: ReactNode[] = []
+  let cursor = 0
+  let index = 0
+  FENCE.lastIndex = 0
+  let match: RegExpExecArray | null
+  while ((match = FENCE.exec(normalized))) {
+    if (match.index > cursor) {
+      nodes.push(...renderBlocks(normalized.slice(cursor, match.index), `${keyPrefix}-s${index++}`))
+    }
+    nodes.push(
+      <pre className={styles.pre} key={`${keyPrefix}-f${index++}`}>
+        <code>{match[1]}</code>
+      </pre>,
+    )
+    cursor = match.index + match[0].length
+  }
+  if (cursor < normalized.length) {
+    nodes.push(...renderBlocks(normalized.slice(cursor), `${keyPrefix}-s${index++}`))
+  }
+  return nodes
 }

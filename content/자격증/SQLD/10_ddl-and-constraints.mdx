@@ -299,7 +299,7 @@ DROP TABLE 제약연습;
 
 <Quiz
   questionNumber={3}
-  question="다음 SQL을 실행했을 때 나타나는 현상으로 가장 알맞은 것은? (직전까지 커밋되지 않은 INSERT가 있다고 가정)  INSERT INTO 주문 VALUES (1, 100, 5000);  CREATE TABLE 임시로그 (기록 VARCHAR2(50));  ROLLBACK;"
+  question={"다음 SQL을 실행했을 때 나타나는 현상으로 가장 알맞은 것은? (직전까지 커밋되지 않은 INSERT가 있다고 가정)\n\n```sql\nINSERT INTO 주문 VALUES (1, 100, 5000);\nCREATE TABLE 임시로그 (기록 VARCHAR2(50));\nROLLBACK;\n```"}
   options={['ROLLBACK으로 INSERT가 취소되어 주문 테이블은 0건이 된다', 'CREATE TABLE 실행 시 앞선 INSERT가 자동으로 커밋되어 ROLLBACK 후에도 1건이 남는다', 'CREATE TABLE이 실패하여 임시로그 테이블이 생성되지 않는다', 'ROLLBACK이 CREATE TABLE까지 포함해 모두 취소한다']}
   correctAnswer={2}
   explanation="DDL인 CREATE TABLE이 실행되는 순간 그 이전에 대기 중이던 INSERT가 자동으로 커밋된다. 따라서 뒤이은 ROLLBACK은 이미 확정된 INSERT를 되돌리지 못하고, 주문 테이블에는 1건이 그대로 남는다."

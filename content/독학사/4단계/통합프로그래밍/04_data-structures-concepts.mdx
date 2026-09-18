@@ -237,7 +237,7 @@ $$
 
 <Quiz
   questionNumber={5}
-  question="다음 C 코드의 시간복잡도로 옳은 것은? for (int i = 0; i &lt; n; i++) { for (int j = 0; j &lt; n; j++) { printf(&quot;%d&quot;, i); } }"
+  question={"다음 C 코드의 시간복잡도로 옳은 것은?\n\n```c\nfor (int i = 0; i < n; i++) {\n  for (int j = 0; j < n; j++) {\n    printf(\"%d\", i);\n  }\n}\n```"}
   options={['O(1)', 'O(n)', 'O(n^2)', 'O(log n)']}
   correctAnswer={3}
   explanation="바깥 반복문이 n번 도는 동안 안쪽 반복문도 매번 n번씩 돌기 때문에 전체 실행 횟수는 n곱하기 n, 즉 n의 제곱이 되어 O(n^2)이 된다."

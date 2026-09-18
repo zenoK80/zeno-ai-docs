@@ -232,7 +232,7 @@ DROP TABLE 연습;
 
 <Quiz
   questionNumber={3}
-  question="WHERE 없는 DELETE FROM 주문; 과 TRUNCATE TABLE 주문; 의 차이로 옳은 것은?"
+  question={"다음 두 문장의 차이로 옳은 것은?\n\n```sql\nDELETE FROM 주문;\nTRUNCATE TABLE 주문;\n```"}
   options={['DELETE는 COMMIT 전이면 ROLLBACK으로 되돌릴 수 있지만 TRUNCATE는 자동 커밋되어 되돌릴 수 없다', '두 명령 모두 DDL로 분류되어 동작이 완전히 같다', 'TRUNCATE만 WHERE 조건을 사용할 수 있다', 'DELETE는 테이블 구조까지 삭제하지만 TRUNCATE는 행만 삭제한다']}
   correctAnswer={1}
   explanation="DELETE는 DML이라 COMMIT 전까지 ROLLBACK으로 취소할 수 있지만, TRUNCATE는 DDL이라 실행 즉시 자동 커밋되어 ROLLBACK으로 되돌릴 수 없다. 이 자동 커밋 여부의 차이가 두 명령의 핵심 차이다."

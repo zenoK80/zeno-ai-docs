@@ -210,7 +210,7 @@ if (session != null && session.getAttribute("loginUser") != null) {
 
 <Quiz
   questionNumber={3}
-  question="JSP 코드 &lt;% int count = 3; %&gt;&lt;%= count %&gt; 를 실행했을 때 화면에 나타나는 내용으로 옳은 것은?"
+  question={"다음 JSP 코드를 실행했을 때 화면에 나타나는 내용으로 옳은 것은?\n\n```jsp\n<% int count = 3; %>\n<%= count %>\n```"}
   options={['아무것도 출력되지 않는다', 'int count = 3; 이라는 코드 문자열이 그대로 출력된다', '3', '두 스크립틀릿 모두 화면에 출력하므로 33이 출력된다']}
   correctAnswer={3}
   explanation="앞의 &lt;% %&gt;(스크립틀릿)은 변수를 선언·초기화만 할 뿐 화면에 출력하지 않고, 뒤의 &lt;%= %&gt;(표현식)만 그 값을 화면에 출력하므로 결과는 3이다."

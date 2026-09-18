@@ -272,7 +272,7 @@ flowchart LR
 
 <Quiz
   questionNumber={2}
-  question="다음 C 함수를 값 전달로 호출했을 때, 함수 실행 후 호출자의 원본 변수 num의 값은? 코드: void f(int x) { x = x * 2; } 호출: int num = 5; f(num);"
+  question={"다음 C 함수를 값 전달로 호출했을 때, 함수 실행 후 호출자의 원본 변수 num의 값은?\n\n```c\nvoid f(int x) {\n  x = x * 2;\n}\n\nint num = 5;\nf(num);\n```"}
   options={['10', '5', '0', '컴파일 오류']}
   correctAnswer={2}
   explanation="값 전달은 실제 인자의 값을 복사해 형식 매개변수에 대입하므로, 함수 안에서 형식 매개변수 x를 바꿔도 호출자의 원본 변수 num에는 전혀 영향을 주지 않는다. 따라서 num은 그대로 5다."

@@ -250,7 +250,7 @@ graph LR
 
 <Quiz
   questionNumber={4}
-  question="다음 코드의 실행 결과로 옳은 것은? Animal a1 = new Dog(); a1.sound(); (Dog는 Animal을 상속받아 sound()를 재정의해 '멍멍'을 출력한다)"
+  question={"다음 코드의 실행 결과로 옳은 것은?\n\n```java\nAnimal a1 = new Dog();\na1.sound();\n```\n\n(Dog는 Animal을 상속받아 sound()를 재정의해 '멍멍'을 출력한다)"}
   options={['멍멍', '동물이 소리를 냅니다.', '컴파일 오류가 발생한다.', 'a1.sound()는 아무것도 출력하지 않는다.']}
   correctAnswer={1}
   explanation="a1은 Animal 타입 참조 변수이지만 실제로 가리키는 객체는 Dog이므로, 오버라이딩된 Dog의 sound()가 실행되어 '멍멍'이 출력된다. 이것이 다형성의 대표적인 예다."

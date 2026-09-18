@@ -347,7 +347,7 @@ const 안쪽버튼 = document.getElementById("안쪽버튼");
 
 <Quiz
   questionNumber={1}
-  question="다음 코드를 실행했을 때 콘솔에 출력되는 결과로 옳은 것은? const 배열 = [1, 2, 3]; const 결과 = 배열.map(function(n) { return n * 10; }); console.log(결과, 배열);"
+  question={"다음 코드를 실행했을 때 콘솔에 출력되는 결과로 옳은 것은?\n\n```js\nconst 배열 = [1, 2, 3];\nconst 결과 = 배열.map(function (n) {\n  return n * 10;\n});\nconsole.log(결과, 배열);\n```"}
   options={['[10, 20, 30] [1, 2, 3]', '[10, 20, 30] [10, 20, 30]', '[1, 2, 3] [10, 20, 30]', '[1, 2, 3] [1, 2, 3]']}
   correctAnswer={1}
   explanation="map은 원본 배열을 변경하지 않고 각 요소를 변형한 새로운 배열을 반환한다. 따라서 결과는 [10, 20, 30]이고 원본 배열은 그대로 [1, 2, 3]이다."

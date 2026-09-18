@@ -256,7 +256,7 @@ int main(void) {
 
 <Quiz
   questionNumber={2}
-  question="다음 C 코드의 실행 결과로 옳은 것은? int addOne(int x) { x = x + 1; return x; } int main(void) { int n = 5; int m = addOne(n); printf(&quot;%d %d&quot;, n, m); }"
+  question={"다음 C 코드의 실행 결과로 옳은 것은?\n\n```c\nint addOne(int x) {\n  x = x + 1;\n  return x;\n}\n\nint main(void) {\n  int n = 5;\n  int m = addOne(n);\n  printf(\"%d %d\", n, m);\n}\n```"}
   options={['5 5', '5 6', '6 6', '6 5']}
   correctAnswer={2}
   explanation="C의 함수 인자 전달은 값에 의한 호출이므로 addOne 내부의 x는 n의 값을 복사한 별개의 변수다. x를 6으로 바꿔도 호출한 쪽의 n은 5로 그대로 남고, m은 addOne이 반환한 6이 대입된다."
@@ -265,7 +265,7 @@ int main(void) {
 
 <Quiz
   questionNumber={3}
-  question="다음 Java 코드의 실행 결과로 옳은 것은? int a = 3; int b = 4; int c = a++ + ++b; System.out.println(a + &quot; &quot; + b + &quot; &quot; + c);"
+  question={"다음 Java 코드의 실행 결과로 옳은 것은?\n\n```java\nint a = 3;\nint b = 4;\nint c = a++ + ++b;\nSystem.out.println(a + \" \" + b + \" \" + c);\n```"}
   options={['3 4 7', '4 5 8', '4 5 7', '3 5 8']}
   correctAnswer={2}
   explanation="a++는 현재 값 3을 식에 사용한 뒤 a를 4로 증가시키고, ++b는 b를 먼저 5로 증가시킨 뒤 그 값을 식에 사용한다. 따라서 c는 3+5=8이 되고, 최종적으로 a는 4, b는 5, c는 8이다."
@@ -274,7 +274,7 @@ int main(void) {
 
 <Quiz
   questionNumber={4}
-  question="다음 C 코드에서 발생할 수 있는 문제로 가장 적절한 것은? int arr[5] = {1,2,3,4,5}; for (i = 0; i &lt;= 5; i++) { printf(&quot;%d&quot;, arr[i]); }"
+  question={"다음 C 코드에서 발생할 수 있는 문제로 가장 적절한 것은?\n\n```c\nint arr[5] = {1, 2, 3, 4, 5};\nfor (i = 0; i <= 5; i++) {\n  printf(\"%d\", arr[i]);\n}\n```"}
   options={['컴파일 시점에 반드시 오류가 발생해 실행조차 되지 않는다.', '반복 조건이 배열 경계를 벗어나 arr[5]에 접근하는 잘못된 접근이 발생할 수 있다.', 'C 컴파일러가 자동으로 배열 크기를 5에서 6으로 늘려 문제없이 실행된다.', 'printf 함수의 서식 지정자가 잘못되어 컴파일 오류가 발생한다.']}
   correctAnswer={2}
   explanation="배열 arr의 유효 인덱스는 0부터 4까지인데 반복 조건이 i &lt;= 5이므로 i가 5일 때 arr[5]에 접근하게 되어 배열 경계를 벗어난 접근이 발생한다."
@@ -292,7 +292,7 @@ int main(void) {
 
 <Quiz
   questionNumber={6}
-  question="다음 C 코드의 실행 결과로 옳은 것은? int scores = 0; for (i = 1; i &lt;= 5; i++) { scores = scores + i; } printf(&quot;%d&quot;, scores);"
+  question={"다음 C 코드의 실행 결과로 옳은 것은?\n\n```c\nint scores = 0;\nfor (i = 1; i <= 5; i++) {\n  scores = scores + i;\n}\nprintf(\"%d\", scores);\n```"}
   options={['10', '15', '20', '25']}
   correctAnswer={2}
   explanation="scores는 반복마다 i를 누적해서 더하므로 1+2+3+4+5=15가 된다."

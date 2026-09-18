@@ -183,7 +183,7 @@ WHERE obj_name = 'MEMBERS';
 
 <Quiz
   questionNumber={3}
-  question="다음 Oracle SQL 실행 순서에 대한 설명으로 옳지 않은 것은? '① CREATE USER app_user ... ; ② SELECT * FROM orders; (app_user로 접속 시도)'"
+  question={"다음 Oracle SQL 실행 순서에 대한 설명으로 옳지 않은 것은?\n\n```sql\nCREATE USER app_user ...;\n\n-- app_user로 접속 시도\nSELECT * FROM orders;\n```"}
   options={['①만으로는 app_user가 DB에 로그인할 수 없다', 'app_user가 로그인하려면 CREATE SESSION 권한을 별도로 부여받아야 한다', 'CREATE SESSION과 특정 테이블에 대한 SELECT 권한을 모두 부여받아야 ②가 정상 동작한다', '계정을 생성하면 별도 권한 부여 없이도 모든 테이블을 조회할 수 있다']}
   correctAnswer={4}
   explanation="Oracle에서 계정 생성은 접속·조회 권한을 자동으로 부여하지 않는다. 로그인을 위해서는 CREATE SESSION 권한이, 특정 테이블 조회를 위해서는 해당 테이블에 대한 SELECT 권한이 각각 별도로 필요하다."

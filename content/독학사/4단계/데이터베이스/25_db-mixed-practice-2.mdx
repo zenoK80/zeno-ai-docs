@@ -218,7 +218,7 @@ O4는 아직 수량이 확정되지 않아 `NULL`로 남아 있는 주문입니�
 
 <Quiz
   questionNumber={17}
-  question="다음 질의를 실행했을 때 결과에 남는 고객번호는? SELECT 고객번호 FROM 주문 GROUP BY 고객번호 HAVING SUM(수량 * 단가) &gt; 60000;"
+  question={"다음 질의를 실행했을 때 결과에 남는 고객번호는?\n\n```sql\nSELECT 고객번호\nFROM 주문\nGROUP BY 고객번호\nHAVING SUM(수량 * 단가) > 60000;\n```"}
   options={['C1', 'C2', 'C1, C2', 'C1, C2, C3']}
   correctAnswer={2}
   explanation="C1의 합계는 (2×15000)+(1×30000)=60000으로 60000을 초과하지 않아 제외됩니다. C2의 합계는 (3×15000)+(2×30000)=45000+60000=105000으로 60000을 초과해 포함됩니다. C3는 수량이 NULL이라 수량×단가 값 자체가 NULL이 되고, SUM 결과도 NULL이 되어 NULL이 60000보다 크다는 비교는 참으로 평가되지 않으므로 제외됩니다."
@@ -245,7 +245,7 @@ O4는 아직 수량이 확정되지 않아 `NULL`로 남아 있는 주문입니�
 
 <Quiz
   questionNumber={20}
-  question="다음 SQL 문을 순서대로 실행했다. GRANT SELECT ON 주문 TO park WITH GRANT OPTION; GRANT SELECT ON 주문 TO choi; -- (park이 choi에게 부여) REVOKE SELECT ON 주문 FROM park; 세 번째 문장 실행 결과에 대한 설명으로 옳은 것은? (choi의 SELECT 권한은 park으로부터 전파받은 것이라고 가정한다)"
+  question={"다음 SQL 문을 순서대로 실행했다. 세 번째 문장 실행 결과에 대한 설명으로 옳은 것은?\n\n```sql\nGRANT SELECT ON 주문 TO park WITH GRANT OPTION;\nGRANT SELECT ON 주문 TO choi; -- (park이 choi에게 부여)\nREVOKE SELECT ON 주문 FROM park;\n```\n\n(choi의 SELECT 권한은 park으로부터 전파받은 것이라고 가정한다)"}
   options={['park의 SELECT 권한만 회수되고 choi의 권한은 그대로 유지된다', 'park의 SELECT 권한이 회수되면 park이 전파한 choi의 권한도 함께 회수되는 연쇄 회수가 일어난다', 'REVOKE 문은 WITH GRANT OPTION으로 부여된 권한에는 적용되지 않아 아무 효과가 없다', 'choi의 권한만 회수되고 park의 권한은 그대로 유지된다']}
   correctAnswer={2}
   explanation="WITH GRANT OPTION으로 받은 권한을 회수하면, 그 권한을 근거로 전파된 하위 권한도 함께 회수되는 것이 표준적인 동작(연쇄 회수, cascading revoke)입니다. park의 권한이 사라지면 park이 choi에게 넘겨준 권한의 근거도 사라지므로 choi의 권한도 함께 회수됩니다."
@@ -263,7 +263,7 @@ O4는 아직 수량이 확정되지 않아 `NULL`로 남아 있는 주문입니�
 
 <Quiz
   questionNumber={22}
-  question="다음 질의를 실행하면 반환되는 행 수는? SELECT * FROM 주문 O1 WHERE O1.수량 &gt; (SELECT AVG(수량) FROM 주문 O2);"
+  question={"다음 질의를 실행하면 반환되는 행 수는?\n\n```sql\nSELECT *\nFROM 주문 O1\nWHERE O1.수량 > (SELECT AVG(수량) FROM 주문 O2);\n```"}
   options={['0건', '1건', '2건', '4건']}
   correctAnswer={2}
   explanation="주문 테이블에서 수량이 NULL이 아닌 값은 2, 1, 3, 2이며 평균은 (2+1+3+2)/4=2입니다. 이 평균 2보다 수량이 큰 주문은 O3(수량 3) 하나뿐입니다. O4는 수량 자체가 NULL이라 비교 결과가 알 수 없음(UNKNOWN)으로 처리되어 결과에서 제외됩니다."

@@ -254,7 +254,7 @@ arr[3]=20, *(arr+3)=20
 
 <Quiz
   questionNumber={4}
-  question="int x = 5; int *p = &x; 로 선언한 뒤 *p = 10;을 실행하면 어떤 결과가 나타나는가?"
+  question={"다음 코드를 실행하면 어떤 결과가 나타나는가?\n\n```c\nint x = 5;\nint *p = &x;\n*p = 10;\n```"}
   options={['p가 가리키는 주소가 바뀐다', 'x의 값이 10으로 바뀐다', 'p 자체의 값이 10으로 바뀐다', '컴파일 에러가 발생한다']}
   correctAnswer={2}
   explanation="*p = 10;은 p가 가리키는 대상, 즉 x의 값을 10으로 바꾸는 연산이다. p에 저장된 주소값 자체는 변하지 않는다."
@@ -263,7 +263,7 @@ arr[3]=20, *(arr+3)=20
 
 <Quiz
   questionNumber={5}
-  question="int arr[3]; int *p = arr; 로 선언한 뒤 p = p + 1;을 실행했을 때 p가 이동하는 거리는?"
+  question={"다음 코드를 실행했을 때 p가 이동하는 거리는?\n\n```c\nint arr[3];\nint *p = arr;\np = p + 1;\n```"}
   options={['1바이트', '4바이트(int 크기만큼)', '항상 8바이트', '배열 전체 크기만큼']}
   correctAnswer={2}
   explanation="포인터에 정수를 더하는 연산은 바이트 단위가 아니라 그 포인터가 가리키는 자료형의 크기 단위로 이동한다. int가 4바이트인 환경에서는 p + 1이 4바이트만큼 이동한다."

@@ -257,7 +257,7 @@ public class ArrayDemo {
 
 <Quiz
   questionNumber={3}
-  question="다음 코드의 실행 결과로 옳은 것은? int a = 10; int b = a; b = 20; System.out.println(a);"
+  question={"다음 코드의 실행 결과로 옳은 것은?\n\n```java\nint a = 10;\nint b = a;\nb = 20;\nSystem.out.println(a);\n```"}
   options={['10', '20', '0', '컴파일 오류가 발생한다.']}
   correctAnswer={1}
   explanation="int는 기본형이므로 b = a는 값 10을 복사한다. 이후 b를 20으로 바꿔도 a는 여전히 10이다."
@@ -266,7 +266,7 @@ public class ArrayDemo {
 
 <Quiz
   questionNumber={4}
-  question="다음 코드의 실행 결과로 옳은 것은? int x = 5; increase(x); System.out.println(x); (increase 메서드는 매개변수 n에 1을 더할 뿐 반환하지 않는다)"
+  question={"다음 코드의 실행 결과로 옳은 것은?\n\n```java\nint x = 5;\nincrease(x);\nSystem.out.println(x);\n```\n\n(increase 메서드는 매개변수 n에 1을 더할 뿐 반환하지 않는다)"}
   options={['4', '5', '6', 'x는 정의되지 않았다는 오류가 발생한다.']}
   correctAnswer={2}
   explanation="Java의 매개변수 전달은 값에 의한 전달이므로 increase 메서드 안의 n은 x 값의 복사본이다. 메서드 안에서 n을 바꿔도 호출한 쪽의 x는 변하지 않는다."

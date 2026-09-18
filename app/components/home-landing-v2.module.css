@@ -484,8 +484,8 @@
   --junction-y: -50%;
   position: absolute;
   z-index: 5;
-  width: 4px;
-  height: 4px;
+  width: 6px;
+  height: 6px;
   background: var(--junction);
   opacity: 1;
   pointer-events: none;
@@ -698,7 +698,7 @@
 
 .groupHeader {
   display: grid;
-  grid-template-columns: 54px 1fr auto;
+  grid-template-columns: 54px auto 1fr;
   align-items: center;
   gap: 18px;
   margin-inline: calc(0px - var(--catalog-gutter));
@@ -730,9 +730,21 @@
 }
 
 .groupLogo {
-  width: 44px;
-  height: 44px;
-  opacity: 0.85;
+  width: 30px;
+  height: 30px;
+}
+
+.seriesCard {
+  position: relative;
+}
+
+.cardLogo {
+  position: absolute;
+  top: 20px;
+  right: 20px;
+  width: 26px;
+  height: 26px;
+  opacity: 0.9;
 }
 
 .groupHeader p {
@@ -1241,6 +1253,47 @@
   .seriesGrid {
     grid-template-columns: repeat(2, minmax(0, 1fr));
   }
+
+  /* 3열 배치는 1050px 아래에서 제목이 세로로 깨지므로 일찍 한 열로 쌓는다 */
+  .closing {
+    grid-template-columns: 1fr;
+    gap: 36px;
+    padding: 64px 24px;
+  }
+
+  .closing h2 {
+    max-width: none;
+  }
+
+  .closingSignal {
+    grid-template-columns: repeat(3, 1fr);
+    gap: 12px;
+    min-height: 0;
+    padding: 24px 0;
+  }
+
+  .closingSignal::before {
+    top: 50%;
+    right: 12px;
+    bottom: auto;
+    left: 12px;
+    width: auto;
+    height: 1px;
+  }
+
+  .signalStep {
+    grid-template-columns: 25px 1fr;
+    gap: 8px;
+  }
+
+  .closingAction {
+    max-width: none;
+    border-top: 1px solid var(--line);
+    border-left: 0;
+    padding-top: 24px;
+    padding-left: 0;
+    justify-self: stretch;
+  }
 }
 
 @media (max-width: 767.98px) {
@@ -1365,39 +1418,7 @@
   }
 
   .closing {
-    grid-template-columns: 1fr;
-    gap: 36px;
     padding: 64px 20px;
-  }
-
-  .closingSignal {
-    grid-template-columns: repeat(3, 1fr);
-    gap: 12px;
-    min-height: 0;
-    padding: 24px 0;
-  }
-
-  .closingSignal::before {
-    top: 50%;
-    right: 12px;
-    bottom: auto;
-    left: 12px;
-    width: auto;
-    height: 1px;
-  }
-
-  .signalStep {
-    grid-template-columns: 25px 1fr;
-    gap: 8px;
-  }
-
-  .closingAction {
-    max-width: none;
-    border-top: 1px solid var(--line);
-    border-left: 0;
-    padding-top: 24px;
-    padding-left: 0;
-    justify-self: stretch;
   }
 
   .siteFooter {

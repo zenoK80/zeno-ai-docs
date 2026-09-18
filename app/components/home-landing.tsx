@@ -7,6 +7,7 @@ import { ArrowRightIcon } from 'nextra/icons'
 import gsap from 'gsap'
 import { ScrollTrigger } from 'gsap/ScrollTrigger'
 import {
+  SiC,
   SiCss,
   SiHtml5,
   SiJavascript,
@@ -18,13 +19,38 @@ import {
   SiTypescript,
 } from 'react-icons/si'
 import {
+  TbArrowsShuffle,
+  TbBinaryTree,
+  TbBook,
+  TbBoxModel,
+  TbBrain,
   TbBuildingBank,
+  TbBuildingMonument,
   TbCertificate,
   TbChartBar,
+  TbChartDots,
+  TbChartHistogram,
+  TbChartPie,
+  TbCircuitDiode,
+  TbCode,
+  TbCodeDots,
+  TbCpu,
+  TbCpu2,
   TbDatabase,
   TbDeviceDesktop,
+  TbDeviceDesktopAnalytics,
+  TbLanguage,
+  TbMathFunction,
+  TbMessageLanguage,
   TbNetwork,
+  TbPalette,
   TbSchool,
+  TbServer,
+  TbSettingsAutomation,
+  TbShieldLock,
+  TbSitemap,
+  TbTopologyStar3,
+  TbWorldWww,
 } from 'react-icons/tb'
 import styles from './home-landing-v2.module.css'
 // content/ 폴더를 스캔해 자동 생성되는 데이터 (scripts/gen-home-data.js — npm run dev/build 시 갱신)
@@ -77,6 +103,56 @@ function groupLogo(title: string): { Icon: typeof SiHtml5; color: string } {
   if (title.includes('React')) return { Icon: SiReact, color: '#149eca' }
   if (title.includes('독학사')) return { Icon: TbSchool, color: '#0b5fb2' }
   return { Icon: TbCertificate, color: '#1b7f5f' }
+}
+
+// 과목 폴더명 → 카드 로고
+const seriesLogos: Record<string, { Icon: typeof SiHtml5; color: string }> = {
+  html_fundamentals: { Icon: SiHtml5, color: '#e34f26' },
+  modern_html: { Icon: SiHtml5, color: '#e34f26' },
+  css_fundamentals: { Icon: SiCss, color: '#1572b6' },
+  modern_css: { Icon: SiCss, color: '#1572b6' },
+  ECMAscript: { Icon: SiJavascript, color: '#d4a900' },
+  web_apis: { Icon: TbWorldWww, color: '#d4a900' },
+  react_1: { Icon: SiReact, color: '#149eca' },
+  react_2: { Icon: SiReact, color: '#149eca' },
+  react_3: { Icon: SiReact, color: '#149eca' },
+  영어: { Icon: TbLanguage, color: '#0b5fb2' },
+  실용영어: { Icon: TbMessageLanguage, color: '#0b5fb2' },
+  일반수학: { Icon: TbMathFunction, color: '#7c3aed' },
+  이산수학: { Icon: TbBinaryTree, color: '#7c3aed' },
+  기초통계학: { Icon: TbChartHistogram, color: '#2b6cb0' },
+  C프로그래밍: { Icon: SiC, color: '#03599c' },
+  논리회로: { Icon: TbCircuitDiode, color: '#b45309' },
+  자료구조: { Icon: TbSitemap, color: '#0f766e' },
+  웹프로그래밍: { Icon: TbWorldWww, color: '#e34f26' },
+  컴퓨터구조: { Icon: TbCpu, color: '#374151' },
+  운영체제: { Icon: TbServer, color: '#374151' },
+  머신러닝: { Icon: TbBrain, color: '#db2777' },
+  딥러닝: { Icon: TbTopologyStar3, color: '#db2777' },
+  프로그래밍언어론: { Icon: TbCode, color: '#0f766e' },
+  소프트웨어공학: { Icon: TbSettingsAutomation, color: '#4b5563' },
+  객체지향프로그래밍: { Icon: TbBoxModel, color: '#b45309' },
+  컴퓨터그래픽스: { Icon: TbPalette, color: '#9333ea' },
+  컴퓨터네트워크: { Icon: TbNetwork, color: '#0369a1' },
+  임베디드시스템: { Icon: TbCpu2, color: '#15803d' },
+  정보보호: { Icon: TbShieldLock, color: '#b91c1c' },
+  알고리즘: { Icon: TbArrowsShuffle, color: '#0f766e' },
+  데이터베이스: { Icon: TbDatabase, color: '#0055a5' },
+  통합프로그래밍: { Icon: TbCodeDots, color: '#03599c' },
+  통합컴퓨터시스템: { Icon: TbDeviceDesktopAnalytics, color: '#374151' },
+  국어: { Icon: TbBook, color: '#9a3412' },
+  국사: { Icon: TbBuildingMonument, color: '#78350f' },
+  빅데이터분석기사_필기: { Icon: TbChartDots, color: '#2b6cb0' },
+  리눅스마스터_2급_1차: { Icon: SiLinux, color: '#151515' },
+  네트워크관리사_2급_실기: { Icon: TbNetwork, color: '#c8102e' },
+  PC정비사_2급_실기: { Icon: TbDeviceDesktop, color: '#c8102e' },
+  SQLD: { Icon: TbDatabase, color: '#0055a5' },
+  ADSP: { Icon: TbChartPie, color: '#0055a5' },
+}
+
+function seriesLogo(href: string): { Icon: typeof SiHtml5; color: string } {
+  const slug = decodeURIComponent(href).split('/').filter(Boolean).slice(-2)[0] ?? ''
+  return seriesLogos[slug] ?? { Icon: TbBook, color: '#4b5563' }
 }
 const firstDocHref = groups[0]?.series[0]?.href ?? '#series'
 const seriesTotal = groups.reduce((n, g) => n + g.series.length, 0)
@@ -193,12 +269,13 @@ export function HomeLanding() {
           )}
           {groups.map((group) => (
             <section className={styles.group} data-gsap="scroll-reveal" key={group.title} aria-labelledby={`group-${group.order}`}>
-              <header className={styles.groupHeader}><span>{group.order}</span><div><h3 id={`group-${group.order}`}>{group.title}</h3><p>{group.description}</p></div>{(() => { const { Icon, color } = groupLogo(group.title); return <Icon aria-hidden="true" className={styles.groupLogo} style={{ color }} /> })()}</header>
+              <header className={styles.groupHeader}><span>{group.order}</span>{(() => { const { Icon, color } = groupLogo(group.title); return <Icon aria-hidden="true" className={styles.groupLogo} style={{ color }} /> })()}<div><h3 id={`group-${group.order}`}>{group.title}</h3><p>{group.description}</p></div></header>
                 <span className={`${styles.groupJoint} ${styles.groupJointLeft}`} aria-hidden="true" data-grid-junction />
                 <span className={`${styles.groupJoint} ${styles.groupJointRight}`} aria-hidden="true" data-grid-junction />
                 <div className={styles.seriesGrid}>
                 {group.series.map((series) => (
                   <Link className={styles.seriesCard} data-accent={series.accent} href={series.href} key={series.title}>
+                    {(() => { const { Icon, color } = seriesLogo(series.href); return <Icon aria-hidden="true" className={styles.cardLogo} style={{ color }} /> })()}
                     <div className={styles.cardBody}><div><span className={styles.count}>{String(series.documentCount).padStart(2, '0')} DOCUMENT</span><h4>{series.title}</h4><p>{series.description}</p></div><span className={styles.openLabel}>시작하기 <ArrowRightIcon aria-hidden="true" width="15" /></span></div>
                   </Link>
                 ))}

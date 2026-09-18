@@ -697,15 +697,15 @@
 }
 
 .groupHeader {
-  display: grid;
-  grid-template-columns: 54px auto 1fr;
-  align-items: center;
-  gap: 18px;
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 14px;
   margin-inline: calc(0px - var(--catalog-gutter));
   padding: 24px var(--catalog-gutter) 26px;
 }
 
-.groupHeader > span {
+.groupMeta > span {
   display: grid;
   place-items: center;
   width: 34px;
@@ -717,7 +717,7 @@
   font-weight: 700;
 }
 
-:global(html.dark) .groupHeader > span {
+:global(html.dark) .groupMeta > span {
   background: #292929;
   color: #c6c6c6;
 }
@@ -725,13 +725,29 @@
 .groupHeader h3 {
   margin: 0;
   color: var(--ink);
-  font-size: 24px;
+  font-size: clamp(19px, 2vw, 24px);
   font-weight: 650;
+  word-break: keep-all;
+}
+
+.groupMeta {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+}
+
+.groupTitle {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  min-width: 0;
+  max-width: 100%;
 }
 
 .groupLogo {
-  width: 30px;
-  height: 30px;
+  flex: none;
+  width: clamp(24px, 2.4vw, 32px);
+  height: clamp(24px, 2.4vw, 32px);
 }
 
 .seriesCard {
@@ -748,7 +764,7 @@
 }
 
 .groupHeader p {
-  margin: 7px 0 0;
+  margin: 0;
   color: var(--muted);
   font-size: 13px;
 }
@@ -1399,10 +1415,6 @@
 
   .groupJointRight {
     right: -4px;
-  }
-
-  .groupHeader {
-    grid-template-columns: 40px 1fr;
   }
 
   .seriesGrid {

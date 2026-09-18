@@ -54,6 +54,17 @@ article table {
   position: sticky;
   top: 0;
   z-index: 30;
+}
+
+/* 모바일 메뉴가 열리면 Nextra가 body를 스크롤 컨테이너로 바꿔 sticky 헤더가 화면 밖으로 밀린다.
+   메뉴가 열린 동안은 고정으로 두어 닫기 버튼이 항상 보이게 한다. */
+.docs-navbar[data-menu-open='true'] {
+  position: fixed;
+  top: 0;
+  left: 0;
+}
+
+.docs-navbar {
   width: 100%;
   border-bottom: 1px solid var(--docs-border);
   background: color-mix(in srgb, var(--background) 86%, transparent);

@@ -269,7 +269,7 @@ export function HomeLanding() {
           )}
           {groups.map((group) => (
             <section className={styles.group} data-gsap="scroll-reveal" key={group.title} aria-labelledby={`group-${group.order}`}>
-              <header className={styles.groupHeader}><span>{group.order}</span>{(() => { const { Icon, color } = groupLogo(group.title); return <Icon aria-hidden="true" className={styles.groupLogo} style={{ color }} /> })()}<div><h3 id={`group-${group.order}`}>{group.title}</h3><p>{group.description}</p></div></header>
+              <header className={styles.groupHeader}><div className={styles.groupMeta}><span>{group.order}</span><p>{group.description}</p></div><div className={styles.groupTitle}>{(() => { const { Icon, color } = groupLogo(group.title); return <Icon aria-hidden="true" className={styles.groupLogo} style={{ color }} /> })()}<h3 id={`group-${group.order}`}>{group.title}</h3></div></header>
                 <span className={`${styles.groupJoint} ${styles.groupJointLeft}`} aria-hidden="true" data-grid-junction />
                 <span className={`${styles.groupJoint} ${styles.groupJointRight}`} aria-hidden="true" data-grid-junction />
                 <div className={styles.seriesGrid}>

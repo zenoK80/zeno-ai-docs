@@ -151,7 +151,7 @@ export function DocsNavbar({ pageMap }: { pageMap: PageMapItem[] }) {
   }
 
   return (
-    <header className="docs-navbar" ref={headerRef}>
+    <header className="docs-navbar" data-menu-open={mobileMenuOpen || undefined} ref={headerRef}>
       <nav className="docs-navbar-inner" aria-label="Main navigation">
         <Link className="docs-navbar-logo" href="/" aria-label="Home page">
           <img src="/zenoLogo.svg" alt="" width="24" height="24" />

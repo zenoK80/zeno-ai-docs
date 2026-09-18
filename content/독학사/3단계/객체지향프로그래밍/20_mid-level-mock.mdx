@@ -1,0 +1,710 @@
+---
+title: '20. 중간 수준 모의문제: 클래스·상속·예외'
+description: '클래스와 객체, 생성자와 this·super, 캡슐화, 상속·오버로딩·오버라이딩·다형성, 예외 처리를 코드 추적 중심으로 재구성한 모의 문제 24문항'
+---
+
+<Callout type="warning">
+  **재구성 출제 고지:** 이 문제집은 국가평생교육진흥원 독학학위제 3단계 객체지향프로그래밍 출제기준(클래스·객체, 상속, 예외 처리 등 평가영역)의 범위와 문항 유형을 분석해 새로 구성한 재구성 문항입니다. 실제 기출 문항을 그대로 옮긴 것이 아닙니다. 회차별 정확한 문항 수·시험 시간은 시행처 공고를 확인해야 하며, 여기서는 24문항을 표준 분량으로 구성했습니다.
+</Callout>
+
+## 출제 범위와 문항 배분
+
+| 영역 | 문항 수 | 문항 번호 | 관련 편 |
+| --- | --- | --- | --- |
+| 클래스·객체·생성자·this·super | 5 | 1–5 | 04, 05 |
+| 캡슐화와 접근 제어 | 4 | 6–9 | 06 |
+| 상속과 오버로딩 | 4 | 10–13 | 08 |
+| 오버라이딩·다형성·동적 바인딩 | 5 | 14–18 | 09 |
+| 예외 처리 | 6 | 19–24 | 13, 14 |
+
+각 문제의 코드를 눈으로만 읽지 말고, 한 줄씩 실행되는 순서와 그 시점의 필드 값·호출되는 메서드를 직접 표로 적어 본 뒤 정답을 확인하세요. 특히 정적 바인딩과 동적 바인딩의 차이, 생성자 호출 순서, checked·unchecked 예외의 구분은 독학사 3단계에서 반복 출제되는 대표 함정입니다.
+
+## 클래스·객체·생성자·this·super (1–5)
+
+### 문제 1
+
+```java
+public class Counter {
+    int count;
+    String label;
+
+    public static void main(String[] args) {
+        Counter c = new Counter();
+        System.out.println(c.count);
+        System.out.println(c.label);
+    }
+}
+```
+
+<Quiz
+  questionNumber={1}
+  question="위 코드를 실행했을 때 출력되는 결과로 옳은 것은?"
+  options={['① 0 다음 줄에 null', '② 컴파일 오류가 발생한다', '③ 0 다음 줄에 빈 문자열', '④ null 다음 줄에 0']}
+  correctAnswer={1}
+  explanation="인스턴스 필드는 명시적으로 초기화하지 않아도 자바가 자동으로 기본값을 채운다. count는 int형이므로 기본값 0으로 초기화되고, label은 String형 참조 타입이므로 기본값 null로 초기화된다. 따라서 첫 줄은 0, 둘째 줄은 null이 출력된다."
+  optionExplanations={['int 필드의 기본값 0과 참조형 필드의 기본값 null이 순서대로 출력되므로 정답이다.', 'count와 label 모두 초기화 문법 오류가 없어 정상적으로 컴파일된다.', 'String 필드의 기본값은 빈 문자열이 아니라 null이다.', '두 줄의 출력 순서는 println을 호출한 순서인 count, label 순이다.']}
+/>
+
+### 문제 2
+
+```java
+public class Point {
+    int x, y;
+
+    public Point(int x, int y) {
+        this.x = x;
+        this.y = y;
+    }
+
+    public static void main(String[] args) {
+        Point p = new Point();
+        System.out.println(p.x);
+    }
+}
+```
+
+<Quiz
+  questionNumber={2}
+  question="위 코드를 컴파일했을 때 결과로 옳은 것은?"
+  options={['① 매개변수가 없는 생성자가 없어 new Point() 부분에서 컴파일 오류가 발생한다', '② 0이 출력된다', '③ 알 수 없는 쓰레기 값이 출력된다', '④ null이 출력된다']}
+  correctAnswer={1}
+  explanation="매개변수가 있는 생성자를 하나라도 명시적으로 정의하면, 자바 컴파일러는 매개변수가 없는 기본 생성자를 더 이상 자동으로 추가해 주지 않는다. Point 클래스에는 정수 두 개를 받는 생성자만 있고 매개변수가 없는 생성자는 없으므로, new Point()는 일치하는 생성자를 찾지 못해 컴파일 오류가 발생한다."
+  optionExplanations={['명시적 생성자가 하나라도 있으면 기본 생성자가 자동 추가되지 않는다는 규칙을 정확히 반영하므로 정답이다.', '컴파일 자체가 되지 않으므로 0이 출력될 기회가 없다.', '자바는 초기화되지 않은 필드에 정의되지 않은 쓰레기 값을 남기지 않으며, 애초에 이 코드는 컴파일되지 않는다.', 'x는 int형이라 설령 컴파일이 된다 해도 null이 될 수 없다.']}
+/>
+
+### 문제 3
+
+```java
+public class Box {
+    int width;
+    int height;
+
+    public Box() {
+        this(10, 20);
+    }
+
+    public Box(int width, int height) {
+        this.width = width;
+        this.height = height;
+    }
+
+    public static void main(String[] args) {
+        Box b = new Box();
+        System.out.println(b.width + " " + b.height);
+    }
+}
+```
+
+<Quiz
+  questionNumber={3}
+  question="위 코드를 실행했을 때 출력되는 값으로 옳은 것은?"
+  options={['① 10 20', '② 0 0', '③ 20 10', '④ this는 생성자의 첫 문장이 아니어서 컴파일 오류가 발생한다']}
+  correctAnswer={1}
+  explanation="매개변수가 없는 Box 생성자는 this(10, 20)을 호출해 매개변수가 있는 생성자로 위임한다. this()는 생성자의 첫 문장으로 정확히 작성되어 있으므로 문법적으로 문제가 없다. 위임받은 생성자가 width를 10, height를 20으로 초기화하므로 최종 출력은 10 20이다."
+  optionExplanations={['this로 위임된 생성자가 필드를 10과 20으로 초기화하므로 이것이 정답이다.', '필드가 기본값 그대로 남으려면 생성자가 값을 대입하지 않아야 하는데, 이 코드는 this로 값을 정확히 위임한다.', '너비와 높이 순서를 반대로 착각했을 때 나올 수 있는 오답이다.', 'this(10, 20)은 생성자 본문의 첫 번째 문장으로 작성되어 있으므로 문법 규칙을 어기지 않는다.']}
+/>
+
+### 문제 4
+
+```java
+class Animal {
+    Animal() {
+        System.out.println("Animal 생성자");
+    }
+}
+
+class Dog extends Animal {
+    Dog() {
+        System.out.println("Dog 생성자");
+    }
+
+    public static void main(String[] args) {
+        Dog d = new Dog();
+    }
+}
+```
+
+<Quiz
+  questionNumber={4}
+  question="위 코드를 실행했을 때 출력 순서로 옳은 것은?"
+  options={['① Animal 생성자 다음 Dog 생성자', '② Dog 생성자만 출력된다', '③ Dog 생성자 다음 Animal 생성자', '④ 컴파일 오류가 발생한다']}
+  correctAnswer={1}
+  explanation="Dog 생성자는 명시적으로 super()를 호출하지 않지만, 자바는 하위 클래스 생성자의 첫 줄에 상위 클래스의 매개변수 없는 생성자를 호출하는 super()를 자동으로 추가한다. 따라서 Dog 객체를 생성하면 Animal의 생성자가 먼저 실행되어 Animal 생성자가 출력되고, 그 다음 Dog 생성자 본문이 실행되어 Dog 생성자가 출력된다."
+  optionExplanations={['상위 클래스 생성자가 항상 먼저 실행된다는 초기화 순서를 정확히 반영하므로 정답이다.', '자바는 객체 생성 시 상위 클래스의 생성자를 반드시 먼저 실행하므로 Animal 생성자도 함께 출력된다.', '초기화 순서를 반대로 착각했을 때 나올 수 있는 오답이다.', 'Animal에 매개변수 없는 생성자가 있으므로 자동 super() 호출이 정상적으로 이루어져 컴파일 오류가 없다.']}
+/>
+
+### 문제 5
+
+```java
+class Base {
+    int value = 10;
+}
+
+class Derived extends Base {
+    int value = 20;
+
+    void printValues() {
+        System.out.println(this.value);
+        System.out.println(super.value);
+    }
+
+    public static void main(String[] args) {
+        new Derived().printValues();
+    }
+}
+```
+
+<Quiz
+  questionNumber={5}
+  question="위 코드를 실행했을 때 출력되는 값으로 옳은 것은?"
+  options={['① 20 다음 10', '② 10 다음 20', '③ 20 다음 20', '④ 10 다음 10']}
+  correctAnswer={1}
+  explanation="메서드와 달리 필드는 오버라이딩되지 않고 각각 독립된 공간에 저장되며, this나 super로 어떤 필드를 가리키는지가 코드 작성 시점에 정적으로 결정된다. this.value는 Derived 클래스에 선언된 value인 20을 가리키고, super.value는 명시적으로 상위 클래스 Base에 선언된 value인 10을 가리킨다."
+  optionExplanations={['this.value가 Derived의 20을, super.value가 Base의 10을 가리키는 필드 숨김 규칙을 정확히 반영하므로 정답이다.', 'this와 super가 가리키는 값을 서로 반대로 착각했을 때 나올 수 있는 오답이다.', '필드는 다형적으로 동작하지 않으므로 두 값이 같을 수 없다.', '두 값 모두 10으로 착각한 오답으로, this.value는 Derived에 선언된 20을 가리킨다.']}
+/>
+
+## 캡슐화와 접근 제어 (6–9)
+
+### 문제 6
+
+```java
+public class Circle {
+    private double radius;
+
+    public Circle(double radius) {
+        this.radius = radius;
+    }
+
+    public double getRadius() {
+        return radius;
+    }
+}
+
+class Main {
+    public static void main(String[] args) {
+        Circle c = new Circle(5.0);
+        System.out.println(c.radius);
+    }
+}
+```
+
+<Quiz
+  questionNumber={6}
+  question="위 코드에서 Main 클래스가 c.radius로 직접 접근하려고 할 때 발생하는 일로 옳은 것은?"
+  options={['① radius는 private 필드이므로 Circle 클래스 외부에서 직접 접근할 수 없어 컴파일 오류가 발생한다', '② 같은 소스 파일 안에 있으므로 정상적으로 접근할 수 있다', '③ getRadius 메서드가 있으므로 필드 접근도 자동으로 허용된다', '④ 컴파일은 되지만 실행할 때만 오류가 발생한다']}
+  correctAnswer={1}
+  explanation="private으로 선언된 필드는 오직 그 필드가 선언된 클래스 내부에서만 접근할 수 있다. 같은 파일에 있거나 같은 패키지에 있어도 예외가 되지 않으므로, Main 클래스에서 c.radius처럼 직접 접근하는 코드는 컴파일 시점에 오류로 처리된다."
+  optionExplanations={['private 필드는 선언된 클래스 내부로 접근이 한정된다는 규칙을 정확히 반영하므로 정답이다.', '같은 파일 여부는 private 접근 제어와 무관하며 여전히 클래스 경계를 기준으로 판단한다.', 'getRadius 같은 공개 메서드가 있다고 해서 필드 자체에 대한 직접 접근 권한이 생기지는 않는다.', '이 문제는 문법 검사 단계에서 걸러지는 컴파일 오류이지 실행 시점의 오류가 아니다.']}
+/>
+
+### 문제 7
+
+<Quiz
+  questionNumber={7}
+  question="protected 접근 제어자에 대한 설명으로 가장 정확한 것은?"
+  options={['① 같은 패키지의 모든 클래스와, 다른 패키지에 있는 자식 클래스에서 접근할 수 있다', '② 오직 그 멤버가 선언된 클래스 내부에서만 접근할 수 있다', '③ default 접근 수준과 완전히 동일하게 같은 패키지에서만 접근할 수 있다', '④ public과 완전히 동일하게 어떤 클래스에서도 접근할 수 있다']}
+  correctAnswer={1}
+  explanation="protected는 같은 패키지 안에 있는 클래스라면 상속 관계가 없어도 접근할 수 있고, 여기에 더해 다른 패키지에 있더라도 상속 관계에 있는 자식 클래스에서는 상속받은 멤버로서 접근할 수 있게 허용한다. 이 두 조건을 함께 기억하는 것이 default와 protected를 구분하는 핵심이다."
+  optionExplanations={['같은 패키지 전체와 다른 패키지의 자식 클래스까지 허용 범위를 넓힌다는 protected의 정확한 정의이므로 정답이다.', 'private에 대한 설명이며, protected는 클래스 외부에서도 접근이 가능하다.', 'default는 다른 패키지의 자식 클래스에서는 접근할 수 없다는 점에서 protected보다 범위가 좁아 서로 다르다.', 'public은 상속 관계와 무관하게 어디서나 접근할 수 있어 protected보다 범위가 넓으므로 서로 다르다.']}
+/>
+
+### 문제 8
+
+```java
+public class Account {
+    private int balance;
+
+    public void setBalance(int balance) {
+        if (balance >= 0) {
+            this.balance = balance;
+        }
+    }
+
+    public int getBalance() {
+        return balance;
+    }
+
+    public static void main(String[] args) {
+        Account acc = new Account();
+        acc.setBalance(-500);
+        System.out.println(acc.getBalance());
+    }
+}
+```
+
+<Quiz
+  questionNumber={8}
+  question="위 코드를 실행했을 때 출력되는 값으로 옳은 것은?"
+  options={['① 0', '② -500', '③ 컴파일 오류가 발생한다', '④ 500']}
+  correctAnswer={1}
+  explanation="setBalance는 매개변수 balance가 0 이상일 때만 필드 값을 바꾸도록 유효성 검증을 한다. -500은 이 조건을 만족하지 못하므로 필드는 대입되지 않고 int 필드의 기본값인 0으로 남는다. 이것이 캡슐화를 통해 잘못된 값이 객체 상태에 반영되는 것을 막는 대표적인 예다."
+  optionExplanations={['유효성 검증에 걸려 대입이 일어나지 않아 기본값 0이 그대로 유지되므로 정답이다.', '검증 로직이 음수를 걸러내므로 -500이 그대로 저장되지 않는다.', 'setBalance 호출 자체는 문법적으로 아무 문제가 없어 컴파일은 정상적으로 된다.', '500이 저장되려면 setBalance(500)처럼 호출해야 하며, 이 코드는 -500을 전달했다.']}
+/>
+
+### 문제 9
+
+<Quiz
+  questionNumber={9}
+  question="접근 제어자에 대한 설명으로 옳지 않은 것은?"
+  options={['① private 필드는 선언된 클래스 내부에서만 접근할 수 있다', '② 접근 제어자를 생략한 default 접근 수준은 같은 패키지 안에서만 접근을 허용한다', '③ protected 멤버는 상속 관계가 없어도 다른 패키지의 모든 클래스에서 접근할 수 있다', '④ public 멤버는 접근 범위가 가장 넓어 어떤 패키지의 어떤 클래스에서도 접근할 수 있다']}
+  correctAnswer={3}
+  explanation="protected는 같은 패키지 안에서는 상속 관계 없이도 접근할 수 있지만, 다른 패키지에서는 반드시 상속 관계에 있는 자식 클래스여야만 접근할 수 있다. 상속 관계가 없는 다른 패키지의 임의의 클래스는 protected 멤버에 접근할 수 없으므로, 상속 관계 없이 다른 패키지의 모든 클래스에서 접근할 수 있다는 설명은 옳지 않다."
+  optionExplanations={['private의 정확한 정의이므로 옳은 설명이다.', 'default 접근 수준의 정확한 정의이므로 옳은 설명이다.', '다른 패키지에서는 상속 관계가 반드시 필요하다는 조건을 빠뜨렸으므로 옳지 않은 설명이며 이것이 정답이다.', 'public의 정확한 정의이므로 옳은 설명이다.']}
+/>
+
+## 상속과 오버로딩 (10–13)
+
+### 문제 10
+
+```java
+public class Calc {
+    static void show(int x) {
+        System.out.println("int: " + x);
+    }
+
+    static void show(double x) {
+        System.out.println("double: " + x);
+    }
+
+    public static void main(String[] args) {
+        show(5);
+        show(5.0);
+        show('A');
+    }
+}
+```
+
+<Quiz
+  questionNumber={10}
+  question="위 코드를 실행했을 때 출력되는 세 줄의 결과로 옳은 것은?"
+  options={['① int: 5 / double: 5.0 / int: 65', '② int: 5 / double: 5.0 / 컴파일 오류', '③ double: 5.0 / double: 5.0 / int: 65', '④ int: 5 / int: 5 / int: 65']}
+  correctAnswer={1}
+  explanation="show(5)는 정수 리터럴이므로 int를 받는 버전이 호출되어 int: 5가 출력된다. show(5.0)은 실수 리터럴이므로 double을 받는 버전이 호출되어 double: 5.0이 출력된다. show(문자 A)는 char를 받는 오버로딩 버전이 없으므로, char가 자동으로 int로 확장 변환되어 아스키 코드 값인 65가 전달되고 int: 65가 출력된다."
+  optionExplanations={['세 번의 호출이 각각 int 버전, double 버전, char의 int 확장 변환으로 정확히 이어지므로 정답이다.', 'char는 int로 자동 확장 변환이 가능하므로 세 번째 호출은 컴파일 오류가 아니라 정상적으로 int 버전을 호출한다.', '첫 번째 호출 show(5)는 정수 리터럴이므로 int 버전이 호출되어 int: 5가 출력된다.', '두 번째 호출 show(5.0)은 실수 리터럴이므로 double 버전이 호출되어 double: 5.0이 출력된다.']}
+/>
+
+### 문제 11
+
+<Quiz
+  questionNumber={11}
+  question="메서드 오버로딩에 대한 설명으로 옳지 않은 것은?"
+  options={['① 매개변수 목록은 완전히 같고 반환형만 다르게 정의해도 오버로딩이 성립한다', '② 같은 이름의 메서드를 매개변수 목록을 다르게 하여 한 클래스 안에 여러 개 정의하는 것이다', '③ 오버로딩된 메서드 중 어떤 것이 호출될지는 컴파일 시점에 인자의 타입으로 결정된다', '④ 상속 관계가 없어도 한 클래스 내에서 성립할 수 있다']}
+  correctAnswer={1}
+  explanation="오버로딩이 성립하려면 매개변수의 개수, 타입, 순서 중 적어도 하나가 달라야 한다. 매개변수 목록이 완전히 같고 반환형만 다른 두 메서드를 같은 클래스에 정의하면, 자바 컴파일러는 이를 서로 다른 메서드로 구분하지 못해 중복 선언 오류를 낸다."
+  optionExplanations={['반환형만 다르고 매개변수 목록이 같으면 오버로딩이 성립하지 않고 컴파일 오류가 나므로 옳지 않은 설명이며 이것이 정답이다.', '오버로딩의 정확한 정의이므로 옳은 설명이다.', '오버로딩은 정적 바인딩으로 컴파일 시점에 인자 타입을 기준으로 호출할 메서드가 결정되므로 옳은 설명이다.', '오버로딩은 상속과 무관하게 한 클래스 내부에서도 성립할 수 있으므로 옳은 설명이다.']}
+/>
+
+### 문제 12
+
+```java
+class Vehicle {}
+class Car extends Vehicle {}
+class Bicycle extends Vehicle {}
+
+public class Main {
+    public static void main(String[] args) {
+        Vehicle v = new Car();
+        Bicycle b = (Bicycle) v;
+    }
+}
+```
+
+<Quiz
+  questionNumber={12}
+  question="위 코드를 컴파일하고 실행했을 때 결과로 옳은 것은?"
+  options={['① 컴파일은 되지만 실행할 때 ClassCastException이 발생한다', '② 컴파일 오류가 발생한다', '③ 정상적으로 실행되고 아무 것도 출력되지 않는다', '④ v가 자동으로 Bicycle 타입 객체로 바뀐다']}
+  correctAnswer={1}
+  explanation="Car와 Bicycle이 모두 Vehicle의 자식 클래스이므로, 컴파일러는 참조 변수 v의 선언 타입인 Vehicle을 기준으로 Bicycle로의 형 변환이 문법적으로 가능한지만 확인하고 컴파일을 통과시킨다. 하지만 실제로 힙에 만들어져 있는 객체는 Car이므로, 실행 시점에 실제 객체 타입과 캐스팅하려는 타입이 일치하지 않아 ClassCastException이 발생한다."
+  optionExplanations={['컴파일 시점의 형 변환 가능성 검사와 실행 시점의 실제 타입 불일치가 함께 나타나는 전형적인 경우이므로 정답이다.', 'Vehicle을 공통 조상으로 하는 형 변환은 문법적으로 허용되므로 컴파일 오류가 아니다.', '실행 시점에 실제 타입 불일치로 예외가 발생해 프로그램이 비정상 종료되므로 아무 일도 없다는 설명은 옳지 않다.', '형 변환 연산자는 객체 자체를 다른 타입으로 바꾸는 것이 아니라 참조 방식만 바꾸려 시도하는 것이다.']}
+/>
+
+### 문제 13
+
+```java
+class Parent {
+    int value;
+
+    Parent(int value) {
+        this.value = value;
+    }
+}
+
+class Child extends Parent {
+    Child() {
+        System.out.println("Child 생성자");
+    }
+
+    public static void main(String[] args) {
+        Child c = new Child();
+    }
+}
+```
+
+<Quiz
+  questionNumber={13}
+  question="위 코드를 컴파일했을 때 결과로 옳은 것은?"
+  options={['① Parent 클래스에 매개변수가 없는 생성자가 없어 컴파일 오류가 발생한다', '② Child 생성자가 정상적으로 출력된다', '③ Parent의 value가 자동으로 0으로 초기화되어 실행된다', '④ 런타임에만 오류가 발생한다']}
+  correctAnswer={1}
+  explanation="Child 생성자는 명시적으로 super를 호출하지 않으므로, 자바는 첫 줄에 매개변수가 없는 super()를 자동으로 넣으려고 시도한다. 그런데 Parent 클래스에는 정수를 하나 받는 생성자만 있고 매개변수가 없는 생성자는 없으므로, 자동으로 추가되는 super() 호출이 일치하는 생성자를 찾지 못해 컴파일 오류가 발생한다."
+  optionExplanations={['자동 super() 호출과 Parent의 생성자 목록이 맞지 않아 발생하는 컴파일 오류를 정확히 짚었으므로 정답이다.', '이 코드는 애초에 컴파일되지 않으므로 Child 생성자가 출력될 수 없다.', 'value를 0으로 자동 초기화해 주는 기능은 없으며, 오히려 일치하는 생성자가 없어 컴파일이 실패한다.', '이 문제는 문법 검사 단계에서 걸러지는 컴파일 오류이지 실행 시점의 오류가 아니다.']}
+/>
+
+## 오버라이딩·다형성·동적 바인딩 (14–18)
+
+### 문제 14
+
+```java
+class Parent {
+    protected void greet() {
+        System.out.println("Parent");
+    }
+}
+
+class Child extends Parent {
+    private void greet() {
+        System.out.println("Child");
+    }
+}
+```
+
+<Quiz
+  questionNumber={14}
+  question="위 코드를 컴파일했을 때 결과로 옳은 것은?"
+  options={['① 오버라이딩 시 접근 제어자를 더 좁게 줄일 수 없어 컴파일 오류가 발생한다', '② 정상적으로 오버라이딩되어 Child가 출력된다', '③ private 메서드이므로 별개의 오버로딩으로 처리되어 오류가 없다', '④ 컴파일은 되고 실행할 때만 오류가 발생한다']}
+  correctAnswer={1}
+  explanation="자바는 오버라이딩할 때 상위 클래스 메서드보다 접근 범위를 더 좁게 줄이는 것을 허용하지 않는다. Parent의 greet는 protected인데 Child에서 이를 private으로 재정의하려 하면 접근 범위가 더 좁아지므로, 컴파일러가 이를 규칙 위반으로 판단해 컴파일 오류를 낸다."
+  optionExplanations={['접근 범위 축소 금지 규칙을 정확히 반영하므로 정답이다.', '접근 범위를 좁히는 오버라이딩은 애초에 컴파일되지 않으므로 실행 결과를 논할 수 없다.', '매개변수 목록이 같고 이름도 같으므로 이는 오버로딩이 아니라 오버라이딩 시도이며, 접근 범위 축소 규칙이 그대로 적용된다.', '이 문제는 컴파일 시점에 걸러지는 오류이지 실행 시점의 오류가 아니다.']}
+/>
+
+### 문제 15
+
+```java
+class Shape {
+    double area() {
+        return 0;
+    }
+
+    void printArea() {
+        System.out.println("면적: " + area());
+    }
+}
+
+class Circle extends Shape {
+    double radius;
+
+    Circle(double radius) {
+        this.radius = radius;
+    }
+
+    @Override
+    double area() {
+        return 3.14 * radius * radius;
+    }
+}
+
+public class Main {
+    public static void main(String[] args) {
+        Shape s = new Circle(2);
+        s.printArea();
+    }
+}
+```
+
+<Quiz
+  questionNumber={15}
+  question="위 코드를 실행했을 때 출력되는 결과로 옳은 것은?"
+  options={['① 면적: 12.56', '② 면적: 0.0', '③ 컴파일 오류가 발생한다', '④ 면적: 0']}
+  correctAnswer={1}
+  explanation="printArea 메서드는 Shape 클래스에 정의되어 있지만, 그 안에서 호출하는 area 메서드는 실제 객체의 타입을 기준으로 동적 바인딩되어 호출된다. s가 실제로 가리키는 객체는 Circle이므로 Circle의 area가 실행되어 3.14에 반지름 2를 두 번 곱한 값인 12.56이 반환되고, 문자열과 이어져 면적: 12.56이 출력된다."
+  optionExplanations={['동적 바인딩에 의해 Circle의 area가 호출되어 12.56이 계산되므로 정답이다.', 'Shape의 area가 그대로 호출된다고 착각했을 때 나올 수 있는 값이지만, 실제로는 동적 바인딩으로 Circle의 area가 호출된다.', 'printArea와 area 모두 정상적인 메서드 재정의와 상속 규칙을 따르므로 컴파일 오류가 없다.', 'Shape의 area가 반환하는 0을 그대로 사용했을 때 나올 수 있는 값이지만, 실제 호출되는 것은 Circle의 area이다.']}
+/>
+
+### 문제 16
+
+```java
+class Animal {
+    void sound() {
+        System.out.println("동물 소리");
+    }
+}
+
+class Cat extends Animal {
+    @Override
+    void sound() {
+        System.out.println("야옹");
+    }
+
+    void scratch() {
+        System.out.println("할퀴기");
+    }
+}
+
+public class Main {
+    public static void main(String[] args) {
+        Animal a = new Cat();
+        a.sound();
+        a.scratch();
+    }
+}
+```
+
+<Quiz
+  questionNumber={16}
+  question="위 코드를 컴파일했을 때 결과로 옳은 것은?"
+  options={['① a.scratch() 부분에서 Animal 타입에는 scratch 메서드가 없어 컴파일 오류가 발생한다', '② 야옹 다음 할퀴기가 정상적으로 출력된다', '③ 동물 소리 다음 할퀴기가 출력된다', '④ 런타임에 메서드를 찾지 못했다는 예외가 발생한다']}
+  correctAnswer={1}
+  explanation="참조 변수 a의 선언 타입은 Animal이므로, 컴파일러는 컴파일 시점에 Animal 클래스에 정의된 멤버만 호출 가능한지를 검사한다. scratch 메서드는 Cat에만 정의되어 있고 Animal에는 없으므로, a.scratch() 호출은 컴파일 시점에 오류로 처리된다. 실제 객체가 Cat이라는 사실은 컴파일 시점의 타입 검사에 아무런 영향을 주지 못한다."
+  optionExplanations={['참조 변수의 선언 타입을 기준으로 호출 가능한 멤버가 결정된다는 규칙을 정확히 반영하므로 정답이다.', '이 코드는 컴파일 시점에 오류가 나므로 실행 자체가 되지 않는다.', '이 코드는 컴파일 시점에 오류가 나므로 sound 호출조차 실행되지 않는다.', '이는 컴파일 시점에 걸러지는 오류이지 실행 시점의 예외가 아니다.']}
+/>
+
+### 문제 17
+
+```java
+import java.io.IOException;
+
+class Parent {
+    void process() throws IOException {
+        System.out.println("Parent 처리");
+    }
+}
+
+class Child extends Parent {
+    @Override
+    void process() throws RuntimeException {
+        System.out.println("Child 처리");
+    }
+
+    public static void main(String[] args) {
+        Parent p = new Child();
+        try {
+            p.process();
+        } catch (IOException e) {
+            System.out.println("예외 처리");
+        }
+    }
+}
+```
+
+<Quiz
+  questionNumber={17}
+  question="위 코드를 컴파일하고 실행했을 때 결과로 옳은 것은?"
+  options={['① Child 처리가 출력된다', '② 오버라이딩 시 다른 예외를 선언했으므로 컴파일 오류가 발생한다', '③ 예외 처리가 출력된다', '④ Parent 처리 다음 Child 처리가 출력된다']}
+  correctAnswer={1}
+  explanation="오버라이딩된 메서드는 상위 클래스 메서드가 선언한 checked 예외보다 더 넓은 범위의 checked 예외를 새로 선언할 수 없지만, RuntimeException 계열의 unchecked 예외는 이 제한을 받지 않아 자유롭게 선언할 수 있다. 따라서 Child의 process는 문법적으로 문제가 없고, p가 실제로 가리키는 객체는 Child이므로 동적 바인딩에 의해 Child의 process가 호출되어 Child 처리만 출력되며 예외는 발생하지 않는다."
+  optionExplanations={['동적 바인딩으로 Child의 process가 호출되고 예외도 던져지지 않으므로 정답이다.', 'RuntimeException은 unchecked 예외이므로 checked 예외의 범위 확대 제한 규칙이 적용되지 않아 컴파일 오류가 아니다.', 'process 안에서 실제로 예외를 던지는 코드가 없으므로 catch 블록은 실행되지 않는다.', 'Parent의 process가 아니라 동적 바인딩으로 Child의 process만 호출되므로 Parent 처리는 출력되지 않는다.']}
+/>
+
+### 문제 18
+
+```java
+class Shape {
+    String name() {
+        return "도형";
+    }
+}
+
+class Triangle extends Shape {
+    @Override
+    String name() {
+        return "삼각형";
+    }
+}
+
+class Square extends Shape {
+    @Override
+    String name() {
+        return "사각형";
+    }
+}
+
+public class Main {
+    public static void main(String[] args) {
+        Shape[] shapes = { new Triangle(), new Square(), new Shape() };
+        for (Shape s : shapes) {
+            System.out.print(s.name() + " ");
+        }
+    }
+}
+```
+
+<Quiz
+  questionNumber={18}
+  question="위 코드를 실행했을 때 출력되는 순서로 옳은 것은?"
+  options={['① 삼각형, 사각형, 도형 순서로 출력된다', '② 도형, 도형, 도형 순서로 출력된다', '③ 컴파일 오류가 발생한다', '④ 삼각형, 사각형만 출력되고 마지막 원소는 출력되지 않는다']}
+  correctAnswer={1}
+  explanation="Shape 배열에는 서로 다른 실제 타입의 객체 세 개가 담겨 있다. 반복문에서 s.name()을 호출할 때마다 동적 바인딩에 의해 각 객체의 실제 타입에 맞는 name이 호출되므로, Triangle 객체는 삼각형, Square 객체는 사각형, Shape 자체 객체는 도형을 반환한다."
+  optionExplanations={['배열의 각 원소가 실제 타입에 맞는 name을 순서대로 반환하므로 정답이다.', '모든 원소가 Shape의 name만 호출한다고 착각했을 때 나오는 값으로, 동적 바인딩을 반영하지 않은 오답이다.', 'Shape 배열에 하위 클래스 객체를 담는 것은 다형성의 정상적인 사용이므로 컴파일 오류가 아니다.', '반복문은 배열의 세 원소 모두를 순서대로 방문하므로 마지막 원소도 출력된다.']}
+/>
+
+## 예외 처리 (19–24)
+
+### 문제 19
+
+```java
+public class Main {
+    static int test() {
+        try {
+            return 1;
+        } finally {
+            System.out.println("finally 실행");
+        }
+    }
+
+    public static void main(String[] args) {
+        System.out.println(test());
+    }
+}
+```
+
+<Quiz
+  questionNumber={19}
+  question="위 코드를 실행했을 때 출력 순서로 옳은 것은?"
+  options={['① finally 실행 다음 1', '② 1 다음 finally 실행', '③ finally 실행만 출력되고 1은 출력되지 않는다', '④ 컴파일 오류가 발생한다']}
+  correctAnswer={1}
+  explanation="try 블록에서 return 문을 만나면 반환할 값을 먼저 준비해 두지만, 메서드를 실제로 빠져나가기 전에 finally 블록을 반드시 실행한다. 따라서 finally 실행이라는 문구가 먼저 출력되고, 그 다음 test 메서드가 최종적으로 반환한 값인 1이 main의 println에 의해 출력된다."
+  optionExplanations={['finally가 메서드 종료 직전에 반드시 실행된다는 규칙을 정확히 반영하므로 정답이다.', 'finally는 return으로 메서드를 빠져나가기 전에 먼저 실행되므로 순서가 반대로 되지 않는다.', 'finally 실행 후에도 test는 정상적으로 1을 반환하므로 두 줄 모두 출력된다.', 'try-finally 구조는 문법적으로 정상이므로 컴파일 오류가 없다.']}
+/>
+
+### 문제 20
+
+```java
+import java.io.IOException;
+
+public class Main {
+    static void readFile() throws IOException {
+        throw new IOException("파일 없음");
+    }
+
+    public static void main(String[] args) {
+        readFile();
+    }
+}
+```
+
+<Quiz
+  questionNumber={20}
+  question="위 코드를 컴파일했을 때 결과로 옳은 것은?"
+  options={['① main이 checked 예외인 IOException을 처리하거나 선언하지 않아 컴파일 오류가 발생한다', '② 정상적으로 실행되고 예외 메시지가 출력된다', '③ IOException은 unchecked 예외이므로 문제 없이 컴파일된다', '④ 컴파일은 통과하고 실행할 때만 오류가 발생한다']}
+  correctAnswer={1}
+  explanation="IOException은 checked 예외이므로, 이를 던질 수 있는 메서드를 호출하는 코드는 반드시 try-catch로 처리하거나 자신의 선언부에 throws로 명시해야 한다. main 메서드는 readFile을 호출하면서도 IOException을 처리하지도, throws로 선언하지도 않았으므로 컴파일 오류가 발생한다."
+  optionExplanations={['checked 예외를 처리하거나 선언하지 않은 상태를 정확히 짚었으므로 정답이다.', '컴파일 자체가 되지 않으므로 실행 결과를 논할 수 없다.', 'IOException은 RuntimeException의 하위 클래스가 아닌 checked 예외이다.', '이 문제는 컴파일 시점에 걸러지는 검사 예외 처리 누락 오류이지 실행 시점의 오류가 아니다.']}
+/>
+
+### 문제 21
+
+```java
+public class Main {
+    public static void main(String[] args) {
+        try {
+            int[] arr = new int[3];
+            System.out.println(arr[5]);
+        } catch (Exception e) {
+            System.out.println("Exception 처리");
+        } catch (ArrayIndexOutOfBoundsException e) {
+            System.out.println("배열 인덱스 예외 처리");
+        }
+    }
+}
+```
+
+<Quiz
+  questionNumber={21}
+  question="위 코드를 컴파일했을 때 결과로 옳은 것은?"
+  options={['① 상위 예외 클래스인 Exception을 먼저 catch해 두 번째 catch 블록에 도달할 수 없으므로 컴파일 오류가 발생한다', '② 배열 인덱스 예외 처리가 출력된다', '③ Exception 처리가 출력된다', '④ 두 catch 블록이 모두 실행된다']}
+  correctAnswer={1}
+  explanation="catch 블록은 코드에 작성된 순서대로 검사된다. ArrayIndexOutOfBoundsException은 Exception의 하위 클래스이므로, 상위 클래스인 Exception을 먼저 catch하는 블록이 모든 예외를 다 받아 버려서 그 아래에 있는 ArrayIndexOutOfBoundsException 전용 catch 블록은 어떤 예외가 발생해도 결코 실행될 수 없는 도달 불가능한 코드가 된다. 자바 컴파일러는 이런 코드를 오류로 처리한다."
+  optionExplanations={['하위 예외 catch 블록이 영원히 도달 불가능해지는 이유를 정확히 짚었으므로 정답이다.', '이 코드는 애초에 컴파일되지 않으므로 실행 결과를 논할 수 없다.', '이 코드는 애초에 컴파일되지 않으므로 실행 결과를 논할 수 없다.', '컴파일 오류로 인해 어떤 catch 블록도 실행될 수 없다.']}
+/>
+
+### 문제 22
+
+```java
+class InsufficientBalanceException extends Exception {
+    InsufficientBalanceException(String message) {
+        super(message);
+    }
+}
+
+class Account {
+    int balance = 1000;
+
+    void withdraw(int amount) throws InsufficientBalanceException {
+        if (amount > balance) {
+            throw new InsufficientBalanceException("잔액 부족");
+        }
+        balance -= amount;
+    }
+}
+
+public class Main {
+    public static void main(String[] args) {
+        Account acc = new Account();
+        try {
+            acc.withdraw(2000);
+        } catch (InsufficientBalanceException e) {
+            System.out.println("오류: " + e.getMessage());
+        }
+    }
+}
+```
+
+<Quiz
+  questionNumber={22}
+  question="위 코드를 실행했을 때 출력되는 결과로 옳은 것은?"
+  options={['① 오류: 잔액 부족', '② 컴파일 오류가 발생한다', '③ 아무 것도 출력되지 않는다', '④ balance가 음수로 바뀌어 출력된다']}
+  correctAnswer={1}
+  explanation="InsufficientBalanceException은 Exception을 상속한 사용자 정의 checked 예외로, 부모 클래스의 생성자에 메시지를 전달하도록 super를 호출한다. withdraw에 전달된 2000은 잔액 1000보다 크므로 예외가 발생해 던져지고, main의 catch 블록이 이를 잡아 getMessage로 전달한 메시지인 잔액 부족을 오류라는 문구와 함께 출력한다."
+  optionExplanations={['사용자 정의 예외가 발생하고 catch에서 메시지를 정상적으로 출력하므로 정답이다.', '사용자 정의 예외 클래스를 정의하고 throws로 선언하는 문법이 모두 올바르므로 컴파일 오류가 없다.', '예외가 catch되면서 println 문이 실행되므로 아무 것도 출력되지 않는다는 설명은 옳지 않다.', 'withdraw는 예외를 던진 뒤 즉시 메서드를 빠져나가므로 balance를 차감하는 코드는 실행되지 않는다.']}
+/>
+
+### 문제 23
+
+```java
+public class Main {
+    static void methodA() {
+        try {
+            methodB();
+        } finally {
+            System.out.println("A의 finally");
+        }
+    }
+
+    static void methodB() {
+        throw new RuntimeException("문제 발생");
+    }
+
+    public static void main(String[] args) {
+        try {
+            methodA();
+        } catch (RuntimeException e) {
+            System.out.println("main에서 처리: " + e.getMessage());
+        }
+    }
+}
+```
+
+<Quiz
+  questionNumber={23}
+  question="위 코드를 실행했을 때 출력 순서로 옳은 것은?"
+  options={['① A의 finally 다음 main에서 처리: 문제 발생', '② main에서 처리: 문제 발생 다음 A의 finally', '③ A의 finally만 출력되고 프로그램이 비정상 종료된다', '④ 컴파일 오류가 발생한다']}
+  correctAnswer={1}
+  explanation="methodB가 RuntimeException을 던지면, methodA의 try 블록에는 이를 잡는 catch가 없으므로 예외는 그대로 위로 전파되지만, 그 전에 반드시 methodA의 finally 블록이 먼저 실행되어 A의 finally가 출력된다. 그 다음 예외가 main까지 전파되어 main의 catch 블록이 이를 잡아 main에서 처리: 문제 발생을 출력한다."
+  optionExplanations={['finally가 예외 전파 도중에도 먼저 실행된다는 규칙과 그 후 main에서 예외가 잡히는 순서를 정확히 반영하므로 정답이다.', 'finally는 예외가 상위로 전파되기 전에 먼저 실행되므로 순서가 반대로 되지 않는다.', 'main에 RuntimeException을 잡는 catch가 있으므로 예외가 처리되어 프로그램은 정상적으로 계속 진행된다.', '메서드 호출과 예외 전파, finally 사용 모두 문법적으로 올바르므로 컴파일 오류가 없다.']}
+/>
+
+### 문제 24
+
+<Quiz
+  questionNumber={24}
+  question="checked 예외와 unchecked 예외에 대한 설명으로 옳은 것은?"
+  options={['① RuntimeException과 그 하위 클래스는 unchecked 예외로, 컴파일러가 처리를 강제하지 않는다', '② Exception과 그 모든 하위 클래스는 unchecked 예외이다', '③ checked 예외는 catch하거나 throws로 선언하지 않아도 항상 컴파일이 통과한다', '④ Error 클래스는 checked 예외의 대표적인 예이다']}
+  correctAnswer={1}
+  explanation="자바 예외 계층에서 RuntimeException과 그 하위 클래스들은 unchecked 예외로 분류되어, 컴파일러가 이를 반드시 처리하거나 선언하도록 강제하지 않는다. 반면 Exception 계열 중 RuntimeException 계열을 제외한 나머지는 checked 예외로 분류되어 반드시 처리하거나 선언해야 한다."
+  optionExplanations={['RuntimeException 계열이 unchecked 예외라는 정확한 분류이므로 정답이다.', 'Exception 계열 중 RuntimeException을 제외한 나머지는 checked 예외이므로 옳지 않다.', 'checked 예외는 처리하거나 선언하지 않으면 컴파일 오류가 나므로 옳지 않다.', 'Error는 일반적으로 애플리케이션이 처리하도록 설계된 대상이 아니며 checked 예외로 분류되지 않는다.']}
+/>
+
+## 참고 자료
+
+- Oracle Java Tutorials - Object-Oriented Programming Concepts: [https://docs.oracle.com/javase/tutorial/java/concepts/index.html](https://docs.oracle.com/javase/tutorial/java/concepts/index.html)
+- Oracle Java Tutorials - Exceptions: [https://docs.oracle.com/javase/tutorial/essential/exceptions/index.html](https://docs.oracle.com/javase/tutorial/essential/exceptions/index.html)
+- 국가평생교육진흥원 독학학위제 - 시험안내: [https://bdes.nile.or.kr/nile/exam/nExam2_1.do](https://bdes.nile.or.kr/nile/exam/nExam2_1.do)

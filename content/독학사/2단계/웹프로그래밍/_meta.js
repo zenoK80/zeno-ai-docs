@@ -17,7 +17,6 @@ const meta = {
   '16_final-mock-exam-2': '16. 독학사 2단계 웹 프로그래밍 예상기출문제 2',
   '17_final-mock-exam-3': '17. 독학사 2단계 웹 프로그래밍 예상기출문제 3',
   '18_final-mock-exam-4': '18. 독학사 2단계 웹 프로그래밍 예상기출문제 4',
-  '19_answer-review-strategy': '19. 정답 확인과 오답 정리 전략',
 }
 
 export default meta

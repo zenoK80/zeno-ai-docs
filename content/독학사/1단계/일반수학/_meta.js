@@ -17,14 +17,13 @@ const meta = {
   '16_integral-techniques': '16. 적분 계산 절차와 응용: 넓이·그래프',
   '17_matrix-basics': '17. 행렬의 정의와 연산',
   '18_determinant-vector': '18. 행렬식과 벡터 기초',
-  '19_exam-overview-strategy': '19. 독학사 일반수학 시험 구조와 공략 전략',
-  '20_calculation-drills': '20. 계산력 강화 세트: 단원별 연산 집중 연습',
-  '21_mixed-practice-1': '21. 단원 통합 연습문제 1: 함수·수열·극한·미분',
-  '22_mixed-practice-2': '22. 단원 통합 연습문제 2: 적분·행렬·벡터',
-  '23_past-questions-set1': '23. 독학사 일반수학 기출 1: 기본 유형 분석',
-  '24_past-questions-set2': '24. 독학사 일반수학 기출 2: 시간을 줄이는 풀이법',
-  '25_mock-exam-1': '25. 독학사 일반수학 예상기출모의 1회',
-  '26_mock-exam-2': '26. 독학사 일반수학 예상기출모의 2회',
+  '19_calculation-drills': '19. 계산력 강화 세트: 단원별 연산 집중 연습',
+  '20_mixed-practice-1': '20. 단원 통합 연습문제 1: 함수·수열·극한·미분',
+  '21_mixed-practice-2': '21. 단원 통합 연습문제 2: 적분·행렬·벡터',
+  '22_past-questions-set1': '22. 독학사 일반수학 기출 1: 기본 유형 분석',
+  '23_past-questions-set2': '23. 독학사 일반수학 기출 2: 시간을 줄이는 풀이법',
+  '24_mock-exam-1': '24. 독학사 일반수학 예상기출모의 1회',
+  '25_mock-exam-2': '25. 독학사 일반수학 예상기출모의 2회',
 }
 
 export default meta

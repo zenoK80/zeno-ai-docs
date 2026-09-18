@@ -1,5 +1,5 @@
 const meta = {
-  '01_adsp-exam-and-r-setup': '01. ADsP 시험 개요와 R/RStudio 실행 환경',
+  '01_adsp-exam-and-r-setup': '01. R과 RStudio 실습 환경 만들기',
   '02_data-information-knowledge-hierarchy': '02. 데이터·정보·지식·지혜 위계(DIKW)',
   '03_database-and-dbms-basics': '03. 데이터베이스와 DBMS의 특징',
   '04_bigdata-value-and-era-change': '04. 빅데이터의 가치와 산업 변화',

@@ -50,6 +50,30 @@ article table {
   max-width: 100%;
 }
 
+/* 표 셀은 단어 중간에서 끊지 않는다 */
+article table th,
+article table td {
+  word-break: keep-all;
+}
+
+/* 좁은 화면에서는 열을 짓누르지 말고 표 자체를 가로 스크롤한다 */
+@media (max-width: 767.98px) {
+  article table th,
+  article table td {
+    min-width: 8rem;
+  }
+
+  /* 설명이 길게 들어가는 마지막 열은 더 넓게 */
+  article table th:last-child,
+  article table td:last-child {
+    min-width: 15rem;
+  }
+
+  article table th {
+    white-space: nowrap;
+  }
+}
+
 .docs-navbar {
   position: sticky;
   top: 0;

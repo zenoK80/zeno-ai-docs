@@ -1,7 +1,7 @@
 {
-  "generatedAt": "2026-09-20T23:08:45.061Z",
+  "generatedAt": "2026-09-20T23:18:39.956Z",
   "groupCount": 11,
-  "seriesCount": 49,
+  "seriesCount": 50,
   "groups": [
     {
       "title": "Web · HTML",
@@ -459,7 +459,7 @@
     },
     {
       "title": "기타 · 피아노",
-      "description": "1개 시리즈 · 문서 21편",
+      "description": "2개 시리즈 · 문서 47편",
       "order": "11",
       "series": [
         {
@@ -469,6 +469,14 @@
           "documentCount": 21,
           "preview": "code",
           "accent": "blue"
+        },
+        {
+          "title": "재즈피아노 고급",
+          "description": "코드 심벌 하나에 대응하는 스케일 표기를 정확히 읽고, 축약형과 어보이드 노트 용어까지 이해합니다",
+          "href": "/기타/피아노/재즈피아노_고급/01_reading-chord-scale-notation",
+          "documentCount": 26,
+          "preview": "code",
+          "accent": "green"
         }
       ]
     }

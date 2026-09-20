@@ -15,6 +15,7 @@ import {
   Steps,
   Table,
 } from 'nextra/components'
+import { AbcScore } from './app/components/abc-score'
 import { CodePlayground } from './app/components/code-playground'
 import { ConceptFlow } from './app/components/concept-flow'
 import { DataBarChart } from './app/components/data-bar-chart'
@@ -36,6 +37,7 @@ const Tabs = Object.assign((props: Parameters<typeof DocsTabs>[0]) => {
 export function useMDXComponents(components = {}) {
   return {
     ...themeComponents,
+    AbcScore,
     Banner,
     Bleed,
     Button,

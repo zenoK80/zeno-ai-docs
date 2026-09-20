@@ -1,0 +1,25 @@
+const meta = {
+  '01_keyboard-map-and-fingering': '01. 건반 지도와 손가락 번호',
+  '02_reading-notation-and-rhythm-symbols': '02. 오선보와 리듬 기호 읽는 법',
+  '03_reading-chord-symbols': '03. 코드 심벌과 로마 숫자 표기 읽는 법',
+  '04_whole-half-steps-and-major-scale': '04. 온음·반음과 메이저 스케일 구성',
+  '05_minor-scales-three-types': '05. 마이너 스케일: 자연·화성·가락 단조',
+  '06_circle-of-fifths-and-key-signatures': '06. 5도권과 조표 읽는 법',
+  '07_diatonic-triads': '07. 다이어토닉 3화음: 메이저키의 7개 코드',
+  '08_diatonic-seventh-chords': '08. 다이어토닉 7th 코드: maj7·m7·7·m7♭5',
+  '09_close-voicing-and-guide-tones': '09. 클로즈드 보이싱과 가이드톤(3rd·7th)',
+  '10_shell-voicing-with-melody': '10. 왼손 셸 보이싱과 오른손 멜로디',
+  '11_ii-v-i-progression': '11. ii-V-I 진행의 원리와 왼손 연결',
+  '12_swing-feel-and-eighth-notes': '12. 스윙 리듬 감각과 스윙 8분음표',
+  '13_basic-comping-rhythm-charleston': '13. 기본 컴핑 리듬 패턴(찰스턴 리듬)',
+  '14_blues-scale-and-12-bar-form': '14. 블루스 스케일과 12마디 블루스 구조',
+  '15_blues-comping-practice-1': '15. 12마디 블루스 반주 실전 1: 코드와 리듬',
+  '16_blues-comping-practice-2': '16. 12마디 블루스 반주 실전 2: 베이스음 패턴 얹기',
+  '17_major-and-blues-scale-improv-taste': '17. 메이저·블루스 스케일 즉흥 맛보기',
+  '18_ballad-progression-comping-synthesis': '18. 자작 발라드 진행 반주 종합',
+  '19_song-project-1-original-blues': '19. 곡 프로젝트 1: 오리지널 블루스 반주 완성',
+  '20_song-project-2-original-ballad': '20. 곡 프로젝트 2: 오리지널 발라드 진행 반주 완성',
+  '21_self-check-checklist-and-next-steps': '21. 자가 점검 체크리스트와 중급 예고',
+}
+
+export default meta

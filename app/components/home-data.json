@@ -1,7 +1,7 @@
 {
-  "generatedAt": "2026-09-20T22:56:10.620Z",
-  "groupCount": 10,
-  "seriesCount": 48,
+  "generatedAt": "2026-09-20T23:08:45.061Z",
+  "groupCount": 11,
+  "seriesCount": 49,
   "groups": [
     {
       "title": "Web · HTML",
@@ -454,6 +454,21 @@
           "documentCount": 32,
           "preview": "code",
           "accent": "red"
+        }
+      ]
+    },
+    {
+      "title": "기타 · 피아노",
+      "description": "1개 시리즈 · 문서 21편",
+      "order": "11",
+      "series": [
+        {
+          "title": "재즈피아노 기초",
+          "description": "건반에서 흰건반·검은건반의 배열 규칙으로 모든 음이름을 즉시 찾고, 양손 손가락 번호(1~5) 체계로 건반을 짚을 수 있게 된다",
+          "href": "/기타/피아노/재즈피아노_기초/01_keyboard-map-and-fingering",
+          "documentCount": 21,
+          "preview": "code",
+          "accent": "blue"
         }
       ]
     }

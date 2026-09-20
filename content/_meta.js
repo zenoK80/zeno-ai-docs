@@ -13,5 +13,6 @@ const meta = {
   web: { title: 'Web', type: 'page' },
   독학사: { title: '독학사', type: 'page' },
   자격증: { title: '자격증', type: 'page' },
+  기타: { title: '기타', type: 'page' },
 }
 export default meta

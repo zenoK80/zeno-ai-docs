@@ -819,3 +819,37 @@ main a.x\:underline {
 main a.x\:underline:hover {
   text-decoration: underline;
 }
+
+/* ABC 악보(AbcScore) */
+.abc-score {
+  margin: 1.25rem 0;
+  border: 1px solid var(--docs-border);
+  padding: 0.75rem 1rem;
+  background: var(--background);
+  overflow-x: auto;
+}
+
+.abc-score-title {
+  margin-bottom: 0.5rem;
+  font-size: 0.875rem;
+  font-weight: 600;
+  color: var(--foreground);
+}
+
+.abc-score-paper svg {
+  max-width: 100%;
+  height: auto;
+}
+
+html.dark .abc-score-paper svg {
+  filter: invert(1) hue-rotate(180deg);
+}
+
+.abc-score-audio {
+  margin-top: 0.5rem;
+}
+
+.abc-score-error {
+  color: #b91c1c;
+  font-size: 0.8rem;
+}

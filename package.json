@@ -15,6 +15,7 @@
     "@codesandbox/sandpack-react": "^2.20.0",
     "@fontsource/montserrat": "^5.3.0",
     "@xyflow/react": "^12.11.3",
+    "abcjs": "^6.7.0",
     "gsap": "^3.15.0",
     "jsxgraph": "^1.13.1",
     "katex": "^0.16.47",

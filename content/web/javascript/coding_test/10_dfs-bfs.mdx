@@ -1,0 +1,444 @@
+---
+title: '10. 그래프 탐색: DFS/BFS'
+description: '인접 리스트로 그래프를 표현하고 DFS·BFS로 연결 요소·경로·이분 그래프 문제를 풉니다.'
+---
+
+<Callout type="info">
+  **이번 편의 결과물:** `coding-test/10-dfs-bfs/`에 그래프 탐색 문제 4개를 풀이 파일과 테스트로 완성합니다. · **다루는 개념:** 인접 리스트, DFS(재귀·스택), BFS(큐), 그리드 탐색
+</Callout>
+
+## 이 편에서 만드는 파일
+
+```
+coding-test/10-dfs-bfs/
+├── 01-count-networks/
+│   ├── solution.js              (+)
+│   └── solution.test.js         (+)
+├── 02-maze-path-exists/
+│   ├── solution.js              (+)
+│   └── solution.test.js         (+)
+├── 03-count-islands/
+│   ├── solution.js              (+)
+│   └── solution.test.js         (+)
+└── 04-is-bipartite/
+    ├── solution.js               (+)
+    └── solution.test.js          (+)
+```
+
+## 개념 정리
+
+| 개념 | 설명 |
+|------|------|
+| 인접 리스트 | 정점마다 연결된 이웃 목록을 배열로 들고 있는 그래프 표현. 간선이 적을 때 인접 행렬보다 메모리를 아낀다 |
+| DFS(깊이 우선 탐색) | 한 방향으로 갈 수 있는 만큼 깊이 들어간 뒤 막히면 되돌아오는 탐색. 재귀 또는 스택으로 구현한다 |
+| BFS(너비 우선 탐색) | 가까운 정점부터 순서대로 넓게 퍼지는 탐색. 큐로 구현하며 가중치 없는 그래프의 최단 거리에 쓴다 |
+| 방문 배열(visited) | 같은 정점을 두 번 방문하지 않도록 표시하는 배열. 없으면 무한 루프에 빠진다 |
+
+09편의 재귀·백트래킹에서 되돌리기(`pop`)로 선택을 취소했다면, 그래프 탐색에서는 `visited` 표시가 그 역할을 합니다. 한 번 방문한 정점은 다시 볼 필요가 없어 되돌릴 필요도 없습니다. 그리드(2차원 배열) 문제도 각 칸을 정점, 상하좌우로 붙은 칸을 간선으로 보면 인접 리스트 그래프와 같은 방식으로 다룰 수 있습니다.
+
+## 실습
+
+<Steps>
+
+### 1. 네트워크 개수 — 인접 리스트와 DFS(재귀)
+
+**문제:** 컴퓨터 수 `computerCount`와 두 컴퓨터를 잇는 간선 목록 `connections`가 주어질 때, 간선으로 연결된 컴퓨터들을 하나의 네트워크로 볼 때 전체 네트워크 개수를 구하는 `solution(computerCount, connections)`를 구현합니다.
+
+**입출력 예**
+
+| 입력 | 출력 |
+|------|------|
+| `computerCount=3`, `connections=[[0,1],[1,2]]` | `1` |
+| `computerCount=3`, `connections=[]` | `3` |
+
+**접근(복잡도):** 인접 리스트를 만든 뒤, 미방문 정점을 찾을 때마다 네트워크 수를 늘리고 DFS로 연결된 정점을 모두 방문 처리합니다. `O(V + E)`입니다.
+
+**코드**
+
+```js
+// coding-test/10-dfs-bfs/01-count-networks/solution.js
+// 시간복잡도: O(V + E) — 정점과 간선을 각각 한 번씩 방문한다
+// 공간복잡도: O(V + E) — 인접 리스트와 방문 배열을 저장한다
+export function solution(computerCount, connections) {
+  const adjacencyList = Array.from({ length: computerCount }, () => []);
+  for (const [a, b] of connections) {
+    adjacencyList[a].push(b);
+    adjacencyList[b].push(a);
+  }
+
+  const visited = new Array(computerCount).fill(false);
+  let networkCount = 0;
+
+  function dfs(node) {
+    visited[node] = true;
+    for (const next of adjacencyList[node]) {
+      if (!visited[next]) {
+        dfs(next);
+      }
+    }
+  }
+
+  for (let node = 0; node < computerCount; node += 1) {
+    if (!visited[node]) {
+      networkCount += 1;
+      dfs(node);
+    }
+  }
+
+  return networkCount;
+}
+```
+
+**테스트**
+
+```js
+// coding-test/10-dfs-bfs/01-count-networks/solution.test.js
+import { test } from 'node:test';
+import assert from 'node:assert/strict';
+import { solution } from './solution.js';
+
+test('모두 연결되어 있으면 네트워크는 1개다', () => {
+  assert.strictEqual(solution(3, [[0, 1], [1, 2]]), 1);
+});
+
+test('연결이 없으면 컴퓨터 수만큼 네트워크가 생긴다', () => {
+  assert.strictEqual(solution(3, []), 3);
+});
+
+test('일부만 연결된 경우를 정확히 센다', () => {
+  assert.strictEqual(solution(4, [[0, 1], [2, 3]]), 2);
+});
+```
+
+```text
+node --test 01-count-networks/solution.test.js
+# tests 3, pass 3, fail 0
+```
+
+**함정:** 간선이 `[a, b]`처럼 양방향인데 `adjacencyList[a].push(b)`만 하고 `adjacencyList[b].push(a)`를 빼먹으면, 방향이 있는 그래프처럼 동작해 일부 정점에 도달하지 못합니다.
+
+### 2. 미로 경로 존재 확인 — 그리드와 DFS(스택)
+
+**문제:** 0(길)과 1(벽)로 이루어진 격자 `grid`에서 `start` 칸부터 `end` 칸까지 상하좌우로 이동해 도달할 수 있는지 반환하는 `solution(grid, start, end)`를 구현합니다.
+
+**입출력 예**
+
+| 입력 | 출력 |
+|------|------|
+| `grid=[[0,0,1],[1,0,1],[0,0,0]]`, `start=[0,0]`, `end=[2,2]` | `true` |
+| `grid=[[0,1],[1,1]]`, `start=[0,0]`, `end=[1,1]` | `false` |
+
+**접근(복잡도):** 재귀 대신 배열을 스택처럼 써서 반복문으로 DFS를 구현합니다. 스택에서 칸을 꺼내 도착점인지 확인하고, 아니면 범위 안이고 벽이 아닌 미방문 이웃 칸을 스택에 쌓습니다. 칸 수 `N`에 대해 `O(N)`입니다.
+
+**코드**
+
+```js
+// coding-test/10-dfs-bfs/02-maze-path-exists/solution.js
+// 시간복잡도: O(행 * 열) — 모든 칸을 최대 한 번씩 방문한다
+// 공간복잡도: O(행 * 열) — 방문 배열과 스택에 칸 좌표를 저장한다
+const DIRECTIONS = [
+  [-1, 0],
+  [1, 0],
+  [0, -1],
+  [0, 1],
+];
+
+export function solution(grid, start, end) {
+  const rows = grid.length;
+  const cols = grid[0].length;
+  const visited = Array.from({ length: rows }, () => new Array(cols).fill(false));
+  const stack = [start];
+  visited[start[0]][start[1]] = true;
+
+  while (stack.length > 0) {
+    const [row, col] = stack.pop();
+    if (row === end[0] && col === end[1]) {
+      return true;
+    }
+
+    for (const [deltaRow, deltaCol] of DIRECTIONS) {
+      const nextRow = row + deltaRow;
+      const nextCol = col + deltaCol;
+      const inRange = nextRow >= 0 && nextRow < rows && nextCol >= 0 && nextCol < cols;
+      if (!inRange || visited[nextRow][nextCol] || grid[nextRow][nextCol] === 1) {
+        continue;
+      }
+      visited[nextRow][nextCol] = true;
+      stack.push([nextRow, nextCol]);
+    }
+  }
+
+  return false;
+}
+```
+
+**테스트**
+
+```js
+// coding-test/10-dfs-bfs/02-maze-path-exists/solution.test.js
+import { test } from 'node:test';
+import assert from 'node:assert/strict';
+import { solution } from './solution.js';
+
+const grid = [
+  [0, 0, 1],
+  [1, 0, 1],
+  [0, 0, 0],
+];
+
+test('벽을 피해 도달할 수 있으면 true다', () => {
+  assert.strictEqual(solution(grid, [0, 0], [2, 2]), true);
+});
+
+test('벽에 막혀 도달할 수 없으면 false다', () => {
+  const blocked = [[0, 1], [1, 1]];
+  assert.strictEqual(solution(blocked, [0, 0], [1, 1]), false);
+});
+
+test('시작점과 도착점이 같으면 true다', () => {
+  assert.strictEqual(solution(grid, [0, 0], [0, 0]), true);
+});
+```
+
+```text
+node --test 02-maze-path-exists/solution.test.js
+# tests 3, pass 3, fail 0
+```
+
+**함정:** `visited` 표시를 스택에 넣을 때가 아니라 스택에서 꺼낼 때 하면, 같은 칸이 여러 번 스택에 쌓여 있다가 중복 처리되어 성능이 나빠집니다. 이웃을 스택에 넣는 시점에 바로 `visited`를 표시합니다.
+
+### 3. 섬의 개수 — 그리드 DFS 응용
+
+**문제:** 0(바다)과 1(육지)로 이루어진 격자에서 상하좌우로 붙어 있는 육지 덩어리를 섬 하나로 볼 때, 전체 섬의 개수를 구하는 `solution(grid)`를 구현합니다.
+
+**입출력 예**
+
+| 입력 | 출력 |
+|------|------|
+| `[[1,1],[1,1]]` | `1`(전체가 한 덩어리) |
+| `[[0,0],[0,0]]` | `0`(육지 없음) |
+
+**접근(복잡도):** 모든 칸을 순회하며 미방문 육지를 찾을 때마다 섬 수를 늘리고, 붙어 있는 육지를 DFS로 방문 처리(가라앉히기)합니다. `O(행 * 열)`입니다.
+
+**코드**
+
+```js
+// coding-test/10-dfs-bfs/03-count-islands/solution.js
+// 시간복잡도: O(행 * 열) — 모든 칸을 최대 한 번씩 방문한다
+// 공간복잡도: O(행 * 열) — 방문 배열과 재귀 호출 스택을 사용한다
+const DIRECTIONS = [
+  [-1, 0],
+  [1, 0],
+  [0, -1],
+  [0, 1],
+];
+
+export function solution(grid) {
+  const rows = grid.length;
+  const cols = grid[0].length;
+  const visited = Array.from({ length: rows }, () => new Array(cols).fill(false));
+
+  function sinkIsland(row, col) {
+    visited[row][col] = true;
+    for (const [deltaRow, deltaCol] of DIRECTIONS) {
+      const nextRow = row + deltaRow;
+      const nextCol = col + deltaCol;
+      const inRange = nextRow >= 0 && nextRow < rows && nextCol >= 0 && nextCol < cols;
+      if (inRange && !visited[nextRow][nextCol] && grid[nextRow][nextCol] === 1) {
+        sinkIsland(nextRow, nextCol);
+      }
+    }
+  }
+
+  let islandCount = 0;
+  for (let row = 0; row < rows; row += 1) {
+    for (let col = 0; col < cols; col += 1) {
+      if (grid[row][col] === 1 && !visited[row][col]) {
+        islandCount += 1;
+        sinkIsland(row, col);
+      }
+    }
+  }
+
+  return islandCount;
+}
+```
+
+**테스트**
+
+```js
+// coding-test/10-dfs-bfs/03-count-islands/solution.test.js
+import { test } from 'node:test';
+import assert from 'node:assert/strict';
+import { solution } from './solution.js';
+
+test('섬이 3개인 격자를 정확히 센다', () => {
+  const grid = [
+    [1, 1, 0, 0],
+    [1, 0, 0, 0],
+    [0, 0, 1, 0],
+    [0, 0, 0, 1],
+  ];
+  assert.strictEqual(solution(grid), 3);
+});
+
+test('육지가 없으면 0이다', () => {
+  assert.strictEqual(solution([[0, 0], [0, 0]]), 0);
+});
+
+test('전체가 하나로 이어진 육지면 1이다', () => {
+  assert.strictEqual(solution([[1, 1], [1, 1]]), 1);
+});
+```
+
+```text
+node --test 03-count-islands/solution.test.js
+# tests 3, pass 3, fail 0
+```
+
+**함정:** 대각선으로 붙은 육지까지 같은 섬으로 착각하기 쉽습니다. `DIRECTIONS`에는 상하좌우 네 방향만 넣어야 하며, 대각선을 포함하려면 문제 조건을 다시 확인해야 합니다.
+
+### 4. 이분 그래프 판별 — BFS로 색칠하기
+
+**문제:** 정점 수 `vertexCount`와 간선 목록 `edges`가 주어질 때, 인접한 두 정점이 항상 서로 다른 두 그룹에 속하도록 정점을 두 그룹으로 나눌 수 있는지(이분 그래프인지) 반환하는 `solution(vertexCount, edges)`를 구현합니다.
+
+**입출력 예**
+
+| 입력 | 출력 |
+|------|------|
+| 사각형(짝수 길이 사이클) `[[0,1],[1,2],[2,3],[3,0]]` | `true` |
+| 삼각형(홀수 길이 사이클) `[[0,1],[1,2],[2,0]]` | `false` |
+
+**접근(복잡도):** BFS로 정점을 방문하며 색을 `1` 또는 `-1`로 칠합니다. 이웃이 미방문이면 반대 색을 칠해 큐에 넣고, 이미 방문했는데 같은 색이면 이분 그래프가 아닙니다. 연결되지 않은 부분도 있을 수 있어 모든 정점을 시작점 후보로 순회합니다. `O(V + E)`입니다.
+
+**코드**
+
+```js
+// coding-test/10-dfs-bfs/04-is-bipartite/solution.js
+// 시간복잡도: O(V + E) — BFS로 정점과 간선을 각각 한 번씩 방문한다
+// 공간복잡도: O(V + E) — 인접 리스트와 색상 배열, 큐를 사용한다
+export function solution(vertexCount, edges) {
+  const adjacencyList = Array.from({ length: vertexCount }, () => []);
+  for (const [a, b] of edges) {
+    adjacencyList[a].push(b);
+    adjacencyList[b].push(a);
+  }
+
+  const color = new Array(vertexCount).fill(0);
+
+  for (let start = 0; start < vertexCount; start += 1) {
+    if (color[start] !== 0) {
+      continue;
+    }
+    color[start] = 1;
+    const queue = [start];
+
+    while (queue.length > 0) {
+      const node = queue.shift();
+      for (const next of adjacencyList[node]) {
+        if (color[next] === 0) {
+          color[next] = -color[node];
+          queue.push(next);
+        } else if (color[next] === color[node]) {
+          return false;
+        }
+      }
+    }
+  }
+
+  return true;
+}
+```
+
+**테스트**
+
+```js
+// coding-test/10-dfs-bfs/04-is-bipartite/solution.test.js
+import { test } from 'node:test';
+import assert from 'node:assert/strict';
+import { solution } from './solution.js';
+
+test('짝수 길이 사이클은 이분 그래프다', () => {
+  assert.strictEqual(solution(4, [[0, 1], [1, 2], [2, 3], [3, 0]]), true);
+});
+
+test('삼각형(홀수 사이클)은 이분 그래프가 아니다', () => {
+  assert.strictEqual(solution(3, [[0, 1], [1, 2], [2, 0]]), false);
+});
+
+test('연결되지 않은 정점이 섞여 있어도 정확히 판별한다', () => {
+  assert.strictEqual(solution(5, [[0, 1], [2, 3]]), true);
+});
+```
+
+```text
+node --test 04-is-bipartite/solution.test.js
+# tests 3, pass 3, fail 0
+```
+
+**함정:** `queue.shift()`는 배열 앞에서 꺼내는 연산이라 큐 길이에 비례한 시간이 듭니다. 정점 수가 아주 많으면 인덱스로 앞을 가리키는 방식이나 별도 큐 자료구조가 필요하지만, 코딩테스트 규모에서는 `shift`로 충분합니다.
+
+</Steps>
+
+## 직접 해보기
+
+1. 문제 1의 `solution`을 BFS(큐) 버전으로 다시 구현해보세요. 결과는 같아야 합니다.
+2. 문제 2의 `solution`이 경로의 존재 여부만 반환하는데, 실제로 지나온 칸들의 좌표 목록까지 반환하도록 바꿔보세요.
+
+<details>
+<summary>정답 보기(1번)</summary>
+
+`dfs` 함수 안의 재귀 호출을 큐로 바꿉니다. 시작 정점을 큐에 넣고, 큐가 빌 때까지 하나씩 꺼내 미방문 이웃을 방문 처리한 뒤 큐에 넣으면 됩니다. DFS와 BFS는 "다음에 볼 정점을 스택(또는 재귀)에서 꺼내는지, 큐에서 꺼내는지"만 다를 뿐 방문 처리 로직은 같습니다.
+
+</details>
+
+## 자주 하는 실수
+
+| 증상 | 원인 | 고치는 법 |
+|------|------|-----------|
+| 방문했는데 또 방문해 무한 루프 | `visited` 갱신을 빼먹거나 갱신 시점이 늦음 | 정점을 큐·스택에 넣는 순간 바로 `visited`를 표시한다 |
+| 양방향 그래프인데 절반만 연결됨 | 간선을 한쪽 방향으로만 인접 리스트에 추가함 | 무방향 그래프는 양쪽 정점 모두에 서로를 추가한다 |
+| 그리드 탐색이 배열 범위를 벗어남 | 이웃 좌표 계산 후 범위 검사를 빼먹음 | 이웃을 큐·스택에 넣기 전에 항상 `inRange`를 먼저 확인한다 |
+
+## 확인 문제
+
+<Quiz
+  questionNumber={1}
+  question="DFS와 BFS의 가장 근본적인 차이는 무엇인가?"
+  options={['DFS는 그래프에서만, BFS는 트리에서만 쓴다', '다음에 방문할 정점을 스택(또는 재귀)에서 꺼내는지 큐에서 꺼내는지의 차이다', 'DFS는 항상 BFS보다 빠르다', 'BFS는 방문 배열이 필요 없다']}
+  correctAnswer={2}
+  explanation="DFS는 스택 구조(또는 재귀 호출 스택)로 깊이 먼저 탐색하고, BFS는 큐 구조로 가까운 정점부터 넓게 탐색합니다."
+  optionExplanations={['둘 다 그래프·트리 모두에 쓸 수 있습니다', '정답입니다', '속도는 문제 성격에 따라 다릅니다', 'BFS도 방문 배열이 필요합니다']}
+/>
+
+<Quiz
+  questionNumber={2}
+  question="문제 1의 solution에서 간선 [a, b]를 인접 리스트 양쪽에 모두 추가하는 이유는?"
+  options={['배열 크기를 맞추기 위해서', '무방향 그래프에서는 a에서 b로도, b에서 a로도 이동할 수 있어야 하기 때문에', '메모리를 절약하기 위해서', 'DFS 속도를 높이기 위해서']}
+  correctAnswer={2}
+  explanation="문제의 연결이 방향 없는 간선이므로 양쪽 모두에 서로를 이웃으로 등록해야 두 방향 이동을 표현할 수 있습니다."
+  optionExplanations={['크기 문제가 아닙니다', '정답입니다', '오히려 메모리를 더 씁니다', '속도가 목적이 아닙니다']}
+/>
+
+<Quiz
+  questionNumber={3}
+  question="문제 4의 solution에서 이웃 정점의 색이 현재 정점과 같을 때 false를 반환하는 이유는?"
+  options={['색이 3개 이상 필요해서', '인접한 두 정점은 반드시 서로 다른 그룹이어야 하는데 그렇지 못하기 때문에', '큐가 비어서', '방문 순서가 잘못되어서']}
+  correctAnswer={2}
+  explanation="이분 그래프는 인접한 정점끼리 항상 다른 그룹에 속해야 하므로, 이웃이 같은 색이면 조건을 어긴 것입니다."
+  optionExplanations={['색은 두 개면 충분합니다', '정답입니다', '큐 상태와는 무관합니다', '방문 순서 문제가 아닙니다']}
+/>
+
+<Quiz
+  questionNumber={4}
+  question="그리드를 그래프처럼 DFS·BFS로 탐색할 수 있는 이유는?"
+  options={['그리드는 항상 정사각형이라서', '각 칸을 정점으로, 상하좌우로 붙은 칸을 간선으로 보면 인접 리스트 그래프와 같은 구조이기 때문에', '그리드에는 방문 배열이 필요 없어서', '그리드는 트리 구조라서']}
+  correctAnswer={2}
+  explanation="칸을 정점, 인접한 칸 사이의 연결을 간선으로 보면 그리드도 그래프 탐색 알고리즘을 그대로 적용할 수 있는 구조입니다."
+  optionExplanations={['정사각형 여부와는 무관합니다', '정답입니다', '그리드도 방문 배열이 필요합니다', '트리가 아니라 그래프 구조로 봅니다']}
+/>
+
+## 참고 자료
+
+- [Wikipedia - Breadth-first search](https://en.wikipedia.org/wiki/Breadth-first_search)
+- [Wikipedia - Depth-first search](https://en.wikipedia.org/wiki/Depth-first_search)

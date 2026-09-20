@@ -1,0 +1,412 @@
+---
+title: '17. 모의 코딩테스트 1: 배열·해시·구현'
+description: '배열·해시(Map/Set)·구현 문제 4개를 프로그래머스 solution 함수 형식으로 직접 풀어봅니다.'
+---
+
+<Callout type="warning">
+  **재구성 출제 고지:** 이 편의 문제 4개는 실제 온라인 저지의 기출 문제를 옮긴 것이 아니라, 03·04·15편에서 다룬 배열·해시·구현 유형을 새로운 상황으로 재구성한 문제입니다. · **형식:** 프로그래머스처럼 `solution` 함수를 완성하는 방식이고, 함수 하나당 완전한 코드와 `node --test` 테스트를 함께 작성합니다.
+</Callout>
+
+## 이 편에서 만드는 파일
+
+```
+coding-test/
+└── 17-mock-test-1/
+    ├── 01-menu-frequency/
+    │   ├── solution.js                   (+)
+    │   └── solution.test.js              (+)
+    ├── 02-absence-list/
+    │   ├── solution.js                   (+)
+    │   └── solution.test.js              (+)
+    ├── 03-price-bucket/
+    │   ├── solution.js                   (+)
+    │   └── solution.test.js              (+)
+    └── 04-point-simulation/
+        ├── solution.js                    (+)
+        └── solution.test.js               (+)
+```
+
+## 문제
+
+먼저 4개 문제를 전부 읽고 직접 풀이 코드를 작성해본 뒤, 아래 `## 풀이` 절과 비교하세요. 난이도는 하 → 상 순서입니다.
+
+### 문제 1. 가장 많이 주문된 메뉴 (난이도: 하)
+
+카페에서 하루 동안 주문된 메뉴 이름이 문자열 배열 `orders`로 주어집니다. 가장 많이 주문된 메뉴 이름을 반환하는 `solution(orders)` 함수를 작성하세요. 주문 횟수가 가장 많은 메뉴가 여러 개면 그중 사전순으로 가장 앞선 이름을, 주문 내역이 하나도 없으면 `null`을 반환합니다.
+
+```text
+입력: ["아메리카노", "라떼", "아메리카노", "에이드", "아메리카노"]
+출력: "아메리카노"
+```
+
+### 문제 2. 신청 후 결석자 명단 (난이도: 하)
+
+스터디 참가 신청자 명단 `participants`와 실제 출석 체크 명단 `attendees`가 문자열 배열로 주어집니다(두 배열 모두 이름 중복은 없습니다). 신청은 했지만 결석한 사람의 이름을, 신청 순서를 유지한 배열로 반환하는 `solution(participants, attendees)` 함수를 작성하세요.
+
+```text
+입력: participants = ["민준", "서연", "도윤", "하은"], attendees = ["서연", "하은"]
+출력: ["민준", "도윤"]
+```
+
+### 문제 3. 가격 구간별 상품 개수 (난이도: 중)
+
+상품 가격 배열 `prices`와 양의 정수 구간 크기 `bucketSize`가 주어집니다. 0원부터 `bucketSize` 간격으로 구간을 나눴을 때, 가장 비싼 상품이 속한 구간까지 각 구간에 속하는 상품 개수를 순서대로 배열로 반환하는 `solution(prices, bucketSize)` 함수를 작성하세요.
+
+```text
+입력: prices = [120, 340, 90, 410, 150], bucketSize = 100
+출력: [1, 2, 0, 1, 1]
+```
+
+구간은 `[0, 100)`, `[100, 200)`, `[200, 300)`, `[300, 400)`, `[400, 500)` 순서입니다.
+
+### 문제 4. 회원 등급별 포인트 적립 시뮬레이션 (난이도: 상)
+
+구매 내역이 `{ user, amount }` 객체 배열 `purchases`로 시간 순서대로 주어집니다. 각 사용자는 처음에 `BRONZE` 등급이고, 이번 구매 이전까지의 누적 구매 금액이 100000 이상이면 `SILVER`, 300000 이상이면 `GOLD`로 등급이 오릅니다(등급은 이번 구매액을 더하기 전 누적 금액 기준입니다). 적립률은 `BRONZE` 1퍼센트, `SILVER` 3퍼센트, `GOLD` 5퍼센트이고, 적립 포인트는 매 구매마다 `구매액 * 적립률`을 정수로 내림해 누적합니다. 모든 구매 처리가 끝난 뒤 각 사용자의 최종 누적 포인트를 `{ user: point }` 형태의 객체로 반환하는 `solution(purchases)` 함수를 작성하세요.
+
+```text
+입력: [{ user: "kim", amount: 50000 }, { user: "kim", amount: 60000 }, { user: "kim", amount: 200000 }]
+출력: { kim: 7100 }
+```
+
+## 풀이
+
+### 문제 1 풀이 — 가장 많이 주문된 메뉴
+
+#### 접근
+
+`Map`으로 메뉴별 주문 횟수를 센 뒤, 최댓값을 찾고 그 최댓값과 같은 메뉴들만 골라 정렬해 첫 번째 값을 반환합니다.
+
+#### 복잡도
+
+시간 복잡도는 `O(n)`입니다(`n`은 주문 개수). 동률 후보를 정렬하는 부분은 후보 수가 전체 메뉴 종류보다 항상 작거나 같아 전체 복잡도에 영향을 주지 않습니다.
+
+#### 코드
+
+```js
+// coding-test/17-mock-test-1/01-menu-frequency/solution.js
+// 시간복잡도: O(n) — 주문 n개를 한 번 순회해 Map에 집계한다
+// 공간복잡도: O(m) — 메뉴 종류 m개만큼 Map에 저장한다
+export function solution(orders) {
+  if (orders.length === 0) return null;
+
+  const countByMenu = new Map();
+  for (const menu of orders) {
+    countByMenu.set(menu, (countByMenu.get(menu) ?? 0) + 1);
+  }
+
+  let maxCount = 0;
+  for (const count of countByMenu.values()) {
+    if (count > maxCount) maxCount = count;
+  }
+
+  const topMenus = [...countByMenu.entries()]
+    .filter(([, count]) => count === maxCount)
+    .map(([menu]) => menu)
+    .sort();
+
+  return topMenus[0];
+}
+```
+
+#### 테스트
+
+```js
+// coding-test/17-mock-test-1/01-menu-frequency/solution.test.js
+import { test } from 'node:test';
+import assert from 'node:assert/strict';
+import { solution } from './solution.js';
+
+test('가장 많이 주문된 메뉴 하나를 반환한다', () => {
+  assert.strictEqual(
+    solution(['아메리카노', '라떼', '아메리카노', '에이드', '아메리카노']),
+    '아메리카노',
+  );
+});
+
+test('동률이면 사전순으로 가장 앞선 메뉴를 반환한다', () => {
+  assert.strictEqual(
+    solution(['라떼', '아메리카노', '라떼', '아메리카노', '에이드']),
+    '라떼',
+  );
+});
+
+test('주문이 없으면 null을 반환한다', () => {
+  assert.strictEqual(solution([]), null);
+});
+```
+
+#### 함정
+
+`Array.prototype.sort()`의 기본 비교자는 문자열을 유니코드 코드 포인트 순서로 비교합니다. 한글 완성형 문자는 코드 포인트 순서가 초성 순서와 대체로 일치해 이 문제는 정상 동작하지만, 영문 대소문자나 여러 언어가 섞인 문자열에서는 예상과 다른 순서가 나올 수 있어 `localeCompare`를 쓰는 편이 더 안전합니다.
+
+### 문제 2 풀이 — 신청 후 결석자 명단
+
+#### 접근
+
+출석자 명단을 `Set`으로 만들어 조회를 `O(1)`로 만든 뒤, 신청자 배열을 순서대로 필터링합니다.
+
+#### 복잡도
+
+시간 복잡도는 `O(n + m)`입니다(`n`은 신청자 수, `m`은 출석자 수).
+
+#### 코드
+
+```js
+// coding-test/17-mock-test-1/02-absence-list/solution.js
+// 시간복잡도: O(n + m) — 신청자 n명, 출석자 m명을 각각 한 번씩 처리한다
+// 공간복잡도: O(m) — 출석자 Set을 저장한다
+export function solution(participants, attendees) {
+  const attendedSet = new Set(attendees);
+  return participants.filter((name) => !attendedSet.has(name));
+}
+```
+
+#### 테스트
+
+```js
+// coding-test/17-mock-test-1/02-absence-list/solution.test.js
+import { test } from 'node:test';
+import assert from 'node:assert/strict';
+import { solution } from './solution.js';
+
+test('신청했지만 결석한 사람을 신청 순서대로 반환한다', () => {
+  const result = solution(['민준', '서연', '도윤', '하은'], ['서연', '하은']);
+  assert.deepStrictEqual(result, ['민준', '도윤']);
+});
+
+test('전원 출석하면 빈 배열을 반환한다', () => {
+  const result = solution(['민준', '서연'], ['민준', '서연']);
+  assert.deepStrictEqual(result, []);
+});
+
+test('아무도 출석하지 않으면 신청자 전원을 반환한다', () => {
+  const result = solution(['민준', '서연'], []);
+  assert.deepStrictEqual(result, ['민준', '서연']);
+});
+```
+
+#### 함정
+
+`Set` 대신 `attendees.includes(name)`으로 검사하면 신청자마다 출석자 배열 전체를 훑어야 해 `O(n * m)`이 됩니다. 두 배열이 각각 수만 건이면 체감 속도 차이가 커지므로, 반복 조회가 필요한 배열은 먼저 `Set`이나 `Map`으로 바꾸는 습관을 들입니다.
+
+### 문제 3 풀이 — 가격 구간별 상품 개수
+
+#### 접근
+
+가장 비싼 상품 가격으로 구간 개수를 정한 뒤 `0`으로 채운 배열을 만들고, 가격마다 속한 구간 번호를 계산해 하나씩 더합니다.
+
+#### 복잡도
+
+시간 복잡도는 `O(n)`입니다(`n`은 상품 개수). 구간 배열을 만드는 비용은 최댓값 크기에 비례하지만 실무 데이터에서는 `n`과 비슷한 규모로 취급합니다.
+
+#### 코드
+
+```js
+// coding-test/17-mock-test-1/03-price-bucket/solution.js
+// 시간복잡도: O(n) — 상품 n개를 한 번 순회하며 구간별로 센다
+// 공간복잡도: O(최댓값 / bucketSize) — 구간 개수만큼 배열을 만든다
+export function solution(prices, bucketSize) {
+  if (prices.length === 0) return [];
+
+  const maxPrice = prices.reduce((max, price) => Math.max(max, price), -Infinity);
+  const bucketCount = Math.floor(maxPrice / bucketSize) + 1;
+  const counts = new Array(bucketCount).fill(0);
+
+  for (const price of prices) {
+    const bucketIndex = Math.floor(price / bucketSize);
+    counts[bucketIndex] += 1;
+  }
+
+  return counts;
+}
+```
+
+#### 테스트
+
+```js
+// coding-test/17-mock-test-1/03-price-bucket/solution.test.js
+import { test } from 'node:test';
+import assert from 'node:assert/strict';
+import { solution } from './solution.js';
+
+test('가격을 구간별로 나눠 개수를 센다', () => {
+  const result = solution([120, 340, 90, 410, 150], 100);
+  assert.deepStrictEqual(result, [1, 2, 0, 1, 1]);
+});
+
+test('상품이 하나면 구간도 하나만 반환한다', () => {
+  const result = solution([50], 100);
+  assert.deepStrictEqual(result, [1]);
+});
+
+test('상품이 없으면 빈 배열을 반환한다', () => {
+  assert.deepStrictEqual(solution([], 100), []);
+});
+```
+
+#### 함정
+
+최댓값을 구할 때 `Math.max(...prices)`처럼 전개 연산자를 쓰면 인자 개수 제한 때문에 배열이 수만 건 이상일 때 오류가 날 수 있습니다. `reduce`로 하나씩 비교하면 배열 크기와 상관없이 안전합니다.
+
+### 문제 4 풀이 — 회원 등급별 포인트 적립 시뮬레이션
+
+#### 접근
+
+사용자별 상태(누적 금액, 누적 포인트)를 `Map`에 저장하며 구매 내역을 순서대로 처리합니다. 각 구매마다 **이번 구매를 더하기 전** 누적 금액으로 등급을 먼저 정하고, 그 등급의 적립률로 포인트를 계산한 다음에 누적 금액을 갱신합니다.
+
+#### 복잡도
+
+시간 복잡도는 `O(n)`입니다(`n`은 구매 내역 개수). `Map` 조회와 갱신이 모두 `O(1)`입니다.
+
+#### 코드
+
+```js
+// coding-test/17-mock-test-1/04-point-simulation/solution.js
+// 시간복잡도: O(n) — 구매 내역 n개를 한 번씩 처리한다
+// 공간복잡도: O(사용자 수) — 사용자별 상태를 Map에 저장한다
+const TIER_RATE = {
+  BRONZE: 0.01,
+  SILVER: 0.03,
+  GOLD: 0.05,
+};
+
+function getTier(totalAmount) {
+  if (totalAmount >= 300000) return 'GOLD';
+  if (totalAmount >= 100000) return 'SILVER';
+  return 'BRONZE';
+}
+
+export function solution(purchases) {
+  const userStateMap = new Map();
+
+  for (const { user, amount } of purchases) {
+    if (!userStateMap.has(user)) {
+      userStateMap.set(user, { totalAmount: 0, totalPoint: 0 });
+    }
+    const state = userStateMap.get(user);
+
+    const currentTier = getTier(state.totalAmount);
+    const earnedPoint = Math.floor(amount * TIER_RATE[currentTier]);
+
+    state.totalPoint += earnedPoint;
+    state.totalAmount += amount;
+  }
+
+  const result = {};
+  for (const [user, state] of userStateMap) {
+    result[user] = state.totalPoint;
+  }
+  return result;
+}
+```
+
+#### 테스트
+
+```js
+// coding-test/17-mock-test-1/04-point-simulation/solution.test.js
+import { test } from 'node:test';
+import assert from 'node:assert/strict';
+import { solution } from './solution.js';
+
+test('누적 금액에 따라 등급이 바뀌며 포인트가 쌓인다', () => {
+  const purchases = [
+    { user: 'kim', amount: 50000 },
+    { user: 'kim', amount: 60000 },
+    { user: 'kim', amount: 200000 },
+  ];
+  assert.deepStrictEqual(solution(purchases), { kim: 7100 });
+});
+
+test('사용자별로 상태가 독립적으로 유지된다', () => {
+  const purchases = [
+    { user: 'kim', amount: 50000 },
+    { user: 'lee', amount: 400000 },
+  ];
+  const result = solution(purchases);
+  assert.strictEqual(result.kim, 500);
+  assert.strictEqual(result.lee, 4000);
+});
+```
+
+#### 함정
+
+구매액을 먼저 누적 금액에 더한 뒤 등급을 계산하면, 등급 상승이 그 등급을 만들어낸 구매 자체에도 소급 적용되는 오류가 생깁니다(위 예시에서 `kim`의 세 번째 구매 200000원을 먼저 더하면 누적 금액이 310000이 되어 `GOLD` 적립률이 그 구매에도 적용되지만, 정답은 그 구매 시작 시점 등급인 `SILVER` 적립률을 적용해야 합니다). "등급 확인 → 포인트 계산 → 금액 갱신" 순서를 반드시 지킵니다.
+
+## 직접 해보기
+
+1. 문제 4에 `PLATINUM` 등급(누적 600000 이상, 적립률 7퍼센트)을 추가하고, 등급 판정 함수 `getTier`만 수정해 테스트를 통과시켜보세요.
+2. 문제 1에서 사전순 비교를 `localeCompare` 기반으로 바꿔도 기존 테스트가 여전히 통과하는지 확인해보세요.
+
+<details>
+<summary>정답 보기(1번)</summary>
+
+```js
+// coding-test/17-mock-test-1/04-point-simulation/solution.js (getTier, TIER_RATE만 발췌)
+const TIER_RATE = {
+  BRONZE: 0.01,
+  SILVER: 0.03,
+  GOLD: 0.05,
+  PLATINUM: 0.07,
+};
+
+function getTier(totalAmount) {
+  if (totalAmount >= 600000) return 'PLATINUM';
+  if (totalAmount >= 300000) return 'GOLD';
+  if (totalAmount >= 100000) return 'SILVER';
+  return 'BRONZE';
+}
+```
+
+</details>
+
+## 자주 하는 실수
+
+| 증상 | 원인 | 고치는 법 |
+|------|------|-----------|
+| 빈 배열 입력에서 예외 발생 | 최댓값·첫 원소 접근 전에 길이 검사를 빠뜨림 | 함수 맨 앞에서 `길이 === 0`을 먼저 처리 |
+| 큰 배열에서 `Math.max(...array)`가 느리거나 예외 발생 | 전개 연산자로 함수 인자를 모두 펼침 | `reduce`로 하나씩 비교 |
+| 상태를 순서대로 갱신해야 하는 문제에서 결과가 어긋남 | 조건 판정과 상태 갱신 순서를 바꿔 씀 | "읽기 → 계산 → 쓰기" 순서를 주석으로 고정 |
+
+## 확인 문제
+
+<Quiz
+  questionNumber={1}
+  question="문제 1에서 Map 대신 매번 배열을 filter해서 개수를 센다면 전체 시간 복잡도는?"
+  options={['항상 O(1)이다', '메뉴 종류 수와 무관하게 O(n)이다', '메뉴 개수만큼 배열을 반복 훑어 O(n*메뉴종류수)로 늘어난다', 'Map을 쓰든 안 쓰든 성능 차이가 없다']}
+  correctAnswer={3}
+  explanation="메뉴 종류마다 filter로 배열 전체를 다시 훑으면 메뉴 종류 수만큼 O(n)이 반복되어 전체가 O(n*메뉴종류수)로 늘어납니다. Map으로 한 번에 세는 방식이 O(n)입니다."
+  optionExplanations={['입력 크기에 따라 달라지므로 틀렸습니다', 'Map을 쓸 때의 복잡도를 설명한 것이라 이 질문의 답은 아닙니다', '정답입니다', '자료구조 선택에 따라 성능 차이가 크게 납니다']}
+/>
+
+<Quiz
+  questionNumber={2}
+  question="문제 2에서 Set 대신 배열의 includes를 쓰면 어떤 문제가 생기는가?"
+  options={['결과값이 달라진다', '신청자 수와 출석자 수가 커질수록 O(n*m)으로 느려진다', 'Set보다 항상 더 빠르다', '메모리를 더 적게 쓴다']}
+  correctAnswer={2}
+  explanation="includes는 배열을 처음부터 끝까지 훑으므로 신청자마다 출석자 배열 전체를 확인해 O(n*m)이 됩니다. Set.has는 평균 O(1)이라 전체가 O(n+m)으로 줄어듭니다."
+  optionExplanations={['결과값 자체는 같습니다', '정답입니다', '오히려 더 느립니다', '메모리 절약이 핵심 차이가 아닙니다']}
+/>
+
+<Quiz
+  questionNumber={3}
+  question="문제 3에서 구간 개수를 정할 때 최댓값을 기준으로 삼는 이유는?"
+  options={['최솟값을 몰라도 되기 때문이다', '가장 비싼 상품이 속하는 구간까지만 배열을 만들면 되기 때문이다', '항상 100개 구간이 필요하기 때문이다', 'bucketSize와 무관하게 정해지기 때문이다']}
+  correctAnswer={2}
+  explanation="가장 비싼 상품이 속한 구간 뒤로는 어떤 상품도 없으므로, 그 구간까지만 배열을 만들면 메모리 낭비 없이 모든 상품을 셀 수 있습니다."
+  optionExplanations={['최솟값과는 무관한 이유입니다', '정답입니다', '데이터에 따라 구간 개수가 달라집니다', 'bucketSize로 나눈 값이 구간 번호를 정하므로 관련이 있습니다']}
+/>
+
+<Quiz
+  questionNumber={4}
+  question="문제 4에서 등급을 이번 구매액을 더한 후의 누적 금액으로 계산하면 생기는 문제는?"
+  options={['아무 문제도 없다', '등급 상승을 만든 구매 자체에 새 등급의 적립률이 소급 적용된다', '오히려 더 정확한 계산이 된다', '적립 포인트가 항상 0이 된다']}
+  correctAnswer={2}
+  explanation="등급을 나중에 계산하면 방금 한 구매 때문에 오른 등급이 그 구매 자체의 적립률에도 반영되어, 문제에서 정의한 규칙과 다른 결과가 나옵니다."
+  optionExplanations={['계산 순서에 따라 결과가 달라지므로 틀렸습니다', '정답입니다', '규칙에서 벗어난 계산이라 정확하지 않습니다', '적립 포인트 자체는 계속 계산됩니다']}
+/>
+
+## 참고 자료
+
+- [MDN - Map](https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Map)
+- [MDN - Set](https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Set)
+- [프로그래머스 스쿨 - 코딩테스트 연습](https://school.programmers.co.kr/learn/challenges)

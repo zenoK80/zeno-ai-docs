@@ -1,0 +1,580 @@
+---
+title: '05. 스택·큐·덱 구현과 활용'
+description: '배열로 스택·큐·덱을 직접 구현하고 괄호 매칭, 큐 시뮬레이션, 슬라이딩 윈도우 최댓값 문제 4개를 풉니다.'
+---
+
+<Callout type="info">
+  **이번 편의 결과물:** `coding-test/05-stack-queue-deque/`에 스택·큐·덱을 직접 구현한 라이브러리와 문제 4개의 풀이·테스트를 작성해 `node --test`를 통과시킵니다. · **다루는 개념:** 배열 기반 스택(LIFO)·큐(FIFO)·덱 직접 구현, 괄호 매칭, 큐 시뮬레이션, 모노토닉 덱
+</Callout>
+
+## 이 편에서 만드는 파일
+
+```
+coding-test/
+└── 05-stack-queue-deque/
+    ├── lib/
+    │   ├── Stack.js                    (+)
+    │   ├── Queue.js                    (+)
+    │   └── Deque.js                    (+)
+    ├── 01-balanced-parentheses/
+    │   ├── solution.js                 (+)
+    │   └── solution.test.js            (+)
+    ├── 02-queue-with-two-stacks/
+    │   ├── solution.js                 (+)
+    │   └── solution.test.js            (+)
+    ├── 03-process-priority-queue/
+    │   ├── solution.js                 (+)
+    │   └── solution.test.js            (+)
+    └── 04-sliding-window-maximum/
+        ├── solution.js                 (+)
+        └── solution.test.js            (+)
+```
+
+## 개념 정리
+
+### 스택·큐·덱 비교
+
+| 자료구조 | 삽입·삭제 위치 | 순서 | 대표 연산 |
+|----------|----------------|------|-----------|
+| 스택 | 한쪽 끝(top)에서만 | LIFO(나중에 넣은 게 먼저 나옴) | `push`, `pop` |
+| 큐 | 뒤에서 넣고 앞에서 뺌 | FIFO(먼저 넣은 게 먼저 나옴) | `enqueue`, `dequeue` |
+| 덱 | 앞뒤 양쪽 모두 | 상황에 따라 자유 | `addFront`, `addBack`, `removeFront`, `removeBack` |
+
+자바스크립트 배열은 `push`·`pop`(끝쪽 연산)이 `O(1)`이라 스택 구현에 그대로 맞습니다. 온라인 저지에서는 라이브러리 없이 이 셋을 직접 구현해야 하므로, 이번 편에서 재사용 가능한 클래스로 먼저 만들어 둡니다.
+
+### 배열로 큐를 만들 때 주의점
+
+`Array.prototype.shift()`는 맨 앞 요소를 지운 뒤 나머지 전체를 한 칸씩 당깁니다. 큐에서 `dequeue`를 반복하면 매번 `O(n)`이 걸려 전체가 느려집니다. 대신 `head` 인덱스를 두고 값을 지우지 않은 채 인덱스만 옮기면 `dequeue`가 `O(1)`이 됩니다(이번 편의 `Queue` 클래스가 이 방식입니다).
+
+| 방식 | dequeue 1회 비용 | 비고 |
+|------|-------------------|------|
+| `Array.prototype.shift()` | `O(n)` | 구현은 짧지만 느림 |
+| head 인덱스 방식 | `O(1)` | 값을 실제로 지우지 않고 인덱스만 이동 |
+
+## 실습
+
+### 문제 1. 올바른 괄호 판별
+
+#### 문제 설명
+
+소괄호·대괄호·중괄호로만 이루어진 문자열 `s`가 주어집니다. 모든 괄호가 열린 순서의 역순으로 정확히 짝지어 닫히면 `true`, 아니면 `false`를 반환하는 `solution` 함수를 작성합니다.
+
+#### 입출력 예
+
+| s | 반환값 |
+|---|--------|
+| `"()[]{}"` | `true` |
+| `"(]"` | `false` |
+| `"([)]"` | `false` |
+| `"{[]}"` | `true` |
+
+#### 접근(복잡도)
+
+여는 괄호를 만나면 스택에 `push`하고, 닫는 괄호를 만나면 스택 top을 `pop`해 짝이 맞는지 확인합니다. 문자열의 각 글자를 한 번씩만 보므로 시간 복잡도는 `O(n)`, 스택이 최대 `n`개까지 쌓일 수 있으므로 공간 복잡도도 `O(n)`입니다.
+
+#### 완성 코드
+
+```js
+// coding-test/05-stack-queue-deque/01-balanced-parentheses/solution.js
+import { Stack } from '../lib/Stack.js';
+
+const CLOSE_TO_OPEN = { ')': '(', ']': '[', '}': '{' };
+
+export function solution(s) {
+  const stack = new Stack();
+
+  for (const char of s) {
+    if (char === '(' || char === '[' || char === '{') {
+      stack.push(char);
+      continue;
+    }
+
+    const expectedOpen = CLOSE_TO_OPEN[char];
+    if (expectedOpen === undefined) continue;
+    if (stack.isEmpty() || stack.pop() !== expectedOpen) {
+      return false;
+    }
+  }
+
+  return stack.isEmpty();
+}
+```
+
+```js
+// coding-test/05-stack-queue-deque/lib/Stack.js
+export class Stack {
+  #items = [];
+
+  push(value) {
+    this.#items.push(value);
+  }
+
+  pop() {
+    return this.#items.pop();
+  }
+
+  peek() {
+    return this.#items.at(-1);
+  }
+
+  get size() {
+    return this.#items.length;
+  }
+
+  isEmpty() {
+    return this.#items.length === 0;
+  }
+}
+```
+
+#### 테스트
+
+```js
+// coding-test/05-stack-queue-deque/01-balanced-parentheses/solution.test.js
+import { test } from 'node:test';
+import assert from 'node:assert/strict';
+import { solution } from './solution.js';
+
+test('모든 괄호가 순서대로 닫히면 true', () => {
+  assert.strictEqual(solution('()[]{}'), true);
+});
+
+test('짝이 다른 괄호로 닫히면 false', () => {
+  assert.strictEqual(solution('(]'), false);
+});
+
+test('닫히는 순서가 뒤바뀌면 false', () => {
+  assert.strictEqual(solution('([)]'), false);
+});
+
+test('중첩된 괄호는 true', () => {
+  assert.strictEqual(solution('{[]}'), true);
+});
+
+test('여는 괄호만 남으면 false', () => {
+  assert.strictEqual(solution('((('), false);
+});
+```
+
+```text
+$ node --test coding-test/05-stack-queue-deque/01-balanced-parentheses
+✔ 모든 괄호가 순서대로 닫히면 true
+✔ 짝이 다른 괄호로 닫히면 false
+✔ 닫히는 순서가 뒤바뀌면 false
+✔ 중첩된 괄호는 true
+✔ 여는 괄호만 남으면 false
+# pass 5
+# fail 0
+```
+
+#### 함정
+
+순회가 끝난 뒤 `stack.isEmpty()`를 확인하지 않으면 `"((("`처럼 여는 괄호만 남은 경우를 놓쳐 잘못 `true`를 반환합니다. 닫는 괄호를 만났는데 스택이 이미 비어 있는 경우(`stack.isEmpty()`)도 반드시 `false` 처리해야 합니다.
+
+### 문제 2. 스택 2개로 큐 구현하기
+
+#### 문제 설명
+
+`push`·`pop`만 지원하는 스택 2개(`inbox`, `outbox`)만 사용해 큐를 흉내 내는 `QueueWithTwoStacks` 클래스를 만듭니다. `enqueue(value)`는 값을 넣고, `dequeue()`는 먼저 들어온 값부터 꺼냅니다.
+
+#### 입출력 예
+
+| 연산 순서 | dequeue 반환값 |
+|-----------|-----------------|
+| enqueue(1), enqueue(2), dequeue | `1` |
+| 이어서 enqueue(3), dequeue, dequeue | `2`, `3` |
+
+#### 접근(복잡도)
+
+`inbox`에는 항상 새 값을 `push`만 합니다. `outbox`가 비어 있을 때만 `inbox`를 전부 `pop`해서 `outbox`로 옮기면 순서가 뒤집혀 먼저 들어온 값이 `outbox`의 top으로 옵니다. 값 하나는 `inbox`에서 `outbox`로 최대 한 번만 이동하므로, `n`번 연산 전체로 보면 총 이동 횟수는 `O(n)`이고 `dequeue` 1회의 상환(amortized) 비용은 `O(1)`입니다.
+
+#### 완성 코드
+
+```js
+// coding-test/05-stack-queue-deque/02-queue-with-two-stacks/solution.js
+import { Stack } from '../lib/Stack.js';
+
+export class QueueWithTwoStacks {
+  #inbox = new Stack();
+  #outbox = new Stack();
+
+  enqueue(value) {
+    this.#inbox.push(value);
+  }
+
+  dequeue() {
+    this.#shiftIfNeeded();
+    return this.#outbox.pop();
+  }
+
+  get size() {
+    return this.#inbox.size + this.#outbox.size;
+  }
+
+  #shiftIfNeeded() {
+    if (this.#outbox.isEmpty()) {
+      while (!this.#inbox.isEmpty()) {
+        this.#outbox.push(this.#inbox.pop());
+      }
+    }
+  }
+}
+
+export function solution(operations) {
+  const queue = new QueueWithTwoStacks();
+  const results = [];
+
+  for (const [command, value] of operations) {
+    if (command === 'enqueue') {
+      queue.enqueue(value);
+      results.push(null);
+    } else {
+      results.push(queue.dequeue());
+    }
+  }
+
+  return results;
+}
+```
+
+#### 테스트
+
+```js
+// coding-test/05-stack-queue-deque/02-queue-with-two-stacks/solution.test.js
+import { test } from 'node:test';
+import assert from 'node:assert/strict';
+import { solution, QueueWithTwoStacks } from './solution.js';
+
+test('enqueue한 순서대로 dequeue된다', () => {
+  const result = solution([
+    ['enqueue', 1],
+    ['enqueue', 2],
+    ['dequeue'],
+    ['enqueue', 3],
+    ['dequeue'],
+    ['dequeue'],
+  ]);
+  assert.deepStrictEqual(result, [null, null, 1, null, 2, 3]);
+});
+
+test('outbox가 남아있는 동안에는 inbox를 옮기지 않는다', () => {
+  const queue = new QueueWithTwoStacks();
+  queue.enqueue('a');
+  queue.enqueue('b');
+  assert.strictEqual(queue.dequeue(), 'a');
+  queue.enqueue('c');
+  assert.strictEqual(queue.dequeue(), 'b');
+  assert.strictEqual(queue.dequeue(), 'c');
+});
+
+test('빈 큐에서 dequeue하면 undefined', () => {
+  const queue = new QueueWithTwoStacks();
+  assert.strictEqual(queue.dequeue(), undefined);
+});
+```
+
+#### 함정
+
+`outbox`가 비어 있지 않은데 `inbox`를 또 옮기면 나중에 들어온 값이 먼저 나와 순서가 꼬입니다. `#shiftIfNeeded`는 반드시 `outbox.isEmpty()`일 때만 옮겨야 합니다.
+
+### 문제 3. 프로세스 우선순위 큐 시뮬레이션
+
+#### 문제 설명
+
+대기 중인 프로세스의 우선순위 배열 `priorities`와 확인하고 싶은 프로세스의 위치 `location`(0부터 시작)이 주어집니다. 큐 맨 앞 프로세스를 꺼내 남은 프로세스 중 자신보다 우선순위가 높은 것이 있으면 맨 뒤로 다시 보내고, 없으면 그 자리에서 실행합니다. `location` 프로세스가 몇 번째로 실행되는지 반환합니다.
+
+#### 입출력 예
+
+| priorities | location | 반환값 |
+|------------|----------|--------|
+| `[2, 1, 3, 2]` | `2` | `1` |
+| `[1, 1, 9, 1, 1, 1]` | `0` | `5` |
+
+#### 접근(복잡도)
+
+큐에 `{ priority, index }` 쌍을 순서대로 넣습니다. 맨 앞을 꺼내 남은 큐 전체에 자신보다 큰 `priority`가 있는지 확인하고, 있으면 다시 넣고 없으면 실행 순번을 기록합니다. 매번 남은 큐 전체를 훑으므로 최악의 경우 `O(n²)`이지만, 코딩테스트에서 다루는 대기열 길이에서는 충분히 빠릅니다.
+
+#### 완성 코드
+
+```js
+// coding-test/05-stack-queue-deque/03-process-priority-queue/solution.js
+import { Queue } from '../lib/Queue.js';
+
+export function solution(priorities, location) {
+  const queue = new Queue();
+  priorities.forEach((priority, index) => {
+    queue.enqueue({ priority, index });
+  });
+
+  let order = 0;
+  while (!queue.isEmpty()) {
+    const current = queue.dequeue();
+    const hasHigherPriority = queue.toArray().some((item) => item.priority > current.priority);
+
+    if (hasHigherPriority) {
+      queue.enqueue(current);
+      continue;
+    }
+
+    order += 1;
+    if (current.index === location) {
+      return order;
+    }
+  }
+
+  throw new Error('location에 해당하는 프로세스를 찾지 못했습니다.');
+}
+```
+
+```js
+// coding-test/05-stack-queue-deque/lib/Queue.js
+export class Queue {
+  #items = [];
+  #head = 0;
+
+  enqueue(value) {
+    this.#items.push(value);
+  }
+
+  dequeue() {
+    if (this.isEmpty()) return undefined;
+    const value = this.#items[this.#head];
+    this.#items[this.#head] = undefined;
+    this.#head += 1;
+    return value;
+  }
+
+  toArray() {
+    return this.#items.slice(this.#head);
+  }
+
+  get size() {
+    return this.#items.length - this.#head;
+  }
+
+  isEmpty() {
+    return this.size === 0;
+  }
+}
+```
+
+#### 테스트
+
+```js
+// coding-test/05-stack-queue-deque/03-process-priority-queue/solution.test.js
+import { test } from 'node:test';
+import assert from 'node:assert/strict';
+import { solution } from './solution.js';
+
+test('우선순위가 높은 프로세스가 뒤에 있어도 먼저 실행된다', () => {
+  assert.strictEqual(solution([2, 1, 3, 2], 2), 1);
+});
+
+test('우선순위가 같으면 먼저 들어온 순서대로 실행된다', () => {
+  assert.strictEqual(solution([1, 1, 9, 1, 1, 1], 0), 5);
+});
+
+test('가장 높은 우선순위는 즉시 첫 번째로 실행된다', () => {
+  assert.strictEqual(solution([9, 1, 1], 0), 1);
+});
+```
+
+#### 함정
+
+`toArray()`는 호출할 때마다 새 배열을 만들어 순회하므로 대기열이 매우 길면 느려집니다(이 문제 규모에서는 문제없습니다). 우선순위를 비교할 때 `>=`가 아니라 `>`를 써야 합니다. 같은 우선순위는 "더 높다"고 보지 않아야 먼저 들어온 프로세스가 먼저 실행되는 규칙이 지켜집니다.
+
+### 문제 4. 슬라이딩 윈도우 최댓값
+
+#### 문제 설명
+
+정수 배열 `nums`와 윈도우 크기 `k`가 주어집니다. 배열의 왼쪽부터 오른쪽으로 크기 `k`인 윈도우를 한 칸씩 이동시키면서, 각 윈도우에서의 최댓값을 순서대로 담은 배열을 반환합니다.
+
+#### 입출력 예
+
+| nums | k | 반환값 |
+|------|---|--------|
+| `[1, 3, -1, -3, 5, 3, 6, 7]` | `3` | `[3, 3, 5, 5, 6, 7]` |
+| `[4, 3, 2, 1]` | `2` | `[4, 3, 2]` |
+
+#### 접근(복잡도)
+
+매 윈도우마다 최댓값을 처음부터 다시 찾으면 `O(n × k)`입니다. 대신 덱에 값이 아니라 인덱스를 저장하되, 새 인덱스를 뒤에 넣기 전에 자신보다 작은 값을 가리키는 인덱스를 뒤에서부터 모두 제거해 "덱에 남은 값이 항상 감소하는" 상태를 유지합니다(모노토닉 덱). 그러면 덱의 맨 앞이 항상 현재 윈도우의 최댓값 인덱스가 됩니다. 인덱스는 덱에 최대 한 번 들어가고 한 번 제거되므로 전체 시간 복잡도는 `O(n)`입니다.
+
+#### 완성 코드
+
+```js
+// coding-test/05-stack-queue-deque/04-sliding-window-maximum/solution.js
+import { Deque } from '../lib/Deque.js';
+
+export function solution(nums, k) {
+  const deque = new Deque();
+  const result = [];
+
+  for (let i = 0; i < nums.length; i += 1) {
+    if (!deque.isEmpty() && deque.front() <= i - k) {
+      deque.removeFront();
+    }
+
+    while (!deque.isEmpty() && nums[deque.back()] <= nums[i]) {
+      deque.removeBack();
+    }
+
+    deque.addBack(i);
+
+    if (i >= k - 1) {
+      result.push(nums[deque.front()]);
+    }
+  }
+
+  return result;
+}
+```
+
+```js
+// coding-test/05-stack-queue-deque/lib/Deque.js
+export class Deque {
+  #items = [];
+
+  addFront(value) {
+    this.#items.unshift(value);
+  }
+
+  addBack(value) {
+    this.#items.push(value);
+  }
+
+  removeFront() {
+    return this.#items.shift();
+  }
+
+  removeBack() {
+    return this.#items.pop();
+  }
+
+  front() {
+    return this.#items.at(0);
+  }
+
+  back() {
+    return this.#items.at(-1);
+  }
+
+  isEmpty() {
+    return this.#items.length === 0;
+  }
+}
+```
+
+#### 테스트
+
+```js
+// coding-test/05-stack-queue-deque/04-sliding-window-maximum/solution.test.js
+import { test } from 'node:test';
+import assert from 'node:assert/strict';
+import { solution } from './solution.js';
+
+test('일반적인 윈도우 이동에서 각 구간 최댓값을 구한다', () => {
+  assert.deepStrictEqual(solution([1, 3, -1, -3, 5, 3, 6, 7], 3), [3, 3, 5, 5, 6, 7]);
+});
+
+test('내림차순 배열에서는 매 윈도우의 맨 앞 값이 최댓값이다', () => {
+  assert.deepStrictEqual(solution([4, 3, 2, 1], 2), [4, 3, 2]);
+});
+
+test('윈도우 크기가 배열 전체 길이와 같으면 결과는 값 1개다', () => {
+  assert.deepStrictEqual(solution([5, 1, 9, 2], 4), [9]);
+});
+```
+
+#### 함정
+
+덱에 값 자체를 저장하면 `deque.front() <= i - k` 같은 범위 판정을 할 수 없어 윈도우를 벗어난 오래된 최댓값을 걸러내지 못합니다. 반드시 인덱스를 저장하고 `nums[index]`로 값을 조회해야 합니다. 이번 `Deque`는 배열의 `shift`·`unshift`를 그대로 써서 `removeFront`가 매번 `O(n)`입니다. 입력이 매우 크면 연결 리스트 기반 덱으로 바꿔야 하지만, 코딩테스트 범위의 입력 크기에서는 문제되지 않습니다.
+
+## 직접 해보기
+
+1. `Deque`를 연결 리스트(각 노드가 이전·다음 노드를 가리킴) 기반으로 다시 구현해 `addFront`·`removeFront`가 `O(1)`이 되도록 바꿔봅니다.
+2. 문제 3의 `solution`에 프로세스가 실행될 때마다 그 `index`를 순서대로 모으는 `executionOrder` 배열을 추가하고, `[2, 1, 3, 2]`에 대한 전체 실행 순서를 테스트로 확인합니다.
+
+<details>
+<summary>정답 보기(2번)</summary>
+
+```js
+export function solutionWithOrder(priorities, location) {
+  const queue = new Queue();
+  priorities.forEach((priority, index) => {
+    queue.enqueue({ priority, index });
+  });
+
+  const executionOrder = [];
+  while (!queue.isEmpty()) {
+    const current = queue.dequeue();
+    const hasHigherPriority = queue.toArray().some((item) => item.priority > current.priority);
+
+    if (hasHigherPriority) {
+      queue.enqueue(current);
+      continue;
+    }
+
+    executionOrder.push(current.index);
+  }
+
+  return { executionOrder, order: executionOrder.indexOf(location) + 1 };
+}
+```
+
+`[2, 1, 3, 2]`에서는 `executionOrder`가 `[2, 3, 0, 1]`이 되어야 합니다(인덱스 2가 가장 먼저, 그다음 인덱스 3, 0, 1 순서).
+
+</details>
+
+## 자주 하는 실수
+
+| 증상 | 원인 | 고치는 법 |
+|------|------|-----------|
+| 큐에서 dequeue를 반복할수록 점점 느려짐 | `Array.prototype.shift()`를 그대로 사용해 매번 배열 전체를 당김 | head 인덱스로 논리적 삭제만 하는 `Queue` 클래스 사용 |
+| 스택 2개로 큐를 구현했더니 순서가 뒤섞임 | `outbox`가 비어 있지 않은데 `inbox`를 또 옮김 | `outbox.isEmpty()`일 때만 옮기도록 조건 확인 |
+| 슬라이딩 윈도우 최댓값이 항상 배열의 첫 값으로만 나옴 | 덱에 인덱스가 아니라 값 자체를 저장 | 인덱스를 저장하고 `nums[index]`로 값을 조회 |
+| 괄호 판별에서 여는 괄호만 있는 문자열이 `true`로 나옴 | 순회가 끝난 뒤 `stack.isEmpty()` 확인을 빠뜨림 | 마지막에 스택이 비었는지 반드시 확인 |
+
+## 확인 문제
+
+<Quiz
+  questionNumber={1}
+  question="배열로 큐를 구현할 때 Array.prototype.shift로 dequeue를 반복하면 생기는 문제는?"
+  options={['메모리 누수가 발생한다', '매번 나머지 요소를 앞으로 당기는 비용이 들어 dequeue가 O(n)이 된다', '값이 자동으로 정렬된다', 'push 연산도 함께 느려진다']}
+  correctAnswer={2}
+  explanation="shift는 맨 앞 요소를 지운 뒤 나머지 전체를 한 칸씩 당기므로 배열 길이에 비례하는 O(n) 비용이 듭니다. head 인덱스 방식은 이 비용을 없앱니다."
+  optionExplanations={['메모리 누수와는 무관합니다', '정답입니다', '정렬과는 무관한 연산입니다', 'push 자체는 여전히 O(1)입니다']}
+/>
+
+<Quiz
+  questionNumber={2}
+  question="스택 2개(inbox, outbox)로 큐를 구현할 때 outbox가 비어 있을 때만 inbox를 옮기는 이유는?"
+  options={['코드를 짧게 쓰기 위해서다', 'outbox에 이미 순서가 뒤집힌 값이 남아 있는데 또 옮기면 순서가 다시 섞이기 때문이다', 'inbox가 가득 차야만 옮길 수 있기 때문이다', '메모리를 아끼기 위해서다']}
+  correctAnswer={2}
+  explanation="outbox에 남은 값은 이미 올바른 dequeue 순서로 뒤집혀 있습니다. 이 상태에서 inbox를 또 옮기면 나중에 들어온 값이 먼저 나와 FIFO 순서가 깨집니다."
+  optionExplanations={['코드 길이가 목적이 아닙니다', '정답입니다', 'inbox 용량 제한은 없습니다', '메모리 절약이 핵심 이유가 아닙니다']}
+/>
+
+<Quiz
+  questionNumber={3}
+  question="슬라이딩 윈도우 최댓값 문제에서 모노토닉 덱에 값이 아니라 인덱스를 저장하는 이유는?"
+  options={['인덱스가 항상 더 작은 숫자라서 메모리를 아낄 수 있다', '윈도우 범위를 벗어났는지(deque.front() <= i - k)를 판정하려면 위치 정보가 필요하기 때문이다', '자바스크립트 배열은 값을 직접 저장할 수 없어서다', '인덱스를 저장하면 정렬 속도가 빨라지기 때문이다']}
+  correctAnswer={2}
+  explanation="값만 저장하면 그 값이 현재 윈도우 안에 있는지 알 수 없습니다. 인덱스를 저장해야 현재 위치와 비교해 윈도우를 벗어난 값을 제거할 수 있습니다."
+  optionExplanations={['메모리 절약이 목적이 아닙니다', '정답입니다', '배열은 어떤 값이든 저장할 수 있습니다', '정렬과는 무관합니다']}
+/>
+
+<Quiz
+  questionNumber={4}
+  question="올바른 괄호 판별 문제에서 배열이나 큐가 아니라 스택을 사용하는 이유로 가장 알맞은 것은?"
+  options={['스택이 배열보다 빠르기 때문이다', '가장 최근에 연 괄호부터 닫혀야 하는 LIFO 순서와 괄호 매칭 규칙이 정확히 일치하기 때문이다', '스택은 크기 제한이 없기 때문이다', 'JavaScript에는 큐 자료구조가 없기 때문이다']}
+  correctAnswer={2}
+  explanation="괄호는 가장 나중에 연 것부터 닫혀야 합니다. 이 LIFO 순서가 스택의 동작과 정확히 일치해 짝이 맞는지 판정하기 쉽습니다."
+  optionExplanations={['속도 차이가 핵심 이유가 아닙니다', '정답입니다', '크기 제한과는 무관합니다', '큐도 배열로 직접 구현할 수 있습니다']}
+/>
+
+## 참고 자료
+
+- [Node.js Docs - Test runner (node:test)](https://nodejs.org/api/test.html)
+- [MDN - Array.prototype.shift()](https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Array/shift)
+- [Wikipedia - Double-ended queue](https://en.wikipedia.org/wiki/Double-ended_queue)

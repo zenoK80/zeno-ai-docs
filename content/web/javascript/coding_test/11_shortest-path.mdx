@@ -1,0 +1,349 @@
+---
+title: '11. 최단 경로 알고리즘'
+description: '우선순위 큐 없이 O(V²) 다익스트라, 벨만-포드, 플로이드-워셜로 최단 경로를 구합니다.'
+---
+
+<Callout type="info">
+  **이번 편의 결과물:** `coding-test/11-shortest-path/`에 최단 경로 알고리즘 3개를 풀이 파일과 테스트로 완성합니다. · **다루는 개념:** 다익스트라(O(V²)), 벨만-포드, 플로이드-워셜
+</Callout>
+
+## 이 편에서 만드는 파일
+
+```
+coding-test/11-shortest-path/
+├── 01-dijkstra/
+│   ├── solution.js             (+)
+│   └── solution.test.js        (+)
+├── 02-bellman-ford/
+│   ├── solution.js             (+)
+│   └── solution.test.js        (+)
+└── 03-floyd-warshall/
+    ├── solution.js              (+)
+    └── solution.test.js         (+)
+```
+
+## 개념 정리
+
+| 알고리즘 | 용도 | 가중치 조건 | 시간복잡도(이 편의 구현 기준) |
+|----------|------|--------------|-------------------------------|
+| 다익스트라 | 한 정점에서 모든 정점까지의 최단거리 | 음수 불가 | `O(V²)`(우선순위 큐 없이) |
+| 벨만-포드 | 한 정점에서 모든 정점까지의 최단거리, 음수 사이클 탐지 | 음수 허용 | `O(V * E)` |
+| 플로이드-워셜 | 모든 정점 쌍 사이의 최단거리 | 음수 허용(음수 사이클 없어야 함) | `O(V³)` |
+
+10편의 BFS는 간선 가중치가 모두 같다고 볼 때의 최단 경로였습니다. 이 편은 간선마다 가중치가 다를 때를 다룹니다. 다익스트라는 보통 우선순위 큐(힙)로 다음 정점을 빠르게 고르지만, 힙을 아직 안 만들었으므로 이 편은 매 단계 미방문 정점 중 최단거리를 배열 선형 탐색으로 찾습니다. 이 선형 탐색을 힙으로 최적화하는 것이 12편의 과제입니다.
+
+## 실습
+
+<Steps>
+
+### 1. 다익스트라 — 힙 없이 O(V²)
+
+**문제:** 인접 리스트 `graph`(각 정점의 `[이웃, 가중치]` 목록)와 시작 정점 `start`가 주어질 때, 시작 정점에서 각 정점까지의 최단거리 배열을 반환하는 `solution(graph, start)`를 구현합니다. 음수 가중치는 없다고 가정합니다.
+
+**입출력 예**
+
+| 입력(그래프: `0→1(4)`, `0→2(1)`, `2→1(1)`, `1→3(1)`, `2→3(5)`) | `solution(graph, 0)` |
+|------|------|
+| 시작 정점 `0` | `[0, 2, 1, 3]` |
+
+**접근(복잡도):** `distance` 배열을 무한대로 초기화하고 시작 정점만 0으로 둡니다. 매 단계 미방문 정점 중 거리가 가장 짧은 정점을 배열 전체에서 찾아 방문 표시하고, 그 정점을 거쳐 더 짧아지는 이웃 거리를 갱신합니다. 정점 선택에 매번 `O(V)`가 걸리고 `V`번 반복하니 전체는 `O(V²)`입니다.
+
+**코드**
+
+```js
+// coding-test/11-shortest-path/01-dijkstra/solution.js
+// 시간복잡도: O(V^2) — 매 단계 미방문 정점 중 최단거리를 선형 탐색하고 V번 반복한다
+// 공간복잡도: O(V + E) — 거리·방문 배열과 인접 리스트를 사용한다
+const INF = Infinity;
+
+export function solution(graph, start) {
+  const vertexCount = graph.length;
+  const distance = new Array(vertexCount).fill(INF);
+  const visited = new Array(vertexCount).fill(false);
+  distance[start] = 0;
+
+  for (let step = 0; step < vertexCount; step += 1) {
+    let current = -1;
+    let currentMinDistance = INF;
+
+    for (let node = 0; node < vertexCount; node += 1) {
+      if (!visited[node] && distance[node] < currentMinDistance) {
+        current = node;
+        currentMinDistance = distance[node];
+      }
+    }
+
+    if (current === -1) {
+      break;
+    }
+    visited[current] = true;
+
+    for (const [next, weight] of graph[current]) {
+      if (distance[current] + weight < distance[next]) {
+        distance[next] = distance[current] + weight;
+      }
+    }
+  }
+
+  return distance;
+}
+```
+
+**테스트**
+
+```js
+// coding-test/11-shortest-path/01-dijkstra/solution.test.js
+import { test } from 'node:test';
+import assert from 'node:assert/strict';
+import { solution } from './solution.js';
+
+const graph = [
+  [[1, 4], [2, 1]],
+  [[3, 1]],
+  [[1, 1], [3, 5]],
+  [],
+];
+
+test('0번 정점에서 각 정점까지의 최단거리를 구한다', () => {
+  assert.deepStrictEqual(solution(graph, 0), [0, 2, 1, 3]);
+});
+
+test('시작 정점 자신까지의 거리는 0이다', () => {
+  assert.strictEqual(solution(graph, 2)[2], 0);
+});
+
+test('도달할 수 없는 정점은 Infinity다', () => {
+  const isolated = [[], [], []];
+  assert.strictEqual(solution(isolated, 0)[1], Infinity);
+});
+```
+
+```text
+node --test 01-dijkstra/solution.test.js
+# tests 3, pass 3, fail 0
+```
+
+**함정:** 다익스트라는 음수 가중치가 있으면 틀린 답을 낼 수 있습니다. 한 번 방문 처리(`visited[current] = true`)한 정점은 더 짧은 경로가 나중에 나타나도 다시 갱신하지 않는데, 음수 간선이 있으면 이 가정이 깨지기 때문입니다. 음수 가중치가 필요하면 벨만-포드를 씁니다.
+
+### 2. 벨만-포드 — 음수 가중치와 음수 사이클
+
+**문제:** 정점 수 `vertexCount`와 간선 목록 `edges`(각 원소는 `[출발, 도착, 가중치]`), 시작 정점 `start`가 주어질 때 최단거리를 구하되, 음수 사이클이 있으면 이를 감지하는 `solution(vertexCount, edges, start)`를 구현합니다.
+
+**입출력 예**
+
+| 입력 | 출력 |
+|------|------|
+| 음수 간선 포함, 사이클 없음 | `{ distance: [...], hasNegativeCycle: false }` |
+| 음수 사이클 존재 | `{ distance: null, hasNegativeCycle: true }` |
+
+**접근(복잡도):** 모든 간선을 `V - 1`번 반복해서 완화(relax, 더 짧은 경로를 찾으면 갱신)합니다. 음수 사이클이 없다면 이 반복만으로 모든 최단거리가 확정됩니다. 이후 한 번 더 전체 간선을 검사해서 그래도 거리가 줄어드는 간선이 있으면 음수 사이클이 있는 것입니다. 간선 수를 `E`라 하면 `O(V * E)`입니다.
+
+**코드**
+
+```js
+// coding-test/11-shortest-path/02-bellman-ford/solution.js
+// 시간복잡도: O(V * E) — 모든 간선을 V - 1번 완화하고 검증을 한 번 더 한다
+// 공간복잡도: O(V) — 거리 배열만 유지한다
+const INF = Infinity;
+
+export function solution(vertexCount, edges, start) {
+  const distance = new Array(vertexCount).fill(INF);
+  distance[start] = 0;
+
+  for (let i = 0; i < vertexCount - 1; i += 1) {
+    for (const [from, to, weight] of edges) {
+      if (distance[from] !== INF && distance[from] + weight < distance[to]) {
+        distance[to] = distance[from] + weight;
+      }
+    }
+  }
+
+  for (const [from, to, weight] of edges) {
+    if (distance[from] !== INF && distance[from] + weight < distance[to]) {
+      return { distance: null, hasNegativeCycle: true };
+    }
+  }
+
+  return { distance, hasNegativeCycle: false };
+}
+```
+
+**테스트**
+
+```js
+// coding-test/11-shortest-path/02-bellman-ford/solution.test.js
+import { test } from 'node:test';
+import assert from 'node:assert/strict';
+import { solution } from './solution.js';
+
+test('음수 가중치가 있어도 최단거리를 구한다', () => {
+  const edges = [[0, 1, 4], [0, 2, 5], [1, 2, -3], [2, 3, 2]];
+  const result = solution(4, edges, 0);
+  assert.strictEqual(result.hasNegativeCycle, false);
+  assert.deepStrictEqual(result.distance, [0, 4, 1, 3]);
+});
+
+test('음수 사이클이 있으면 감지한다', () => {
+  const edges = [[0, 1, 1], [1, 2, -1], [2, 1, -1]];
+  const result = solution(3, edges, 0);
+  assert.strictEqual(result.hasNegativeCycle, true);
+  assert.strictEqual(result.distance, null);
+});
+
+test('도달할 수 없는 정점은 Infinity로 남는다', () => {
+  const result = solution(3, [[0, 1, 2]], 0);
+  assert.strictEqual(result.distance[2], Infinity);
+});
+```
+
+```text
+node --test 02-bellman-ford/solution.test.js
+# tests 3, pass 3, fail 0
+```
+
+**함정:** 완화 조건에서 `distance[from] !== INF` 확인을 빼먹지 않도록 주의합니다. 아직 도달하지 못한 정점(`Infinity`)을 거쳐 가는 계산을 걸러내지 않으면 다른 언어·환경에서는 잘못된 값으로 이어질 수 있습니다.
+
+### 3. 플로이드-워셜 — 모든 정점 쌍 최단거리
+
+**문제:** 정점 수 `vertexCount`와 간선 목록 `edges`가 주어질 때, 모든 정점 쌍 사이의 최단거리를 2차원 배열로 반환하는 `solution(vertexCount, edges)`를 구현합니다.
+
+**입출력 예**
+
+| 입력 | 출력 |
+|------|------|
+| `edges=[[0,1,3],[1,2,1],[0,2,10]]` | `distance[0][2]` = `4`(0→1→2 경유가 직접 경로 10보다 짧음) |
+
+**접근(복잡도):** 정점 쌍 사이의 초기 거리를 직접 연결된 간선 가중치로, 자기 자신은 0, 나머지는 무한대로 채웁니다. 이후 "경유지" `via`를 하나씩 늘려가며 `from`에서 `via`를 거쳐 `to`로 가는 경로가 기존보다 짧으면 갱신합니다. 세 중첩 반복문이라 `O(V³)`이며, 다익스트라·벨만-포드를 정점마다 반복하는 것보다 정점 수가 적을 때 간단합니다.
+
+**코드**
+
+```js
+// coding-test/11-shortest-path/03-floyd-warshall/solution.js
+// 시간복잡도: O(V^3) — 경유지·출발·도착 정점의 삼중 반복문을 사용한다
+// 공간복잡도: O(V^2) — 모든 정점 쌍의 거리를 저장한다
+const INF = Infinity;
+
+export function solution(vertexCount, edges) {
+  const distance = Array.from({ length: vertexCount }, (_, row) =>
+    Array.from({ length: vertexCount }, (_, col) => (row === col ? 0 : INF)),
+  );
+
+  for (const [from, to, weight] of edges) {
+    if (weight < distance[from][to]) {
+      distance[from][to] = weight;
+    }
+  }
+
+  for (let via = 0; via < vertexCount; via += 1) {
+    for (let from = 0; from < vertexCount; from += 1) {
+      for (let to = 0; to < vertexCount; to += 1) {
+        if (distance[from][via] + distance[via][to] < distance[from][to]) {
+          distance[from][to] = distance[from][via] + distance[via][to];
+        }
+      }
+    }
+  }
+
+  return distance;
+}
+```
+
+**테스트**
+
+```js
+// coding-test/11-shortest-path/03-floyd-warshall/solution.test.js
+import { test } from 'node:test';
+import assert from 'node:assert/strict';
+import { solution } from './solution.js';
+
+test('모든 정점 쌍의 최단거리를 구한다', () => {
+  const edges = [[0, 1, 3], [1, 2, 1], [0, 2, 10]];
+  const distance = solution(3, edges);
+  assert.strictEqual(distance[0][2], 4);
+  assert.strictEqual(distance[0][1], 3);
+});
+
+test('자기 자신까지의 거리는 항상 0이다', () => {
+  const distance = solution(3, []);
+  assert.strictEqual(distance[0][0], 0);
+  assert.strictEqual(distance[1][1], 0);
+});
+
+test('경유지를 거치는 경로가 직접 경로보다 짧으면 갱신된다', () => {
+  const edges = [[0, 1, 1], [1, 2, 1], [0, 2, 100]];
+  assert.strictEqual(solution(3, edges)[0][2], 2);
+});
+```
+
+```text
+node --test 03-floyd-warshall/solution.test.js
+# tests 3, pass 3, fail 0
+```
+
+**함정:** 삼중 반복문의 순서가 중요합니다. `via`(경유지) 반복문이 가장 바깥에 있어야 "이전 단계까지 확정된 경유지들을 거친 최단거리"가 다음 단계에 재사용됩니다. `from`이나 `to`를 가장 바깥에 두면 잘못된 결과가 나옵니다.
+
+</Steps>
+
+## 직접 해보기
+
+1. 문제 1의 `solution`에 도착 정점 `target`을 추가로 받아, `distance[target]`이 확정되는 즉시(방문 처리되는 순간) 반복문을 끝내도록 최적화해보세요.
+2. 문제 2의 `solution`이 반환하는 `distance`를 이용해, 시작 정점에서 특정 정점까지의 최단 경로를 정점 목록으로 복원하려면 어떤 정보를 추가로 저장해야 할지 생각해보세요.
+
+<details>
+<summary>정답 보기(2번)</summary>
+
+거리 배열만으로는 경로를 복원할 수 없습니다. 완화가 일어날 때마다 `predecessor[to] = from`처럼 "어떤 정점을 거쳐 왔는지"를 함께 기록해두면, 도착 정점에서 `predecessor`를 따라 거꾸로 올라가며 경로를 복원할 수 있습니다.
+
+</details>
+
+## 자주 하는 실수
+
+| 증상 | 원인 | 고치는 법 |
+|------|------|-----------|
+| 음수 가중치 그래프에서 다익스트라 결과가 틀림 | 다익스트라는 음수 가중치를 지원하지 않음 | 음수 가중치가 있으면 벨만-포드를 쓴다 |
+| 플로이드-워셜 결과가 뒤죽박죽 | `via` 반복문을 가장 바깥에 두지 않음 | 반복문 순서를 `via → from → to`로 고정한다 |
+| 벨만-포드가 음수 사이클을 못 찾음 | 완화를 `V - 1`번만 하고 마지막 검증 반복을 생략함 | `V - 1`번 완화 후 한 번 더 검사해 거리가 또 줄면 음수 사이클로 판단한다 |
+
+## 확인 문제
+
+<Quiz
+  questionNumber={1}
+  question="이 편의 다익스트라 구현이 O(V²)인 이유는?"
+  options={['간선을 V번 반복해서 정렬하기 때문에', '매 단계마다 미방문 정점 중 최단거리를 배열 전체 선형 탐색으로 찾고 이를 V번 반복하기 때문에', '재귀 호출 깊이가 V²이기 때문에', '모든 정점 쌍을 미리 계산하기 때문에']}
+  correctAnswer={2}
+  explanation="우선순위 큐 없이 배열에서 최소 거리 정점을 매번 선형 탐색(O(V))하고 이를 V번 반복하므로 전체가 O(V²)입니다."
+  optionExplanations={['정렬을 하지 않습니다', '정답입니다', '재귀를 쓰지 않습니다', '모든 쌍 계산은 플로이드-워셜입니다']}
+/>
+
+<Quiz
+  questionNumber={2}
+  question="음수 가중치가 있는 그래프에서 다익스트라 대신 벨만-포드를 써야 하는 이유는?"
+  options={['벨만-포드가 항상 더 빠르기 때문에', '다익스트라는 한 번 방문 처리한 정점을 다시 갱신하지 않아 음수 간선이 있으면 틀린 결과를 낼 수 있기 때문에', '벨만-포드만 인접 리스트를 쓸 수 있기 때문에', '음수 가중치는 그래프가 아니기 때문에']}
+  correctAnswer={2}
+  explanation="다익스트라는 방문 확정 후 되돌아가지 않는데, 음수 간선이 있으면 나중에 더 짧은 경로가 나타날 수 있어 이 가정이 깨집니다."
+  optionExplanations={['속도가 아니라 정확성이 문제입니다', '정답입니다', '자료구조 선택과 무관합니다', '음수 가중치도 그래프의 일부입니다']}
+/>
+
+<Quiz
+  questionNumber={3}
+  question="플로이드-워셜에서 삼중 반복문 중 경유지(via)를 가장 바깥에 두어야 하는 이유는?"
+  options={['코드가 더 짧아져서', '이전 단계까지 확정된 경유지를 거친 최단거리를 다음 단계에서 재사용해야 하기 때문에', '메모리를 아끼기 위해서', '정렬 순서를 맞추기 위해서']}
+  correctAnswer={2}
+  explanation="via를 가장 바깥에 두어야 각 단계에서 이미 확정된 경유지 조합의 최단거리를 다음 계산에 그대로 활용할 수 있습니다."
+  optionExplanations={['코드 길이는 순서와 무관합니다', '정답입니다', '메모리 사용량은 순서와 무관합니다', '정렬은 이 알고리즘과 무관합니다']}
+/>
+
+<Quiz
+  questionNumber={4}
+  question="벨만-포드에서 간선을 V - 1번 완화한 뒤 한 번 더 검사하는 이유는?"
+  options={['코드를 더 안전하게 보이기 위해서', '음수 사이클이 없다면 V - 1번으로 충분히 수렴하므로, 한 번 더 줄어드는 간선이 있다면 음수 사이클이 있다는 뜻이기 때문에', '반복 횟수를 정확히 맞추기 위한 관습일 뿐 의미는 없어서', '정점 수를 다시 세기 위해서']}
+  correctAnswer={2}
+  explanation="최단 경로는 최대 V - 1개의 간선으로 이루어지므로 V - 1번 완화 후에도 거리가 줄어든다면 음수 사이클이 존재하는 것입니다."
+  optionExplanations={['의미 없는 관습이 아닙니다', '정답입니다', '의미가 분명히 있습니다', '정점 수 계산과 무관합니다']}
+/>
+
+## 참고 자료
+
+- [Wikipedia - Dijkstra's algorithm](https://en.wikipedia.org/wiki/Dijkstra%27s_algorithm)
+- [Wikipedia - Bellman-Ford algorithm](https://en.wikipedia.org/wiki/Bellman%E2%80%93Ford_algorithm)
+- [Wikipedia - Floyd-Warshall algorithm](https://en.wikipedia.org/wiki/Floyd%E2%80%93Warshall_algorithm)

@@ -1,0 +1,309 @@
+---
+title: '03. 배열·문자열 기본 조작'
+description: '배열 회전·문자열 변환·프리픽스 합·빈도수 세기 네 문제를 풀며 배열·문자열 메서드를 복습합니다.'
+---
+
+<Callout type="info">
+  **이번 편의 결과물:** `coding-test/03-arrays-and-strings/`에 문제 4개 풀이를 작성하고 `node --test`를 통과시킵니다. · **다루는 개념:** 배열 순회·변형 재확인, 문자열 메서드, 프리픽스 합, 빈도수 세기
+</Callout>
+
+## 이 편에서 만드는 파일
+
+```
+coding-test/
+└── 03-arrays-and-strings/
+    ├── 01-rotate-array/
+    │   ├── solution.js               (+)
+    │   └── solution.test.js          (+)
+    ├── 02-snake-to-camel/
+    │   ├── solution.js               (+)
+    │   └── solution.test.js          (+)
+    ├── 03-range-sum-with-prefix-sum/
+    │   ├── solution.js               (+)
+    │   └── solution.test.js          (+)
+    └── 04-most-frequent-char/
+        ├── solution.js               (+)
+        └── solution.test.js          (+)
+```
+
+## 개념 정리
+
+`ECMAscript` 과목에서 배운 배열·문자열 메서드를 문제 풀이 관점에서 정리합니다.
+
+| 메서드 | 역할 |
+|--------|------|
+| `slice(start, end)` | 원본을 바꾸지 않고 일부를 잘라 새 배열(문자열)로 반환 |
+| `split(구분자)` | 문자열을 구분자 기준으로 잘라 배열로 만듦 |
+| `join(구분자)` | 배열을 구분자로 이어 붙여 문자열로 만듦 |
+| `charAt(index)` / `[index]` | 특정 위치의 문자 한 개를 꺼냄 |
+
+**프리픽스 합**(구간 누적합)은 `nums[0]`부터 `nums[i-1]`까지의 합을 미리 계산해둔 배열입니다. `prefix[i]`를 "인덱스 0부터 i-1까지의 합"으로 정의하면, 구간 `[l, r]`의 합은 `prefix[r+1] - prefix[l]` 한 번의 뺄셈으로 구합니다. 쿼리마다 배열을 순회하는 `O(n)` 대신 쿼리당 `O(1)`로 끝나는, "미리 계산해두고 빠르게 꺼내 쓴다"는 전략입니다.
+
+**빈도수 세기**는 각 값이 몇 번 등장했는지 객체에 저장하는 패턴입니다. 이 편은 일반 객체(`{}`)로 세고, 04편에서 같은 패턴을 `Map`으로 다시 다루며 차이를 비교합니다.
+
+## 실습
+
+<Steps>
+
+### 1. 배열 회전시키기
+
+**문제**: 정수 배열 `nums`와 자연수 `k`가 주어질 때, 배열을 오른쪽으로 `k`칸 회전한 배열을 반환합니다.
+
+**입출력 예**
+
+| nums | k | 결과 |
+|------|---|------|
+| `[1, 2, 3, 4, 5]` | 2 | `[4, 5, 1, 2, 3]` |
+| `[1, 2, 3]` | 4 | `[3, 1, 2]` |
+
+**접근**: 한 칸씩 `k`번 회전하면 `O(n * k)`입니다. `k`를 `nums.length`로 나눈 나머지(`shift`)만큼만 두 조각을 잘라 이어 붙이면 `O(n)`으로 끝납니다.
+
+```js
+// coding-test/03-arrays-and-strings/01-rotate-array/solution.js
+// 시간복잡도: O(n) — slice 두 번으로 배열을 한 번씩만 복사한다
+// 공간복잡도: O(n) — 회전된 새 배열을 반환한다
+export function solution(nums, k) {
+  const n = nums.length;
+  if (n === 0) return [];
+  const shift = k % n;
+  if (shift === 0) return [...nums];
+  return [...nums.slice(-shift), ...nums.slice(0, n - shift)];
+}
+```
+
+```js
+// coding-test/03-arrays-and-strings/01-rotate-array/solution.test.js
+import { test } from 'node:test';
+import assert from 'node:assert/strict';
+import { solution } from './solution.js';
+
+test('오른쪽으로 2칸 회전한다', () => {
+  assert.deepStrictEqual(solution([1, 2, 3, 4, 5], 2), [4, 5, 1, 2, 3]);
+});
+
+test('k가 배열 길이보다 크면 나머지만큼만 회전한다', () => {
+  assert.deepStrictEqual(solution([1, 2, 3], 4), [3, 1, 2]);
+});
+
+test('k가 배열 길이의 배수이면 원래 배열과 같다', () => {
+  assert.deepStrictEqual(solution([1, 2, 3], 3), [1, 2, 3]);
+});
+```
+
+**함정**: `shift === 0` 조건 없이 바로 `nums.slice(-shift)`를 호출하면 `-shift`가 `-0`이 되어 `slice(0)`처럼 배열 전체를 반환합니다. 뒤 조각과 앞 조각이 둘 다 전체 배열이 되어 길이가 2배로 늘어나는 버그가 생기므로 `shift === 0`을 먼저 걸러야 합니다.
+
+### 2. 스네이크케이스를 카멜케이스로 변환하기
+
+**문제**: 스네이크케이스 문자열(`user_first_name`)을 카멜케이스(`userFirstName`)로 변환합니다.
+
+**입출력 예**
+
+| 입력 | 결과 |
+|------|------|
+| `user_first_name` | `userFirstName` |
+| `id` | `id` |
+
+**접근**: `_` 기준으로 나눈 뒤 첫 단어를 제외한 나머지 단어의 첫 글자만 대문자로 바꿔 이어 붙입니다. `O(n)`입니다.
+
+```js
+// coding-test/03-arrays-and-strings/02-snake-to-camel/solution.js
+// 시간복잡도: O(n) — 문자열 길이만큼 한 번 순회한다
+// 공간복잡도: O(n) — 변환된 새 문자열을 만든다
+export function solution(snake) {
+  const words = snake.split('_');
+  return words
+    .map((word, index) => (index === 0 ? word : word.charAt(0).toUpperCase() + word.slice(1)))
+    .join('');
+}
+```
+
+```js
+// coding-test/03-arrays-and-strings/02-snake-to-camel/solution.test.js
+import { test } from 'node:test';
+import assert from 'node:assert/strict';
+import { solution } from './solution.js';
+
+test('여러 단어를 카멜케이스로 합친다', () => {
+  assert.strictEqual(solution('user_first_name'), 'userFirstName');
+});
+
+test('언더스코어가 없으면 그대로 반환한다', () => {
+  assert.strictEqual(solution('id'), 'id');
+});
+
+test('연속된 언더스코어는 빈 조각을 만들어 글자가 하나 사라질 수 있다', () => {
+  assert.strictEqual(solution('a__b'), 'aB');
+});
+```
+
+**함정**: 연속된 언더스코어(`a__b`)는 `split('_')`에서 빈 문자열 조각(`['a', '', 'b']`)을 만듭니다. 오류는 안 나지만 단어 경계가 사라져 결과가 `aB`처럼 예상과 달라지므로, 입력이 항상 올바르다고 가정할 수 없다면 빈 조각을 미리 걸러내야 합니다.
+
+### 3. 프리픽스 합으로 구간 합 빠르게 구하기
+
+**문제**: 정수 배열 `nums`와 구간 쿼리 목록 `queries`(각 쿼리는 `[left, right]`, `right` 포함)가 주어질 때 각 구간의 합을 배열로 반환합니다.
+
+**입출력 예**
+
+| nums | queries | 결과 |
+|------|---------|------|
+| `[1, 2, 3, 4, 5]` | `[[0, 2], [1, 3]]` | `[6, 9]` |
+| `[1, 2, 3, 4, 5]` | `[[2, 2]]` | `[3]` |
+
+**접근**: 매 쿼리마다 다시 순회하면 `O(n * q)`입니다. 프리픽스 합을 먼저 `O(n)`에 만들면 쿼리당 `O(1)`로 끝나 전체 `O(n + q)`가 됩니다.
+
+```js
+// coding-test/03-arrays-and-strings/03-range-sum-with-prefix-sum/solution.js
+// 시간복잡도: O(n + q) — 프리픽스 합 계산 O(n) + 쿼리 q개 각각 O(1)
+// 공간복잡도: O(n) — 프리픽스 합 배열을 저장한다
+export function solution(nums, queries) {
+  const prefix = [0];
+  for (const num of nums) {
+    prefix.push(prefix[prefix.length - 1] + num);
+  }
+  return queries.map(([left, right]) => prefix[right + 1] - prefix[left]);
+}
+```
+
+```js
+// coding-test/03-arrays-and-strings/03-range-sum-with-prefix-sum/solution.test.js
+import { test } from 'node:test';
+import assert from 'node:assert/strict';
+import { solution } from './solution.js';
+
+test('여러 구간의 합을 한 번에 구한다', () => {
+  assert.deepStrictEqual(solution([1, 2, 3, 4, 5], [[0, 2], [1, 3]]), [6, 9]);
+});
+
+test('구간이 원소 하나뿐이어도 정확히 계산한다', () => {
+  assert.deepStrictEqual(solution([1, 2, 3, 4, 5], [[2, 2]]), [3]);
+});
+```
+
+**함정**: `prefix` 길이를 `nums.length`로만 만들면 `prefix[right + 1]`에서 인덱스가 하나 어긋나는 오프바이원 오류가 생깁니다. `prefix`는 항상 `0`부터 시작해 `nums.length + 1`개 원소를 가져야 합니다.
+
+### 4. 가장 많이 등장한 문자 찾기
+
+**문제**: 소문자 알파벳으로만 이루어진 문자열에서 가장 많이 등장한 문자를 반환합니다. 등장 횟수가 같으면 알파벳 순서가 빠른 문자를 반환합니다.
+
+**입출력 예**
+
+| 입력 | 결과 |
+|------|------|
+| `banana` | `a` |
+| `abab` | `a` |
+
+**접근**: 객체에 문자별 등장 횟수를 세고 가장 큰 값을 찾습니다. 동점일 때 알파벳 순서를 보장하려면 키를 정렬한 뒤 비교합니다. `O(n)`입니다.
+
+```js
+// coding-test/03-arrays-and-strings/04-most-frequent-char/solution.js
+// 시간복잡도: O(n) — 문자열을 한 번 순회하며 개수를 센다
+// 공간복잡도: O(1) — 알파벳 26개로 크기가 고정된 카운터를 쓴다
+export function solution(text) {
+  const counts = {};
+  for (const char of text) {
+    counts[char] = (counts[char] ?? 0) + 1;
+  }
+  let bestChar = '';
+  let bestCount = 0;
+  for (const char of Object.keys(counts).sort()) {
+    if (counts[char] > bestCount) {
+      bestChar = char;
+      bestCount = counts[char];
+    }
+  }
+  return bestChar;
+}
+```
+
+```js
+// coding-test/03-arrays-and-strings/04-most-frequent-char/solution.test.js
+import { test } from 'node:test';
+import assert from 'node:assert/strict';
+import { solution } from './solution.js';
+
+test('가장 많이 등장한 문자를 찾는다', () => {
+  assert.strictEqual(solution('banana'), 'a');
+});
+
+test('등장 횟수가 같으면 알파벳 순서가 빠른 문자를 반환한다', () => {
+  assert.strictEqual(solution('abab'), 'a');
+});
+```
+
+**함정**: `Object.keys(counts)`를 정렬하지 않고 그대로 순회하면, 대부분 삽입 순서로 나오긴 하지만 이는 동점 처리까지 보장하는 규칙이 아닙니다. 동점 시 특정 순서가 필요하면 항상 명시적으로 `sort()`를 호출해야 안전합니다.
+
+</Steps>
+
+## 직접 해보기
+
+1. 배열 회전 문제를 왼쪽으로 `k`칸 회전하도록 바꿔봅니다(힌트: `slice`로 자르는 두 조각의 순서를 반대로 합니다).
+2. 가장 많이 등장한 문자 찾기를 응용해 "가장 적게 등장한 문자"를 찾는 함수를 작성하고 테스트를 추가해봅니다.
+
+<details>
+<summary>정답 보기(1번)</summary>
+
+```js
+// 왼쪽으로 k칸 회전
+export function solution(nums, k) {
+  const n = nums.length;
+  if (n === 0) return [];
+  const shift = k % n;
+  if (shift === 0) return [...nums];
+  return [...nums.slice(shift), ...nums.slice(0, shift)];
+}
+```
+
+왼쪽 회전은 앞의 `shift`개를 뒤로 보내면 되므로, 오른쪽 회전과 반대로 뒷부분을 앞에 두고 앞부분을 뒤에 둡니다.
+
+</details>
+
+## 자주 하는 실수
+
+| 증상 | 원인 | 고치는 법 |
+|------|------|-----------|
+| 회전 결과의 길이가 원본의 2배가 됨 | `k`가 배열 길이의 배수일 때 `slice(-0)`이 전체를 반환함 | `shift === 0`일 때 원본 복사본을 바로 반환 |
+| 구간 합 결과가 하나씩 밀려서 나옴 | `prefix`를 `nums.length` 크기로 만들어 오프바이원 발생 | `prefix`를 `0`으로 시작해 `nums.length + 1`개로 만들기 |
+| 동점 처리 결과가 실행마다 다르게 느껴짐 | 객체 키 순서에 기대어 정렬을 생략함 | `Object.keys(counts).sort()`로 명시적으로 정렬 |
+
+## 확인 문제
+
+<Quiz
+  questionNumber={1}
+  question="배열을 오른쪽으로 k칸 회전할 때 k를 nums.length로 나눈 나머지를 먼저 구하는 이유는?"
+  options={['코드를 짧게 줄이기 위해서다', 'k가 배열 길이보다 커도 실제로 필요한 회전 칸 수만 남기기 위해서다', '나머지 연산이 항상 더 빠르기 때문이다', '배열이 정렬되어 있어야 하기 때문이다']}
+  correctAnswer={2}
+  explanation="k가 배열 길이보다 크면 한 바퀴를 더 도는 것과 같으므로, 나머지 연산으로 실제 필요한 회전 칸 수만 남깁니다."
+  optionExplanations={['짧게 쓰려는 목적이 아닙니다', '정답입니다', '속도가 아니라 정확성이 이유입니다', '정렬 여부와 무관합니다']}
+/>
+
+<Quiz
+  questionNumber={2}
+  question="프리픽스 합 배열 prefix에서 구간 [left, right]의 합을 구하는 올바른 식은?"
+  options={['prefix[right] - prefix[left]', 'prefix[right + 1] - prefix[left]', 'prefix[right] - prefix[left - 1]', 'prefix[right + 1] - prefix[left + 1]']}
+  correctAnswer={2}
+  explanation="prefix[i]는 인덱스 0부터 i-1까지의 합이므로, [left, right] 구간 합은 prefix[right + 1]에서 prefix[left]를 뺀 값입니다."
+  optionExplanations={['right까지 포함하려면 +1이 필요합니다', '정답입니다', 'left가 0이면 인덱스가 음수가 됩니다', 'left에 불필요하게 1을 더했습니다']}
+/>
+
+<Quiz
+  questionNumber={3}
+  question="프리픽스 합을 미리 계산해두는 방식이 매 쿼리마다 배열을 순회하는 방식보다 유리한 이유는?"
+  options={['코드 줄 수가 더 적어서다', '쿼리 하나를 처리하는 시간이 O(n)에서 O(1)로 줄어서다', '배열을 정렬할 필요가 없어서다', '음수 값을 다룰 수 있어서다']}
+  correctAnswer={2}
+  explanation="프리픽스 합을 O(n)에 한 번만 계산해두면, 이후 각 쿼리는 뺄셈 한 번(O(1))으로 끝납니다."
+  optionExplanations={['줄 수가 핵심 이유가 아닙니다', '정답입니다', '정렬 여부와 무관합니다', '음수 처리와 무관합니다']}
+/>
+
+<Quiz
+  questionNumber={4}
+  question="Object.keys(counts)를 정렬하지 않고 동점 문자 중 알파벳 순서를 기대하면 안 되는 이유는?"
+  options={['객체는 문자열 키를 절대 순서대로 저장하지 않는다', '순회 순서가 대개 삽입 순서를 따르지만 동점 규칙까지 보장하는 사양은 아니다', 'Object.keys는 배열이 아니라 Set을 반환한다', '알파벳 순서는 sort() 없이도 항상 자동으로 적용된다']}
+  correctAnswer={2}
+  explanation="문자열 키는 대체로 삽입 순서로 나오지만, 동점 시 특정 정렬 순서를 보장하려면 명시적으로 sort()를 호출해야 안전합니다."
+  optionExplanations={['순서 자체는 대개 삽입 순서를 따릅니다', '정답입니다', 'Object.keys는 배열을 반환합니다', '자동 정렬은 일어나지 않습니다']}
+/>
+
+## 참고 자료
+
+- [MDN - Array Reference](https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Array)
+- [MDN - String Reference](https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/String)

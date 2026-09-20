@@ -1,0 +1,423 @@
+---
+title: '07. 이분 탐색과 파라메트릭 서치'
+description: '정렬된 배열에서 값과 경계를 이분 탐색으로 찾고, 조건 함수 기반 파라메트릭 서치로 문제 4개를 풉니다.'
+---
+
+<Callout type="info">
+  **이번 편의 결과물:** `coding-test/07-binary-search/`에 이분 탐색 기반 풀이 4개를 작성해 `node --test`를 통과시킵니다. · **다루는 개념:** 정렬된 배열 이분 탐색, 경계값(lower bound·upper bound) 처리, 조건 함수 기반 파라메트릭 서치
+</Callout>
+
+## 이 편에서 만드는 파일
+
+```
+coding-test/
+└── 07-binary-search/
+    ├── 01-binary-search-basic/
+    │   ├── solution.js                 (+)
+    │   └── solution.test.js            (+)
+    ├── 02-count-occurrences/
+    │   ├── solution.js                 (+)
+    │   └── solution.test.js            (+)
+    ├── 03-minimize-max-delivery-time/
+    │   ├── solution.js                 (+)
+    │   └── solution.test.js            (+)
+    └── 04-maximize-cutting-height/
+        ├── solution.js                 (+)
+        └── solution.test.js            (+)
+```
+
+## 개념 정리
+
+### 이분 탐색의 세 가지 쓰임
+
+06편에서 정렬해 둔 배열이 있다면, 앞에서부터 하나씩 훑는 대신 중간값을 확인해 탐색 범위를 절반씩 줄일 수 있습니다.
+
+| 목적 | 반환 조건 | 이번 편 문제 |
+|------|-----------|--------------|
+| 값 찾기 | 정확히 일치하는 인덱스(없으면 -1) | 문제 1 |
+| 경계값 찾기 | 조건을 만족하는 첫 위치 | 문제 2 |
+| 파라메트릭 서치 | 조건 함수가 참이 되는 최소·최대 값 | 문제 3, 4 |
+
+세 경우 모두 매 단계 탐색 범위가 절반이 되므로 시간 복잡도는 `O(log n)`입니다.
+
+### 파라메트릭 서치란
+
+"정답이 될 수 있는가"를 참·거짓으로 답하는 조건 함수를 만들고, 그 조건이 참이 되는 최소값(또는 최대값)을 이분 탐색으로 찾는 기법입니다. 조건 함수는 반드시 단조(monotonic)적이어야 합니다. 즉 어떤 값에서 조건이 참이면 그보다 크거나(또는 작거나) 한쪽 방향으로는 계속 참이어야 이분 탐색이 성립합니다.
+
+## 실습
+
+### 문제 1. 이분 탐색으로 값 찾기
+
+#### 문제 설명
+
+오름차순으로 정렬된 정수 배열 `arr`에서 `target`과 같은 값의 인덱스를 반환합니다. 없으면 `-1`을 반환합니다.
+
+#### 입출력 예
+
+| arr | target | 반환값 |
+|-----|--------|--------|
+| `[1, 3, 5, 7, 9, 11]` | `7` | `3` |
+| `[1, 3, 5, 7, 9, 11]` | `4` | `-1` |
+
+#### 접근(복잡도)
+
+`left`, `right` 포인터를 배열 양 끝에 두고 `mid`를 확인합니다. `arr[mid]`가 `target`보다 작으면 오른쪽 절반으로, 크면 왼쪽 절반으로 범위를 좁힙니다. 매 단계 탐색 범위가 절반이 되므로 시간 복잡도는 `O(log n)`입니다.
+
+#### 완성 코드
+
+```js
+// coding-test/07-binary-search/01-binary-search-basic/solution.js
+export function solution(arr, target) {
+  let left = 0;
+  let right = arr.length - 1;
+
+  while (left <= right) {
+    const mid = Math.floor((left + right) / 2);
+
+    if (arr[mid] === target) return mid;
+    if (arr[mid] < target) {
+      left = mid + 1;
+    } else {
+      right = mid - 1;
+    }
+  }
+
+  return -1;
+}
+```
+
+#### 테스트
+
+```js
+// coding-test/07-binary-search/01-binary-search-basic/solution.test.js
+import { test } from 'node:test';
+import assert from 'node:assert/strict';
+import { solution } from './solution.js';
+
+test('배열 중간에 있는 값을 찾는다', () => {
+  assert.strictEqual(solution([1, 3, 5, 7, 9, 11], 7), 3);
+});
+
+test('배열에 없는 값은 -1을 반환한다', () => {
+  assert.strictEqual(solution([1, 3, 5, 7, 9, 11], 4), -1);
+});
+
+test('첫 번째와 마지막 원소도 찾을 수 있다', () => {
+  assert.strictEqual(solution([2, 4, 6], 2), 0);
+  assert.strictEqual(solution([2, 4, 6], 6), 2);
+});
+
+test('빈 배열에서는 항상 -1이다', () => {
+  assert.strictEqual(solution([], 5), -1);
+});
+```
+
+#### 함정
+
+`while` 조건을 `left < right`로 쓰면 배열의 마지막 한 칸을 확인하지 못해 그 자리에 `target`이 있어도 놓칩니다. 값을 찾은 경우가 아니면 반드시 `mid + 1` 또는 `mid - 1`로 범위를 좁혀야 하며, `mid`를 그대로 남기면 무한 루프에 빠집니다.
+
+### 문제 2. 값의 개수 세기 (lower bound·upper bound)
+
+#### 문제 설명
+
+오름차순 정렬된 정수 배열 `arr`에서 `target`과 같은 값이 몇 개 있는지 반환합니다.
+
+#### 입출력 예
+
+| arr | target | 반환값 |
+|-----|--------|--------|
+| `[1, 2, 2, 2, 3, 4]` | `2` | `3` |
+| `[1, 2, 2, 2, 3, 4]` | `5` | `0` |
+
+#### 접근(복잡도)
+
+`lowerBound(arr, target)`는 `target` 이상인 값이 처음 나오는 위치를, `upperBound(arr, target)`는 `target`을 초과하는 값이 처음 나오는 위치를 찾습니다. 두 위치의 차이가 정확히 `target`의 개수입니다. 각 탐색이 `O(log n)`이라 전체도 `O(log n)`입니다.
+
+#### 완성 코드
+
+```js
+// coding-test/07-binary-search/02-count-occurrences/solution.js
+function lowerBound(arr, target) {
+  let left = 0;
+  let right = arr.length;
+
+  while (left < right) {
+    const mid = Math.floor((left + right) / 2);
+    if (arr[mid] < target) {
+      left = mid + 1;
+    } else {
+      right = mid;
+    }
+  }
+
+  return left;
+}
+
+function upperBound(arr, target) {
+  let left = 0;
+  let right = arr.length;
+
+  while (left < right) {
+    const mid = Math.floor((left + right) / 2);
+    if (arr[mid] <= target) {
+      left = mid + 1;
+    } else {
+      right = mid;
+    }
+  }
+
+  return left;
+}
+
+export function solution(arr, target) {
+  return upperBound(arr, target) - lowerBound(arr, target);
+}
+```
+
+#### 테스트
+
+```js
+// coding-test/07-binary-search/02-count-occurrences/solution.test.js
+import { test } from 'node:test';
+import assert from 'node:assert/strict';
+import { solution } from './solution.js';
+
+test('중복된 값의 개수를 센다', () => {
+  assert.strictEqual(solution([1, 2, 2, 2, 3, 4], 2), 3);
+});
+
+test('배열에 없는 값은 0을 반환한다', () => {
+  assert.strictEqual(solution([1, 2, 2, 2, 3, 4], 5), 0);
+});
+
+test('값이 하나뿐이면 1을 반환한다', () => {
+  assert.strictEqual(solution([1, 2, 3], 3), 1);
+});
+```
+
+#### 함정
+
+`lowerBound`와 `upperBound`의 비교 연산자(`<` 대 `<=`)를 서로 바꿔 쓰면 두 함수가 같은 위치를 찾아 개수가 항상 `0`으로 나옵니다. `right`를 `arr.length - 1`이 아니라 `arr.length`로 시작해야 `target`이 배열의 모든 값보다 클 때도 올바른 위치(배열 끝)를 반환합니다.
+
+### 문제 3. 파라메트릭 서치: 배달 구간 나누기
+
+#### 문제 설명
+
+일렬로 늘어선 배달 구간별 소요 시간 배열 `times`와 배달 기사 수 `couriers`가 주어집니다. 구간 순서를 바꾸지 않고 이어서 `couriers`명에게 나눠 배정할 때, 한 명이 맡는 구간 시간 합 중 최댓값을 최소로 만드는 값을 반환합니다.
+
+#### 입출력 예
+
+| times | couriers | 반환값 |
+|-------|----------|--------|
+| `[7, 2, 5, 10, 8]` | `2` | `18` |
+| `[1, 2, 3, 4, 5]` | `3` | `6` |
+
+#### 접근(복잡도)
+
+정답 후보 `x`("한 명이 맡을 수 있는 최대 합")를 하나 정했을 때, 앞에서부터 구간 시간을 누적하다 `x`를 넘기기 직전에 새 기사로 넘기면 필요한 기사 수를 셀 수 있습니다. 이 필요 기사 수는 `x`가 커질수록 줄어드는 단조 함수이므로, `x`를 이분 탐색하면서 "필요 기사 수가 `couriers` 이하"를 만족하는 가장 작은 `x`를 찾습니다. 확인 1회에 `O(n)`이 걸리고 탐색 범위가 시간 합이라 전체는 `O(n log(합계))`입니다.
+
+#### 완성 코드
+
+```js
+// coding-test/07-binary-search/03-minimize-max-delivery-time/solution.js
+function countCouriersNeeded(times, limit) {
+  let couriers = 1;
+  let currentSum = 0;
+
+  for (const time of times) {
+    if (currentSum + time > limit) {
+      couriers += 1;
+      currentSum = time;
+    } else {
+      currentSum += time;
+    }
+  }
+
+  return couriers;
+}
+
+export function solution(times, couriers) {
+  let left = Math.max(...times);
+  let right = times.reduce((sum, time) => sum + time, 0);
+
+  while (left < right) {
+    const mid = Math.floor((left + right) / 2);
+
+    if (countCouriersNeeded(times, mid) <= couriers) {
+      right = mid;
+    } else {
+      left = mid + 1;
+    }
+  }
+
+  return left;
+}
+```
+
+#### 테스트
+
+```js
+// coding-test/07-binary-search/03-minimize-max-delivery-time/solution.test.js
+import { test } from 'node:test';
+import assert from 'node:assert/strict';
+import { solution } from './solution.js';
+
+test('구간을 2명에게 나눌 때 최댓값을 최소로 만드는 값을 찾는다', () => {
+  assert.strictEqual(solution([7, 2, 5, 10, 8], 2), 18);
+});
+
+test('구간을 3명에게 나눌 때 최댓값을 최소로 만드는 값을 찾는다', () => {
+  assert.strictEqual(solution([1, 2, 3, 4, 5], 3), 6);
+});
+
+test('기사 한 명뿐이면 전체 합이 그대로 답이다', () => {
+  assert.strictEqual(solution([3, 1, 4], 1), 8);
+});
+```
+
+#### 함정
+
+이분 탐색 시작 범위를 `left = 0`으로 잡으면 안 됩니다. 한 구간이라도 통째로 배정해야 하므로 답은 최소한 가장 긴 구간 시간(`Math.max(...times)`) 이상이어야 합니다. `countCouriersNeeded`에서 `currentSum + time > limit` 비교를 `>=`로 잘못 쓰면 정확히 `limit`과 같은 합도 나눠버려 기사 수를 과다하게 계산합니다.
+
+### 문제 4. 파라메트릭 서치: 절단 높이 최대화
+
+#### 문제 설명
+
+나무 높이 배열 `heights`와 필요한 목재량 `need`가 주어집니다. 절단 높이 `h`를 정하면 `h`보다 높은 나무마다 `(나무 높이 - h)`만큼 목재를 얻습니다(`h` 이하인 나무는 자르지 않습니다). 얻는 목재 총량이 `need` 이상이 되도록 하면서 `h`를 최대한 높게 잡았을 때 그 `h`를 반환합니다.
+
+#### 입출력 예
+
+| heights | need | 반환값 |
+|---------|------|--------|
+| `[20, 15, 10, 17]` | `7` | `15` |
+| `[4, 42, 40, 26, 46]` | `20` | `36` |
+
+#### 접근(복잡도)
+
+절단 높이 `h`가 낮을수록 얻는 목재량은 늘어나고 `h`가 높을수록 줄어드는 단조 감소 함수입니다. `h`를 `0`부터 가장 높은 나무 높이까지 이분 탐색하면서 "얻는 목재량이 `need` 이상"을 만족하는 가장 큰 `h`를 찾습니다. 확인 1회에 `O(n)`이 걸려 전체는 `O(n log(최대 높이))`입니다.
+
+#### 완성 코드
+
+```js
+// coding-test/07-binary-search/04-maximize-cutting-height/solution.js
+function getWoodAmount(heights, cutHeight) {
+  return heights.reduce((sum, height) => {
+    return height > cutHeight ? sum + (height - cutHeight) : sum;
+  }, 0);
+}
+
+export function solution(heights, need) {
+  let left = 0;
+  let right = Math.max(...heights);
+  let answer = 0;
+
+  while (left <= right) {
+    const mid = Math.floor((left + right) / 2);
+
+    if (getWoodAmount(heights, mid) >= need) {
+      answer = mid;
+      left = mid + 1;
+    } else {
+      right = mid - 1;
+    }
+  }
+
+  return answer;
+}
+```
+
+#### 테스트
+
+```js
+// coding-test/07-binary-search/04-maximize-cutting-height/solution.test.js
+import { test } from 'node:test';
+import assert from 'node:assert/strict';
+import { solution } from './solution.js';
+
+test('필요한 목재량을 정확히 채우는 최대 절단 높이를 찾는다', () => {
+  assert.strictEqual(solution([20, 15, 10, 17], 7), 15);
+});
+
+test('나무가 여러 그루일 때도 최대 절단 높이를 찾는다', () => {
+  assert.strictEqual(solution([4, 42, 40, 26, 46], 20), 36);
+});
+
+test('필요한 목재량이 0이면 가장 높은 나무 높이를 절단 높이로 반환한다', () => {
+  assert.strictEqual(solution([5, 3, 8], 0), 8);
+});
+```
+
+#### 함정
+
+`getWoodAmount`처럼 "조건을 확인하는 함수"가 단조적이지 않으면 이분 탐색이 성립하지 않습니다. 조건이 참일 때 정답 후보를 `answer`에 저장해두지 않고 바로 `return`하면, 그 값이 최댓값인지 확인하지 못한 채 종료될 수 있습니다.
+
+## 직접 해보기
+
+1. 문제 3의 `countCouriersNeeded`를 참고해, 배달 기사 대신 "택배 상자를 나눠 담는 박스 개수"로 변수 이름만 바꿔도 같은 로직이 그대로 재사용되는지 확인합니다.
+2. 문제 2의 `lowerBound`만 이용해 특정 값이 배열에 존재하는지 여부를 판별하는 `exists` 함수를 작성합니다.
+
+<details>
+<summary>정답 보기(2번)</summary>
+
+```js
+function exists(arr, target) {
+  const index = lowerBound(arr, target);
+  return index < arr.length && arr[index] === target;
+}
+```
+
+`lowerBound`가 반환한 위치가 배열 범위 안에 있고 그 위치의 값이 정확히 `target`과 같을 때만 존재한다고 판단합니다.
+
+</details>
+
+## 자주 하는 실수
+
+| 증상 | 원인 | 고치는 법 |
+|------|------|-----------|
+| 이분 탐색이 무한 루프에 빠짐 | 범위를 좁힐 때 `mid`를 포함한 채로 `left`나 `right`를 갱신 | 값을 찾은 경우가 아니면 반드시 `mid + 1` 또는 `mid - 1`로 좁힘 |
+| lower bound와 upper bound 결과가 항상 같음 | 두 함수의 비교 연산자를 헷갈림 | lowerBound는 `arr[mid] < target`, upperBound는 `arr[mid] <= target` |
+| 파라메트릭 서치 결과가 항상 탐색 범위의 끝 값으로만 나옴 | 조건 함수가 단조적이지 않은데 이분 탐색을 적용 | 조건을 만족하는 값들이 한쪽으로 쭉 이어지는지(단조성) 먼저 확인 |
+| 정렬 안 된 배열에 이분 탐색을 적용해 틀린 결과 | 이분 탐색은 정렬된 배열에서만 성립 | 06편처럼 미리 정렬한 뒤 적용 |
+
+## 확인 문제
+
+<Quiz
+  questionNumber={1}
+  question="이분 탐색이 정렬되지 않은 배열에서는 성립하지 않는 이유는?"
+  options={['배열 길이가 짝수여야 하기 때문이다', 'mid 값과 target의 크기 비교만으로 어느 쪽 절반을 버릴지 판단할 수 없기 때문이다', '자바스크립트 배열은 정렬 여부를 저장하지 않기 때문이다', '이분 탐색은 문자열에서만 동작하기 때문이다']}
+  correctAnswer={2}
+  explanation="이분 탐색은 mid보다 target이 크면 오른쪽에, 작으면 왼쪽에 있다고 가정합니다. 정렬되어 있지 않으면 이 가정이 성립하지 않아 절반을 버리는 판단이 틀릴 수 있습니다."
+  optionExplanations={['배열 길이와는 무관합니다', '정답입니다', '정렬 여부 저장과는 무관한 이유입니다', '숫자 배열에서도 동일하게 동작합니다']}
+/>
+
+<Quiz
+  questionNumber={2}
+  question="upperBound(arr, target) - lowerBound(arr, target)가 target의 개수를 의미하는 이유는?"
+  options={['우연히 그렇게 계산될 뿐 항상 성립하지는 않는다', 'lowerBound는 target 이상이 시작되는 위치, upperBound는 target을 초과하는 값이 시작되는 위치라 그 사이가 정확히 target들의 구간이기 때문이다', '두 함수 모두 같은 값을 반환하기 때문이다', '배열이 정렬되어 있지 않아도 항상 성립하기 때문이다']}
+  correctAnswer={2}
+  explanation="lowerBound와 upperBound 사이의 구간에는 target과 같은 값만 존재하므로, 그 구간의 길이가 곧 target의 개수입니다."
+  optionExplanations={['항상 성립하는 원리입니다', '정답입니다', '두 함수는 서로 다른 위치를 찾습니다', '정렬된 배열을 전제로 합니다']}
+/>
+
+<Quiz
+  questionNumber={3}
+  question="파라메트릭 서치를 적용하려면 조건 함수가 반드시 가져야 하는 성질은?"
+  options={['조건 함수의 실행 시간이 O(1)이어야 한다', '조건이 참인 값들과 거짓인 값들이 탐색 범위 안에서 한쪽으로 쭉 이어지는 단조성을 가져야 한다', '조건 함수는 반드시 불리언을 반환해서는 안 된다', '조건 함수가 배열을 반환해야 한다']}
+  correctAnswer={2}
+  explanation="단조성이 없으면 특정 mid에서의 참·거짓 결과로 절반을 버리는 판단이 틀릴 수 있어 이분 탐색이 성립하지 않습니다."
+  optionExplanations={['실행 시간 제약이 핵심 성질은 아닙니다', '정답입니다', '불리언 반환이 자연스럽습니다', '반환 타입과는 무관합니다']}
+/>
+
+<Quiz
+  questionNumber={4}
+  question="배달 구간 나누기 문제에서 이분 탐색의 왼쪽 경계를 0이 아니라 Math.max(...times)로 잡는 이유는?"
+  options={['계산 속도를 높이기 위해서다', '한 구간이라도 통째로 한 사람에게 배정해야 하므로 답은 최소한 가장 긴 구간의 시간 이상이어야 하기 때문이다', '0으로 잡으면 배열 인덱스 오류가 나기 때문이다', '음수 시간을 제외하기 위해서다']}
+  correctAnswer={2}
+  explanation="구간을 쪼갤 수 없으므로 가장 긴 구간을 담당하는 사람의 시간 합은 최소한 그 구간의 시간만큼은 됩니다. 따라서 답은 그 값보다 작을 수 없습니다."
+  optionExplanations={['속도 최적화가 핵심 이유가 아닙니다', '정답입니다', '인덱스 오류와는 무관합니다', '이 문제에서 시간은 항상 양수입니다']}
+/>
+
+## 참고 자료
+
+- [Node.js Docs - Test runner (node:test)](https://nodejs.org/api/test.html)
+- [Wikipedia - Binary search algorithm](https://en.wikipedia.org/wiki/Binary_search_algorithm)

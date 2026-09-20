@@ -1,0 +1,478 @@
+---
+title: '15. 구현·시뮬레이션'
+description: '방향 이동 로봇·나선형 행렬·순번 제거·게임 점수 4문제로 좌표 처리와 상태 갱신 시뮬레이션을 연습합니다.'
+---
+
+<Callout type="info">
+  **이번 편의 결과물:** `coding-test/15-implementation-simulation/`에 로봇 이동·나선형 행렬·순번 제거·게임 점수 4문제 풀이와 테스트를 작성해 `node --test`를 통과시킵니다. · **다루는 개념:** 좌표·방향 벡터 처리, 단계별 상태 갱신 시뮬레이션, 완전 탐색과의 구분
+</Callout>
+
+## 이 편에서 만드는 파일
+
+```
+coding-test/
+└── 15-implementation-simulation/
+    ├── 01-robot-simulation/
+    │   ├── solution.js                (+)
+    │   └── solution.test.js           (+)
+    ├── 02-spiral-matrix/
+    │   ├── solution.js                (+)
+    │   └── solution.test.js           (+)
+    ├── 03-josephus/
+    │   ├── solution.js                (+)
+    │   └── solution.test.js           (+)
+    └── 04-game-score/
+        ├── solution.js                 (+)
+        └── solution.test.js            (+)
+```
+
+## 개념 정리
+
+### 시뮬레이션 문제의 특징
+
+시뮬레이션 문제는 정답을 구하는 공식이 따로 없고, 문제가 정한 규칙을 명령이나 시간 순서대로 그대로 따라가면서 상태(위치, 점수, 남은 인원 등)를 갱신합니다. 알고리즘 이론보다 "규칙을 빠짐없이, 순서를 틀리지 않고 코드로 옮기는" 정확성이 더 중요합니다.
+
+### 시뮬레이션과 완전 탐색의 차이
+
+| 구분 | 시뮬레이션 | 완전 탐색(브루트 포스) |
+|------|-----------|------------------------|
+| 진행 방식 | 정해진 규칙과 순서를 그대로 한 번 따라감 | 가능한 모든 선택지·경우의 수를 하나씩 시도 |
+| 결과 | 규칙대로 진행했을 때의 하나의 최종 상태 | 여러 경우 중 조건을 만족하는(또는 최적인) 것을 탐색 |
+| 예 | 로봇에게 내린 명령대로 이동시켜 최종 위치 구하기 | 여러 이동 순서 중 목적지에 가장 빨리 도착하는 경로 찾기 |
+
+이번 편의 4문제는 모두 "정해진 규칙을 그대로 따라가는" 시뮬레이션입니다. 여러 경우를 탐색해 최적을 찾는 문제는 09편의 재귀·백트래킹, 10편의 그래프 탐색에서 이미 다뤘습니다.
+
+### 방향 벡터
+
+상하좌우 이동은 `(dx, dy)` 쌍의 목록으로 표현하면 `if`문을 반복하지 않고 배열 인덱스로 방향을 바꿀 수 있습니다.
+
+| 방향 | dx | dy |
+|------|----|----|
+| 북(N) | 0 | 1 |
+| 동(E) | 1 | 0 |
+| 남(S) | 0 | -1 |
+| 서(W) | -1 | 0 |
+
+방향을 배열 `['N', 'E', 'S', 'W']`의 인덱스로 관리하면, 오른쪽으로 90도 회전은 `(index + 1) % 4`, 왼쪽 회전은 `(index + 3) % 4`(또는 `(index - 1 + 4) % 4`)로 계산합니다.
+
+## 문제 1. 로봇의 방향 전환과 이동 명령 시뮬레이션
+
+### 문제 설명
+
+로봇은 처음에 원점 `(0, 0)`에서 북쪽(N)을 보고 있습니다. 명령 문자열은 `F`(현재 방향으로 한 칸 이동), `L`(왼쪽으로 90도 회전), `R`(오른쪽으로 90도 회전) 세 종류로만 이루어집니다. 명령을 순서대로 실행한 뒤 로봇의 최종 좌표와 방향을 구합니다.
+
+| 제약 | 값 |
+|------|-----|
+| 명령 문자열 길이 | 1 이상 1000 이하 |
+| 명령 종류 | `F`, `L`, `R`만 포함 |
+
+### 입출력 예
+
+| 입력 | 출력 | 설명 |
+|------|------|------|
+| `['F','F','R','F','F','L','F']` | `{x:2,y:3,facing:'N'}` | 북으로 2칸, 동으로 2칸, 다시 북으로 1칸 이동 |
+| `['R','R','F']` | `{x:0,y:-1,facing:'S'}` | 오른쪽으로 두 번 돌아 남쪽을 보고 1칸 이동 |
+
+### 접근
+
+방향을 `['N', 'E', 'S', 'W']` 배열의 인덱스로 관리하고, 각 방향에 대응하는 `(dx, dy)`를 조회 테이블에 저장합니다. 명령을 하나씩 순서대로 처리하며 `L`, `R`은 인덱스만 바꾸고, `F`는 현재 방향의 `(dx, dy)`만큼 좌표를 갱신합니다. 명령 개수를 `n`이라 하면 각 명령이 O(1)에 처리되어 전체 시간 복잡도는 O(n)입니다.
+
+### 풀이
+
+```js
+// coding-test/15-implementation-simulation/01-robot-simulation/solution.js
+// 시간복잡도: O(n) — 명령 n개를 한 번씩 처리한다
+// 공간복잡도: O(1) — 좌표와 방향 인덱스만 유지한다
+const DIRECTIONS = ['N', 'E', 'S', 'W'];
+const DELTAS = {
+  N: [0, 1],
+  E: [1, 0],
+  S: [0, -1],
+  W: [-1, 0],
+};
+
+export function solution(commands) {
+  let directionIndex = 0;
+  let x = 0;
+  let y = 0;
+
+  for (const command of commands) {
+    if (command === 'L') {
+      directionIndex = (directionIndex + 3) % 4;
+    } else if (command === 'R') {
+      directionIndex = (directionIndex + 1) % 4;
+    } else if (command === 'F') {
+      const [dx, dy] = DELTAS[DIRECTIONS[directionIndex]];
+      x += dx;
+      y += dy;
+    }
+  }
+  return { x, y, facing: DIRECTIONS[directionIndex] };
+}
+```
+
+### 테스트
+
+```js
+// coding-test/15-implementation-simulation/01-robot-simulation/solution.test.js
+import { test } from 'node:test';
+import assert from 'node:assert/strict';
+import { solution } from './solution.js';
+
+test('전진과 회전을 섞은 명령을 순서대로 처리한다', () => {
+  const result = solution(['F', 'F', 'R', 'F', 'F', 'L', 'F']);
+  assert.deepStrictEqual(result, { x: 2, y: 3, facing: 'N' });
+});
+
+test('오른쪽으로 두 번 돌면 반대 방향을 본다', () => {
+  const result = solution(['R', 'R', 'F']);
+  assert.deepStrictEqual(result, { x: 0, y: -1, facing: 'S' });
+});
+
+test('명령이 없으면 원점에서 북쪽을 본다', () => {
+  const result = solution([]);
+  assert.deepStrictEqual(result, { x: 0, y: 0, facing: 'N' });
+});
+```
+
+```text
+node --test coding-test/15-implementation-simulation/01-robot-simulation/solution.test.js
+```
+
+### 함정
+
+- 왼쪽 회전을 `(directionIndex - 1) % 4`로만 계산하면 인덱스가 0일 때 `-1`이 나와 배열 조회가 `undefined`가 됩니다. `(directionIndex + 3) % 4`처럼 항상 양수가 되도록 계산합니다.
+- 좌표 갱신을 회전 처리 코드와 같은 분기에 섞어 쓰면 `F`가 아닌 명령에서도 좌표가 바뀌는 실수가 생깁니다. 명령별로 분기를 명확히 나눕니다.
+
+## 문제 2. 나선형 행렬 채우기
+
+### 문제 설명
+
+`n × n` 크기의 정사각 행렬을 좌상단에서 시작해 시계 방향 나선형으로 `1`부터 `n²`까지 순서대로 채웁니다.
+
+| 제약 | 값 |
+|------|-----|
+| `n`의 범위 | 1 이상 20 이하 |
+
+### 입출력 예
+
+| 입력(`n`) | 출력 | 설명 |
+|-----------|------|------|
+| 3 | [[1,2,3],[8,9,4],[7,6,5]] | 위→오른쪽→아래→왼쪽 순서로 회전하며 채움 |
+| 1 | [[1]] | 칸이 하나면 그대로 1 |
+
+### 접근
+
+채워야 할 범위를 위(`top`), 아래(`bottom`), 왼쪽(`left`), 오른쪽(`right`) 경계로 관리합니다. 위쪽 행을 왼쪽에서 오른쪽으로 채운 뒤 `top`을 한 칸 안으로, 오른쪽 열을 위에서 아래로 채운 뒤 `right`를 한 칸 안으로 좁히는 과정을 네 방향에 대해 반복합니다. 경계가 서로 역전되면(`top > bottom` 또는 `left > right`) 종료합니다. 전체 칸을 정확히 한 번씩 채우므로 시간 복잡도는 O(n²)입니다.
+
+### 풀이
+
+```js
+// coding-test/15-implementation-simulation/02-spiral-matrix/solution.js
+// 시간복잡도: O(n^2) — n x n 칸을 정확히 한 번씩 채운다
+// 공간복잡도: O(n^2) — 결과 행렬을 저장한다
+export function solution(n) {
+  const matrix = Array.from({ length: n }, () => new Array(n).fill(0));
+
+  let top = 0;
+  let bottom = n - 1;
+  let left = 0;
+  let right = n - 1;
+  let value = 1;
+
+  while (top <= bottom && left <= right) {
+    for (let col = left; col <= right; col++) matrix[top][col] = value++;
+    top += 1;
+
+    for (let row = top; row <= bottom; row++) matrix[row][right] = value++;
+    right -= 1;
+
+    if (top <= bottom) {
+      for (let col = right; col >= left; col--) matrix[bottom][col] = value++;
+      bottom -= 1;
+    }
+
+    if (left <= right) {
+      for (let row = bottom; row >= top; row--) matrix[row][left] = value++;
+      left += 1;
+    }
+  }
+  return matrix;
+}
+```
+
+### 테스트
+
+```js
+// coding-test/15-implementation-simulation/02-spiral-matrix/solution.test.js
+import { test } from 'node:test';
+import assert from 'node:assert/strict';
+import { solution } from './solution.js';
+
+test('3x3 행렬을 나선형으로 채운다', () => {
+  assert.deepStrictEqual(solution(3), [
+    [1, 2, 3],
+    [8, 9, 4],
+    [7, 6, 5],
+  ]);
+});
+
+test('1x1 행렬은 그대로 1이다', () => {
+  assert.deepStrictEqual(solution(1), [[1]]);
+});
+
+test('4x4 행렬의 첫 행은 1, 2, 3, 4이다', () => {
+  const matrix = solution(4);
+  assert.deepStrictEqual(matrix[0], [1, 2, 3, 4]);
+});
+```
+
+```text
+node --test coding-test/15-implementation-simulation/02-spiral-matrix/solution.test.js
+```
+
+### 함정
+
+- 아래쪽 행과 왼쪽 열을 채우기 전에 `top <= bottom`, `left <= right` 조건을 확인하지 않으면, 행이나 열이 하나만 남았을 때 같은 칸을 두 번 채웁니다.
+- 경계 변수(`top`, `bottom`, `left`, `right`)를 갱신하는 순서를 바꾸면 다음 방향을 채울 때 잘못된 범위를 참조합니다. 위→오른쪽→아래→왼쪽 순서와 경계 갱신 순서를 맞춥니다.
+
+## 문제 3. 순서대로 제거되는 사람의 순번 시뮬레이션
+
+### 문제 설명
+
+`1`번부터 `peopleCount`번까지 사람이 원을 그리며 앉아 있습니다. `1`번부터 세기 시작해 매번 `step`번째 사람을 원에서 제거합니다. 제거된 다음 사람부터 다시 `step`번째를 세는 과정을 한 명만 남을 때까지 반복할 때, 마지막까지 남는 사람의 번호를 구합니다.
+
+| 제약 | 값 |
+|------|-----|
+| `peopleCount` | 1 이상 1000 이하 |
+| `step` | 1 이상 `peopleCount` 이하 |
+
+### 입출력 예
+
+| 입력 | 출력 | 설명 |
+|------|------|------|
+| peopleCount = 7, step = 3 | 4 | 3, 6, 2, 7, 5, 1 순서로 제거되고 4가 남음 |
+| peopleCount = 5, step = 2 | 3 | 2, 4, 1, 5 순서로 제거되고 3이 남음 |
+
+### 접근
+
+사람 번호를 순서대로 담은 큐를 만듭니다. 큐 앞에서부터 `step - 1`명을 꺼내 다시 큐 뒤에 넣는 방식으로 "건너뛰기"를 표현하고, 그다음 사람을 큐에서 완전히 제거합니다. 이 과정을 큐에 한 명만 남을 때까지 반복합니다. 05편에서 만든 큐 연산(`push`, `shift`)을 그대로 응용한 문제입니다. 매 라운드 `step`번의 큐 연산이 필요하므로 전체 시간 복잡도는 O(peopleCount × step)입니다.
+
+### 풀이
+
+```js
+// coding-test/15-implementation-simulation/03-josephus/solution.js
+// 시간복잡도: O(peopleCount * step) — 매 라운드 step번의 큐 연산이 필요하다
+// 공간복잡도: O(peopleCount) — 사람 번호를 담은 큐를 유지한다
+export function solution(peopleCount, step) {
+  const queue = [];
+  for (let i = 1; i <= peopleCount; i++) {
+    queue.push(i);
+  }
+
+  while (queue.length > 1) {
+    for (let i = 0; i < step - 1; i++) {
+      queue.push(queue.shift());
+    }
+    queue.shift();
+  }
+  return queue[0];
+}
+```
+
+### 테스트
+
+```js
+// coding-test/15-implementation-simulation/03-josephus/solution.test.js
+import { test } from 'node:test';
+import assert from 'node:assert/strict';
+import { solution } from './solution.js';
+
+test('7명 중 3번째마다 제거하면 4번이 남는다', () => {
+  assert.strictEqual(solution(7, 3), 4);
+});
+
+test('5명 중 2번째마다 제거하면 3번이 남는다', () => {
+  assert.strictEqual(solution(5, 2), 3);
+});
+
+test('1명이면 그 사람이 그대로 남는다', () => {
+  assert.strictEqual(solution(1, 5), 1);
+});
+```
+
+```text
+node --test coding-test/15-implementation-simulation/03-josephus/solution.test.js
+```
+
+### 함정
+
+- `queue.shift()`로 꺼낸 값을 버리지 않고 다시 `push`해야 "건너뛰기"가 되는데, 제거해야 할 사람까지 다시 넣으면 아무도 제거되지 않습니다.
+- 반복 조건을 `queue.length > 0`으로 쓰면 마지막 한 명까지 제거되어 빈 배열에서 답을 찾을 수 없게 됩니다. `queue.length > 1`로 멈춰야 합니다.
+
+## 문제 4. 라운드별 이벤트로 게임 점수 계산하기
+
+### 문제 설명
+
+게임 점수가 0점에서 시작합니다. 이벤트 목록을 순서대로 처리하며 점수를 갱신합니다. 이벤트는 숫자(점수를 그만큼 더함), `'double'`(현재 점수를 두 배로), `'undo'`(바로 이전 상태로 되돌림) 세 종류입니다. 모든 이벤트를 처리한 뒤 최종 점수를 구합니다.
+
+| 제약 | 값 |
+|------|-----|
+| 이벤트 개수 | 1 이상 1000 이하 |
+| `'undo'` | 되돌릴 이전 상태가 항상 존재한다고 가정 |
+
+### 입출력 예
+
+| 입력 | 출력 | 설명 |
+|------|------|------|
+| [5, 'double', 'undo', 3] | 8 | 0→5→10→undo(5로 복귀)→8 |
+
+### 접근
+
+점수의 변화 이력을 배열(스택)에 쌓아 두고, 숫자나 `'double'` 이벤트가 나올 때마다 새 점수를 이력에 추가합니다. `'undo'`가 나오면 이력에서 가장 최근 상태를 제거하고, 그 앞 상태를 현재 점수로 되돌립니다. 이 방식은 05편에서 다룬 스택의 "가장 최근 것부터 되돌리기" 특성을 그대로 활용합니다. 이벤트 개수에 비례해 한 번씩만 처리하므로 시간 복잡도는 O(n)입니다.
+
+### 풀이
+
+```js
+// coding-test/15-implementation-simulation/04-game-score/solution.js
+// 시간복잡도: O(n) — 이벤트 n개를 한 번씩 처리한다
+// 공간복잡도: O(n) — 점수 변화 이력을 배열에 쌓는다
+export function solution(events) {
+  const history = [0];
+
+  for (const event of events) {
+    if (event === 'double') {
+      history.push(history[history.length - 1] * 2);
+    } else if (event === 'undo') {
+      history.pop();
+    } else if (typeof event === 'number') {
+      history.push(history[history.length - 1] + event);
+    }
+  }
+  return history[history.length - 1];
+}
+```
+
+### 테스트
+
+```js
+// coding-test/15-implementation-simulation/04-game-score/solution.test.js
+import { test } from 'node:test';
+import assert from 'node:assert/strict';
+import { solution } from './solution.js';
+
+test('숫자, double, undo를 섞은 이벤트를 순서대로 처리한다', () => {
+  assert.strictEqual(solution([5, 'double', 'undo', 3]), 8);
+});
+
+test('undo만 반복하면 0점으로 돌아간다', () => {
+  assert.strictEqual(solution([5, 3, 'undo', 'undo']), 0);
+});
+
+test('이벤트가 없으면 0점이다', () => {
+  assert.strictEqual(solution([]), 0);
+});
+```
+
+```text
+node --test coding-test/15-implementation-simulation/04-game-score/solution.test.js
+```
+
+### 함정
+
+- 현재 점수만 변수 하나로 관리하면 `'undo'`가 나왔을 때 되돌릴 이전 값을 알 수 없습니다. 반드시 이력을 배열로 쌓아 둡니다.
+- `history.pop()`으로 최신 상태를 지운 뒤 `history[history.length - 1]`이 아니라 지워진 값을 그대로 반환하면 되돌리기가 동작하지 않습니다.
+
+## 직접 해보기
+
+1. 문제 1의 `solution`(`simulateRobot`)에 `B`(현재 방향의 반대로 한 칸 후진) 명령을 추가해봅니다.
+2. 문제 4의 `solution`(`calculateFinalScore`)에 `'half'`(현재 점수를 반으로, 소수점 버림) 이벤트를 추가하고 테스트를 작성해봅니다.
+
+<details>
+<summary>정답 보기(1번)</summary>
+
+```js
+// coding-test/15-implementation-simulation/01-robot-simulation/solution.js (B 명령 추가)
+const OPPOSITE_INDEX_OFFSET = 2;
+
+export function solution(commands) {
+  let directionIndex = 0;
+  let x = 0;
+  let y = 0;
+
+  for (const command of commands) {
+    if (command === 'L') {
+      directionIndex = (directionIndex + 3) % 4;
+    } else if (command === 'R') {
+      directionIndex = (directionIndex + 1) % 4;
+    } else if (command === 'F') {
+      const [dx, dy] = DELTAS[DIRECTIONS[directionIndex]];
+      x += dx;
+      y += dy;
+    } else if (command === 'B') {
+      const backIndex = (directionIndex + OPPOSITE_INDEX_OFFSET) % 4;
+      const [dx, dy] = DELTAS[DIRECTIONS[backIndex]];
+      x += dx;
+      y += dy;
+    }
+  }
+  return { x, y, facing: DIRECTIONS[directionIndex] };
+}
+```
+
+반대 방향의 인덱스는 현재 인덱스에 2를 더하고 4로 나눈 나머지로 구합니다(북의 반대는 남, 동의 반대는 서). `facing`은 후진해도 바뀌지 않으므로 그대로 둡니다.
+
+</details>
+
+## 자주 하는 실수
+
+| 증상 | 원인 | 고치는 법 |
+|------|------|-----------|
+| 회전 계산에서 배열 인덱스가 음수가 됨 | `(index - 1) % 4`처럼 음수가 나올 수 있는 나머지 연산 사용 | `(index + 3) % 4`처럼 항상 양수가 되도록 오프셋을 더한다 |
+| 나선형 채우기에서 칸이 중복으로 채워짐 | 경계 갱신 전 남은 범위(`top <= bottom` 등)를 확인하지 않음 | 세 번째, 네 번째 방향을 채우기 전 조건문으로 남은 범위를 확인한다 |
+| 큐 시뮬레이션에서 무한 루프에 빠짐 | 종료 조건을 `length > 0`으로 잘못 설정 | 문제에서 요구하는 종료 조건(예: 한 명만 남을 때)을 정확히 확인한다 |
+| 되돌리기(undo) 로직에서 상태가 꼬임 | 현재 값만 저장하고 이전 이력을 보관하지 않음 | 상태 변화를 배열(스택)로 쌓아 `pop`으로 되돌린다 |
+
+## 확인 문제
+
+<Quiz
+  questionNumber={1}
+  question="시뮬레이션 문제와 완전 탐색 문제의 가장 큰 차이는?"
+  options={['시뮬레이션은 항상 더 빠르다', '시뮬레이션은 정해진 규칙을 순서대로 한 번 따라가고, 완전 탐색은 여러 경우의 수를 모두 시도한다', '완전 탐색은 배열을 쓸 수 없다', '시뮬레이션은 재귀로만 구현한다']}
+  correctAnswer={2}
+  explanation="시뮬레이션은 하나의 정해진 흐름을 그대로 재현하는 반면, 완전 탐색은 여러 선택지를 모두 시도해 조건을 만족하는 경우를 찾습니다."
+  optionExplanations={['속도는 문제 크기에 따라 다릅니다', '정답입니다', '완전 탐색도 배열을 자주 씁니다', '반복문으로도 구현할 수 있습니다']}
+/>
+
+<Quiz
+  questionNumber={2}
+  question="방향을 배열 인덱스로 관리할 때 왼쪽 회전을 (index + 3) % 4로 계산하는 이유는?"
+  options={['계산 속도가 더 빠르기 때문이다', '(index - 1) % 4가 음수를 반환할 수 있어 항상 양수가 되도록 오프셋을 더하기 때문이다', '오른쪽 회전과 같은 식이기 때문이다', '4방향이 아니라 3방향이기 때문이다']}
+  correctAnswer={2}
+  explanation="자바스크립트의 나머지 연산자는 피연산자가 음수면 음수를 반환할 수 있어 배열 인덱스로 바로 쓸 수 없습니다. 3(4-1)을 더해 항상 양수 범위로 맞춥니다."
+  optionExplanations={['속도 차이가 목적이 아닙니다', '정답입니다', '오른쪽 회전은 +1로 계산이 다릅니다', '4방향(N, E, S, W)을 다룹니다']}
+/>
+
+<Quiz
+  questionNumber={3}
+  question="순번 제거 시뮬레이션(문제 3)에서 queue.shift()로 꺼낸 값을 다시 queue.push()하는 이유는?"
+  options={['배열 길이를 유지하기 위해서다', '제거 대상이 아닌 사람은 건너뛰고 순서 맨 뒤로 보내야 하기 때문이다', '성능을 높이기 위해서다', 'shift 결과를 저장해야 문법 오류가 없기 때문이다']}
+  correctAnswer={2}
+  explanation="step - 1명은 제거 대상이 아니므로 큐에서 꺼냈다가 다시 뒤에 넣어 순서를 유지하고, 그다음 사람만 완전히 제거합니다."
+  optionExplanations={['길이 유지가 목적이 아니라 순서 유지가 목적입니다', '정답입니다', '성능 목적이 아닙니다', '문법과는 무관합니다']}
+/>
+
+<Quiz
+  questionNumber={4}
+  question="게임 점수 시뮬레이션(문제 4)에서 현재 점수를 변수 하나로만 관리하면 안 되는 이유는?"
+  options={['숫자 계산이 느려지기 때문이다', 'undo 이벤트가 나왔을 때 되돌릴 이전 상태를 알 수 없기 때문이다', '문자열과 숫자를 같이 다룰 수 없기 때문이다', 'double 이벤트를 처리할 수 없기 때문이다']}
+  correctAnswer={2}
+  explanation="undo는 바로 이전 상태로 돌아가야 하므로, 현재 값만 아니라 지금까지의 상태 변화 이력을 모두 기억하고 있어야 합니다."
+  optionExplanations={['계산 속도와는 무관합니다', '정답입니다', '이벤트 종류 구분은 typeof로 가능합니다', 'double은 현재 값만으로도 처리할 수 있습니다']}
+/>
+
+## 참고 자료
+
+- [Node.js Docs - Test runner (node:test)](https://nodejs.org/api/test.html)
+- [MDN - Array reference](https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Array)
+- [Wikipedia - Josephus problem](https://en.wikipedia.org/wiki/Josephus_problem)

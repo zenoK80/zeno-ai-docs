@@ -1,7 +1,7 @@
 {
-  "generatedAt": "2026-09-20T13:06:55.633Z",
+  "generatedAt": "2026-09-20T13:11:23.233Z",
   "groupCount": 9,
-  "seriesCount": 42,
+  "seriesCount": 43,
   "groups": [
     {
       "title": "Web · HTML",
@@ -136,7 +136,7 @@
     },
     {
       "title": "독학사 · 독학사 2단계",
-      "description": "8개 시리즈 · 문서 178편",
+      "description": "8개 시리즈 · 문서 177편",
       "order": "06",
       "series": [
         {
@@ -151,7 +151,7 @@
           "title": "논리회로",
           "description": "집합과 원소 표기, 명제와 논리값, 논리함수·변수 표기법을 논리회로 시험에 쓰는 언어로 정리한다",
           "href": "/독학사/2단계/논리회로/01_math-basics",
-          "documentCount": 27,
+          "documentCount": 26,
           "preview": "code",
           "accent": "green"
         },
@@ -207,7 +207,7 @@
     },
     {
       "title": "독학사 · 독학사 3단계",
-      "description": "8개 시리즈 · 문서 187편",
+      "description": "8개 시리즈 · 문서 186편",
       "order": "07",
       "series": [
         {
@@ -270,7 +270,7 @@
           "title": "딥러닝",
           "description": "딥러닝 문서 전반에서 반복되는 기본 용어와 벡터·행렬·텐서 표기, 미분·그라디언트 관련 기호를 실제 숫자와 함께 정리한다.",
           "href": "/독학사/3단계/딥러닝/01_dl-terminology-map",
-          "documentCount": 27,
+          "documentCount": 26,
           "preview": "chart",
           "accent": "red"
         }
@@ -278,7 +278,7 @@
     },
     {
       "title": "독학사 · 독학사 4단계",
-      "description": "7개 시리즈 · 문서 166편",
+      "description": "7개 시리즈 · 문서 163편",
       "order": "08",
       "series": [
         {
@@ -317,7 +317,7 @@
           "title": "국어",
           "description": "국어학의 다섯 하위 영역이 각각 무엇을 연구하는지, 기본 용어와 연구 대상·방법을 개론 수준에서 정리한다",
           "href": "/독학사/4단계/국어/01_linguistics-basics",
-          "documentCount": 26,
+          "documentCount": 25,
           "preview": "code",
           "accent": "blue"
         },
@@ -325,7 +325,7 @@
           "title": "국사",
           "description": "선사부터 현대까지 한국사 시대 구분의 큰 지도를 정치·경제·사회·문화·사상·대외관계 축으로 재정리하고, 1~3단계와 4단계 국사의 난이도 차이를 정리한다.",
           "href": "/독학사/4단계/국사/01_historical-framework",
-          "documentCount": 23,
+          "documentCount": 22,
           "preview": "code",
           "accent": "green"
         },
@@ -333,7 +333,7 @@
           "title": "실용영어",
           "description": "문제 지시문에 반복되는 영어 표현과 독해·문법·어휘에서 자주 쓰이는 메타 용어, 시험지 형식 특유의 표현을 정리한다.",
           "href": "/독학사/4단계/실용영어/01_core-terminology",
-          "documentCount": 22,
+          "documentCount": 21,
           "preview": "code",
           "accent": "amber"
         }
@@ -341,14 +341,14 @@
     },
     {
       "title": "자격증",
-      "description": "7개 시리즈 · 문서 179편",
+      "description": "8개 시리즈 · 문서 206편",
       "order": "09",
       "series": [
         {
           "title": "빅데이터분석기사 필기",
           "description": "시그마 기호 읽는 법부터 지수·로그, 평균·분산·표준편차·분위수, 확률과 모집단·표본 개념까지 계산 문제를 풀기 위한 최소 수학을 손계산으로 익힌다",
           "href": "/자격증/빅데이터분석기사_필기/01_basic-math-stats",
-          "documentCount": 30,
+          "documentCount": 29,
           "preview": "chart",
           "accent": "red"
         },
@@ -362,7 +362,7 @@
         },
         {
           "title": "네트워크관리사 2급 실기",
-          "description": "실기 18문제가 요구하는 최소 개념 — OSI 계층·TCP/IP·IP 주소·서브넷 마스크·게이트웨이·DNS를 시험 화면의 입력칸과 직접 연결해 이해한다",
+          "description": "네트워크 설정에 필요한 기본 개념 — OSI 계층·TCP/IP·IP 주소·서브넷 마스크·게이트웨이·DNS를 시험 화면의 입력칸과 직접 연결해 이해한다",
           "href": "/자격증/네트워크관리사_2급_실기/01_network-basics-for-practical-use",
           "documentCount": 13,
           "preview": "browser",
@@ -399,6 +399,14 @@
           "documentCount": 29,
           "preview": "code",
           "accent": "green"
+        },
+        {
+          "title": "적성검사 공통 (NCS·인적성)",
+          "description": "명제를 ∧·∨·¬·→ 기호로 바꿔 읽고, 집합과 벤다이어그램을 손으로 직접 그리며, 모든·어떤·어떤 ~도 아닌 표현을 집합 관계로 정확히 해석하는 법을 익힌다",
+          "href": "/자격증/적성검사_공통/01_logic-symbols-and-venn-basics",
+          "documentCount": 28,
+          "preview": "code",
+          "accent": "amber"
         }
       ]
     }

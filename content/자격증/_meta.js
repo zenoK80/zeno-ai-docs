@@ -27,6 +27,10 @@ const meta = {
     title: '서비스경험디자인기사 실기',
     type: 'page',
   },
+  적성검사_공통: {
+    title: '적성검사 공통 (NCS·인적성)',
+    type: 'page',
+  },
 }
 
 export default meta

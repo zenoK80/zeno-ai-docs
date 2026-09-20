@@ -1,0 +1,27 @@
+const meta = {
+  '01_reading-tension-and-extended-chord-symbols': '01. 텐션 표기와 확장 코드 심벌 읽는 법',
+  '02_reading-lead-sheet-form-terms': '02. 리드시트 폼 용어 읽는 법',
+  '03_major-ii-v-i-and-secondary-dominants': '03. 메이저 2-5-1 진행 심화와 부속 도미넌트',
+  '04_minor-ii-v-i-and-altered-basics': '04. 마이너 2-5-1 진행과 얼터드 도미넌트 기초',
+  '05_rootless-voicing-a-form': '05. 루트리스 보이싱 A form',
+  '06_rootless-voicing-b-form-and-alternation': '06. 루트리스 보이싱 B form과 A/B 교차 진행',
+  '07_adding-tensions-to-rootless-voicing': '07. 텐션 얹기: 9th·13th를 더한 루트리스 보이싱',
+  '08_dominant-tensions-altered': '08. 도미넌트 텐션: b9·#9·#11·b13',
+  '09_walking-bass-basics-chord-tones': '09. 워킹 베이스 기초: 코드톤 연결',
+  '10_walking-bass-passing-and-approach-tones': '10. 워킹 베이스 심화: 경과음·접근음',
+  '11_advanced-comping-rhythm-syncopation': '11. 컴핑 리듬 심화: 싱커페이션과 패턴 다양화',
+  '12_integrating-lh-voicing-rh-melody': '12. 좌수 보이싱+우수 멜로디 통합 연주',
+  '13_blues-scale-solo-1-phrase-building': '13. 블루스 스케일 솔로 1: 프레이즈 만들기',
+  '14_blues-scale-solo-2-call-response-motif': '14. 블루스 스케일 솔로 2: 콜앤리스폰스와 모티브 발전',
+  '15_standard-comping-autumn-leaves': '15. 스탠다드 반주 실전 1: Autumn Leaves 진행',
+  '16_standard-comping-blue-bossa': '16. 스탠다드 반주 실전 2: Blue Bossa 진행',
+  '17_standard-comping-all-the-things-you-are': '17. 스탠다드 반주 실전 3: All The Things You Are 진행',
+  '18_standard-comping-fly-me-to-the-moon': '18. 스탠다드 반주 실전 4: Fly Me to the Moon 진행',
+  '19_standard-comping-take-the-a-train': '19. 스탠다드 반주 실전 5: Take the A Train 진행',
+  '20_synthesis-comping-walking-bass-solo': '20. 종합: 컴핑+워킹베이스+솔로 한 사람이 표현하기',
+  '21_song-project-1-original-medium-swing': '21. 곡 프로젝트 1: 오리지널 미디엄 스윙 곡 반주+솔로 완성',
+  '22_song-project-2-original-minor-blues': '22. 곡 프로젝트 2: 오리지널 마이너 블루스 곡 반주+솔로 완성',
+  '23_self-check-checklist-and-advanced-preview': '23. 자가 점검 체크리스트와 고급 예고',
+}
+
+export default meta

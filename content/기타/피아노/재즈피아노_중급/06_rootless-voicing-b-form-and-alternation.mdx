@@ -1,0 +1,259 @@
+---
+title: '06. 루트리스 보이싱 B form과 A/B 교차 진행'
+description: '7도를 최저음으로 쌓는 B form을 배우고, ii-V-I에서 A form과 B form을 교차하면 손이 거의 움직이지 않는 이유를 확인합니다'
+---
+
+<Callout type="info">
+  **이번 편의 목표:** B form 공식(7-9-3-5 순서)으로 코드를 짚고, ii-V-I 진행에서 A form과 B form을 A-B-A로 교차하면 내성이 거의 움직이지 않는다는 것을 손으로 확인할 수 있게 됩니다 · **연습 시간 목안:** 하루 20~30분 × 4일
+</Callout>
+
+## 개념 (짧게)
+
+### B form 공식: 7도부터 3도씩 쌓기
+
+05편의 A form은 3도를 최저음으로 두었습니다. **B form**은 반대로 7도를 최저음으로 두고 그 위로 3도씩 쌓습니다. 순서는 "7-9-3-5"입니다.
+
+| 코드 품질 | B form 공식 | 근음 C 기준 |
+|---|---|---|
+| maj7 | 7-9-3-5 | B-D-E-G |
+| 7(딸림7) | b7-9-3-5 | Bb-D-E-G |
+| m7(단7) | b7-9-b3-5 | Bb-D-Eb-G |
+| m7(b5)(반감7) | b7-9-b3-b5 | Bb-D-Eb-Gb |
+
+A form과 B form을 나란히 놓고 비교하면, 사실 **같은 네 가지 코드톤(3도·5도·7도·9도)을 다른 순서로 쌓은 것**임을 알 수 있습니다. A form은 3-5-7-9, B form은 7-9-3-5로, 마치 같은 카드를 다른 순서로 섞은 것과 같습니다.
+
+> **쉽게 말하면:** A form이 3도부터 쌓는다면, B form은 7도부터 쌓습니다. 쓰는 음은 똑같고 순서만 다릅니다.
+
+### 왜 두 가지 형태가 필요한가
+
+Cmaj7 하나만 놓고 보면 A form이든 B form이든 크게 상관없어 보입니다. 하지만 ii-V-I처럼 코드가 계속 바뀌는 진행에서는 이야기가 다릅니다. Dm7에서 G7으로 넘어갈 때 **Dm7의 A form(F-A-C-E)과 G7의 B form(F-A-B-D)을 비교하면, 낮은 두 음(F·A)이 완전히 똑같습니다.** 손을 전혀 움직이지 않고 위쪽 두 음(C-E → B-D)만 반음 정도 움직이면 코드가 바뀝니다.
+
+이 원리를 **보이스 리딩**이라고 부릅니다. 각 코드를 따로따로 계산해서 손을 옮기는 것이 아니라, 앞 코드와 공통음이 많은 형태를 골라 이어 치는 방법입니다.
+
+| Dm7(A form) | G7(B form) | 공통음 |
+|---|---|---|
+| F-A-C-E | F-A-B-D | F, A(그대로 유지) |
+
+### ii-V-I에서 A-B-A로 교차하는 이유
+
+Dm7(ii)-G7(V)-Cmaj7(I) 세 코드를 모두 A form으로만 짚으면 어떻게 될까요. Dm7 A form(F-A-C-E), G7 A form(B-D-F-A), Cmaj7 A form(E-G-B-D)을 비교하면 공통음이 거의 없어서 손이 매번 크게 움직입니다. 반대로 **A form-B form-A form 순서로 번갈아 쓰면** 다음과 같이 이어집니다.
+
+| 코드 | Form | 구성음(저→고) |
+|---|---|---|
+| Dm7 | A | F-A-C-E |
+| G7 | B | F-A-B-D |
+| Cmaj7 | A | E-G-B-D |
+
+Dm7(A)에서 G7(B)로 갈 때는 F·A가 그대로 유지되고, G7(B)에서 Cmaj7(A)로 갈 때는 B·D가 그대로 유지됩니다. **ii는 A form, V는 B form, I는 A form**으로 교차하면 매번 두 음은 그대로 두고 나머지 두 음만 반음 또는 온음 정도 움직이면 됩니다. 05편에서 A form만으로 I-vi-ii-V를 쳤을 때보다 손 이동이 훨씬 줄어드는 것을 이번 편의 연습에서 직접 비교합니다.
+
+이 교차가 성립하는 이유는 ii와 V의 근음이 완전4도(또는 완전5도) 관계이기 때문입니다. ii(Dm7)의 A form 상위 두 음(7도·9도인 C·E)이 V(G7)의 3도·5도 자리와 거의 겹치고, V(G7)를 B form으로 짚으면 그 겹치는 음이 자연스럽게 최저음 자리(7도·9도)로 내려와 앞 코드와 맞물립니다. 이후 편들(11·12·15~19)에서 실제 곡에 적용할 때도 이 A-B-A(또는 B-A-B) 교차가 기본 원리로 계속 쓰입니다.
+
+## 건반과 악보로 보기
+
+C키 ii-V-I에서 A-B-A 교차를 확인합니다. Cmaj7을 두 마디 유지해 진행이 한 바퀴 도는 느낌까지 확인합니다.
+
+<AbcScore
+  title="C키 ii-V-I: A-B-A 교차"
+  abc={`X:1
+T:C key ii-V-I A-B-A alternation
+M:4/4
+L:1/4
+Q:1/4=85
+K:C
+V:1 clef=treble
+z4 | z4 | z4 | z4 |]
+V:2 clef=bass
+"Dm7(A)"[F,A,CE]4 | "G7(B)"[F,A,B,D]4 | "Cmaj7(A)"[E,G,B,D]4 | "Cmaj7(A)"[E,G,B,D]4 |]
+`}
+/>
+
+건반 위에서 Dm7(A)와 G7(B)를 겹쳐 보면 아래와 같이 손가락 두 개(F·A 자리)는 그대로 있고 나머지 두 손가락만 움직입니다.
+
+```text
+      C#  D#      F#  G#  A#
+      C   D   E   F   G   A   B
+Dm7(A)        C       F   A     E(한 옥타브 위)
+G7(B)             D   F   A B
+공통음                  F   A(유지)
+```
+
+F키에서도 같은 ii-V-I 교차를 확인합니다.
+
+<AbcScore
+  title="F키 ii-V-I: A-B-A 교차"
+  abc={`X:2
+T:F key ii-V-I A-B-A alternation
+M:4/4
+L:1/4
+Q:1/4=85
+K:C
+V:1 clef=treble
+z4 | z4 | z4 | z4 |]
+V:2 clef=bass
+"Gm7(A)"[_B,DFA]4 | "C7(B)"[_B,DEG]4 | "Fmaj7(A)"[A,CEG]4 | "Fmaj7(A)"[A,CEG]4 |]
+`}
+/>
+
+Bb키도 같은 방식입니다.
+
+<AbcScore
+  title="Bb키 ii-V-I: A-B-A 교차"
+  abc={`X:3
+T:Bb key ii-V-I A-B-A alternation
+M:4/4
+L:1/4
+Q:1/4=85
+K:C
+V:1 clef=treble
+z4 | z4 | z4 | z4 |]
+V:2 clef=bass
+"Cm7(A)"[_E,G,_B,D]4 | "F7(B)"[_E,G,A,C]4 | "Bbmaj7(A)"[D,F,A,C]4 | "Bbmaj7(A)"[D,F,A,C]4 |]
+`}
+/>
+
+세 키 모두 ii(A form)와 V(B form) 사이에 두 음이 그대로 유지되고, V(B form)와 I(A form) 사이에도 두 음이 그대로 유지됩니다. 나머지 9개 키의 ii-V-I A-B-A 보이싱은 아래 표로 정리합니다.
+
+| 키 | ii(A form: b3-5-b7-9) | V(B form: b7-9-3-5) | I(A form: 3-5-7-9) |
+|---|---|---|---|
+| Db | Ebm7: Gb-Bb-Db-F | Ab7: Gb-Bb-C-Eb | Dbmaj7: F-Ab-C-Eb |
+| D | Em7: G-B-D-F# | A7: G-B-C#-E | Dmaj7: F#-A-C#-E |
+| Eb | Fm7: Ab-C-Eb-G | Bb7: Ab-C-D-F | Ebmaj7: G-Bb-D-F |
+| E | F#m7: A-C#-E-G# | B7: A-C#-D#-F# | Emaj7: G#-B-D#-F# |
+| Gb | Abm7: B-Eb-Gb-Bb | Db7: B-Eb-F-Ab | Gbmaj7: Bb-Db-F-Ab |
+| G | Am7: C-E-G-B | D7: C-E-F#-A | Gmaj7: B-D-F#-A |
+| Ab | Bbm7: Db-F-Ab-C | Eb7: Db-F-G-Bb | Abmaj7: C-Eb-G-Bb |
+| A | Bm7: D-F#-A-C# | E7: D-F#-G#-B | Amaj7: C#-E-G#-B |
+| B | C#m7: E-G#-B-D# | F#7: E-G#-A#-C# | Bmaj7: D#-F#-A#-C# |
+
+일부 칸은 자리(도수) 계산이 헷갈리기 쉬운 조성입니다. 표를 그대로 외우기보다, "ii는 A form(3-5-b7-9), V는 B form(b7-9-3-5), I는 A form(3-5-7-9)"이라는 공식을 각 조성의 스케일에 대입해 직접 계산해보는 것이 더 오래 남습니다.
+
+손가락은 05편과 똑같이 아래부터 5-3-2-1을 씁니다. Form이 A에서 B로 바뀌어도 "네 음을 3도씩 쌓은 모양"이라는 손 모양 자체는 같으므로 손가락 배치를 다시 정할 필요가 없습니다.
+
+## 연습 과제
+
+<Steps>
+
+### 1. Dm7(A)-G7(B) 공통음 확인
+
+Dm7 A form(F-A-C-E)과 G7 B form(F-A-B-D)을 번갈아 짚으며 F·A 두 음이 그대로인지 확인합니다. 메트로놈 없이 5회 반복합니다.
+
+### 2. C키 ii-V-I 통합
+
+악보 예시 1(C키)을 왼손으로 메트로놈 BPM 65에서 온음표로 8회 반복합니다. 코드가 바뀔 때 손가락 몇 개가 움직이지 않는지 눈으로 확인합니다.
+
+### 3. F키·Bb키로 확장
+
+같은 방식으로 F키(Gm7-C7-Fmaj7)와 Bb키(Cm7-F7-Bbmaj7)를 BPM 65에서 각 8회씩 연습합니다.
+
+### 4. 05편 방식과 손 이동량 비교
+
+05편의 I-vi-ii-V(전부 A form)와 이번 편의 ii-V-I(A-B-A)를 번갈아 쳐 보고, 어느 쪽이 손 이동이 더 적은지 직접 비교합니다. 코드마다 몇 개의 음이 그대로 유지되는지 세어봅니다.
+
+### 5. 템포 올리기
+
+C-F-Bb 세 키의 ii-V-I를 이어서 BPM 65에서 시작해 5씩 올려 90까지, 각 템포에서 4회씩 반복합니다.
+
+### 6. 코드 이름만 보고 Form 판단하기
+
+Dm7-G7-Cmaj7, Gm7-C7-Fmaj7, Cm7-F7-Bbmaj7 세 진행을 악보 없이 코드 이름만 보고 "ii는 A, V는 B, I는 A"를 소리 내어 말한 뒤 건반으로 확인합니다. 3개 진행을 3회씩 반복합니다.
+
+</Steps>
+
+## 곡에 적용하기
+
+I-vi-ii-V(Cmaj7-Am7-Dm7-G7)에도 A-B-A-B 교차를 적용할 수 있습니다. I는 A form, vi는 B form, ii는 A form, V는 B form 순서입니다.
+
+| 마디 | 코드 | Form | 구성음(저→고) |
+|---|---|---|---|
+| 1 | Cmaj7 | A | E-G-B-D |
+| 2 | Am7 | B | G-B-C-E |
+| 3 | Dm7 | A | F-A-C-E |
+| 4 | G7 | B | F-A-B-D |
+
+<AbcScore
+  title="I-vi-ii-V A-B-A-B 교차 적용"
+  abc={`X:4
+T:I-vi-ii-V A-B-A-B alternation
+M:4/4
+L:1/4
+Q:1/4=88
+K:C
+V:1 clef=treble
+z4 | z4 | z4 | z4 |]
+V:2 clef=bass
+"Cmaj7(A)"[E,G,B,D]4 | "Am7(B)"[G,B,CE]4 | "Dm7(A)"[F,A,CE]4 | "G7(B)"[F,A,B,D]4 |]
+`}
+/>
+
+Cmaj7(A)에서 Am7(B)로 갈 때는 G·B가 유지되고, Am7(B)에서 Dm7(A)로 갈 때는 C·E가 유지되며, Dm7(A)에서 G7(B)로 갈 때는 F·A가 유지됩니다. 05편에서 같은 진행을 전부 A form으로 쳤을 때와 비교하면, 이번에는 매 마디마다 손가락 두 개가 그대로 남아 훨씬 매끄럽게 이어집니다.
+
+## 자주 하는 실수
+
+| 증상 | 원인 | 고치는 법 |
+|---|---|---|
+| ii-V-I을 전부 A form(또는 전부 B form)으로만 짚는다 | A/B form이 서로 교차해야 하는 이유를 놓침 | 앞 코드와 공통음이 몇 개인지 먼저 세어보고 더 많이 겹치는 form을 고른다 |
+| B form의 최저음(7도)을 근음으로 착각한다 | 7도와 근음의 소리가 비슷하게 들림 | 근음은 아예 계산에서 뺀 채로 7도부터 3도씩 쌓았는지 표로 재확인한다 |
+| A form에서 B form으로 바꿀 때 네 음을 전부 다시 계산한다 | 공통음을 먼저 찾지 않고 매번 처음부터 계산 | 공통음 두 개를 먼저 손가락으로 고정하고 나머지 두 개만 움직인다 |
+| m7(b5)의 B form에서 5도를 완전5도로 짚는다 | b5가 B form에도 그대로 적용된다는 것을 놓침 | A form과 마찬가지로 m7(b5)는 B form에서도 5도 자리가 감5도라는 것을 확인한다 |
+| 조성이 바뀌면 A-B-A 교차 자체가 달라진다고 생각한다 | 공식이 아니라 특정 키의 음 이름만 외움 | ii=A, V=B, I=A라는 역할 배정은 모든 키에서 똑같다는 것을 다시 확인한다 |
+
+## 마무리 복습
+
+<Quiz
+  questionNumber={1}
+  question="B form의 기본 공식(코드 품질과 무관한 자리 구조)으로 옳은 것은?"
+  options={['3도-5도-7도-9도', '7도-9도-3도-5도', '근음-7도-9도-3도', '5도-7도-9도-11도']}
+  correctAnswer={2}
+  explanation="B form은 7도를 최저음으로 두고 그 위로 3도씩 쌓아 9도-3도-5도까지 만드는 4음 보이싱입니다."
+  optionExplanations={['이는 A form의 공식입니다', '정답입니다', '근음은 루트리스 보이싱에 포함되지 않습니다', '11도는 이 편에서 다루지 않는 자리입니다']}
+/>
+
+<Quiz
+  questionNumber={2}
+  question="Dm7(A form: F-A-C-E)에서 G7(B form: F-A-B-D)로 넘어갈 때 그대로 유지되는 음은?"
+  options={['C와 E', 'F와 A', 'B와 D', '유지되는 음이 없다']}
+  correctAnswer={2}
+  explanation="Dm7 A form과 G7 B form은 최저 두 음(F, A)이 같아 손을 거의 움직이지 않고 코드를 바꿀 수 있습니다."
+  optionExplanations={['C와 E는 Dm7에만 있는 음입니다', '정답입니다', 'B와 D는 G7에만 있는 음입니다', '두 음이 공통으로 유지됩니다']}
+/>
+
+<Quiz
+  questionNumber={3}
+  question="ii-V-I 진행에서 A/B form을 교차하는 표준 배치로 알맞은 것은?"
+  options={['ii=B, V=A, I=B', 'ii=A, V=B, I=A', 'ii=A, V=A, I=B', '세 코드 모두 항상 A form만 쓴다']}
+  correctAnswer={2}
+  explanation="ii는 A form, V는 B form, I는 다시 A form으로 교차하면 인접한 코드끼리 공통음이 최대화됩니다."
+  optionExplanations={['ii-V 사이 공통음이 최소화되는 배치입니다', '정답입니다', 'V-I 사이 공통음이 줄어드는 배치입니다', '전부 A form만 쓰면 공통음이 거의 없어 손 이동이 커집니다']}
+/>
+
+<Quiz
+  questionNumber={4}
+  question="A form과 B form의 관계를 가장 정확히 설명한 것은?"
+  options={['서로 완전히 다른 코드톤을 사용한다', '같은 네 개의 코드톤을 다른 순서로 쌓은 것이다', 'B form은 A form보다 음이 하나 더 많다', 'A form은 오른손 전용, B form은 왼손 전용이다']}
+  correctAnswer={2}
+  explanation="A form(3-5-7-9)과 B form(7-9-3-5)은 같은 3도·5도·7도·9도 네 음을 다른 순서로 배치한 것입니다."
+  optionExplanations={['같은 코드톤 네 개를 공유합니다', '정답입니다', '두 form 모두 4음으로 음의 개수가 같습니다', '둘 다 왼손 루트리스 보이싱으로 쓸 수 있습니다']}
+/>
+
+<Quiz
+  questionNumber={5}
+  question="Cm7(A form: Eb-G-Bb-D)에서 F7(B form: Eb-G-A-C)로 넘어갈 때 그대로 유지되는 음은?"
+  options={['Eb와 G', 'Bb와 D', 'A와 C', '유지되는 음이 없다']}
+  correctAnswer={1}
+  explanation="Cm7 A form과 F7 B form은 최저 두 음(Eb, G)이 같아 손을 거의 움직이지 않고 이어집니다."
+  optionExplanations={['정답입니다', 'Bb와 D는 Cm7에만 있는 음입니다', 'A와 C는 F7에만 있는 음입니다', '두 음이 공통으로 유지됩니다']}
+/>
+
+<Quiz
+  questionNumber={6}
+  question="05편(A form만 사용)과 이번 편(A-B 교차)을 비교했을 때 이번 편의 장점은?"
+  options={['음이 더 화려하게 들린다', '코드 전환마다 손 이동이 줄어든다', '근음을 포함할 수 있게 된다', '오른손 멜로디가 필요 없어진다']}
+  correctAnswer={2}
+  explanation="A form과 B form을 교차하면 인접한 코드끼리 공통음이 많아져 손 이동이 크게 줄어듭니다."
+  optionExplanations={['화려함이 아니라 매끄러운 연결이 목적입니다', '정답입니다', '근음은 이번 편에서도 포함하지 않습니다', '오른손 멜로디는 12편에서 다루는 별개의 주제입니다']}
+/>
+
+## 참고 자료
+
+- [Open Music Theory - Jazz Voicings](https://viva.pressbooks.pub/openmusictheory/chapter/jazz-voicings/)
+- [piano.org - Rootless Voicings: Type A and Type B](https://piano.org/theory/rootless-voicings/)

@@ -1,0 +1,183 @@
+---
+title: '17. 스탠다드 반주 실전 3: All The Things You Are 진행'
+description: 'All The Things You Are의 조성 중심 이동에 맞춰 루트리스 A/B form 보이싱을 재배치합니다.'
+---
+
+<Callout type="info">
+  **이번 편의 목표:** 조성 중심이 여러 번 바뀌는 스탠다드 진행에서 A form과 B form을 그때그때 다시 골라 8마디를 끊김 없이 이어 칠 수 있다. · **연습 시간 목안:** 하루 20~30분 × 4일
+</Callout>
+
+## 개념 (짧게)
+
+지금까지 연습한 ii-V-I는 한 조성 안에서만 움직였습니다. 하지만 실제 스탠다드는 곡 중간에 "지금 여기가 잠깐 으뜸음"처럼 들리는 자리, 즉 **조성 중심**(key center)이 여러 번 바뀝니다. All The Things You Are는 이런 조성 중심 이동을 가장 많이 다루는 교과서 같은 곡입니다.
+
+첫 8마디의 코드와 역할을 정리하면 다음과 같습니다.
+
+| 마디 | 코드 | 조성 중심 | 역할 |
+|------|------|-----------|------|
+| 1 | Fm7 | Ab메이저 | vi7(확장용 앞자리) |
+| 2 | Bbm7 | Ab메이저 | ii7 |
+| 3 | Eb7 | Ab메이저 | V7 |
+| 4 | Abmaj7 | Ab메이저 | I(토닉) |
+| 5 | Dbmaj7 | Db메이저로 이동 | Ab의 IV이자 Db의 I |
+| 6 | Dm7(b5) | C메이저로 이동 | ii(m7b5) |
+| 7 | G7 | C메이저 | V7 |
+| 8 | Cmaj7 | C메이저 | I(토닉) |
+
+1~4마디는 근음이 F-Bb-Eb-Ab로 완전5도씩 내려가는 연쇄입니다. Bbm7-Eb7-Abmaj7만으로도 완결된 ii-V-I지만, 그 앞에 같은 간격으로 마이너7 코드(Fm7)를 하나 더 붙여 진행을 자연스럽게 늘린 것입니다. 이렇게 5도 간격 코드를 연달아 붙이는 것이 이 곡 전체를 관통하는 **부속 도미넌트 연쇄** 원리입니다.
+
+6~8마디는 특히 눈여겨볼 지점입니다. Dm7(b5)-G7은 형태상 C마이너로 가는 마이너 ii-V처럼 보이지만, 실제로는 **메이저** 코드인 Cmaj7로 해결됩니다. 마이너 ii-V가 마이너 토닉이 아니라 메이저 토닉으로 풀리는 이 예외적인 진행이 곡 전체의 인상을 결정짓는 지점입니다.
+
+## 건반과 악보로 보기
+
+A form과 B form을 다시 떠올려 보면, 같은 4개의 코드톤(3도·5도·7도·9도 계열)을 어느 음이 맨 아래에 오도록 배치하느냐만 다릅니다.
+
+| 코드 종류 | A form(밑음) | B form(밑음) |
+|-----------|--------------|--------------|
+| maj7 | 3-5-7-9 | 7-9-3-5 |
+| m7 | b3-5-b7-9 | b7-9-b3-5 |
+| 7(도미넌트) | 3-5-b7-9 | b7-9-3-5 |
+| m7(b5) | b3-b5-b7-9 | b7-9-b3-b5 |
+
+이 공식을 1~8마디에 그대로 대입하면 다음 표가 나옵니다. form은 다음 코드와 공통음이 가장 많이 남는 쪽을 골랐습니다.
+
+| 마디 | 코드 | 사용 form | 구성음(낮은음부터) |
+|------|------|-----------|----------------------|
+| 1 | Fm7 | A | Ab-C-Eb-G |
+| 2 | Bbm7 | B | Ab-C-Db-F |
+| 3 | Eb7 | A | G-Bb-Db-F |
+| 4 | Abmaj7 | B | G-Bb-C-Eb |
+| 5 | Dbmaj7 | A | F-Ab-C-Eb |
+| 6 | Dm7(b5) | B | C-E-F-Ab |
+| 7 | G7 | A | B-D-F-A |
+| 8 | Cmaj7 | B | B-D-E-G |
+
+건반 위에서 보면 1→2마디는 Ab·C가 그대로 남고 Eb·G만 반음~한음 아래로 움직입니다. 5→6마디는 세 음(C·F·Ab)이 그대로 남고 Eb 한 음만 반음 위로 올라갑니다. 이렇게 자리를 지키는 음이 많을수록 조성이 바뀌어도 손이 편안합니다.
+
+<AbcScore
+  title="All The Things You Are 1~4마디 보이싱(swing)"
+  abc={`X:1
+T:All The Things You Are - bars 1-4 voicing
+M:4/4
+L:1/8
+Q:1/4=76
+K:C
+V:1 clef=treble
+"Fm7"[_Ac_eg]8 | "Bbm7"[_Ac_df]8 | "Eb7"[G_B_df]8 | "Abmaj7"[G_Bc_e]8 |]
+V:2 clef=bass
+F,8 | _B,8 | _E,8 | _A,8 |]
+`}
+/>
+
+## 연습 과제
+
+<Steps>
+
+### 1. 앞 4마디 왼손만 익히기
+
+메트로놈 60 BPM. Fm7(A)-Bbm7(B)-Eb7(A)-Abmaj7(B) 왼손 보이싱만 8회 반복합니다. 다음 코드로 넘어갈 때 공통음(Ab·C, Db·F, G·Bb)을 손가락으로 짚은 채 유지하는 느낌에 집중합니다.
+
+### 2. 조성 중심을 귀로 확인하기
+
+같은 4마디를 왼손 보이싱은 유지하고, 오른손 5(엄지)로 각 마디의 근음(F-Bb-Eb-Ab)을 한 옥타브 위에서 짧게 짚습니다. 72 BPM. Ab메이저로 착지하는 4마디째 소리를 확실히 기억합니다.
+
+### 3. 뒤 4마디 왼손만 익히기
+
+Dbmaj7(A)-Dm7(b5)(B)-G7(A)-Cmaj7(B)를 60 BPM, 왼손만 8회. 5마디에서 손 전체가 살짝 이동한다는 느낌, 6마디에서 딱 한 음(Eb→E)만 움직인다는 느낌을 구분해서 익힙니다.
+
+### 4. 8마디 전체 연결
+
+양손으로 8마디를 연결합니다. 76 BPM에서 시작해 틀리지 않고 4회 통과하면 84 BPM으로 올립니다.
+
+### 5. 12키 이동 연습
+
+1~4마디 셀(m7-m7-7-maj7, 5도 하행)만 떼어 Dm7-Gm7-C7-Fmaj7로 옮겨 칩니다. 같은 손 모양 공식이 조성과 무관하게 통한다는 것을 확인합니다.
+
+</Steps>
+
+## 곡에 적용하기
+
+전체 8마디를 반박자 쉬고 치는 단순 컴핑 리듬으로 이어 붙이면 다음과 같습니다.
+
+<AbcScore
+  title="All The Things You Are 첫 8마디 반주(swing)"
+  abc={`X:1
+T:All The Things You Are - 8 bar comping
+M:4/4
+L:1/8
+Q:1/4=80
+K:C
+V:1 clef=treble
+"Fm7"[_Ac_eg]4 [_Ac_eg]4 | "Bbm7"[_Ac_df]4 [_Ac_df]4 | "Eb7"[G_B_df]4 [G_B_df]4 | "Abmaj7"[G_Bc_e]4 [G_Bc_e]4 |
+"Dbmaj7"[F_Ac_e]4 [F_Ac_e]4 | "Dm7(b5)"[CEF_A]4 [CEF_A]4 | "G7"[Bdfa]4 [Bdfa]4 | "Cmaj7"[Bdeg]4 [Bdeg]4 |]
+V:2 clef=bass
+F,8 | _B,8 | _E,8 | _A,8 |
+_D,8 | D,8 | G,8 | C,8 |]
+`}
+/>
+
+| 마디 | 코드 진행 |
+|------|-----------|
+| 1–4 | Fm7 · Bbm7 · Eb7 · Abmaj7 |
+| 5–8 | Dbmaj7 · Dm7(b5) · G7 · Cmaj7 |
+
+## 자주 하는 실수
+
+| 증상 | 원인 | 고치는 법 |
+|------|------|-----------|
+| 5마디(Dbmaj7)에서 손이 갑자기 꼬인다 | 4마디까지 쓰던 Ab 조성 손 위치를 그대로 유지하려 한다 | 5마디부터는 새 조성 중심이라고 생각하고 손 전체를 다시 배치한다 |
+| 6–8마디가 단조로 들리게 친다 | Dm7(b5)를 보고 무의식적으로 단조 종지를 기대한다 | 이 곡은 마이너 ii-V가 메이저 I로 풀리는 예외라는 것을 미리 알고 8마디를 듣는다 |
+| A form과 B form을 매번 같은 순서로만 쓴다 | 이전 코드와 상관없이 항상 A form부터 시작한다 | 다음 코드와 공통음이 많은 form을 고르는 습관을 들인다 |
+
+## 마무리 복습
+
+<Quiz
+  questionNumber={1}
+  question="All The Things You Are 1~4마디(Fm7-Bbm7-Eb7-Abmaj7)의 조성 중심으로 옳은 것은?"
+  options={['C메이저', 'F마이너', 'Ab메이저', 'Db메이저']}
+  correctAnswer={3}
+  explanation="Bbm7-Eb7-Abmaj7이 Ab메이저의 ii-V-I이고 Fm7은 그 앞에 붙은 확장 코드이므로 조성 중심은 Ab메이저입니다."
+  optionExplanations={['C메이저는 6~8마디의 조성 중심입니다', 'Fm7은 조성 중심이 아니라 Ab메이저 진행의 일부입니다', '정답입니다', 'Db메이저는 5마디에서 잠깐 스치는 자리입니다']}
+/>
+
+<Quiz
+  questionNumber={2}
+  question="5마디 Dbmaj7의 역할로 가장 알맞은 것은?"
+  options={['Ab메이저의 IV이자 동시에 Db메이저의 I 역할을 한다', 'C메이저의 V7 역할을 한다', 'F마이너의 ii 역할을 한다', '아무 기능 없이 장식으로만 쓰인다']}
+  correctAnswer={1}
+  explanation="Dbmaj7은 Ab메이저에서는 IV로 들리고, 곧바로 이어지는 6~8마디의 C메이저로 넘어가기 전 잠깐의 새 조성 중심(Db의 I) 역할도 겸합니다."
+  optionExplanations={['정답입니다', 'V7 역할은 7마디 G7의 몫입니다', 'ii 역할은 2마디 Bbm7의 몫입니다', '조성 중심이 바뀌는 실제 기능이 있습니다']}
+/>
+
+<Quiz
+  questionNumber={3}
+  question="6~8마디 Dm7(b5)-G7-Cmaj7의 특징으로 옳은 것은?"
+  options={['일반적인 마이너 ii-V처럼 Cm으로 해결된다', '마이너 ii-V 형태이지만 메이저 I(Cmaj7)로 해결된다', 'ii-V 없이 곧바로 Cmaj7만 반복된다', 'Dm7(b5)가 도미넌트 기능을 대신한다']}
+  correctAnswer={2}
+  explanation="Dm7(b5)-G7은 형태상 마이너 ii-V이지만, 이 곡에서는 마이너 토닉이 아니라 메이저 토닉인 Cmaj7로 풀립니다."
+  optionExplanations={['Cm이 아니라 Cmaj7로 풀립니다', '정답입니다', '실제로는 Dm7(b5)-G7이라는 분명한 ii-V가 있습니다', 'Dm7(b5)는 ii 기능이고 도미넌트 기능은 G7입니다']}
+/>
+
+<Quiz
+  questionNumber={4}
+  question="ii-V-I를 진행할 때 A form과 B form을 번갈아 쓰는 이유로 가장 알맞은 것은?"
+  options={['왼손 운동량을 늘려 연습 효과를 높이기 위해서', '다음 코드와 공통음을 최대한 남겨 손 이동을 줄이기 위해서', '오른손과 리듬을 맞추기 쉽게 만들기 위해서', '악보를 더 화려하게 보이게 하려고']}
+  correctAnswer={2}
+  explanation="A form과 B form은 같은 계열 코드톤을 다른 음이 맨 아래에 오도록 배치한 것이라, 다음 코드에서 공통음이 많이 남는 쪽을 고르면 손 이동이 최소화됩니다."
+  optionExplanations={['운동량이 목적이 아니라 부드러운 연결이 목적입니다', '정답입니다', '리듬 문제가 아니라 보이스 리딩 문제입니다', '시각적 효과와는 무관합니다']}
+/>
+
+<Quiz
+  questionNumber={5}
+  question="1~4마디에서 Fm7이 Bbm7 앞에 놓인 이유로 가장 알맞은 것은?"
+  options={['Fm7이 이 곡의 최종 토닉이기 때문이다', 'Bbm7-Eb7-Abmaj7이라는 ii-V-I 앞에 같은 5도 간격으로 코드를 하나 더 붙여 진행을 늘린 것이기 때문이다', 'Fm7이 없으면 악보 마디 수가 부족하기 때문이다', 'Fm7은 다음 마디와 아무 화성적 관계가 없다']}
+  correctAnswer={2}
+  explanation="F-Bb-Eb-Ab는 완전5도씩 내려가는 연쇄로, Fm7은 뒤이은 ii-V-I 진행 앞에 같은 간격으로 하나 더 붙은 확장 코드입니다."
+  optionExplanations={['최종 토닉은 8마디의 Cmaj7입니다', '정답입니다', '마디 수를 채우려는 목적이 아니라 화성적 연쇄입니다', '5도 간격의 뚜렷한 화성적 관계가 있습니다']}
+/>
+
+## 참고 자료
+
+- [Wikipedia - All the Things You Are](https://en.wikipedia.org/wiki/All_the_Things_You_Are)
+- [piano.org - Rootless Voicings: Type A and Type B](https://piano.org/theory/rootless-voicings/)
+- [iRealPro 공식 사이트](https://www.irealpro.com/)

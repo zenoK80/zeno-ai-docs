@@ -1,7 +1,7 @@
 {
-  "generatedAt": "2026-09-20T23:18:39.956Z",
+  "generatedAt": "2026-09-20T23:32:21.699Z",
   "groupCount": 11,
-  "seriesCount": 50,
+  "seriesCount": 51,
   "groups": [
     {
       "title": "Web · HTML",
@@ -459,7 +459,7 @@
     },
     {
       "title": "기타 · 피아노",
-      "description": "2개 시리즈 · 문서 47편",
+      "description": "3개 시리즈 · 문서 70편",
       "order": "11",
       "series": [
         {
@@ -471,12 +471,20 @@
           "accent": "blue"
         },
         {
+          "title": "재즈피아노 중급",
+          "description": "9th·11th·13th 텐션 숫자와 b9·#9·#11·b13 알터드 표기, 괄호로 텐션을 더하는 코드 심벌 표기 규칙을 읽을 수 있게 된다",
+          "href": "/기타/피아노/재즈피아노_중급/01_reading-tension-and-extended-chord-symbols",
+          "documentCount": 23,
+          "preview": "code",
+          "accent": "green"
+        },
+        {
           "title": "재즈피아노 고급",
           "description": "코드 심벌 하나에 대응하는 스케일 표기를 정확히 읽고, 축약형과 어보이드 노트 용어까지 이해합니다",
           "href": "/기타/피아노/재즈피아노_고급/01_reading-chord-scale-notation",
           "documentCount": 26,
           "preview": "code",
-          "accent": "green"
+          "accent": "amber"
         }
       ]
     }

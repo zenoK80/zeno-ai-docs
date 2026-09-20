@@ -1,0 +1,357 @@
+---
+title: '08. 제네릭 함수로 범용 유틸 만들기'
+description: 'sortBy, filterBy 제네릭 함수를 작성해 거래 목록 정렬·필터에 적용합니다.'
+---
+
+<Callout type="info">
+  **이번 편의 결과물:** `sortBy`, `filterBy` 제네릭 유틸 함수를 작성해 거래 목록 정렬·필터에 적용합니다. · **다루는 개념:** 제네릭 함수, `extends` 제약, 기본 타입 매개변수, 제네릭 타입 추론
+</Callout>
+
+07편에서 거래는 `Transaction` 판별 유니온으로 재모델링됐고, 카테고리·월로 필터링하는 기능까지 갖췄습니다. 이 편에서는 필터·정렬처럼 어떤 데이터 목록에도 쓸 수 있는 동작을 `Transaction`에 매여 있지 않은 제네릭 함수로 뽑아내고, 정렬 기능을 새로 추가합니다.
+
+## 이 편에서 만드는 파일
+
+```
+expense-tracker/src/
+├── lib/
+│   └── arrayUtils.ts   (+, sortBy<T, K>, filterBy<T>)
+└── main.ts              (~, sortBy·filterBy로 정렬·필터 로직 교체, 정렬 select 추가)
+```
+
+## 개념 정리
+
+### 제네릭 함수
+
+함수가 다루는 타입을 호출 시점까지 미뤄두고 타입 매개변수로 표시하는 방법입니다. `Transaction[]`에만 동작하는 함수 대신 `T[]`를 받는 함수를 쓰면, 나중에 다른 목록(예: 카테고리 목록)에도 그대로 재사용할 수 있습니다.
+
+```ts
+function firstOf<T>(list: T[]): T | undefined {
+  return list[0]
+}
+```
+
+### extends 제약
+
+타입 매개변수가 아무 타입이나 되면 곤란한 경우가 있습니다. "목록의 실제 키 중 하나"만 받고 싶다면 `keyof T`로 제약합니다.
+
+```ts
+function pickKey<T, K extends keyof T>(item: T, key: K): T[K] {
+  return item[key]
+}
+```
+
+`K extends keyof T`는 `K`가 `T`의 키 이름 중 하나여야 한다는 뜻입니다. 존재하지 않는 프로퍼티 이름을 넘기면 그 자리에서 오류가 납니다.
+
+### 기본 타입 매개변수
+
+타입 인자를 생략했을 때 쓸 기본값을 지정할 수 있습니다. 인자로부터 타입을 추론할 근거가 부족할 때(예: 빈 배열만 넘길 때) 유용합니다.
+
+```ts
+function filterBy<T = Transaction>(list: readonly T[], predicate: (item: T) => boolean): T[] {
+  return list.filter(predicate)
+}
+
+filterBy([], () => true) // 추론 근거가 부족해 기본값 Transaction이 쓰인다
+```
+
+### 제네릭 타입 추론
+
+호출할 때 타입 인자를 직접 쓰지 않아도, 넘긴 인자로부터 TypeScript가 알아서 타입 매개변수를 결정합니다. `sortBy(transactions, 'date')`처럼 쓰면 `T`는 `Transaction`으로, `K`는 `'date'`로 자동 추론됩니다.
+
+## 실습
+
+<Steps>
+
+### 1. 제네릭 유틸 함수 작성
+
+```ts
+// expense-tracker/src/lib/arrayUtils.ts
+import { Transaction } from '../models/expense.ts'
+
+type SortableValue = string | number
+
+export function sortBy<T, K extends keyof T>(list: readonly T[], key: K): T[] {
+  return [...list].sort((a, b) => {
+    const left = a[key] as unknown as SortableValue
+    const right = b[key] as unknown as SortableValue
+    if (left === right) return 0
+    return left < right ? -1 : 1
+  })
+}
+
+export function filterBy<T = Transaction>(list: readonly T[], predicate: (item: T) => boolean): T[] {
+  return list.filter(predicate)
+}
+```
+
+`a[key]`, `b[key]`의 타입은 `T[K]`인데, `K`가 어떤 키인지 함수 몸체 안에서는 확정되지 않아 비교 연산자를 바로 쓸 수 없습니다. 실제로 정렬 가능한 값(문자열 또는 숫자)이라는 것을 알고 있으므로 `as unknown as SortableValue`로 타입을 명시합니다.
+
+### 2. main.ts에 sortBy·filterBy와 정렬 select 적용
+
+```ts
+// expense-tracker/src/main.ts
+import './style.css'
+import { CURRENCY, EXPENSE_CATEGORIES, INCOME_CATEGORIES, Transaction } from './models/expense.ts'
+import { addTransaction, getTransactions } from './services/expenseStore.ts'
+import { isExpenseCategory, isIncomeCategory, parseAmount, matchesFilter, TransactionFilter } from './lib/parsing.ts'
+import { toSignedAmount, toTypeLabel } from './lib/signedAmount.ts'
+import { sortBy, filterBy } from './lib/arrayUtils.ts'
+
+type SortKey = 'date' | 'amount'
+
+addTransaction({ type: 'income', date: '2026-09-01', category: 'salary', amount: 3000000, memo: '9월 급여' })
+addTransaction({ type: 'expense', date: '2026-09-03', category: 'food', amount: 18000, memo: '점심' })
+addTransaction({ type: 'expense', date: '2026-09-10', category: 'transport', amount: 4500, memo: '버스' })
+
+let currentFilter: TransactionFilter | null = null
+let currentSortKey: SortKey = 'date'
+
+function renderTransactionList(list: Transaction[]): string {
+  return list
+    .map((transaction) => {
+      const amountText = `${transaction.amount.toLocaleString()}${CURRENCY}`
+      const memoText = transaction.memo || '메모 없음'
+      return `<li>[${toTypeLabel(transaction)}] ${transaction.date} · ${transaction.category} · ${amountText} · ${memoText}</li>`
+    })
+    .join('')
+}
+
+function renderCategoryOptions(): string {
+  const incomeOptions = INCOME_CATEGORIES.map((category) => `<option value="${category}">${category}(수입)</option>`).join('')
+  const expenseOptions = EXPENSE_CATEGORIES.map((category) => `<option value="${category}">${category}(지출)</option>`).join('')
+  return incomeOptions + expenseOptions
+}
+
+function renderFilterCategoryOptions(): string {
+  const selected = currentFilter !== null && 'category' in currentFilter ? currentFilter.category : ''
+  const all = [...INCOME_CATEGORIES, ...EXPENSE_CATEGORIES]
+  const unique = all.filter((category, index) => all.indexOf(category) === index)
+  const options = unique
+    .map((category) => `<option value="${category}"${category === selected ? ' selected' : ''}>${category}</option>`)
+    .join('')
+  return `<option value="">전체</option>${options}`
+}
+
+function currentFilterMonth(): string {
+  return currentFilter !== null && 'month' in currentFilter ? currentFilter.month : ''
+}
+
+function renderSortOptions(): string {
+  const options: { key: SortKey; label: string }[] = [
+    { key: 'date', label: '날짜순' },
+    { key: 'amount', label: '금액순' },
+  ]
+  return options
+    .map((option) => `<option value="${option.key}"${option.key === currentSortKey ? ' selected' : ''}>${option.label}</option>`)
+    .join('')
+}
+
+function renderTotal(list: Transaction[]): string {
+  const total = list.reduce((sum, transaction) => sum + toSignedAmount(transaction), 0)
+  return `${total.toLocaleString()}${CURRENCY}`
+}
+
+function render(): void {
+  const app = document.querySelector<HTMLDivElement>('#app')
+  if (!app) return
+  const filter = currentFilter
+  const transactions = getTransactions()
+  const filtered =
+    filter === null ? transactions : filterBy(transactions, (transaction) => matchesFilter(transaction, filter))
+  const sorted = sortBy(filtered, currentSortKey)
+  app.innerHTML = `
+    <main>
+      <h1>가계부</h1>
+      <form id="expense-form">
+        <fieldset>
+          <legend>구분</legend>
+          <label><input type="radio" name="type" value="income" /> 수입</label>
+          <label><input type="radio" name="type" value="expense" checked /> 지출</label>
+        </fieldset>
+
+        <label for="date">날짜</label>
+        <input id="date" name="date" type="date" required />
+
+        <label for="category">카테고리</label>
+        <select id="category" name="category">${renderCategoryOptions()}</select>
+
+        <label for="amount">금액</label>
+        <input id="amount" name="amount" type="number" min="1" required />
+
+        <label for="memo">메모</label>
+        <input id="memo" name="memo" type="text" />
+
+        <button type="submit">추가</button>
+      </form>
+
+      <section>
+        <label for="filter-category">카테고리로 필터</label>
+        <select id="filter-category">${renderFilterCategoryOptions()}</select>
+
+        <label for="filter-month">월로 필터</label>
+        <input id="filter-month" type="month" value="${currentFilterMonth()}" />
+
+        <label for="sort-key">정렬 기준</label>
+        <select id="sort-key">${renderSortOptions()}</select>
+      </section>
+
+      <p>합계: <span id="total-amount">${renderTotal(sorted)}</span></p>
+      <ul>${renderTransactionList(sorted)}</ul>
+    </main>
+  `
+}
+
+function handleSubmit(event: SubmitEvent): void {
+  event.preventDefault()
+  const form = event.target as HTMLFormElement
+  const formData = new FormData(form)
+  const type = formData.get('type')
+  const category = formData.get('category')
+  const date = String(formData.get('date'))
+  const memo = String(formData.get('memo'))
+
+  try {
+    const amount = parseAmount(formData.get('amount'))
+    if (type === 'income') {
+      if (!isIncomeCategory(category)) {
+        alert(`수입 카테고리가 아닙니다: ${String(category)}`)
+        return
+      }
+      addTransaction({ type: 'income', date, category, amount, memo })
+    } else {
+      if (!isExpenseCategory(category)) {
+        alert(`지출 카테고리가 아닙니다: ${String(category)}`)
+        return
+      }
+      addTransaction({ type: 'expense', date, category, amount, memo })
+    }
+    render()
+  } catch (error) {
+    if (error instanceof Error) {
+      alert(`입력 오류: ${error.message}`)
+    }
+  }
+}
+
+function isSortKey(value: string): value is SortKey {
+  return value === 'date' || value === 'amount'
+}
+
+function handleChange(event: Event): void {
+  const target = event.target
+  if (target instanceof HTMLSelectElement && target.id === 'filter-category') {
+    currentFilter = target.value ? { category: target.value } : null
+    render()
+    return
+  }
+  if (target instanceof HTMLInputElement && target.id === 'filter-month') {
+    currentFilter = target.value ? { month: target.value } : null
+    render()
+    return
+  }
+  if (target instanceof HTMLSelectElement && target.id === 'sort-key' && isSortKey(target.value)) {
+    currentSortKey = target.value
+    render()
+  }
+}
+
+const app = document.querySelector<HTMLDivElement>('#app')
+app?.addEventListener('submit', handleSubmit)
+app?.addEventListener('change', handleChange)
+
+render()
+```
+
+`sortBy(filtered, currentSortKey)`를 호출할 때 타입 인자를 직접 쓰지 않아도, 첫 인자로 `T`가 `Transaction`, `currentSortKey`의 타입으로 `K`가 `SortKey`로 추론됩니다. `SortKey`(`'date' | 'amount'`)는 `keyof Transaction`의 부분집합이라 제약을 만족합니다. `filterBy`도 `transactions`에서 `T`가 추론되어, 기본값 `Transaction`은 이번 호출에서는 쓰이지 않습니다.
+
+### 3. 실행
+
+```text
+npm run dev
+```
+
+</Steps>
+
+## 확인
+
+- "정렬 기준"에서 "금액순"을 고르면 목록이 금액 오름차순으로 다시 그려집니다.
+- "정렬 기준"에서 "날짜순"을 고르면 목록이 날짜 오름차순으로 돌아옵니다.
+- 카테고리·월 필터와 정렬을 함께 적용해도 정상 동작합니다.
+
+## 직접 해보기
+
+1. `sortBy`에 `direction: 'asc' | 'desc' = 'asc'` 매개변수를 추가해, 내림차순 정렬도 지원해 보세요.
+2. 브라우저 개발자 도구 콘솔에서 `filterBy(getTransactions(), (t) => t.amount > 10000)`처럼 금액이 10000을 넘는 거래만 걸러내는 호출을 실행해 보세요.
+
+<details>
+<summary>정답 보기</summary>
+
+```ts
+export function sortBy<T, K extends keyof T>(
+  list: readonly T[],
+  key: K,
+  direction: 'asc' | 'desc' = 'asc',
+): T[] {
+  return [...list].sort((a, b) => {
+    const left = a[key] as unknown as SortableValue
+    const right = b[key] as unknown as SortableValue
+    if (left === right) return 0
+    const result = left < right ? -1 : 1
+    return direction === 'asc' ? result : -result
+  })
+}
+```
+
+`direction`은 타입 매개변수가 아니라 일반 함수 매개변수의 기본값입니다. 타입 인자의 기본값(`K = ...` 같은 형태)과는 다른 개념이니 헷갈리지 않도록 주의합니다.
+
+</details>
+
+## 자주 하는 실수
+
+| 증상 | 원인 | 고치는 법 |
+|------|------|-----------|
+| 비교 연산자를 제네릭 값에 적용할 수 없다는 오류 | 제네릭 값 `a[key]`를 바로 비교 연산자에 씀 | 실제로 비교 가능한 값이라는 것을 `as unknown as SortableValue`로 명시한다 |
+| `sortBy(list, '아무이름')` 호출이 오류남 | 넘긴 문자열이 `keyof T`에 없는 이름 | `K extends keyof T` 제약 덕분에 정확한 오류 위치를 바로 알 수 있다. 실제 존재하는 키로 고친다 |
+| `filterBy([], predicate)` 호출 결과 타입이 이상함 | 빈 배열이라 `T`를 추론할 근거가 없음 | 기본 타입 매개변수를 지정하거나 타입 인자를 직접 명시한다 |
+
+## 확인 문제
+
+<Quiz
+  questionNumber={1}
+  question="제네릭 함수를 쓰는 가장 큰 이유는"
+  options={['코드 실행 속도를 높이기 위해서', '특정 타입에 매이지 않고 여러 타입에서 재사용하기 위해서', 'HTML 요소를 자동으로 생성하기 위해서', '변수 이름을 자동으로 짓기 위해서']}
+  correctAnswer={2}
+  explanation="타입 매개변수를 쓰면 같은 로직을 Transaction뿐 아니라 다른 목록 타입에도 그대로 재사용할 수 있습니다."
+  optionExplanations={['실행 속도와는 무관합니다', '정답입니다', 'HTML 생성과는 관련이 없습니다', '변수 이름과는 무관합니다']}
+/>
+
+<Quiz
+  questionNumber={2}
+  question="K extends keyof T 제약이 하는 역할은"
+  options={['K를 항상 문자열로 강제한다', 'K가 T에 실제로 존재하는 키 이름 중 하나여야 한다는 것을 보장한다', 'T의 모든 프로퍼티를 선택적으로 만든다', 'K와 T를 병합한 새 타입을 만든다']}
+  correctAnswer={2}
+  explanation="keyof T는 T의 키 이름을 모아놓은 유니온이라, K extends keyof T는 K가 그중 하나여야 한다는 뜻입니다."
+  optionExplanations={['문자열 강제가 아니라 키 이름 제약입니다', '정답입니다', '선택적 프로퍼티를 만드는 것이 아닙니다', '병합과는 무관합니다']}
+/>
+
+<Quiz
+  questionNumber={3}
+  question="filterBy 함수의 기본 타입 매개변수 Transaction이 실제로 쓰이는 상황은"
+  options={['항상 무시된다', '인자로부터 T를 추론할 근거가 부족할 때(예: 빈 배열) 기본값으로 쓰인다', 'Transaction을 상속하는 모든 클래스에 강제 적용된다', 'HTML select의 기본 옵션을 정할 때 쓰인다']}
+  correctAnswer={2}
+  explanation="filterBy([], predicate)처럼 빈 배열만 넘기면 추론 근거가 부족해, 지정해둔 기본 타입 매개변수 Transaction이 쓰입니다."
+  optionExplanations={['항상 무시되지 않습니다', '정답입니다', '상속 강제와는 무관합니다', 'HTML select와는 관련이 없습니다']}
+/>
+
+<Quiz
+  questionNumber={4}
+  question="sortBy(filtered, currentSortKey)처럼 타입 인자를 직접 쓰지 않아도 되는 이유는"
+  options={['sortBy가 타입 검사를 건너뛰기 때문에', '넘긴 인자로부터 T, K를 TypeScript가 자동으로 추론하기 때문에', 'currentSortKey가 항상 date만 가리키기 때문에', 'K에는 기본값이 없어 추론이 불가능하기 때문에']}
+  correctAnswer={2}
+  explanation="첫 인자 filtered의 타입으로 T를, 두 번째 인자 currentSortKey의 타입으로 K를 TypeScript가 스스로 결정하는 제네릭 타입 추론 덕분입니다."
+  optionExplanations={['타입 검사를 건너뛰는 것이 아닙니다', '정답입니다', 'currentSortKey는 date 또는 amount일 수 있습니다', 'K는 keyof Transaction 범위 안에서 추론됩니다']}
+/>
+
+## 참고 자료
+
+- [TypeScript Handbook — Generics](https://www.typescriptlang.org/docs/handbook/2/generics.html)

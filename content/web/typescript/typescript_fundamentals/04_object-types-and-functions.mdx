@@ -1,0 +1,234 @@
+---
+title: '04. 객체 타입과 함수 시그니처'
+description: 'Expense를 객체 타입으로 정의하고, addExpense 함수로 메모리 배열에 거래를 추가해 목록으로 렌더링합니다.'
+---
+
+<Callout type="info">
+  **이번 편의 결과물:** `addExpense(...)` 함수가 객체 타입 인자를 받아 메모리 배열에 거래를 추가하고, 목록으로 렌더링됩니다. · **다루는 개념:** 객체 타입, 함수 매개변수/반환 타입, 선택적 매개변수, 기본값 매개변수
+</Callout>
+
+## 이 편에서 만드는 파일
+
+```
+expense-tracker/src/
+├── models/
+│   └── expense.ts        (~, 튜플 대신 객체 타입 Expense로 교체)
+├── services/
+│   └── expenseStore.ts   (+)
+└── main.ts               (~)
+```
+
+## 개념 정리
+
+### 객체 타입
+
+여러 프로퍼티를 가진 값의 모양은 `{ 프로퍼티: 타입; ... }` 형태로 정의합니다.
+
+```ts
+type Point = { x: number; y: number }
+```
+
+`Point` 타입의 값은 반드시 `x`, `y` 두 프로퍼티를 갖고, 둘 다 `number`여야 합니다. `interface`로도 같은 것을 표현할 수 있는데, 두 방식의 차이는 05편에서 다룹니다.
+
+### 함수 매개변수/반환 타입
+
+함수는 각 매개변수와 반환 값에 타입을 명시합니다.
+
+```ts
+function double(value: number): number {
+  return value * 2
+}
+```
+
+매개변수 `value`는 반드시 `number`여야 하고, 반환 값도 `number`여야 합니다. 반환 타입을 잘못 쓰면(예: 문자열을 반환) TypeScript가 바로 오류를 표시합니다.
+
+### 선택적 매개변수
+
+매개변수 이름 뒤에 `?`를 붙이면 그 매개변수를 생략할 수 있습니다. 생략하면 값은 `undefined`입니다.
+
+```ts
+function greet(name: string, title?: string): string {
+  return title ? `${title} ${name}` : name
+}
+```
+
+선택적 매개변수는 항상 필수 매개변수보다 뒤에 와야 합니다.
+
+### 기본값 매개변수
+
+매개변수에 `= 기본값`을 붙이면, 호출할 때 생략해도 그 값이 대신 들어갑니다.
+
+```ts
+function createId(prefix: string = 'exp'): string {
+  return `${prefix}-${Date.now()}`
+}
+```
+
+기본값이 있으면 타입 애너테이션을 생략해도 TypeScript가 기본값을 보고 타입을 추론합니다. 객체를 구조 분해하는 매개변수에도 프로퍼티마다 기본값을 붙일 수 있고, 이번 실습의 `addExpense`에서 이 방식을 씁니다.
+
+## 실습
+
+<Steps>
+
+### 1. models/expense.ts를 객체 타입으로 교체
+
+```ts
+// expense-tracker/src/models/expense.ts
+export const CURRENCY: 'KRW' = 'KRW'
+export const CATEGORIES: string[] = ['식비', '교통', '문화', '주거', '기타']
+
+// 객체 타입 — 거래 한 건의 모양을 정의합니다. interface는 05편에서 다룹니다.
+export type Expense = {
+  id: number
+  date: string
+  category: string
+  amount: number
+  memo: string
+}
+```
+
+03편의 튜플 표현(`ExpenseRow`, `sampleExpenseRow`)은 이 편부터 객체 타입으로 대체됩니다. 프로퍼티 이름으로 각 값을 가리킬 수 있어 자리 순서를 외울 필요가 없습니다.
+
+### 2. services/expenseStore.ts 작성
+
+```ts
+// expense-tracker/src/services/expenseStore.ts
+import { Expense } from '../models/expense.ts'
+
+const expenses: Expense[] = []
+let nextId: number = 1
+
+type NewExpenseInput = {
+  date: string
+  amount: number
+  category?: string
+  memo?: string
+}
+
+// category, memo는 선택적 프로퍼티이자, 구조 분해 자리에 기본값이 붙어 있습니다.
+export function addExpense({ date, amount, category = '기타', memo = '' }: NewExpenseInput): Expense {
+  const expense: Expense = { id: nextId, date, amount, category, memo }
+  expenses.push(expense)
+  nextId += 1
+  return expense
+}
+
+export function getExpenses(): Expense[] {
+  return expenses
+}
+```
+
+`NewExpenseInput`에서 `category?`, `memo?`는 호출할 때 생략해도 되는 프로퍼티라는 뜻입니다. 함수 매개변수 자리의 `category = '기타'`, `memo = ''`는 실제로 생략됐을 때(`undefined`일 때) 대신 쓸 기본값입니다. `addExpense`의 반환 타입 `Expense`는 방금 만든 거래 객체를 그대로 돌려준다는 뜻이고, `id`를 빠뜨리면 TypeScript가 반환 타입 오류를 표시합니다.
+
+### 3. main.ts에서 목록 렌더링
+
+```ts
+// expense-tracker/src/main.ts
+import './style.css'
+import { CATEGORIES, CURRENCY, Expense } from './models/expense.ts'
+import { addExpense, getExpenses } from './services/expenseStore.ts'
+
+addExpense({ date: '2026-09-18', amount: 12000, category: '식비', memo: '점심 식사' })
+addExpense({ date: '2026-09-19', amount: 4500, category: '교통' })
+addExpense({ date: '2026-09-20', amount: 30000 })
+
+function renderExpenseList(list: Expense[]): string {
+  return list
+    .map((expense) => {
+      const amountText = `${expense.amount.toLocaleString()}${CURRENCY}`
+      const memoText = expense.memo || '메모 없음'
+      return `<li>#${expense.id} · ${expense.date} · ${expense.category} · ${amountText} · ${memoText}</li>`
+    })
+    .join('')
+}
+
+const app = document.querySelector<HTMLDivElement>('#app')
+
+if (app) {
+  app.innerHTML = `
+    <main>
+      <h1>가계부</h1>
+      <p>사용 가능한 카테고리: ${CATEGORIES.join(', ')}</p>
+      <ul>${renderExpenseList(getExpenses())}</ul>
+    </main>
+  `
+}
+```
+
+두 번째 `addExpense` 호출은 `memo`를 생략해 빈 문자열 기본값이 들어가고, 세 번째 호출은 `category`, `memo`를 모두 생략해 카테고리가 `'기타'`로 채워집니다. `renderExpenseList`의 매개변수 타입 `Expense[]`는 배열 안 원소가 모두 `Expense` 객체 타입이어야 한다는 뜻입니다.
+
+### 4. 실행
+
+```text
+npm run dev
+```
+
+</Steps>
+
+## 확인
+
+- 목록에 거래 3건이 순서대로 보입니다.
+- 두 번째 항목("#2 · 2026-09-19 · 교통 · ...")의 메모 자리에 "메모 없음"이 보입니다.
+- 세 번째 항목("#3 · 2026-09-20 · ...")의 카테고리 자리에 "기타"가 보입니다.
+
+## 직접 해보기
+
+1. `main.ts`에 `addExpense({ date: '2026-09-21', amount: 8000, category: '문화', memo: '영화' })` 호출을 하나 추가해, 목록에 네 번째 항목이 반영되는지 확인합니다.
+2. `addExpense` 호출 중 하나에서 `amount`를 빼고 저장한 뒤, 편집기가 어떤 오류를 표시하는지 확인하고 원래대로 되돌립니다.
+
+<details>
+<summary>정답 보기</summary>
+
+`amount`는 `NewExpenseInput`에서 `?` 없이 선언된 필수 프로퍼티이므로, 빠뜨리면 "Property 'amount' is missing in type ... but required in type 'NewExpenseInput'" 오류가 호출 지점에 표시됩니다. 선택적 프로퍼티(`category`, `memo`)와 달리 필수 프로퍼티는 반드시 값을 넘겨야 합니다.
+
+</details>
+
+## 자주 하는 실수
+
+| 증상 | 원인 | 고치는 법 |
+|------|------|-----------|
+| 선택적 매개변수를 필수 매개변수보다 앞에 둬서 오류가 남 | `function f(a?: number, b: string)`처럼 순서가 잘못됨 | 선택적 매개변수는 항상 필수 매개변수 뒤에 둔다 |
+| 화면에 "undefined"라는 글자가 그대로 보임 | 기본값이나 `\|\| '메모 없음'` 같은 대체 처리를 빠뜨림 | 생략 가능한 값은 기본값을 주거나 렌더링 시 대체 문구를 넣는다 |
+| 함수가 아무것도 반환하지 않는 오류 | 반환 타입은 선언했는데 실제로 `return`을 빠뜨림 | 반환 타입을 선언한 함수는 모든 코드 경로에서 그 타입 값을 반환해야 한다 |
+
+## 확인 문제
+
+<Quiz
+  questionNumber={1}
+  question="type Expense = { id: number; date: string; category: string; amount: number; memo: string }에 대한 설명으로 옳은 것은?"
+  options={['id부터 memo까지 순서를 반드시 지켜서 값을 나열해야 한다', '다섯 프로퍼티를 이름으로 갖고 각각 지정된 타입을 만족하는 객체 타입이다', '다섯 개 중 아무 프로퍼티나 하나만 있으면 된다', '함수처럼 호출할 수 있는 타입이다']}
+  correctAnswer={2}
+  explanation="객체 타입은 프로퍼티 이름과 타입의 집합이며, 값을 만들 때 프로퍼티 순서는 상관없습니다."
+  optionExplanations={['객체는 순서가 아니라 이름으로 프로퍼티를 구분합니다', '정답입니다', '다섯 프로퍼티 모두 필수입니다', '객체 타입은 호출 가능한 함수 타입과 다릅니다']}
+/>
+
+<Quiz
+  questionNumber={2}
+  question="category?: string처럼 프로퍼티 이름 뒤에 물음표를 붙이면?"
+  options={['이 프로퍼티는 항상 문자열 배열이어야 한다', '이 프로퍼티는 생략할 수 있고, 생략하면 값이 undefined다', '이 프로퍼티는 자동으로 빈 문자열이 된다', '이 타입 전체를 선택적으로 만든다']}
+  correctAnswer={2}
+  explanation="?는 해당 프로퍼티만 선택적으로 만들며, 값을 넘기지 않으면 undefined가 됩니다."
+  optionExplanations={['배열과는 무관한 표시입니다', '정답입니다', '자동으로 빈 문자열이 되지 않고 undefined입니다', '타입 전체가 아니라 그 프로퍼티만 선택적입니다']}
+/>
+
+<Quiz
+  questionNumber={3}
+  question="addExpense({ date, amount, category = '기타', memo = '' }: NewExpenseInput)에서 category = '기타'의 역할은?"
+  options={['category의 최댓값을 제한한다', 'category를 호출 시 생략하면 기타라는 기본값이 대신 들어간다', 'category를 항상 기타로 고정한다', 'category 프로퍼티를 삭제한다']}
+  correctAnswer={2}
+  explanation="구조 분해 매개변수의 기본값은, 해당 프로퍼티가 생략되어 undefined일 때만 대신 쓰입니다."
+  optionExplanations={['값의 범위 제한이 아닙니다', '정답입니다', '값을 직접 넘기면 그 값이 우선합니다', '프로퍼티를 없애는 문법이 아닙니다']}
+/>
+
+<Quiz
+  questionNumber={4}
+  question="addExpense의 반환 타입을 Expense로 선언하는 이유는?"
+  options={['함수 실행 속도를 높이기 위해서', '이 함수가 항상 Expense 모양의 객체를 반환한다는 것을 명시해 호출하는 쪽이 결과를 안전하게 쓰게 하기 위해서', 'Expense 타입을 자동으로 배열에 저장하기 위해서', 'id를 자동으로 1씩 증가시키기 위해서']}
+  correctAnswer={2}
+  explanation="반환 타입을 명시하면 함수 본문이 실제로 그 타입의 값을 반환하는지 TypeScript가 검사하고, 호출하는 쪽도 결과의 모양을 알 수 있습니다."
+  optionExplanations={['실행 속도와는 무관합니다', '정답입니다', '배열 저장은 함수 본문의 push 코드가 담당합니다', 'id 증가는 별도의 nextId 변수가 담당합니다']}
+/>
+
+## 참고 자료
+
+- [TypeScript Handbook — Everyday Types](https://www.typescriptlang.org/docs/handbook/2/everyday-types.html)

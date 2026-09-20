@@ -10,6 +10,7 @@ const meta = {
   html: { title: 'HTML', type: 'page' },
   css: { title: 'CSS', type: 'page' },
   javascript: { title: 'JavaScript', type: 'page' },
+  typescript: { title: 'TypeScript', type: 'page' },
   react: { title: 'React', type: 'page' },
   web_platform: comingSoonMenu('Web Platform'),
   ui_libraries: comingSoonMenu('UI Libraries'),

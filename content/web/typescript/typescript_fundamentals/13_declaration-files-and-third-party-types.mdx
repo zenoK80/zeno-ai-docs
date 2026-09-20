@@ -1,0 +1,218 @@
+---
+title: '13. 선언 파일과 서드파티 타입'
+description: '시드 거래 데이터를 JSON으로 불러오고 타입 없는 날짜 포맷 라이브러리에 앰비언트 선언을 붙입니다'
+---
+
+<Callout type="info">
+  **이번 편의 결과물:** 시드 거래 데이터를 타입과 함께 JSON에서 불러오고, 타입을 전혀 제공하지 않는 날짜 포맷 라이브러리에 직접 선언 파일을 작성해 붙입니다. · **다루는 개념:** `.d.ts` 작성, JSON 모듈 타입 선언, `@types` 서드파티 타입 소비, 앰비언트 선언(`declare`)
+</Callout>
+
+12편까지 `expense-tracker`는 `models/`, `services/`, `ui/`로 모듈이 나뉘었고, 거래는 화면 폼으로 직접 입력해야만 생겼습니다. 이 편에서는 앱을 처음 열었을 때 보여줄 시드 데이터를 JSON 파일로 준비하고, `id`를 만들어 온전한 거래를 조립하는 로직을 `services/createTransaction.ts`로 뽑아냅니다. 이어서 타입이 없는 서드파티 코드를 TypeScript와 함께 쓰는 방법을 다룹니다.
+
+## 이 편에서 만드는 파일
+
+```
+expense-tracker/
+├── package.json                       ~ (date-format-lib 추가)
+└── src/
+    ├── data/
+    │   └── seedTransactions.json      + (시드 거래 5건)
+    ├── services/
+    │   └── createTransaction.ts       + (draft에 crypto.randomUUID로 id를 채워 거래를 만드는 함수)
+    ├── types/
+    │   └── date-format-lib.d.ts       + (date-format-lib 패키지용 앰비언트 선언)
+    └── main.ts                        ~ (시드 데이터 로드, createTransaction 사용, 오늘 날짜 표시)
+```
+
+## 개념 정리
+
+타입이 없는 데이터·코드를 TypeScript 프로젝트에 들여오는 경로는 상황마다 다릅니다.
+
+| 상황 | 타입은 어디서 오는가 |
+|------|----------------------|
+| JSON 파일 import | `resolveJsonModule` 옵션이 켜져 있으면 파일 내용으로부터 구조적으로 추론 |
+| 자체 타입도 `@types` 패키지도 없는 npm 패키지 | 직접 작성한 `.d.ts`에서 `declare module`로 형태를 선언 |
+| DefinitelyTyped에 타입이 등록된 npm 패키지 | `@types/패키지이름`을 devDependencies로 설치 |
+| 실행 코드 없이 타입만 알리고 싶을 때 | `declare`로 앰비언트 선언 |
+
+Vite `vanilla-ts` 기본 `tsconfig.json`에는 `resolveJsonModule: true`가 들어 있어 별도 설정 없이 JSON을 import할 수 있습니다. 다만 추론된 타입은 파일에 적힌 값 그대로 `string`, `number` 같은 일반 타입이지, `ExpenseCategory`나 `'income'`/`'expense'` 같은 좁은 리터럴 유니온이 아닙니다. 도메인 타입으로 쓰려면 타입 단언(`as`)으로 좁혀야 하고, 이 단언은 컴파일러만 설득할 뿐 실제 값이 맞는지는 검사하지 않습니다.
+
+이번 편에서 쓸 `date-format-lib`는 자체 타입도 없고 DefinitelyTyped에 `@types/date-format-lib`도 등록되어 있지 않다고 가정합니다. 이런 패키지를 쓰려면 프로젝트 안에 직접 `.d.ts`를 작성해 형태를 알려줘야 합니다. 반대로 어떤 패키지가 `@types/패키지이름`으로 타입을 제공한다면, 그 패키지를 devDependencies로 설치하는 것만으로 별도 `.d.ts` 작성 없이 타입 지원을 받을 수 있습니다. `.d.ts` 안에서 `declare module '패키지이름'`처럼 쓰는 문장은 실행 코드 없이 이름과 타입만 컴파일러에 알리는 앰비언트 선언입니다.
+
+## 실습
+
+<Steps>
+
+### 1. 시드 데이터를 JSON으로 준비
+
+`expense-tracker/src/data/seedTransactions.json` 파일을 새로 만듭니다.
+
+```json
+[
+  { "id": "seed-1", "type": "income", "date": "2026-08-01", "category": "salary", "amount": 3200000, "memo": "8월 급여" },
+  { "id": "seed-2", "type": "expense", "date": "2026-08-03", "category": "housing", "amount": 850000, "memo": "월세" },
+  { "id": "seed-3", "type": "expense", "date": "2026-08-05", "category": "food", "amount": 42000, "memo": "장보기" },
+  { "id": "seed-4", "type": "expense", "date": "2026-08-10", "category": "transport", "amount": 15000, "memo": "지하철 충전" },
+  { "id": "seed-5", "type": "income", "date": "2026-08-15", "category": "bonus", "amount": 500000, "memo": "성과급" }
+]
+```
+
+이 파일을 import하면 각 필드는 `string` 또는 `number`로만 추론됩니다. `category`가 `ExpenseCategory`·`IncomeCategory` 유니온에 속하는지, `type`가 `'income'`/`'expense'` 둘 중 하나인지는 TypeScript가 확인해주지 않습니다.
+
+### 2. id 생성 로직을 함수로 분리
+
+12편의 `main.ts`는 폼에서 만든 `draft`에 `{ ...draft, id: crypto.randomUUID() } as Transaction`을 그 자리에서 바로 적용했습니다. 이 로직을 재사용할 수 있도록 함수로 뽑아냅니다.
+
+```ts
+// expense-tracker/src/services/createTransaction.ts
+import type { Transaction } from '../models'
+import type { NewTransactionDraft } from '../ui/transactionForm.ts'
+
+export function createTransaction(draft: NewTransactionDraft): Transaction {
+  return { ...draft, id: crypto.randomUUID() } as Transaction
+}
+```
+
+`NewTransactionDraft`는 12편에서 `ui/transactionForm.ts`에 이미 `Omit<Transaction, 'id'>`(10편)로 정의해 둔 타입을 그대로 가져다 씁니다. `crypto.randomUUID()`는 브라우저와 Node.js 모두에 내장된 함수로, 호출할 때마다 고유한 문자열 id를 만듭니다.
+
+### 3. 타입 없는 날짜 포맷 라이브러리에 앰비언트 선언 작성
+
+```text
+npm install date-format-lib
+```
+
+```json
+// expense-tracker/package.json에 추가되는 부분
+{
+  "dependencies": {
+    "date-format-lib": "^1.2.0"
+  }
+}
+```
+
+`date-format-lib`는 실행 코드만 배포하고 타입 선언은 전혀 없습니다. `import { formatDate } from 'date-format-lib'`라고만 쓰면 "Could not find a declaration file" 오류가 납니다. 프로젝트 안에 직접 선언 파일을 작성합니다.
+
+```ts
+// expense-tracker/src/types/date-format-lib.d.ts
+declare module 'date-format-lib' {
+  export function formatDate(date: Date, pattern: string): string
+}
+```
+
+이 파일은 실제 구현을 담지 않습니다. `date-format-lib`라는 모듈 이름으로 import했을 때 `formatDate` 함수가 이런 시그니처로 존재한다고 컴파일러에 알리기만 합니다.
+
+### 4. main.ts에 연결
+
+```ts
+// expense-tracker/src/main.ts (발췌 — 이 편에서 추가·수정된 부분만)
+import type { Transaction } from './models'
+import { Storage } from './services'
+import { createTransaction } from './services/createTransaction.ts'
+import seedRaw from './data/seedTransactions.json'
+import { formatDate } from 'date-format-lib'
+
+const storage = new Storage<Transaction>('expense-tracker:transactions')
+
+if (storage.load().length === 0) {
+  const seedTransactions = seedRaw as Transaction[]
+  storage.save(seedTransactions)
+}
+
+let transactions: Transaction[] = storage.load()
+
+// app.innerHTML 템플릿에 <p id="today-label"></p>를 한 줄 추가한 뒤
+const todayLabel = app.querySelector<HTMLParagraphElement>('#today-label')!
+todayLabel.textContent = formatDate(new Date(), 'yyyy년 mm월 dd일')
+
+// onCreate 핸들러 안에서 id 조립을 createTransaction으로 교체
+const form = mountTransactionForm(formRoot, {
+  onCreate: (draft) => {
+    const transaction = createTransaction(draft)
+    transactions.push(transaction)
+    storage.save(transactions)
+    renderAll()
+  },
+  // onUpdate는 그대로 유지
+})
+```
+
+`seedRaw as Transaction[]`는 JSON에서 추론된 느슨한 타입을 도메인 타입으로 좁히는 단언입니다. `formatDate`는 `date-format-lib.d.ts` 덕분에 인자·반환값 타입 검사와 자동완성을 모두 받습니다.
+
+### 5. 실행과 확인
+
+```text
+npm run dev
+```
+
+- `localStorage`를 비운 뒤 처음 여는 브라우저에서 시드 거래 5건이 목록에 나타난다.
+- 화면에 "2026년 08월 20일"처럼 오늘 날짜가 상단에 표시된다.
+- 폼으로 거래를 새로 추가해도 이전과 동일하게 동작한다.
+- `npx tsc --noEmit`을 실행해도 타입 오류가 없다.
+
+</Steps>
+
+## 직접 해보기
+
+1. `seedTransactions.json`의 `category` 값 하나를 `"fod"`(오타)로 바꿔보세요. `npx tsc --noEmit`이 여전히 통과하는지 확인하고, 왜 컴파일러가 이 오류를 못 잡는지 생각해보세요.
+2. `date-format-lib.d.ts`를 잠시 지우고 `npm run dev`를 실행해보세요. 편집기와 터미널에 각각 어떤 메시지가 나오는지 확인한 뒤 파일을 되돌립니다.
+
+<details>
+<summary>정답 보기</summary>
+
+1번은 `npx tsc --noEmit`이 그대로 통과합니다. `as Transaction[]` 단언은 컴파일 타임에만 적용되고 실제 JSON 값을 검사하지 않기 때문입니다. 오타는 화면에 이상한 카테고리가 보일 때에야 드러납니다.
+
+2번은 `import { formatDate } from 'date-format-lib'` 위치에서 타입 선언을 찾을 수 없다는 오류가 표시됩니다. `date-format-lib` 패키지 자체는 여전히 `node_modules`에 있으므로 번들링·실행에는 문제가 없지만, 타입 검사 단계에서만 오류가 납니다.
+
+</details>
+
+## 자주 하는 실수
+
+| 증상 | 원인 | 고치는 법 |
+|------|------|-----------|
+| JSON에서 가져온 값의 필드가 잘못되어도 에러가 안 남 | `as Transaction[]` 단언은 컴파일 타임에만 작동, 실제 값은 검사하지 않음 | 시드 데이터를 수정할 때마다 값을 직접 확인한다 |
+| `date-format-lib` 모듈의 타입 선언을 찾지 못한다는 에러 | `.d.ts` 파일이 프로젝트에 포함되지 않았거나 `declare module`의 패키지 이름 문자열이 실제 패키지 이름과 다름 | `types/date-format-lib.d.ts`의 문자열이 `package.json`의 패키지 이름과 정확히 같은지 확인한다 |
+| `createTransaction`에서 프로퍼티가 없다는 오류 | 폼에서 만든 draft가 `NewTransactionDraft`가 요구하는 프로퍼티를 빠뜨림 | `ui/transactionForm.ts`의 `NewTransactionDraft` 정의와 정확히 같은 모양인지 확인한다 |
+| `.d.ts`에 함수 본문을 작성해 에러 발생 | `.d.ts`는 타입 선언 전용이라 구현을 가질 수 없음 | 시그니처만 남기고 실행 코드는 패키지 본체에 맡긴다 |
+
+## 확인 문제
+
+<Quiz
+  questionNumber={1}
+  question="resolveJsonModule이 켜진 상태에서 JSON 파일을 import했을 때 category 필드가 좁은 유니온이 아니라 일반 문자열로 추론되는 이유는"
+  options={['JSON 파일은 항상 타입 검사에서 제외되기 때문이다', 'JSON 값은 파일 내용을 그대로 구조적으로 추론할 뿐 리터럴 유니온으로 좁히지 않기 때문이다', '거래 데이터는 배열이라 타입 추론이 되지 않기 때문이다', 'seed 파일 이름이 잘못되었기 때문이다']}
+  correctAnswer={2}
+  explanation="JSON import는 파일에 적힌 값의 일반적인 타입(string, number 등)으로 구조적 추론될 뿐, 도메인에서 정의한 좁은 유니온 타입으로 자동 좁혀지지 않습니다."
+  optionExplanations={['JSON도 타입 검사 대상입니다', '정답입니다', '배열도 정상적으로 추론됩니다', '파일 이름과는 무관합니다']}
+/>
+
+<Quiz
+  questionNumber={2}
+  question="date-format-lib처럼 자체 타입도 types 패키지도 없는 npm 패키지를 쓰는 방법은"
+  options={['패키지 소스 코드를 직접 수정한다', '프로젝트 안에 declare module로 앰비언트 선언을 담은 d.ts를 작성한다', 'tsconfig에서 strict를 끈다', '패키지를 삭제하고 다시 설치한다']}
+  correctAnswer={2}
+  explanation="자체 타입도 types 패키지도 없다면 declare module로 형태를 직접 선언한 d.ts 파일을 프로젝트에 두어야 합니다."
+  optionExplanations={['소스 코드 수정은 필요하지 않습니다', '정답입니다', 'strict와는 무관합니다', '재설치만으로는 타입이 생기지 않습니다']}
+/>
+
+<Quiz
+  questionNumber={3}
+  question="어떤 npm 패키지가 DefinitelyTyped에 타입을 등록해 두었다면 타입 지원을 받는 가장 간단한 방법은"
+  options={['패키지 코드를 통째로 복사해 온다', '같은 이름의 types 패키지를 devDependencies로 설치한다', 'd.ts 파일을 반드시 직접 작성해야 한다', 'JavaScript로만 개발한다']}
+  correctAnswer={2}
+  explanation="DefinitelyTyped에 등록된 패키지는 별도의 types 패키지를 설치하는 것만으로 직접 d.ts를 작성하지 않고도 타입 지원을 받을 수 있습니다."
+  optionExplanations={['코드 복사는 필요하지 않습니다', '정답입니다', '이 경우는 직접 작성할 필요가 없습니다', 'JavaScript 전환과는 무관합니다']}
+/>
+
+<Quiz
+  questionNumber={4}
+  question="d.ts 파일 안에서 declare module처럼 구현 없이 형태만 알리는 선언을 부르는 말은"
+  options={['제네릭 선언', '앰비언트 선언', '조건부 선언', '매핑된 선언']}
+  correctAnswer={2}
+  explanation="구현 없이 이름과 타입만 컴파일러에 알리는 선언을 앰비언트 선언이라고 부르며 declare 키워드로 작성합니다."
+  optionExplanations={['제네릭은 타입 매개변수화를 뜻합니다', '정답입니다', '조건부 타입과는 다른 개념입니다', '매핑된 타입과는 다른 개념입니다']}
+/>
+
+## 참고 자료
+
+- [TypeScript — Type Declarations](https://www.typescriptlang.org/docs/handbook/2/type-declarations.html)
+- [TypeScript Handbook — Declaration Files: Introduction](https://www.typescriptlang.org/docs/handbook/declaration-files/introduction.html)

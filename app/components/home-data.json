@@ -1,7 +1,7 @@
 {
-  "generatedAt": "2026-09-20T18:11:38.287Z",
-  "groupCount": 9,
-  "seriesCount": 46,
+  "generatedAt": "2026-09-20T22:42:01.474Z",
+  "groupCount": 10,
+  "seriesCount": 47,
   "groups": [
     {
       "title": "Web · HTML",
@@ -81,9 +81,24 @@
       ]
     },
     {
+      "title": "Web · TypeScript",
+      "description": "1개 시리즈 · 문서 18편",
+      "order": "04",
+      "series": [
+        {
+          "title": "TypeScript",
+          "description": "같은 버그가 있는 JS 코드와 TypeScript 코드를 나란히 실행해, 타입 오류가 언제 드러나는지 비교합니다.",
+          "href": "/web/typescript/typescript_fundamentals/01_what-typescript-solves",
+          "documentCount": 18,
+          "preview": "code",
+          "accent": "red"
+        }
+      ]
+    },
+    {
       "title": "Web · React",
       "description": "3개 시리즈 · 문서 53편",
-      "order": "04",
+      "order": "05",
       "series": [
         {
           "title": "React 기초",
@@ -91,7 +106,7 @@
           "href": "/web/react/react_1/01_react-and-the-dom-problem",
           "documentCount": 17,
           "preview": "code",
-          "accent": "red"
+          "accent": "blue"
         },
         {
           "title": "React 중급",
@@ -99,7 +114,7 @@
           "href": "/web/react/react_2/01_starting-point-and-roadmap",
           "documentCount": 16,
           "preview": "code",
-          "accent": "blue"
+          "accent": "green"
         },
         {
           "title": "React 실무",
@@ -107,14 +122,14 @@
           "href": "/web/react/react_3/01_server-state-vs-client-state",
           "documentCount": 20,
           "preview": "code",
-          "accent": "green"
+          "accent": "amber"
         }
       ]
     },
     {
       "title": "독학사 · 독학사 1단계",
       "description": "3개 시리즈 · 문서 75편",
-      "order": "05",
+      "order": "06",
       "series": [
         {
           "title": "영어",
@@ -122,7 +137,7 @@
           "href": "/독학사/1단계/영어/01_grammar-map",
           "documentCount": 27,
           "preview": "code",
-          "accent": "amber"
+          "accent": "red"
         },
         {
           "title": "일반수학",
@@ -130,7 +145,7 @@
           "href": "/독학사/1단계/일반수학/01_math-language",
           "documentCount": 25,
           "preview": "sets",
-          "accent": "red"
+          "accent": "blue"
         },
         {
           "title": "기초통계학",
@@ -138,14 +153,14 @@
           "href": "/독학사/1단계/기초통계학/01_math-review",
           "documentCount": 23,
           "preview": "chart",
-          "accent": "blue"
+          "accent": "green"
         }
       ]
     },
     {
       "title": "독학사 · 독학사 2단계",
       "description": "8개 시리즈 · 문서 177편",
-      "order": "06",
+      "order": "07",
       "series": [
         {
           "title": "C프로그래밍",
@@ -153,7 +168,7 @@
           "href": "/독학사/2단계/C프로그래밍/01_c-syntax-basics",
           "documentCount": 26,
           "preview": "code",
-          "accent": "green"
+          "accent": "amber"
         },
         {
           "title": "논리회로",
@@ -161,7 +176,7 @@
           "href": "/독학사/2단계/논리회로/01_math-basics",
           "documentCount": 26,
           "preview": "code",
-          "accent": "amber"
+          "accent": "red"
         },
         {
           "title": "이산수학",
@@ -169,7 +184,7 @@
           "href": "/독학사/2단계/이산수학/01_basic-notation",
           "documentCount": 25,
           "preview": "sets",
-          "accent": "red"
+          "accent": "blue"
         },
         {
           "title": "자료구조",
@@ -177,7 +192,7 @@
           "href": "/독학사/2단계/자료구조/01_prereq-data-structure-basics",
           "documentCount": 18,
           "preview": "code",
-          "accent": "blue"
+          "accent": "green"
         },
         {
           "title": "웹프로그래밍",
@@ -185,7 +200,7 @@
           "href": "/독학사/2단계/웹프로그래밍/01_internet-and-web-basics",
           "documentCount": 18,
           "preview": "code",
-          "accent": "green"
+          "accent": "amber"
         },
         {
           "title": "컴퓨터구조",
@@ -193,7 +208,7 @@
           "href": "/독학사/2단계/컴퓨터구조/01_number-system-basics",
           "documentCount": 20,
           "preview": "code",
-          "accent": "amber"
+          "accent": "red"
         },
         {
           "title": "운영체제",
@@ -201,7 +216,7 @@
           "href": "/독학사/2단계/운영체제/01_os-terminology-map",
           "documentCount": 21,
           "preview": "code",
-          "accent": "red"
+          "accent": "blue"
         },
         {
           "title": "머신러닝",
@@ -209,14 +224,14 @@
           "href": "/독학사/2단계/머신러닝/01_ml-basics",
           "documentCount": 23,
           "preview": "chart",
-          "accent": "blue"
+          "accent": "green"
         }
       ]
     },
     {
       "title": "독학사 · 독학사 3단계",
       "description": "8개 시리즈 · 문서 186편",
-      "order": "07",
+      "order": "08",
       "series": [
         {
           "title": "프로그래밍언어론",
@@ -224,7 +239,7 @@
           "href": "/독학사/3단계/프로그래밍언어론/01_programming-language-vs-implementation",
           "documentCount": 28,
           "preview": "code",
-          "accent": "green"
+          "accent": "amber"
         },
         {
           "title": "소프트웨어공학",
@@ -232,7 +247,7 @@
           "href": "/독학사/3단계/소프트웨어공학/01_software-engineering-overview",
           "documentCount": 22,
           "preview": "code",
-          "accent": "amber"
+          "accent": "red"
         },
         {
           "title": "객체지향프로그래밍",
@@ -240,7 +255,7 @@
           "href": "/독학사/3단계/객체지향프로그래밍/01_java-baseline",
           "documentCount": 23,
           "preview": "code",
-          "accent": "red"
+          "accent": "blue"
         },
         {
           "title": "컴퓨터그래픽스",
@@ -248,7 +263,7 @@
           "href": "/독학사/3단계/컴퓨터그래픽스/01_graphics-overview",
           "documentCount": 16,
           "preview": "code",
-          "accent": "blue"
+          "accent": "green"
         },
         {
           "title": "컴퓨터네트워크",
@@ -256,7 +271,7 @@
           "href": "/독학사/3단계/컴퓨터네트워크/01_network-basics",
           "documentCount": 27,
           "preview": "browser",
-          "accent": "green"
+          "accent": "amber"
         },
         {
           "title": "임베디드시스템",
@@ -264,7 +279,7 @@
           "href": "/독학사/3단계/임베디드시스템/01_embedded-prerequisites",
           "documentCount": 21,
           "preview": "code",
-          "accent": "amber"
+          "accent": "red"
         },
         {
           "title": "정보보호",
@@ -272,7 +287,7 @@
           "href": "/독학사/3단계/정보보호/01_core-terms",
           "documentCount": 23,
           "preview": "code",
-          "accent": "red"
+          "accent": "blue"
         },
         {
           "title": "딥러닝",
@@ -280,14 +295,14 @@
           "href": "/독학사/3단계/딥러닝/01_dl-terminology-map",
           "documentCount": 26,
           "preview": "chart",
-          "accent": "blue"
+          "accent": "green"
         }
       ]
     },
     {
       "title": "독학사 · 독학사 4단계",
       "description": "7개 시리즈 · 문서 163편",
-      "order": "08",
+      "order": "09",
       "series": [
         {
           "title": "알고리즘",
@@ -295,7 +310,7 @@
           "href": "/독학사/4단계/알고리즘/01_math-basics",
           "documentCount": 23,
           "preview": "code",
-          "accent": "green"
+          "accent": "amber"
         },
         {
           "title": "데이터베이스",
@@ -303,7 +318,7 @@
           "href": "/독학사/4단계/데이터베이스/01_db-basics-ansi-sparc",
           "documentCount": 24,
           "preview": "sql",
-          "accent": "amber"
+          "accent": "red"
         },
         {
           "title": "통합프로그래밍",
@@ -311,7 +326,7 @@
           "href": "/독학사/4단계/통합프로그래밍/01_language-basics-bridging",
           "documentCount": 25,
           "preview": "code",
-          "accent": "red"
+          "accent": "blue"
         },
         {
           "title": "통합컴퓨터시스템",
@@ -319,7 +334,7 @@
           "href": "/독학사/4단계/통합컴퓨터시스템/01_system-terminology-map",
           "documentCount": 23,
           "preview": "code",
-          "accent": "blue"
+          "accent": "green"
         },
         {
           "title": "국어",
@@ -327,7 +342,7 @@
           "href": "/독학사/4단계/국어/01_linguistics-basics",
           "documentCount": 25,
           "preview": "code",
-          "accent": "green"
+          "accent": "amber"
         },
         {
           "title": "국사",
@@ -335,7 +350,7 @@
           "href": "/독학사/4단계/국사/01_historical-framework",
           "documentCount": 22,
           "preview": "code",
-          "accent": "amber"
+          "accent": "red"
         },
         {
           "title": "실용영어",
@@ -343,14 +358,14 @@
           "href": "/독학사/4단계/실용영어/01_core-terminology",
           "documentCount": 21,
           "preview": "code",
-          "accent": "red"
+          "accent": "blue"
         }
       ]
     },
     {
       "title": "자격증",
       "description": "10개 시리즈 · 문서 273편",
-      "order": "09",
+      "order": "10",
       "series": [
         {
           "title": "빅데이터분석기사 필기",
@@ -358,7 +373,7 @@
           "href": "/자격증/빅데이터분석기사_필기/01_basic-math-stats",
           "documentCount": 29,
           "preview": "chart",
-          "accent": "blue"
+          "accent": "green"
         },
         {
           "title": "리눅스마스터 2급 1차",
@@ -366,7 +381,7 @@
           "href": "/자격증/리눅스마스터_2급_1차/00_practice-environment",
           "documentCount": 30,
           "preview": "code",
-          "accent": "green"
+          "accent": "amber"
         },
         {
           "title": "네트워크관리사 2급 실기",
@@ -374,7 +389,7 @@
           "href": "/자격증/네트워크관리사_2급_실기/01_network-basics-for-practical-use",
           "documentCount": 13,
           "preview": "browser",
-          "accent": "amber"
+          "accent": "red"
         },
         {
           "title": "PC정비사 2급 실기",
@@ -382,7 +397,7 @@
           "href": "/자격증/PC정비사_2급_실기/01_pc-parts-basics",
           "documentCount": 16,
           "preview": "code",
-          "accent": "red"
+          "accent": "blue"
         },
         {
           "title": "SQLD",
@@ -390,7 +405,7 @@
           "href": "/자격증/SQLD/00_practice-environment",
           "documentCount": 31,
           "preview": "sql",
-          "accent": "blue"
+          "accent": "green"
         },
         {
           "title": "ADsP",
@@ -398,7 +413,7 @@
           "href": "/자격증/ADSP/01_adsp-exam-and-r-setup",
           "documentCount": 30,
           "preview": "code",
-          "accent": "green"
+          "accent": "amber"
         },
         {
           "title": "서비스경험디자인기사 실기",
@@ -406,7 +421,7 @@
           "href": "/자격증/서비스경험디자인기사_실기/01_what-is-service-experience-design",
           "documentCount": 29,
           "preview": "code",
-          "accent": "amber"
+          "accent": "red"
         },
         {
           "title": "적성검사 공통 (NCS·인적성)",
@@ -414,7 +429,7 @@
           "href": "/자격증/적성검사_공통/01_logic-symbols-and-venn-basics",
           "documentCount": 28,
           "preview": "code",
-          "accent": "red"
+          "accent": "blue"
         },
         {
           "title": "정보보안기사 필기",
@@ -422,7 +437,7 @@
           "href": "/자격증/정보보안기사_필기/01_infosec-domain-map",
           "documentCount": 35,
           "preview": "code",
-          "accent": "blue"
+          "accent": "green"
         },
         {
           "title": "정보통신기사 필기",
@@ -430,7 +445,7 @@
           "href": "/자격증/정보통신기사_필기/01_transmission-math-basics",
           "documentCount": 32,
           "preview": "code",
-          "accent": "green"
+          "accent": "amber"
         }
       ]
     }

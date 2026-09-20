@@ -1,0 +1,270 @@
+---
+title: '17. Vitest로 단위 테스트 작성하기'
+description: 'Vitest를 설치하고 StatsCalculator와 제네릭 저장소 클래스에 타입 안전한 단위 테스트를 작성합니다'
+---
+
+<Callout type="info">
+  **이번 편의 결과물:** `StatsCalculator`와 제네릭 저장소 클래스, `createTransaction`(13편)에 대한 단위 테스트가 작성되어 `npm run test`로 통과합니다. · **다루는 개념:** Vitest 설치·설정, 타입 안전 단위 테스트, mock 타이핑, 커버리지 확인
+</Callout>
+
+## 이 편에서 만드는 파일
+
+```
+expense-tracker/
+├── package.json                    ~ (vitest 관련 스크립트·의존성 추가)
+├── vitest.config.ts                +
+└── tests/
+    ├── createTransaction.test.ts + (mock 타이핑 예시, 13편 createTransaction 테스트)
+    ├── storage.test.ts           +
+    └── stats.test.ts             +
+```
+
+`src/services/createTransaction.ts`는 13편에서 이미 만든 파일을 그대로 씁니다. 이 편에서는 새로 만들지 않고 테스트만 추가합니다.
+
+## 개념 정리
+
+### Vitest와 jsdom
+
+Vitest는 Vite와 같은 설정 파일을 공유하는 테스트 러너입니다. `expense-tracker`의 저장소 클래스(09편)는 `localStorage`를 쓰는데, 이 API는 브라우저에만 있고 Node.js 환경에는 없습니다. `vitest.config.ts`에서 `test.environment`를 `jsdom`으로 지정하면 테스트를 실행하는 동안 `localStorage`, `document` 같은 브라우저 전역 객체를 가상으로 흉내 내 줍니다.
+
+`services/storage.ts`는 재사용 가능한 `Storage` 제네릭 클래스만 내보내고(09편), 실제 거래를 저장하는 인스턴스는 `main.ts`가 `new Storage<Transaction>('expense-tracker:transactions')`로 직접 만듭니다(09, 12편). 테스트는 앱이 쓰는 키를 그대로 건드리지 않도록 `Storage` 클래스로 별도 키의 인스턴스를 새로 만들어 씁니다.
+
+### 타입 안전한 mock
+
+`vi.spyOn`으로 함수를 가짜(mock)로 바꿀 때도 원래 함수의 타입이 그대로 적용됩니다. `crypto.randomUUID`의 반환 타입은 다섯 조각을 하이픈 네 개로 구분한 문자열 형태의 템플릿 리터럴 타입입니다. 그래서 `mockReturnValue`에 넘기는 값도 이 형태를 만족해야 합니다.
+
+```ts
+vi.spyOn(crypto, 'randomUUID').mockReturnValue('11111111-2222-3333-4444-555555555555') // 통과
+vi.spyOn(crypto, 'randomUUID').mockReturnValue('not-a-uuid') // 컴파일 오류
+```
+
+두 번째 줄은 하이픈으로 나눈 조각 수가 다섯 개가 아니라서 타입 오류가 납니다. 런타임에 값을 확인하지 않아도 편집기 단계에서 형태가 어긋난 mock을 걸러내는 것이 타입 안전한 테스트의 이점입니다.
+
+### 캐시가 있는 클래스를 테스트할 때 주의점
+
+`StatsCalculator`는 `monthlySummary` 결과를 내부 `#cache`에 저장합니다. 같은 인스턴스를 여러 테스트에서 재사용하면, 이전 테스트에서 계산한 값이 그대로 남아 다음 테스트의 입력이 달라도 같은 결과가 나올 수 있습니다. 테스트마다 `new StatsCalculator()`로 새 인스턴스를 만들어 이 문제를 피합니다.
+
+## 실습
+
+<Steps>
+
+### 1. 패키지 설치
+
+```text
+npm install -D vitest jsdom @vitest/coverage-v8
+```
+
+### 2. vitest 설정과 스크립트 추가
+
+```ts
+// vitest.config.ts
+import { defineConfig } from 'vitest/config'
+
+export default defineConfig({
+  test: {
+    environment: 'jsdom',
+    coverage: {
+      provider: 'v8',
+      include: ['src/services/**'],
+    },
+  },
+})
+```
+
+```json
+// package.json (발췌)
+{
+  "scripts": {
+    "test": "vitest run",
+    "test:watch": "vitest",
+    "coverage": "vitest run --coverage"
+  }
+}
+```
+
+### 3. 13편에서 만든 createTransaction 다시 보기
+
+새로 작성하지 않고, 13편에서 만든 파일을 그대로 확인만 합니다.
+
+```ts
+// src/services/createTransaction.ts (13편, 변경 없음)
+import type { Transaction } from '../models'
+import type { NewTransactionDraft } from '../ui/transactionForm.ts'
+
+export function createTransaction(draft: NewTransactionDraft): Transaction {
+  return { ...draft, id: crypto.randomUUID() } as Transaction
+}
+```
+
+`NewTransactionDraft`는 `Omit<Transaction, 'id'>`(12편)입니다. `id`를 뺀 나머지 필드(`type`, `date`, `category`, `amount`, `memo`)를 갖춘 객체를 넘기면 `crypto.randomUUID()`로 `id`를 채운 완전한 `Transaction`을 돌려줍니다.
+
+### 4. crypto.randomUUID를 목으로 바꿔 테스트
+
+```ts
+// tests/createTransaction.test.ts
+import { describe, expect, it, vi } from 'vitest'
+import { createTransaction } from '../src/services/createTransaction.ts'
+
+describe('createTransaction', () => {
+  it('crypto.randomUUID가 반환한 값을 id로 그대로 사용한다', () => {
+    const fixedId = '11111111-2222-3333-4444-555555555555'
+    vi.spyOn(crypto, 'randomUUID').mockReturnValue(fixedId)
+
+    const transaction = createTransaction({
+      date: '2026-09-01',
+      category: 'food',
+      amount: 12000,
+      memo: '점심',
+      type: 'expense',
+    })
+
+    expect(transaction.id).toBe(fixedId)
+  })
+})
+```
+
+### 5. 저장소와 StatsCalculator 테스트 작성
+
+```ts
+// tests/storage.test.ts
+import { beforeEach, describe, expect, it } from 'vitest'
+import { Storage } from '../src/services/storage.ts'
+import type { Transaction } from '../src/models/expense.ts'
+
+describe('Storage(제네릭 저장소 클래스)', () => {
+  const storage = new Storage<Transaction>('expense-tracker:test')
+
+  beforeEach(() => {
+    localStorage.clear()
+  })
+
+  it('저장된 값이 없으면 빈 배열을 반환한다', () => {
+    expect(storage.load()).toEqual([])
+  })
+
+  it('save로 저장한 값을 load로 그대로 불러온다', () => {
+    const transactions: Transaction[] = [
+      { id: '1', date: '2026-09-01', category: 'food', amount: 12000, memo: '점심', type: 'expense' },
+    ]
+    storage.save(transactions)
+    expect(storage.load()).toEqual(transactions)
+  })
+})
+```
+
+```ts
+// tests/stats.test.ts
+import { describe, expect, it } from 'vitest'
+import { StatsCalculator } from '../src/services/stats.ts'
+import type { Transaction } from '../src/models/expense.ts'
+
+const sample: Transaction[] = [
+  { id: '1', date: '2026-09-01', category: 'salary', amount: 3000000, memo: '9월 급여', type: 'income' },
+  { id: '2', date: '2026-09-03', category: 'food', amount: 15000, memo: '저녁', type: 'expense' },
+  { id: '3', date: '2026-08-20', category: 'transport', amount: 5000, memo: '버스', type: 'expense' },
+]
+
+describe('StatsCalculator', () => {
+  it('categoryTotals는 지출 카테고리별 합계를 계산한다', () => {
+    const totals = new StatsCalculator().categoryTotals(sample)
+    expect(totals.food).toBe(15000)
+    expect(totals.transport).toBe(5000)
+  })
+
+  it('monthlySummary는 지정한 월의 수입·지출·순액을 계산한다', () => {
+    const summary = new StatsCalculator().monthlySummary(sample, '2026-09')
+    expect(summary.incomeTotal).toBe(3000000)
+    expect(summary.expenseTotal).toBe(15000)
+    expect(summary.netTotal).toBe(2985000)
+  })
+
+  it('latestTransaction은 거래가 없으면 null을 반환한다', () => {
+    expect(new StatsCalculator().latestTransaction([])).toBeNull()
+  })
+})
+```
+
+`categoryTotals`(14편)는 지출 카테고리만 집계하므로, 08월의 `transport` 거래는 09월 요약(`monthlySummary`)에는 잡히지 않지만 `categoryTotals`에는 그대로 합산됩니다. 각 테스트에서 `new StatsCalculator()`를 매번 새로 만들어, 이전 테스트에서 캐시된 값이 다음 테스트에 섞이지 않게 했습니다.
+
+### 6. 실행
+
+```text
+npm run test
+```
+
+```text
+✓ tests/createTransaction.test.ts (1)
+✓ tests/storage.test.ts (2)
+✓ tests/stats.test.ts (3)
+
+Test Files  3 passed (3)
+     Tests  6 passed (6)
+```
+
+```text
+npm run coverage
+```
+
+</Steps>
+
+## 직접 해보기
+
+1. `stats.test.ts`에서 `new StatsCalculator()`를 파일 맨 위 한 번으로 바꿔 모든 테스트가 같은 인스턴스를 쓰게 만든 뒤, 어떤 테스트가 실패하는지 확인하고 원래대로 되돌립니다.
+2. `createTransaction.test.ts`의 `mockReturnValue`에 하이픈이 세 개뿐인 문자열을 넣어보고 편집기에 어떤 오류가 뜨는지 확인합니다.
+
+<details>
+<summary>정답 보기</summary>
+
+인스턴스를 공유하면 `monthlySummary(sample, '2026-09')`를 먼저 호출한 뒤 다른 `sample` 배열로 같은 `'2026-09'` 키를 다시 조회하는 테스트를 추가했을 때, 새 데이터가 아니라 캐시된 이전 결과가 반환됩니다. 하이픈이 세 개뿐인 문자열은 다섯 조각으로 나뉘지 않으므로 `mockReturnValue`의 매개변수 타입과 맞지 않는다는 오류가 표시됩니다.
+
+</details>
+
+## 자주 하는 실수
+
+| 증상 | 원인 | 고치는 법 |
+|------|------|-----------|
+| `localStorage is not defined` | `vitest.config.ts`에 jsdom 환경을 지정하지 않음 | `test.environment: 'jsdom'`을 추가한다 |
+| `mockReturnValue`에 넣은 문자열에서 컴파일 오류 | `crypto.randomUUID`의 템플릿 리터럴 타입과 형태가 다름 | 하이픈 네 개로 다섯 조각을 나눈 문자열을 사용한다 |
+| 같은 월을 다시 계산해도 이전 값이 나옴 | 여러 테스트가 `StatsCalculator` 인스턴스를 공유해 `#cache`가 남음 | 테스트마다 새 인스턴스를 생성한다 |
+
+## 확인 문제
+
+<Quiz
+  questionNumber={1}
+  question="거래 저장소 테스트에서 jsdom 환경이 필요한 이유는"
+  options={['테스트 실행 속도를 높이기 위해서', 'localStorage처럼 브라우저 전용 API를 Node.js 환경에서 흉내 내기 위해서', 'TypeScript 컴파일을 건너뛰기 위해서', 'Vitest가 jsdom 없이는 실행되지 않기 때문에']}
+  correctAnswer={2}
+  explanation="localStorage는 브라우저 API라 Node.js 실행 환경에는 없으므로, jsdom이 이를 가상으로 제공해야 테스트가 가능합니다."
+  optionExplanations={['속도가 목적이 아닙니다', '정답입니다', '컴파일 여부와는 무관합니다', 'Vitest 자체는 jsdom 없이도 실행됩니다']}
+/>
+
+<Quiz
+  questionNumber={2}
+  question="crypto.randomUUID의 반환 타입에 대한 설명으로 맞는 것은"
+  options={['항상 number 타입이다', '다섯 조각을 하이픈 네 개로 구분한 형태의 템플릿 리터럴 타입이다', '아무 문자열이나 허용하는 string 타입이다', 'Promise를 반환하는 비동기 타입이다']}
+  correctAnswer={2}
+  explanation="randomUUID의 반환 타입은 다섯 조각이 하이픈으로 구분된 형태를 강제하는 템플릿 리터럴 타입입니다."
+  optionExplanations={['문자열 타입입니다', '정답입니다', '형태가 정해진 템플릿 리터럴 타입입니다', '동기적으로 값을 반환합니다']}
+/>
+
+<Quiz
+  questionNumber={3}
+  question="mockReturnValue에 템플릿 리터럴 타입과 형태가 다른 문자열을 넣으면 어떤 일이 생기는가"
+  options={['런타임에서만 오류가 발생한다', '컴파일 타임에 타입 오류로 걸러진다', '경고만 출력되고 테스트는 통과한다', '자동으로 올바른 형태로 변환된다']}
+  correctAnswer={2}
+  explanation="타입이 있는 mock은 매개변수 형태를 편집기·컴파일 단계에서 검사하므로 형태가 어긋나면 바로 오류가 표시됩니다."
+  optionExplanations={['런타임이 아니라 컴파일 타임에 잡힙니다', '정답입니다', '경고가 아니라 오류입니다', '자동 변환은 일어나지 않습니다']}
+/>
+
+<Quiz
+  questionNumber={4}
+  question="StatsCalculator 테스트에서 매번 새 인스턴스를 만드는 이유는"
+  options={['테스트 실행 속도를 높이기 위해서', '내부 캐시가 이전 테스트 결과를 남겨 다음 테스트에 영향을 주지 않게 하기 위해서', 'TypeScript 문법상 반드시 그래야 하기 때문에', '메모리 사용량을 늘리기 위해서']}
+  correctAnswer={2}
+  explanation="인스턴스를 공유하면 #cache에 남은 이전 계산 결과가 새로운 입력에도 그대로 반환될 수 있어 매번 새로 만듭니다."
+  optionExplanations={['속도가 목적이 아닙니다', '정답입니다', '문법상 강제되는 규칙은 아닙니다', '메모리 절약이 목적입니다']}
+/>
+
+## 참고 자료
+
+- [Vitest — Getting Started](https://vitest.dev/guide/)

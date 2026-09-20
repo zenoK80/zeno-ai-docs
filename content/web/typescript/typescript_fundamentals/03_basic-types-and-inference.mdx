@@ -1,0 +1,197 @@
+---
+title: '03. 기본 타입과 추론'
+description: '원시 타입, 애너테이션과 추론, 배열과 튜플, 리터럴 타입으로 거래 한 건을 표현하고 화면에 출력합니다.'
+---
+
+<Callout type="info">
+  **이번 편의 결과물:** `models/expense.ts`에 거래 필드를 원시 타입으로 정의하고, 하드코딩된 거래 1건이 화면에 출력됩니다. · **다루는 개념:** 원시 타입, 타입 애너테이션과 타입 추론, 배열과 튜플, 리터럴 타입
+</Callout>
+
+## 이 편에서 만드는 파일
+
+```
+expense-tracker/src/
+├── models/
+│   └── expense.ts      (+)
+└── main.ts             (~)
+```
+
+## 개념 정리
+
+### 원시 타입
+
+TypeScript의 기본 타입은 JavaScript의 원시 값 종류를 그대로 따릅니다.
+
+| 타입 | 예시 값 |
+|------|---------|
+| `string` | `'식비'` |
+| `number` | `12000` |
+| `boolean` | `true` |
+| `null` | `null` |
+| `undefined` | `undefined` |
+
+### 타입 애너테이션과 타입 추론
+
+변수 선언 뒤에 `: 타입`을 붙이는 것이 **타입 애너테이션**입니다. 초기값이 있으면 TypeScript가 그 값을 보고 타입을 스스로 알아내는데, 이것이 **타입 추론**입니다.
+
+```ts
+let count: number = 0 // 애너테이션 — 타입을 직접 명시
+let price = 12000 // 추론 — TypeScript가 number로 판단
+```
+
+초기값만으로 타입이 분명하면 추론에 맡겨도 되지만, 함수 매개변수처럼 초기값이 없는 자리는 반드시 애너테이션이 필요합니다(04편에서 다룸). 이 편에서는 모델 파일의 의도를 분명히 남기기 위해 애너테이션을 명시합니다.
+
+### 배열과 튜플
+
+`string[]`처럼 쓰면 같은 타입의 값을 몇 개든 담을 수 있는 배열입니다. 반면 튜플은 길이와 각 위치의 타입이 고정된 배열입니다.
+
+| 표기 | 의미 |
+|------|------|
+| `string[]` | 문자열이 몇 개든 들어갈 수 있는 배열 |
+| `[string, number]` | 정확히 2개, 첫 번째는 문자열·두 번째는 숫자로 고정된 튜플 |
+| `[id: number, date: string]` | 튜플에 이름표(label)를 붙여 각 자리의 의미를 표시 |
+
+이름표는 타입 검사에 영향을 주지 않고, 편집기에서 각 자리의 의미를 보여주는 역할만 합니다.
+
+### 리터럴 타입
+
+`string` 타입은 아무 문자열이나 허용하지만, 리터럴 타입은 **정확히 그 값 하나만** 허용합니다.
+
+```ts
+let currencyA: string = 'KRW' // 어떤 문자열이든 나중에 대입 가능
+let currencyB: 'KRW' = 'KRW' // 'KRW' 외에는 대입 불가능
+```
+
+## 실습
+
+<Steps>
+
+### 1. models/expense.ts 작성
+
+```ts
+// expense-tracker/src/models/expense.ts
+
+// 원시 타입 애너테이션 — 초기값이 있어 추론에 맡겨도 되지만,
+// 모델 파일에서는 각 필드의 타입을 명시적으로 남깁니다.
+export const sampleId: number = 1
+export const sampleDate: string = '2026-09-20'
+export const sampleCategory: string = '식비'
+export const sampleAmount: number = 12000
+export const sampleMemo: string = '점심 식사'
+
+// 리터럴 타입 — 'KRW' 한 값만 허용합니다.
+export const CURRENCY: 'KRW' = 'KRW'
+
+// 배열 타입 — 카테고리는 몇 개든 늘어날 수 있습니다.
+export const CATEGORIES: string[] = ['식비', '교통', '문화', '주거', '기타']
+
+// 튜플 타입 — 순서와 각 자리 타입이 고정됩니다. 이름표로 의미를 표시합니다.
+export type ExpenseRow = [id: number, date: string, category: string, amount: number, memo: string]
+
+export const sampleExpenseRow: ExpenseRow = [sampleId, sampleDate, sampleCategory, sampleAmount, sampleMemo]
+```
+
+### 2. main.ts에서 화면에 출력
+
+```ts
+// expense-tracker/src/main.ts
+import './style.css'
+import { CATEGORIES, CURRENCY, sampleExpenseRow } from './models/expense.ts'
+
+function formatExpenseRow(row: typeof sampleExpenseRow): string {
+  const [id, date, category, amount, memo] = row
+  return `#${id} · ${date} · ${category} · ${amount.toLocaleString()}${CURRENCY} · ${memo}`
+}
+
+const app = document.querySelector<HTMLDivElement>('#app')
+
+if (app) {
+  app.innerHTML = `
+    <main>
+      <h1>가계부</h1>
+      <p>사용 가능한 카테고리: ${CATEGORIES.join(', ')}</p>
+      <ul>
+        <li>${formatExpenseRow(sampleExpenseRow)}</li>
+      </ul>
+    </main>
+  `
+}
+```
+
+`formatExpenseRow`의 매개변수 타입을 `typeof sampleExpenseRow`로 쓰면, `models/expense.ts`가 만든 `sampleExpenseRow`와 정확히 같은 튜플 타입을 별도로 이름 붙이지 않고 재사용할 수 있습니다. 튜플을 `const [id, date, category, amount, memo] = row`로 구조 분해하면 각 변수가 원래 자리의 타입(`number`, `string`, `string`, `number`, `string`)을 그대로 받습니다.
+
+### 3. 실행
+
+```text
+npm run dev
+```
+
+</Steps>
+
+## 확인
+
+- 화면에 "사용 가능한 카테고리: 식비, 교통, 문화, 주거, 기타"가 보입니다.
+- 목록에 "#1 · 2026-09-20 · 식비 · 12,000KRW · 점심 식사" 한 줄이 보입니다.
+- `npx tsc --noEmit`을 실행해도 오류가 없습니다.
+
+## 직접 해보기
+
+1. `CATEGORIES` 배열에 새 카테고리(예: `'의료'`)를 추가하고, 화면의 카테고리 목록에 바로 반영되는지 확인합니다.
+2. `sampleExpenseRow`의 네 번째 자리(금액)에 숫자 대신 문자열 `'12000'`을 넣어 보고, 편집기가 어떤 오류를 표시하는지 확인한 뒤 원래 값으로 되돌립니다.
+
+<details>
+<summary>정답 보기</summary>
+
+`ExpenseRow`의 네 번째 자리는 `amount: number`로 고정되어 있으므로, 문자열 `'12000'`을 넣으면 "Type 'string' is not assignable to type 'number'" 오류가 그 자리에 표시됩니다. 튜플은 값의 개수뿐 아니라 각 자리의 타입까지 고정한다는 것을 보여주는 예시입니다.
+
+</details>
+
+## 자주 하는 실수
+
+| 증상 | 원인 | 고치는 법 |
+|------|------|-----------|
+| 튜플 값의 순서를 바꿨더니 오류가 남 | `ExpenseRow`는 자리마다 타입이 고정된 튜플이라 순서를 바꾸면 타입이 안 맞음 | 정의한 순서(`id, date, category, amount, memo`)를 그대로 지킨다 |
+| `CURRENCY`에 다른 문자열을 대입하려다 오류가 남 | 리터럴 타입 `'KRW'`는 그 값 하나만 허용함 | 통화를 늘리려면 `'KRW' \| 'USD'`처럼 유니온으로 바꿔야 한다(06편에서 다룸) |
+| `string[]`과 `Array<string>`을 다른 타입으로 오해함 | 둘은 같은 배열 타입을 쓰는 방식만 다른 표기법 | 어느 쪽을 써도 동작은 같으며, 이 과목은 `string[]` 표기를 사용한다 |
+
+## 확인 문제
+
+<Quiz
+  questionNumber={1}
+  question="타입 애너테이션과 타입 추론의 차이로 옳은 것은?"
+  options={['애너테이션은 런타임에, 추론은 컴파일타임에 일어난다', '애너테이션은 타입을 직접 명시하는 것이고, 추론은 초기값을 보고 TypeScript가 타입을 알아내는 것이다', '추론은 항상 애너테이션보다 느리다', '둘 다 자바스크립트에는 없는 실행 시점 기능이다']}
+  correctAnswer={2}
+  explanation="애너테이션은 개발자가 타입을 직접 적는 것이고, 추론은 초기값으로부터 TypeScript가 타입을 판단하는 것입니다."
+  optionExplanations={['둘 다 컴파일타임에 일어나는 정적 검사입니다', '정답입니다', '속도 차이가 핵심이 아닙니다', '둘 다 컴파일타임에만 존재하고 실행 파일에는 남지 않습니다']}
+/>
+
+<Quiz
+  questionNumber={2}
+  question="[id: number, date: string] 타입에 대한 설명으로 옳은 것은?"
+  options={['id와 date라는 이름의 변수를 자동으로 만든다', '정확히 2개의 값을 담고, 첫 번째는 number, 두 번째는 string으로 고정된 튜플이다', '몇 개든 담을 수 있는 배열이다', 'id와 date 중 하나만 선택하는 유니온 타입이다']}
+  correctAnswer={2}
+  explanation="대괄호 안에 타입을 순서대로 나열하면 길이와 각 자리 타입이 고정된 튜플이 됩니다. 이름표는 의미 표시용일 뿐입니다."
+  optionExplanations={['이름표는 변수를 만들지 않고 의미만 표시합니다', '정답입니다', '길이가 고정되지 않은 것은 배열 타입입니다', '유니온과는 다른 문법입니다']}
+/>
+
+<Quiz
+  questionNumber={3}
+  question="let currencyB: 'KRW' = 'KRW'처럼 선언했을 때 나중에 currencyB = 'USD'를 실행하면?"
+  options={['정상적으로 값이 바뀐다', '리터럴 타입이 KRW 하나만 허용하므로 타입 오류가 난다', '자동으로 KRW로 되돌아간다', 'USD 타입이 새로 생성된다']}
+  correctAnswer={2}
+  explanation="리터럴 타입은 지정한 값 하나만 허용하므로, 다른 문자열을 대입하면 타입 오류가 발생합니다."
+  optionExplanations={['리터럴 타입 위반으로 오류가 납니다', '정답입니다', '자동 복구 기능은 없습니다', '새 타입이 생기지 않고 오류만 발생합니다']}
+/>
+
+<Quiz
+  questionNumber={4}
+  question="CATEGORIES: string[]에 대한 설명으로 옳은 것은?"
+  options={['정확히 5개의 문자열만 담을 수 있다', '문자열이라면 몇 개든 담을 수 있는 배열이다', '숫자와 문자열을 섞어 담을 수 있다', '한 번 만들면 값을 추가할 수 없다']}
+  correctAnswer={2}
+  explanation="string[]은 원소 타입만 고정하고 길이는 고정하지 않는 배열 타입입니다."
+  optionExplanations={['길이는 고정되지 않습니다', '정답입니다', '원소 타입이 string으로 고정되어 숫자는 담을 수 없습니다', '배열이므로 push 등으로 추가할 수 있습니다']}
+/>
+
+## 참고 자료
+
+- [TypeScript Handbook — Everyday Types](https://www.typescriptlang.org/docs/handbook/2/everyday-types.html)

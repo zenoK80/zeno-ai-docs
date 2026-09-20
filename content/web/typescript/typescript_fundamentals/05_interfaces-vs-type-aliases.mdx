@@ -1,0 +1,248 @@
+---
+title: '05. interface와 type 별칭으로 모델 다듬기'
+description: '거래를 표현하던 객체 타입을 Expense 인터페이스로 바꾸고, 입력 폼으로 새 거래를 추가합니다.'
+---
+
+<Callout type="info">
+  **이번 편의 결과물:** 객체 타입이던 `Expense`가 `interface`로 바뀌고, 화면의 입력 폼에서 새 거래를 추가하면 목록에 바로 반영됩니다. · **다루는 개념:** `interface`, `type` 별칭, `extends`로 확장, `readonly` 프로퍼티
+</Callout>
+
+04편까지 `expenseStore.ts`는 `addExpense`로 만든 거래 3건을 `getExpenses()`로 가져와 한 번만 화면에 그렸습니다. 아직 사용자가 직접 거래를 입력할 방법은 없습니다. 이 편에서는 `Expense`를 `type`에서 `interface`로 바꾸고, 화면에 입력 폼을 추가해 실제로 거래를 늘려갈 수 있게 만듭니다.
+
+## 이 편에서 만드는 파일
+
+```
+expense-tracker/src/
+├── models/
+│   └── expense.ts   (~, type Expense → interface Expense extends BaseRecord)
+└── main.ts          (~, 입력 폼과 다시 그리기 함수로 재구성)
+```
+
+## 개념 정리
+
+### interface와 type 별칭
+
+객체 모양을 표현하는 방법은 두 가지입니다. 지금까지 `Expense`는 `type` 별칭으로 정의했습니다.
+
+| 기준 | interface | type 별칭 |
+|------|-----------|-----------|
+| 확장 | `extends`로 다른 interface를 확장 | 교차 타입(`&`)으로 합성 |
+| 선언 병합 | 같은 이름으로 여러 번 선언하면 자동으로 합쳐짐 | 병합 안 됨(중복 선언 시 오류) |
+| 유니온·튜플 표현 | 불가능 | 가능(`A` 또는 `B`, 이름표 붙은 배열 등) |
+| 객체 모양 표현 | 가능 | 가능 |
+
+거래처럼 앞으로 계속 넓혀갈 도메인 모델은 `interface`로, 함수 하나에서만 쓰는 임시 모양은 `type`으로 정의하는 편이 실무에서 흔한 관례입니다. `expenseStore.ts`의 `NewExpenseInput`은 폼 입력 전용 모양이라 그대로 `type`으로 남겨두고, 도메인 모델인 `Expense`만 `interface`로 바꿉니다.
+
+### extends로 확장하기
+
+거래 레코드는 공통으로 `id`와 `date`를 가집니다. 공통 필드를 `BaseRecord` interface로 뽑고 `Expense`가 이를 `extends`합니다.
+
+```ts
+interface BaseRecord {
+  readonly id: number
+  date: string
+}
+
+interface Expense extends BaseRecord {
+  category: string
+  amount: number
+  memo: string
+}
+```
+
+`Expense`는 `BaseRecord`의 모든 프로퍼티를 그대로 가지면서 자기 프로퍼티를 추가합니다. 뒤에서 다른 종류의 레코드가 생기면 같은 `BaseRecord`를 재사용할 수 있습니다.
+
+### readonly 프로퍼티
+
+`id`는 한 번 정해지면 바뀌면 안 되는 값입니다. `readonly`를 붙이면 생성 시점 이후에는 값을 다시 대입할 수 없다는 것을 컴파일러가 검사합니다. 런타임 검사가 아니라 컴파일 타임에만 막는다는 점에 주의합니다.
+
+## 실습
+
+<Steps>
+
+### 1. models/expense.ts를 interface로 교체
+
+```ts
+// expense-tracker/src/models/expense.ts
+export const CURRENCY: 'KRW' = 'KRW'
+export const CATEGORIES: string[] = ['식비', '교통', '문화', '주거', '기타']
+
+export interface BaseRecord {
+  readonly id: number
+  date: string
+}
+
+export interface Expense extends BaseRecord {
+  category: string
+  amount: number
+  memo: string
+}
+```
+
+`expenseStore.ts`의 `addExpense`는 `{ id: nextId, date, amount, category, memo }` 객체를 그대로 만들어 반환하므로, `Expense`가 `type`에서 `interface`로 바뀌어도 `expenseStore.ts`는 고칠 필요가 없습니다. 구조가 같으면 어느 쪽으로 선언해도 대입할 수 있기 때문입니다.
+
+### 2. main.ts에 입력 폼과 다시 그리기 함수 작성
+
+```ts
+// expense-tracker/src/main.ts
+import './style.css'
+import { CATEGORIES, CURRENCY, Expense } from './models/expense.ts'
+import { addExpense, getExpenses } from './services/expenseStore.ts'
+
+addExpense({ date: '2026-09-18', amount: 12000, category: '식비', memo: '점심 식사' })
+addExpense({ date: '2026-09-19', amount: 4500, category: '교통' })
+addExpense({ date: '2026-09-20', amount: 30000 })
+
+function renderExpenseList(list: Expense[]): string {
+  return list
+    .map((expense) => {
+      const amountText = `${expense.amount.toLocaleString()}${CURRENCY}`
+      const memoText = expense.memo || '메모 없음'
+      return `<li>#${expense.id} · ${expense.date} · ${expense.category} · ${amountText} · ${memoText}</li>`
+    })
+    .join('')
+}
+
+function renderCategoryOptions(): string {
+  return CATEGORIES.map((category) => `<option value="${category}">${category}</option>`).join('')
+}
+
+function render(): void {
+  const app = document.querySelector<HTMLDivElement>('#app')
+  if (!app) return
+  app.innerHTML = `
+    <main>
+      <h1>가계부</h1>
+      <form id="expense-form">
+        <label for="date">날짜</label>
+        <input id="date" name="date" type="date" required />
+
+        <label for="category">카테고리</label>
+        <select id="category" name="category">${renderCategoryOptions()}</select>
+
+        <label for="amount">금액</label>
+        <input id="amount" name="amount" type="number" required />
+
+        <label for="memo">메모</label>
+        <input id="memo" name="memo" type="text" />
+
+        <button type="submit">추가</button>
+      </form>
+      <ul>${renderExpenseList(getExpenses())}</ul>
+    </main>
+  `
+}
+
+function handleSubmit(event: SubmitEvent): void {
+  event.preventDefault()
+  const form = event.target as HTMLFormElement
+  const formData = new FormData(form)
+  addExpense({
+    date: String(formData.get('date')),
+    amount: Number(formData.get('amount')),
+    category: String(formData.get('category')),
+    memo: String(formData.get('memo')),
+  })
+  render()
+}
+
+const app = document.querySelector<HTMLDivElement>('#app')
+app?.addEventListener('submit', handleSubmit)
+
+render()
+```
+
+`render()`는 `app.innerHTML`을 통째로 다시 만들기 때문에, 폼 제출 이벤트 리스너를 폼 자체가 아니라 절대 다시 그려지지 않는 `#app`에 걸어둡니다. `render()`가 몇 번을 다시 실행되어도 `#app` 노드는 그대로라서 리스너를 매번 다시 등록할 필요가 없습니다. `event.target`은 `EventTarget` 타입이라 `as HTMLFormElement`로 실제 폼이라고 단언합니다. 더 안전하게 좁히는 방법은 06편에서 다룹니다.
+
+### 3. 실행
+
+```text
+npm run dev
+```
+
+</Steps>
+
+## 확인
+
+- 브라우저에서 폼에 날짜·카테고리·금액·메모를 입력하고 "추가"를 누르면 목록 맨 아래에 새 항목이 나타납니다.
+- 제출 후 화면이 다시 그려지면서 폼 입력값이 비워집니다.
+- 편집기에서 `main.ts`에 `getExpenses()[0].id = 99`를 임시로 추가하면 빨간 밑줄과 함께 오류가 표시됩니다(확인 후 지웁니다).
+
+## 직접 해보기
+
+1. `BaseRecord`에 `readonly createdAt: string` 프로퍼티를 추가하고, `expenseStore.ts`의 `addExpense`에서 `new Date().toISOString()`으로 채워 보세요.
+2. `Expense`에 없는 프로퍼티(`tag`)를 `main.ts`의 seed `addExpense(...)` 호출에 넣어보고 어떤 오류 메시지가 나오는지 확인하세요.
+
+<details>
+<summary>정답 보기</summary>
+
+```ts
+export interface BaseRecord {
+  readonly id: number
+  readonly createdAt: string
+  date: string
+}
+```
+
+```ts
+export function addExpense({ date, amount, category = '기타', memo = '' }: NewExpenseInput): Expense {
+  const expense: Expense = { id: nextId, createdAt: new Date().toISOString(), date, amount, category, memo }
+  expenses.push(expense)
+  nextId += 1
+  return expense
+}
+```
+
+2번은 `Expense` 타입에 없는 `tag` 프로퍼티를 `addExpense` 호출의 객체 리터럴에 그대로 넣으면 "개체 리터럴은 알려진 속성만 지정할 수 있으며 tag은(는) 형식에 없습니다" 계열의 오류가 납니다. 변수에 담지 않고 직접 만드는 객체 리터럴에만 적용되는 엄격한 검사입니다.
+
+</details>
+
+## 자주 하는 실수
+
+| 증상 | 원인 | 고치는 법 |
+|------|------|-----------|
+| readonly 프로퍼티에 값을 다시 대입하려다 오류 | 생성 이후 `id` 등을 변경하려 함 | 새 객체를 만들어 교체하고 기존 객체는 그대로 둔다 |
+| interface끼리 이름이 겹쳐 프로퍼티가 이상하게 합쳐짐 | 같은 이름의 interface를 실수로 두 번 선언(선언 병합) | 이름을 다르게 짓거나 의도한 병합인지 확인한다 |
+| 다시 그린 뒤 폼에 이벤트가 안 먹힘 | 폼 요소 자체에 리스너를 걸어 `innerHTML` 재작성 시 사라짐 | 절대 다시 그려지지 않는 `#app`에 이벤트를 위임한다 |
+
+## 확인 문제
+
+<Quiz
+  questionNumber={1}
+  question="interface와 type 별칭의 차이로 옳은 것은"
+  options={['interface는 유니온 타입을 표현할 수 있다', 'interface는 같은 이름으로 다시 선언하면 자동으로 합쳐진다', 'type 별칭은 extends 키워드로 확장한다', '둘 다 원시 값에는 쓸 수 없다']}
+  correctAnswer={2}
+  explanation="같은 이름의 interface를 여러 번 선언하면 프로퍼티가 자동으로 합쳐지는 선언 병합이 일어나며, type 별칭에는 없는 특징입니다."
+  optionExplanations={['유니온 표현은 type 별칭의 특징입니다', '정답입니다', 'extends는 interface의 확장 키워드입니다', '둘 다 원시 값 별칭으로도 쓸 수 있습니다']}
+/>
+
+<Quiz
+  questionNumber={2}
+  question="Expense가 BaseRecord를 extends하는 이유로 가장 알맞은 것은"
+  options={['런타임 성능을 높이기 위해서', '공통 프로퍼티를 한 곳에 정의해 재사용하기 위해서', 'readonly를 쓰려면 반드시 상속이 필요하기 때문에', 'JSON 직렬화 속도를 높이기 위해서']}
+  correctAnswer={2}
+  explanation="id, date처럼 여러 레코드가 공유할 프로퍼티를 BaseRecord에 모아두면 새로운 레코드 종류가 생겨도 재사용할 수 있습니다."
+  optionExplanations={['타입 확장은 런타임 성능과 무관합니다', '정답입니다', 'readonly는 확장 없이도 쓸 수 있습니다', '직렬화 속도와는 관련이 없습니다']}
+/>
+
+<Quiz
+  questionNumber={3}
+  question="readonly로 선언한 프로퍼티에 대한 설명으로 옳은 것은"
+  options={['런타임에도 값 변경을 막아 예외를 던진다', '컴파일 타임에만 재대입을 막고 런타임 동작은 바꾸지 않는다', '객체를 생성할 때도 값을 넣을 수 없다', '배열 원소에는 적용할 수 없다']}
+  correctAnswer={2}
+  explanation="readonly는 타입 검사 단계에서만 재대입을 막을 뿐, 컴파일된 자바스크립트 코드에는 아무 검사도 남지 않습니다."
+  optionExplanations={['런타임 예외는 발생시키지 않습니다', '정답입니다', '생성 시점의 초기 대입은 허용됩니다', '배열 원소에도 readonly를 적용할 수 있습니다']}
+/>
+
+<Quiz
+  questionNumber={4}
+  question="render 함수가 폼이 아니라 app에 이벤트 리스너를 등록하는 이유는"
+  options={['app 요소가 더 크기 때문에', 'app.innerHTML을 다시 쓸 때마다 폼 요소가 새로 만들어지지만 app 노드 자체는 그대로라서', 'HTML 표준상 form에는 이벤트를 걸 수 없어서', '리스너 개수를 줄여 메모리를 아끼기 위해서']}
+  correctAnswer={2}
+  explanation="app.innerHTML을 다시 쓰면 그 안의 폼 요소는 매번 새로 생성되어 이전 리스너가 사라지지만, app 노드 자체는 재사용되므로 한 번만 등록해도 계속 동작합니다."
+  optionExplanations={['크기와는 무관합니다', '정답입니다', 'form에도 이벤트를 걸 수 있습니다', '메모리 절약이 핵심 이유가 아닙니다']}
+/>
+
+## 참고 자료
+
+- [TypeScript Handbook — Object Types](https://www.typescriptlang.org/docs/handbook/2/objects.html)

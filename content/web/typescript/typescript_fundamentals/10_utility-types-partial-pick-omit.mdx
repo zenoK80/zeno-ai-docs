@@ -1,0 +1,482 @@
+---
+title: '10. Partial·Pick·Omit·Record로 폼과 통계 다루기'
+description: 'Partial과 Pick으로 거래 수정 기능을 만들고, Record로 카테고리별 합계를 계산합니다'
+---
+
+<Callout type="info">
+  **이번 편의 결과물:** 거래 목록에서 날짜·금액·메모를 수정할 수 있고, 카테고리별 합계가 화면에 표시됩니다. · **다루는 개념:** `Partial`, `Pick`, `Omit`, `Record`
+</Callout>
+
+09편에서 거래는 `Storage` 제네릭 클래스를 통해 `localStorage`에 저장되고, `id`는 `crypto.randomUUID()`가 만든 문자열입니다. 지금까지는 거래를 추가만 할 수 있었습니다. 이 편에서는 이미 있는 거래를 수정하는 기능과, 카테고리별 합계를 보여주는 기능을 추가합니다.
+
+## 이 편에서 만드는 파일
+
+```
+expense-tracker/src/
+├── models/
+│   └── expense.ts         ~ (Category = ExpenseCategory | IncomeCategory 추가)
+├── services/
+│   └── stats.ts           + (calculateCategoryTotals)
+└── main.ts                 ~ (템플릿 문자열에 수정 폼·카테고리별 합계 목록 추가, 수정 기능 연결)
+```
+
+## 개념 정리
+
+### 왜 필요한가
+
+지금까지 거래 하나를 고치려면 항목 전체를 새로 만들어야 했습니다. 실제로는 날짜나 금액 하나만 바꾸고 싶을 때가 많습니다. 매번 전체 객체를 준비하는 대신, 바뀐 필드만 넘기고 나머지는 기존 값을 유지하는 방식이 필요합니다.
+
+### 기본 유틸리티 타입 네 가지
+
+| 유틸리티 타입 | 의미 |
+|---|---|
+| `Partial<T>` | `T`의 모든 프로퍼티를 선택적(옵셔널)으로 바꾼 타입 |
+| `Pick<T, K>` | `T`에서 키 `K`만 뽑아 새 타입을 만듦 |
+| `Omit<T, K>` | `T`에서 키 `K`를 제외한 나머지로 새 타입을 만듦 |
+| `Record<K, V>` | 키 집합 `K`의 각 값이 타입 `V`인 객체 타입 |
+
+### 판별 유니온에 Partial을 쓸 때 주의할 점
+
+`Transaction`은 `type`에 따라 `category`의 타입이 달라지는 판별 유니온입니다. `Partial<Transaction>` 하나로 전체 필드를 다 열어두면, `type`은 수입인데 `category`는 지출 카테고리 값이 들어가는 조합도 타입 오류 없이 통과합니다. 서로 다른 갈래의 값 타입이 하나의 유니온으로 합쳐져 상관관계까지는 검사하지 않기 때문입니다. 그래서 이 편에서는 수정 기능이 `type`과 `category`는 건드리지 않고, 두 갈래 모두 같은 타입을 쓰는 `date`, `amount`, `memo`만 `Pick`으로 뽑아 수정 가능한 필드로 제한합니다.
+
+## 실습
+
+<Steps>
+
+### 1. 통계 파일 만들기
+
+`expense-tracker/src/services/`에 `stats.ts` 파일을 추가합니다.
+
+### 2. 코드 작성
+
+먼저 `models/expense.ts`에 수입·지출 카테고리를 모두 아우르는 타입을 추가합니다.
+
+```ts
+// src/models/expense.ts (마지막 줄에 추가)
+export type Category = ExpenseCategory | IncomeCategory
+```
+
+카테고리별 합계는 `stats.ts`에 작성합니다.
+
+```ts
+// src/services/stats.ts
+import type { Category, Transaction } from '../models/expense.ts'
+
+const ALL_CATEGORIES: readonly Category[] = [
+  'food',
+  'transport',
+  'housing',
+  'shopping',
+  'etc-expense',
+  'salary',
+  'bonus',
+  'interest',
+  'etc-income',
+]
+
+export function calculateCategoryTotals(transactions: Transaction[]): Record<Category, number> {
+  const totals = ALL_CATEGORIES.reduce((acc, category) => {
+    acc[category] = 0
+    return acc
+  }, {} as Record<Category, number>)
+
+  for (const transaction of transactions) {
+    totals[transaction.category] += transaction.amount
+  }
+
+  return totals
+}
+```
+
+`reduce`의 시작값은 원래 빈 객체(`{}`)라 `Record<Category, number>`와 모양이 다릅니다. `as`로 "이 객체는 앞으로 그 모양이 될 것"이라고 알려준 뒤, 반복문에서 카테고리를 모두 채웁니다. `type`을 따로 확인하지 않고 `category`가 무엇이든 금액을 그대로 더하므로, 수입과 지출 카테고리가 같은 표에 함께 집계됩니다.
+
+09편부터 화면 뼈대는 `index.html`이 아니라 `main.ts`가 모듈 맨 위에서 한 번 그리는 템플릿 문자열입니다. 그 템플릿에 수정 폼과 카테고리별 합계 목록을 추가합니다.
+
+```html
+<!-- main.ts의 템플릿 문자열 중 </form> 다음, 필터 section 앞에 추가 -->
+<form id="edit-form" hidden>
+  <p>거래 수정</p>
+  <label for="edit-date">날짜</label>
+  <input id="edit-date" name="date" type="date" required />
+  <label for="edit-amount">금액</label>
+  <input id="edit-amount" name="amount" type="number" min="1" required />
+  <label for="edit-memo">메모</label>
+  <input id="edit-memo" name="memo" type="text" />
+  <button type="submit">저장</button>
+  <button type="button" id="edit-cancel">취소</button>
+</form>
+```
+
+```html
+<!-- main.ts의 템플릿 문자열 중 expense-list 다음에 추가 -->
+<h2>카테고리별 합계</h2>
+<ul id="category-totals"></ul>
+```
+
+마지막으로 `main.ts`에 수정 기능과 합계 렌더링을 연결합니다.
+
+```ts
+// src/main.ts
+import type {
+  Transaction,
+  NewTransactionInput,
+  NewExpenseTransactionInput,
+  NewIncomeTransactionInput,
+} from './models/expense.ts'
+import { isExpenseCategory, isIncomeCategory, parseAmount, matchesFilter, type TransactionFilter } from './lib/parsing.ts'
+import { toSignedAmount, toTypeLabel } from './lib/signedAmount.ts'
+import { sortBy, filterBy } from './lib/arrayUtils.ts'
+import { Storage } from './services/storage.ts'
+import { calculateCategoryTotals } from './services/stats.ts'
+import { EXPENSE_CATEGORIES, INCOME_CATEGORIES, ALL_CATEGORIES, type Category } from './models/expense.ts'
+
+type SortKey = 'date' | 'amount'
+type EditableFields = Pick<Transaction, 'date' | 'amount' | 'memo'>
+
+const transactionStorage = new Storage<Transaction>('expense-tracker:transactions')
+
+const seedTransactions: Transaction[] = [
+  { id: crypto.randomUUID(), type: 'income', date: '2026-09-01', category: 'salary', amount: 3000000, memo: '9월 급여' },
+  { id: crypto.randomUUID(), type: 'expense', date: '2026-09-03', category: 'food', amount: 18000, memo: '점심' },
+  { id: crypto.randomUUID(), type: 'expense', date: '2026-09-10', category: 'transport', amount: 4500, memo: '버스' },
+]
+
+const transactions: Transaction[] = transactionStorage.load()
+if (transactions.length === 0) {
+  transactions.push(...seedTransactions)
+  transactionStorage.save(transactions)
+}
+
+function categoryOptionsHtml(): string {
+  const incomeOptions = INCOME_CATEGORIES.map((category) => `<option value="${category}">${category}(수입)</option>`).join('')
+  const expenseOptions = EXPENSE_CATEGORIES.map((category) => `<option value="${category}">${category}(지출)</option>`).join('')
+  return incomeOptions + expenseOptions
+}
+
+function filterCategoryOptionsHtml(): string {
+  const options = ALL_CATEGORIES.map((category) => `<option value="${category}">${category}</option>`).join('')
+  return `<option value="">전체</option>${options}`
+}
+
+const app = document.querySelector<HTMLDivElement>('#app')!
+app.innerHTML = `
+  <main>
+    <h1>가계부</h1>
+    <form id="expense-form">
+      <fieldset>
+        <legend>구분</legend>
+        <label><input type="radio" name="type" value="income" /> 수입</label>
+        <label><input type="radio" name="type" value="expense" checked /> 지출</label>
+      </fieldset>
+
+      <label for="date">날짜</label>
+      <input id="date" name="date" type="date" required />
+
+      <label for="category">카테고리</label>
+      <select id="category" name="category">${categoryOptionsHtml()}</select>
+
+      <label for="amount">금액</label>
+      <input id="amount" name="amount" type="number" min="1" required />
+
+      <label for="memo">메모</label>
+      <input id="memo" name="memo" type="text" />
+
+      <button type="submit">추가</button>
+    </form>
+
+    <form id="edit-form" hidden>
+      <p>거래 수정</p>
+      <label for="edit-date">날짜</label>
+      <input id="edit-date" name="date" type="date" required />
+      <label for="edit-amount">금액</label>
+      <input id="edit-amount" name="amount" type="number" min="1" required />
+      <label for="edit-memo">메모</label>
+      <input id="edit-memo" name="memo" type="text" />
+      <button type="submit">저장</button>
+      <button type="button" id="edit-cancel">취소</button>
+    </form>
+
+    <section>
+      <label for="filter-category">카테고리로 필터</label>
+      <select id="filter-category">${filterCategoryOptionsHtml()}</select>
+
+      <label for="filter-month">월로 필터</label>
+      <input id="filter-month" type="month" />
+
+      <label for="sort-key">정렬 기준</label>
+      <select id="sort-key">
+        <option value="date">날짜순</option>
+        <option value="amount">금액순</option>
+      </select>
+    </section>
+
+    <p>합계: <span id="total-amount"></span></p>
+    <ul id="expense-list"></ul>
+
+    <h2>카테고리별 합계</h2>
+    <ul id="category-totals"></ul>
+  </main>
+`
+
+let editingId: string | null = null
+
+function addTransaction(input: NewTransactionInput): Transaction {
+  const transaction: Transaction = { id: crypto.randomUUID(), ...input }
+  transactions.push(transaction)
+  transactionStorage.save(transactions)
+  return transaction
+}
+
+function updateTransaction(id: string, changes: Partial<EditableFields>): void {
+  const index = transactions.findIndex((transaction) => transaction.id === id)
+  if (index === -1) return
+  transactions[index] = { ...transactions[index], ...changes }
+  transactionStorage.save(transactions)
+}
+
+function readTransactionInput(form: HTMLFormElement): NewTransactionInput {
+  const formData = new FormData(form)
+  const type = formData.get('type')
+  const date = String(formData.get('date'))
+  const amount = parseAmount(formData.get('amount'))
+  const memo = String(formData.get('memo'))
+  const category = formData.get('category')
+
+  if (type === 'income') {
+    if (!isIncomeCategory(category)) {
+      throw new Error(`수입 카테고리가 아닙니다: ${String(category)}`)
+    }
+    const input: NewIncomeTransactionInput = { type: 'income', date, category, amount, memo }
+    return input
+  }
+
+  if (!isExpenseCategory(category)) {
+    throw new Error(`지출 카테고리가 아닙니다: ${String(category)}`)
+  }
+  const input: NewExpenseTransactionInput = { type: 'expense', date, category, amount, memo }
+  return input
+}
+
+function buildFilter(): TransactionFilter | null {
+  const categorySelect = document.querySelector<HTMLSelectElement>('#filter-category')
+  const monthInput = document.querySelector<HTMLInputElement>('#filter-month')
+  if (categorySelect?.value) {
+    return { category: categorySelect.value }
+  }
+  if (monthInput?.value) {
+    return { month: monthInput.value }
+  }
+  return null
+}
+
+function readSortKey(): SortKey {
+  const select = document.querySelector<HTMLSelectElement>('#sort-key')
+  return select?.value === 'amount' ? 'amount' : 'date'
+}
+
+function openEditForm(transaction: Transaction): void {
+  editingId = transaction.id
+  const dateInput = document.querySelector<HTMLInputElement>('#edit-date')
+  const amountInput = document.querySelector<HTMLInputElement>('#edit-amount')
+  const memoInput = document.querySelector<HTMLInputElement>('#edit-memo')
+  const editForm = document.querySelector<HTMLFormElement>('#edit-form')
+  if (!dateInput || !amountInput || !memoInput || !editForm) return
+  dateInput.value = transaction.date
+  amountInput.value = String(transaction.amount)
+  memoInput.value = transaction.memo
+  editForm.hidden = false
+}
+
+function renderTransactionList(list: Transaction[]): void {
+  const root = document.querySelector<HTMLUListElement>('#expense-list')
+  if (!root) return
+  root.innerHTML = ''
+  for (const transaction of list) {
+    const item = document.createElement('li')
+    item.textContent = `[${toTypeLabel(transaction)}] ${transaction.date} · ${transaction.category} · ${transaction.amount}원 · ${transaction.memo} `
+    const editButton = document.createElement('button')
+    editButton.type = 'button'
+    editButton.textContent = '수정'
+    editButton.addEventListener('click', () => openEditForm(transaction))
+    item.appendChild(editButton)
+    root.appendChild(item)
+  }
+}
+
+function renderTotal(list: Transaction[]): void {
+  const totalElement = document.querySelector('#total-amount')
+  if (!totalElement) return
+  const total = list.reduce((sum, transaction) => sum + toSignedAmount(transaction), 0)
+  totalElement.textContent = `${total.toLocaleString('ko-KR')}원`
+}
+
+function renderCategoryTotals(): void {
+  const root = document.querySelector<HTMLUListElement>('#category-totals')
+  if (!root) return
+  const totals = calculateCategoryTotals(transactions)
+  root.innerHTML = ''
+  for (const category of Object.keys(totals) as Category[]) {
+    const item = document.createElement('li')
+    item.textContent = `${category}: ${totals[category].toLocaleString('ko-KR')}원`
+    root.appendChild(item)
+  }
+}
+
+function render(): void {
+  const filter = buildFilter()
+  const filtered =
+    filter === null ? transactions : filterBy(transactions, (transaction) => matchesFilter(transaction, filter))
+  const sorted = sortBy(filtered, readSortKey())
+  renderTransactionList(sorted)
+  renderTotal(sorted)
+  renderCategoryTotals()
+}
+
+function handleSubmit(event: SubmitEvent): void {
+  event.preventDefault()
+  const form = event.currentTarget as HTMLFormElement
+  try {
+    const input = readTransactionInput(form)
+    addTransaction(input)
+    form.reset()
+    render()
+  } catch (error) {
+    if (error instanceof Error) {
+      alert(`입력 오류: ${error.message}`)
+    }
+  }
+}
+
+function handleEditSubmit(event: SubmitEvent): void {
+  event.preventDefault()
+  if (editingId === null) return
+  const editForm = event.currentTarget as HTMLFormElement
+  const formData = new FormData(editForm)
+  const changes: Partial<EditableFields> = {
+    date: String(formData.get('date')),
+    amount: parseAmount(formData.get('amount')),
+    memo: String(formData.get('memo')),
+  }
+  updateTransaction(editingId, changes)
+  editingId = null
+  editForm.hidden = true
+  render()
+}
+
+const form = document.querySelector<HTMLFormElement>('#expense-form')
+form?.addEventListener('submit', handleSubmit)
+document.querySelector<HTMLFormElement>('#edit-form')?.addEventListener('submit', handleEditSubmit)
+document.querySelector('#edit-cancel')?.addEventListener('click', () => {
+  editingId = null
+  const editForm = document.querySelector<HTMLFormElement>('#edit-form')
+  if (editForm) editForm.hidden = true
+})
+document.querySelector('#filter-category')?.addEventListener('change', render)
+document.querySelector('#filter-month')?.addEventListener('change', render)
+document.querySelector('#sort-key')?.addEventListener('change', render)
+
+render()
+```
+
+`EditableFields`는 `Pick`으로 `date`, `amount`, `memo`만 뽑은 타입입니다. 목록의 "수정" 버튼을 누르면 `openEditForm`이 수정 폼에 기존 값을 채우고, 저장하면 `updateTransaction`이 바뀐 값만 담긴 `changes`와 기존 항목을 합쳐 저장합니다. `type`, `category`는 수정 폼에 아예 없으므로 바뀔 수 없습니다.
+
+### 3. 실행
+
+```text
+npm run dev
+```
+
+### 4. 확인
+
+- 거래 목록에서 "수정" 버튼을 누르면 수정 폼에 기존 날짜·금액·메모가 채워집니다.
+- 값을 바꾸고 "저장"을 누르면 목록에 바로 반영되고, 새로고침해도 유지됩니다.
+- 목록 아래 "카테고리별 합계"에 아홉 카테고리(food, transport, housing, shopping, etc-expense, salary, bonus, interest, etc-income)의 합계가 표시됩니다.
+
+</Steps>
+
+## 직접 해보기
+
+1. `renderCategoryTotals`가 라벨을 카테고리 영문 이름 그대로 보여줍니다. `Record<Category, string>`으로 한글 라벨 표를 만들어 표시해 보세요.
+2. 수정 폼에 `category`도 함께 바꿀 수 있게 만들어 보고, `type`은 수입인데 `category`는 지출 카테고리인 조합이 타입 오류 없이 저장되는지 확인한 뒤 원래대로 되돌립니다.
+
+<details>
+<summary>정답 보기</summary>
+
+```ts
+const CATEGORY_LABELS: Record<Category, string> = {
+  food: '식비',
+  transport: '교통비',
+  housing: '주거비',
+  shopping: '쇼핑',
+  'etc-expense': '기타 지출',
+  salary: '급여',
+  bonus: '상여',
+  interest: '이자',
+  'etc-income': '기타 수입',
+}
+```
+
+`renderCategoryTotals`에서 `item.textContent`를 `${CATEGORY_LABELS[category]}: ...`로 바꾸면 됩니다.
+
+2번처럼 `category`를 `EditableFields`에 넣고 `Partial<Transaction>`으로 넘기면, `type`이 수입인 거래에 지출 카테고리 문자열을 넣어도 타입 오류가 나지 않습니다. `category`의 타입이 두 갈래 값 타입을 합친 유니온으로 넓어지기 때문입니다. 이 문제 때문에 이 편에서는 `category`를 수정 가능한 필드에서 제외했습니다.
+
+</details>
+
+## 자주 하는 실수
+
+| 증상 | 원인 | 고치는 법 |
+|------|------|-----------|
+| 수정 후 type과 category가 어긋난 데이터가 저장됨 | 판별 유니온 전체에 Partial을 그대로 노출해 category까지 자유롭게 바꿈 | 편집 필드를 Pick으로 date, amount, memo만 제한한다 |
+| Record 초기값 생성에서 타입 오류 | reduce의 시작값에 타입 단언을 빠뜨림 | `{} as Record<Category, number>`처럼 시작값 타입을 명시한다 |
+| 수정 후에도 목록이 그대로 보임 | updateTransaction 호출 뒤 render()를 빠뜨림 | 데이터를 바꾸는 함수 호출 다음에는 항상 render()를 호출한다 |
+
+## 확인 문제
+
+<Quiz
+  questionNumber={1}
+  question="Partial 유틸리티 타입이 하는 일은 무엇인가"
+  options={['모든 프로퍼티를 필수로 바꾼다', '모든 프로퍼티를 선택적으로 바꾼다', '지정한 키만 남긴다', '지정한 키를 제외한다']}
+  correctAnswer={2}
+  explanation="Partial은 원본 타입의 모든 프로퍼티에 물음표를 붙여 선택적으로 만듭니다."
+  optionExplanations={['정반대 설명입니다', '정답입니다', '그 역할은 Pick입니다', '그 역할은 Omit입니다']}
+/>
+
+<Quiz
+  questionNumber={2}
+  question="Pick과 Omit의 차이를 가장 정확히 설명한 것은"
+  options={['Pick은 값을 복사하고 Omit은 값을 삭제한다', 'Pick은 지정한 키만 남기고 Omit은 지정한 키를 제외한 나머지를 남긴다', '둘 다 런타임에만 동작한다', 'Pick은 배열에만 쓸 수 있다']}
+  correctAnswer={2}
+  explanation="두 유틸리티 타입은 서로 반대 방향으로 프로퍼티 집합을 골라내는 타입 수준 연산입니다."
+  optionExplanations={['둘 다 타입 수준 연산이며 런타임 값 조작이 아닙니다', '정답입니다', '런타임 동작이 아니라 컴파일 타임 타입 계산입니다', '객체 타입 전반에 쓸 수 있습니다']}
+/>
+
+<Quiz
+  questionNumber={3}
+  question="calculateCategoryTotals의 반환 타입을 Record로 선언하는 이유는"
+  options={['배열을 문자열로 바꾸기 위해서', '카테고리마다 정해진 값 타입을 가진 객체 모양을 표현하기 위해서', 'localStorage에 저장하기 위해서', '함수 실행 속도를 높이기 위해서']}
+  correctAnswer={2}
+  explanation="Record는 키 집합의 각 값이 특정 타입인 객체를 표현하기에 적합해 카테고리별 합계 표현에 맞습니다."
+  optionExplanations={['문자열 변환과는 무관합니다', '정답입니다', '저장 방식과는 무관합니다', '속도와는 무관합니다']}
+/>
+
+<Quiz
+  questionNumber={4}
+  question="판별 유니온 Transaction에 Partial을 통째로 적용했을 때 생기는 문제는"
+  options={['컴파일이 항상 실패한다', 'type과 category의 상관관계가 깨진 조합도 타입 오류 없이 통과할 수 있다', '런타임 오류가 즉시 발생한다', 'localStorage에 저장할 수 없게 된다']}
+  correctAnswer={2}
+  explanation="Partial은 각 프로퍼티를 독립적으로 선택적으로 만들 뿐 type과 category 사이의 관계까지 검사하지 않습니다."
+  optionExplanations={['오히려 컴파일은 통과합니다', '정답입니다', '즉시 런타임 오류가 나지는 않습니다', '저장 자체는 가능합니다']}
+/>
+
+<Quiz
+  questionNumber={5}
+  question="이 편에서 수정 기능이 date, amount, memo만 다루도록 제한한 이유는"
+  options={['입력 항목을 줄여 화면을 단순하게 만들려고', '세 필드는 두 갈래 모두 같은 타입이라 Pick으로 안전하게 제한할 수 있어서', 'localStorage 용량이 부족해서', 'HTML 폼 요소 개수 제한 때문에']}
+  correctAnswer={2}
+  explanation="date, amount, memo는 type과 무관하게 항상 같은 타입이므로 Pick으로 뽑아도 상관관계가 깨지지 않습니다."
+  optionExplanations={['화면 단순화가 핵심 이유는 아닙니다', '정답입니다', '용량과는 무관합니다', '그런 제한은 없습니다']}
+/>
+
+## 참고 자료
+
+- [TypeScript — Utility Types (Reference)](https://www.typescriptlang.org/docs/handbook/utility-types.html)

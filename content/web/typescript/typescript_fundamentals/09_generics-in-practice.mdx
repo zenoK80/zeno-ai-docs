@@ -1,0 +1,433 @@
+---
+title: '09. 제네릭 클래스로 저장소 만들기'
+description: 'Storage 제네릭 클래스로 거래 데이터를 localStorage에 저장하고 불러옵니다'
+---
+
+<Callout type="info">
+  **이번 편의 결과물:** `Storage` 제네릭 클래스로 거래를 `localStorage`에 저장·로드하고, 새로고침해도 데이터가 유지됩니다. · **다루는 개념:** 제네릭 인터페이스, 제네릭 클래스, 저장소(repository) 패턴, `localStorage` 직렬화·역직렬화
+</Callout>
+
+08편에서 `sortBy`, `filterBy` 제네릭 유틸 함수로 정렬·필터를 완성했습니다. 하지만 거래 데이터는 여전히 `main.ts`의 배열 변수에만 있어, 브라우저를 새로고침하면 사라집니다. 이 편에서는 어떤 데이터 타입이든 담을 수 있는 제네릭 클래스로 저장소를 만들어 `localStorage`에 저장합니다.
+
+## 이 편에서 만드는 파일
+
+```
+expense-tracker/src/
+├── models/
+│   └── expense.ts          ~ (id를 number에서 string으로 변경, EXPENSE_CATEGORIES 등 카테고리 목록은 그대로 유지)
+├── services/
+│   ├── expenseStore.ts     - (삭제, Storage<T>로 대체)
+│   └── storage.ts          + (DataStore<T>, Storage<T>)
+└── main.ts                  ~ (Storage로 불러오기·저장하기, addTransaction·getTransactions를 main.ts가 직접 담당, id를 crypto.randomUUID로 생성)
+```
+
+07편의 `services/expenseStore.ts`가 갖고 있던 `addTransaction`, `getTransactions`는 이 편부터 `main.ts`가 `Storage` 인스턴스와 함께 직접 관리합니다. 배열과 저장소를 같은 파일에서 다뤄야 저장 누락을 없애기 쉽기 때문입니다. `expenseStore.ts` 파일은 지웁니다.
+
+## 개념 정리
+
+### 왜 필요한가
+
+지금까지 거래 배열은 `main.ts` 안의 지역 변수였습니다. 배열에 직접 `push`하는 방식은 배열 하나에는 문제없지만, 나중에 다른 데이터(예: 카테고리 목록, 설정값)도 저장해야 한다면 매번 `JSON.stringify`, `JSON.parse` 코드를 새로 쓰게 됩니다. 저장 방식을 제네릭 클래스 하나로 감싸 두면 어떤 데이터 타입이든 같은 코드로 저장하고 불러올 수 있습니다.
+
+### 제네릭 인터페이스와 제네릭 클래스
+
+인터페이스나 클래스 이름 뒤에 타입 매개변수를 붙이면 실제 타입은 사용하는 쪽에서 정합니다.
+
+| 구문 | 의미 |
+|------|------|
+| `interface DataStore<T>` | `T` 자리에 어떤 타입이 와도 되는 인터페이스 |
+| `class Storage<T> implements DataStore<T>` | 인터페이스의 `T`를 그대로 이어받는 제네릭 클래스 |
+| `new Storage<Transaction>(...)` | 이 저장소를 쓸 때 `T`를 `Transaction`으로 확정 |
+
+08편의 `sortBy<T, K extends keyof T>`는 함수를 제네릭으로 만들었다면, 이번에는 클래스 전체를 제네릭으로 만드는 차이가 있습니다.
+
+### localStorage와 타입 정보 손실
+
+`localStorage`는 문자열만 저장합니다. `JSON.stringify(items)`로 배열을 문자열로 바꿔 저장하고, `JSON.parse(raw)`로 다시 객체로 되돌립니다. `JSON.parse`의 반환 타입은 `any`이므로, 그 안에 정말 `T[]` 모양의 데이터가 들어있는지는 타입스크립트가 확인해주지 않습니다. `as T[]`로 개발자가 직접 타입을 알려줘야 하며, 실제 데이터 모양이 다르면 런타임에서만 문제가 드러납니다.
+
+### id를 문자열로 바꾸는 이유
+
+지금까지 `nextId = transactions.length + 1`처럼 배열 길이로 다음 `id`를 계산했습니다. 이 방식은 데이터가 메모리에만 있을 때는 문제없지만, `localStorage`에서 다시 불러온 뒤 배열 길이가 달라지면(예: 항목을 지운 뒤) 같은 `id`가 중복될 수 있습니다. 저장소를 두는 김에 `crypto.randomUUID()`로 매번 고유한 문자열 `id`를 만들도록 바꿉니다.
+
+## 실습
+
+<Steps>
+
+### 1. 저장소 파일 만들기
+
+`expense-tracker/src/services/` 폴더를 만들고 `storage.ts` 파일을 추가합니다.
+
+### 2. 코드 작성
+
+```ts
+// src/services/storage.ts
+export interface DataStore<T> {
+  load(): T[]
+  save(items: T[]): void
+}
+
+export class Storage<T> implements DataStore<T> {
+  #key: string
+
+  constructor(key: string) {
+    this.#key = key
+  }
+
+  load(): T[] {
+    const raw = localStorage.getItem(this.#key)
+    if (raw === null) {
+      return []
+    }
+    try {
+      return JSON.parse(raw) as T[]
+    } catch {
+      return []
+    }
+  }
+
+  save(items: T[]): void {
+    localStorage.setItem(this.#key, JSON.stringify(items))
+  }
+}
+```
+
+`#key`는 클래스 바깥에서 접근할 수 없는 프라이빗 필드입니다(`ECMAscript` 과목에서 다룬 문법). `load`가 값을 찾지 못하거나 JSON 파싱에 실패하면 빈 배열을 반환해, 첫 실행이나 저장된 값이 깨진 상황에서도 앱이 멈추지 않습니다.
+
+`models/expense.ts`에서 `id`의 타입을 바꿉니다.
+
+```ts
+// src/models/expense.ts
+export interface BaseRecord {
+  readonly id: string
+  date: string
+  amount: number
+  memo: string
+}
+
+export type ExpenseCategory = 'food' | 'transport' | 'housing' | 'shopping' | 'etc-expense'
+export type IncomeCategory = 'salary' | 'bonus' | 'interest' | 'etc-income'
+
+export const EXPENSE_CATEGORIES: readonly ExpenseCategory[] = ['food', 'transport', 'housing', 'shopping', 'etc-expense']
+export const INCOME_CATEGORIES: readonly IncomeCategory[] = ['salary', 'bonus', 'interest', 'etc-income']
+export const ALL_CATEGORIES: readonly string[] = [...new Set([...INCOME_CATEGORIES, ...EXPENSE_CATEGORIES])]
+
+export interface ExpenseTransaction extends BaseRecord {
+  type: 'expense'
+  category: ExpenseCategory
+}
+
+export interface IncomeTransaction extends BaseRecord {
+  type: 'income'
+  category: IncomeCategory
+}
+
+export type Transaction = ExpenseTransaction | IncomeTransaction
+
+export type NewExpenseTransactionInput = {
+  type: 'expense'
+  date: string
+  category: ExpenseCategory
+  amount: number
+  memo: string
+}
+
+export type NewIncomeTransactionInput = {
+  type: 'income'
+  date: string
+  category: IncomeCategory
+  amount: number
+  memo: string
+}
+
+export type NewTransactionInput = NewExpenseTransactionInput | NewIncomeTransactionInput
+```
+
+`main.ts`는 하드코딩된 배열 대신 저장소에서 불러오고, 저장소가 비어 있을 때만 시드 데이터를 채웁니다.
+
+```ts
+// src/main.ts
+import type {
+  Transaction,
+  NewTransactionInput,
+  NewExpenseTransactionInput,
+  NewIncomeTransactionInput,
+} from './models/expense.ts'
+import { EXPENSE_CATEGORIES, INCOME_CATEGORIES, ALL_CATEGORIES } from './models/expense.ts'
+import { isExpenseCategory, isIncomeCategory, parseAmount, matchesFilter, type TransactionFilter } from './lib/parsing.ts'
+import { toSignedAmount, toTypeLabel } from './lib/signedAmount.ts'
+import { sortBy, filterBy } from './lib/arrayUtils.ts'
+import { Storage } from './services/storage.ts'
+
+type SortKey = 'date' | 'amount'
+
+const transactionStorage = new Storage<Transaction>('expense-tracker:transactions')
+
+const seedTransactions: Transaction[] = [
+  { id: crypto.randomUUID(), type: 'income', date: '2026-09-01', category: 'salary', amount: 3000000, memo: '9월 급여' },
+  { id: crypto.randomUUID(), type: 'expense', date: '2026-09-03', category: 'food', amount: 18000, memo: '점심' },
+  { id: crypto.randomUUID(), type: 'expense', date: '2026-09-10', category: 'transport', amount: 4500, memo: '버스' },
+]
+
+const transactions: Transaction[] = transactionStorage.load()
+if (transactions.length === 0) {
+  transactions.push(...seedTransactions)
+  transactionStorage.save(transactions)
+}
+
+function categoryOptionsHtml(): string {
+  const incomeOptions = INCOME_CATEGORIES.map((category) => `<option value="${category}">${category}(수입)</option>`).join('')
+  const expenseOptions = EXPENSE_CATEGORIES.map((category) => `<option value="${category}">${category}(지출)</option>`).join('')
+  return incomeOptions + expenseOptions
+}
+
+function filterCategoryOptionsHtml(): string {
+  const options = ALL_CATEGORIES.map((category) => `<option value="${category}">${category}</option>`).join('')
+  return `<option value="">전체</option>${options}`
+}
+
+const app = document.querySelector<HTMLDivElement>('#app')!
+app.innerHTML = `
+  <main>
+    <h1>가계부</h1>
+    <form id="expense-form">
+      <fieldset>
+        <legend>구분</legend>
+        <label><input type="radio" name="type" value="income" /> 수입</label>
+        <label><input type="radio" name="type" value="expense" checked /> 지출</label>
+      </fieldset>
+
+      <label for="date">날짜</label>
+      <input id="date" name="date" type="date" required />
+
+      <label for="category">카테고리</label>
+      <select id="category" name="category">${categoryOptionsHtml()}</select>
+
+      <label for="amount">금액</label>
+      <input id="amount" name="amount" type="number" min="1" required />
+
+      <label for="memo">메모</label>
+      <input id="memo" name="memo" type="text" />
+
+      <button type="submit">추가</button>
+    </form>
+
+    <section>
+      <label for="filter-category">카테고리로 필터</label>
+      <select id="filter-category">${filterCategoryOptionsHtml()}</select>
+
+      <label for="filter-month">월로 필터</label>
+      <input id="filter-month" type="month" />
+
+      <label for="sort-key">정렬 기준</label>
+      <select id="sort-key">
+        <option value="date">날짜순</option>
+        <option value="amount">금액순</option>
+      </select>
+    </section>
+
+    <p>합계: <span id="total-amount"></span></p>
+    <ul id="expense-list"></ul>
+  </main>
+`
+
+function addTransaction(input: NewTransactionInput): Transaction {
+  const transaction: Transaction = { id: crypto.randomUUID(), ...input }
+  transactions.push(transaction)
+  transactionStorage.save(transactions)
+  return transaction
+}
+
+function readTransactionInput(form: HTMLFormElement): NewTransactionInput {
+  const formData = new FormData(form)
+  const type = formData.get('type')
+  const date = String(formData.get('date'))
+  const amount = parseAmount(formData.get('amount'))
+  const memo = String(formData.get('memo'))
+  const category = formData.get('category')
+
+  if (type === 'income') {
+    if (!isIncomeCategory(category)) {
+      throw new Error(`수입 카테고리가 아닙니다: ${String(category)}`)
+    }
+    const input: NewIncomeTransactionInput = { type: 'income', date, category, amount, memo }
+    return input
+  }
+
+  if (!isExpenseCategory(category)) {
+    throw new Error(`지출 카테고리가 아닙니다: ${String(category)}`)
+  }
+  const input: NewExpenseTransactionInput = { type: 'expense', date, category, amount, memo }
+  return input
+}
+
+function buildFilter(): TransactionFilter | null {
+  const categorySelect = document.querySelector<HTMLSelectElement>('#filter-category')
+  const monthInput = document.querySelector<HTMLInputElement>('#filter-month')
+  if (categorySelect?.value) {
+    return { category: categorySelect.value }
+  }
+  if (monthInput?.value) {
+    return { month: monthInput.value }
+  }
+  return null
+}
+
+function readSortKey(): SortKey {
+  const select = document.querySelector<HTMLSelectElement>('#sort-key')
+  return select?.value === 'amount' ? 'amount' : 'date'
+}
+
+function renderTransactionList(list: Transaction[]): void {
+  const root = document.querySelector<HTMLUListElement>('#expense-list')
+  if (!root) return
+  root.innerHTML = ''
+  for (const transaction of list) {
+    const item = document.createElement('li')
+    item.textContent = `[${toTypeLabel(transaction)}] ${transaction.date} · ${transaction.category} · ${transaction.amount}원 · ${transaction.memo}`
+    root.appendChild(item)
+  }
+}
+
+function renderTotal(list: Transaction[]): void {
+  const totalElement = document.querySelector('#total-amount')
+  if (!totalElement) return
+  const total = list.reduce((sum, transaction) => sum + toSignedAmount(transaction), 0)
+  totalElement.textContent = `${total.toLocaleString('ko-KR')}원`
+}
+
+function render(): void {
+  const filter = buildFilter()
+  const filtered =
+    filter === null ? transactions : filterBy(transactions, (transaction) => matchesFilter(transaction, filter))
+  const sorted = sortBy(filtered, readSortKey())
+  renderTransactionList(sorted)
+  renderTotal(sorted)
+}
+
+function handleSubmit(event: SubmitEvent): void {
+  event.preventDefault()
+  const form = event.currentTarget as HTMLFormElement
+  try {
+    const input = readTransactionInput(form)
+    addTransaction(input)
+    form.reset()
+    render()
+  } catch (error) {
+    if (error instanceof Error) {
+      alert(`입력 오류: ${error.message}`)
+    }
+  }
+}
+
+const form = document.querySelector<HTMLFormElement>('#expense-form')
+form?.addEventListener('submit', handleSubmit)
+document.querySelector('#filter-category')?.addEventListener('change', render)
+document.querySelector('#filter-month')?.addEventListener('change', render)
+document.querySelector('#sort-key')?.addEventListener('change', render)
+
+render()
+```
+
+바뀐 부분은 네 곳입니다. `nextId` 카운터가 사라지고 `crypto.randomUUID()`가 그 자리를 대신합니다. 하드코딩된 배열이 `transactionStorage.load()` 호출로 바뀌고, 비어 있을 때만 `seedTransactions`로 채웁니다. `addTransaction`이 배열에 항목을 추가한 직후 `transactionStorage.save(transactions)`를 호출해 변경 사항을 즉시 저장합니다. 마지막으로, 07·08편까지 `render()` 안에서 매번 `app.innerHTML`을 통째로 새로 쓰던 방식을 그만두고, 폼·필터·목록 뼈대를 모듈 맨 위에서 한 번만 그립니다. 그 뒤로는 `render()`가 `#expense-list`, `#total-amount` 같은 개별 요소만 찾아 내용을 갱신합니다.
+
+### 3. 실행
+
+```text
+npm run dev
+```
+
+### 4. 확인
+
+- 거래를 하나 추가한 뒤 브라우저를 새로고침해도 목록에 그대로 남아 있습니다.
+- 개발자 도구의 애플리케이션 탭에서 로컬 저장소를 열면 `expense-tracker:transactions` 키에 JSON 문자열이 저장되어 있습니다.
+- 처음 여는 브라우저(로컬 저장소가 비어 있는 상태)에서는 시드 거래 3건이 자동으로 채워집니다.
+
+</Steps>
+
+## 직접 해보기
+
+1. `DataStore<T>`에 `clear(): void`를 추가하고 `Storage`에서 `localStorage.removeItem`으로 구현합니다. 콘솔에서 `transactionStorage.clear()`를 호출해 저장소를 비워봅니다.
+2. 개발자 도구 콘솔에서 `localStorage.setItem('expense-tracker:transactions', '망가진 문자열')`을 실행해 저장된 값을 일부러 깨뜨린 뒤 새로고침합니다. `load`의 `try`, `catch`가 어떻게 동작하는지 확인합니다.
+
+<details>
+<summary>정답 보기</summary>
+
+```ts
+export interface DataStore<T> {
+  load(): T[]
+  save(items: T[]): void
+  clear(): void
+}
+```
+
+`Storage`에는 다음 메서드를 추가합니다.
+
+```ts
+clear(): void {
+  localStorage.removeItem(this.#key)
+}
+```
+
+2번은 `JSON.parse`가 문법 오류를 던지고, `load`의 `catch` 블록이 빈 배열을 반환해 앱이 깨지지 않고 시드 데이터로 다시 시작합니다.
+
+</details>
+
+## 자주 하는 실수
+
+| 증상 | 원인 | 고치는 법 |
+|------|------|-----------|
+| 새로고침하면 방금 추가한 거래가 사라짐 | `addTransaction`에서 `transactionStorage.save`를 빠뜨리고 배열만 바꿈 | 배열을 바꿀 때마다 저장소도 함께 갱신한다 |
+| 저장된 값을 불러오면 이상하게 동작 | `JSON.parse` 결과를 `as T[]`로 단언만 하고 실제 모양은 검증하지 않음 | 중요한 데이터는 저장 전후로 필드가 있는지 직접 확인한다 |
+| 거래 두 개의 id가 똑같음 | 여전히 배열 길이로 id를 계산함 | `crypto.randomUUID()`로 매번 새 id를 만든다 |
+
+## 확인 문제
+
+<Quiz
+  questionNumber={1}
+  question="제네릭 인터페이스 DataStore에서 T가 하는 역할은 무엇인가"
+  options={['항상 문자열 타입으로 고정된다', '이 저장소를 사용할 때 실제 타입으로 채워지는 자리표시자다', '런타임에 자동으로 계산된다', 'JSON으로 변환할 수 없는 타입을 막는다']}
+  correctAnswer={2}
+  explanation="T는 타입 매개변수로, 저장소를 사용하는 쪽에서 실제 타입을 채워 넣습니다."
+  optionExplanations={['문자열로 고정되지 않습니다', '정답입니다', '컴파일 타임에 결정됩니다', '직렬화 가능 여부와는 무관합니다']}
+/>
+
+<Quiz
+  questionNumber={2}
+  question="JSON.parse(raw)의 반환 타입에 대한 설명으로 옳은 것은"
+  options={['항상 T[]로 정확히 추론된다', 'any이므로 as T[]로 개발자가 직접 타입을 알려줘야 한다', '컴파일 타임에 항상 오류가 난다', 'localStorage 전용 타입으로 자동 변환된다']}
+  correctAnswer={2}
+  explanation="JSON.parse는 반환 타입이 any이기 때문에 실제 데이터 모양을 컴파일러가 검증하지 않으며, as T[]는 개발자의 단언일 뿐입니다."
+  optionExplanations={['자동으로 T[]가 되지 않습니다', '정답입니다', '컴파일 오류가 나지 않는 것이 문제입니다', '그런 자동 변환은 없습니다']}
+/>
+
+<Quiz
+  questionNumber={3}
+  question="이 편에서 id 타입을 number에서 string으로 바꾼 이유는"
+  options={['문자열이 숫자보다 저장 용량이 작아서', '배열 길이 기반 계산 방식이 삭제·재로드 상황에서 id가 중복될 수 있어서', 'localStorage가 숫자를 저장할 수 없어서', 'crypto.randomUUID가 숫자를 반환하지 않기 때문일 뿐 다른 이유는 없어서']}
+  correctAnswer={2}
+  explanation="배열 길이로 다음 id를 계산하는 방식은 데이터가 삭제되거나 다시 로드되는 상황에서 값이 겹칠 수 있어, 매번 고유한 문자열을 만드는 방식으로 바꿨습니다."
+  optionExplanations={['용량 차이가 이유는 아닙니다', '정답입니다', 'localStorage는 어차피 문자열로만 저장합니다', '이유가 하나만 있는 것은 아니지만 핵심은 중복 방지입니다']}
+/>
+
+<Quiz
+  questionNumber={4}
+  question="main.ts가 Storage 클래스를 통해 데이터를 다루는 이유로 가장 알맞은 것은"
+  options={['코드 줄 수를 늘리기 위해서', '저장 방식이 바뀌어도 main.ts의 호출 코드를 그대로 유지하기 위해서', 'localStorage 용량 제한을 피하기 위해서', '컴파일 속도를 높이기 위해서']}
+  correctAnswer={2}
+  explanation="load, save라는 동작 이름만 유지하면 저장소 구현을 다른 방식으로 바꿔도 main.ts는 고칠 필요가 없습니다."
+  optionExplanations={['목적이 아닙니다', '정답입니다', '용량 제한과는 무관합니다', '컴파일 속도와는 무관합니다']}
+/>
+
+<Quiz
+  questionNumber={5}
+  question="key 필드 이름 앞에 붙은 샾(#) 기호는 무엇을 의미하는가"
+  options={['타입스크립트 전용 접근 제어자다', '클래스 바깥에서 접근할 수 없는 자바스크립트 프라이빗 필드다', '제네릭 타입 매개변수다', '옵셔널 프로퍼티 표시다']}
+  correctAnswer={2}
+  explanation="샾 기호는 ECMAScript의 프라이빗 클래스 필드 문법으로, 클래스 내부에서만 접근할 수 있습니다."
+  optionExplanations={['타입스크립트 전용이 아니라 자바스크립트 표준 문법입니다', '정답입니다', '제네릭 타입 매개변수는 꺾쇠로 표기합니다', '옵셔널 표시는 물음표입니다']}
+/>
+
+## 참고 자료
+
+- [TypeScript Handbook — Generics](https://www.typescriptlang.org/docs/handbook/2/generics.html)
+- [MDN — Window: localStorage property](https://developer.mozilla.org/en-US/docs/Web/API/Window/localStorage)

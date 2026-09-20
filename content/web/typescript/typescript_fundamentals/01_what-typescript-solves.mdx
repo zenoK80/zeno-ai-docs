@@ -1,0 +1,178 @@
+---
+title: '01. TypeScript가 해결하는 문제'
+description: '같은 버그가 있는 JS 코드와 TypeScript 코드를 나란히 실행해, 타입 오류가 언제 드러나는지 비교합니다.'
+---
+
+<Callout type="info">
+  **이번 편의 결과물:** 코드 산출물은 없습니다. 같은 버그가 있는 JS 스크립트와 TypeScript 스크립트를 각각 실행해, 타입 오류가 실행 전에 잡히는 것과 실행 중에야 드러나는 것의 차이를 직접 확인합니다. · **다루는 개념:** JS 동적 타입의 한계, 컴파일타임/런타임 구분, TypeScript 7 네이티브 컴파일러, 편집기 통합(IntelliSense)
+</Callout>
+
+## 이 편에서 만드는 파일
+
+이 편은 개념 편이라 계속 남는 결과물 파일이 없습니다. 비교 실습에 쓸 임시 파일 2개만 만들고, 실습이 끝나면 지워도 됩니다. `expense-tracker/` 프로젝트는 02편에서 새로 만듭니다.
+
+```
+ts-demo/          (임시 폴더, 이 편에서만 사용)
+├── bug.js
+└── bug.ts
+```
+
+## 개념 정리
+
+### JS 동적 타입의 한계
+
+JavaScript 변수는 어떤 타입의 값이든 담을 수 있고, 함수는 인자로 어떤 값이 오든 일단 실행됩니다. 값의 타입이 실제로 맞는지는 코드를 작성하는 시점이 아니라 **그 줄이 실행되는 순간** 결정됩니다. 숫자를 기대하는 자리에 문자열이 들어와도 프로그램이 멈추지 않고, 계산 결과만 조용히 틀리는 경우가 자주 있습니다.
+
+### 컴파일타임과 런타임 구분
+
+| 구분 | 시점 | 이 편 예시에서 일어나는 일 |
+|------|------|---------------------------|
+| 컴파일타임 | 코드를 실행하기 전, 타입을 검사하는 시점 | TypeScript가 잘못된 인자를 발견하고 오류를 표시 |
+| 런타임 | 코드가 실제로 실행되는 시점 | JavaScript가 잘못된 값을 그대로 계산해 틀린 결과를 출력 |
+
+TypeScript 코드는 브라우저나 Node.js에서 직접 실행되지 않습니다. 컴파일타임에 타입을 검사한 뒤 일반 JavaScript로 변환되어야 실행됩니다. 이 편의 실습에서는 `tsc`(TypeScript 컴파일러)로 컴파일타임 검사만 따로 실행해 봅니다.
+
+### TypeScript 7 네이티브 컴파일러
+
+TypeScript 7부터 컴파일러 본체가 Go로 재작성되어 기존 JavaScript 구현보다 훨씬 빠르게 동작합니다. 타입 검사 결과(어떤 코드가 오류인지, 어떤 코드가 정상인지)는 이전 버전과 동일하게 유지되고, 속도만 크게 개선되었습니다. 이 과목의 모든 실습은 TypeScript 7 기준으로 진행합니다.
+
+### 편집기 통합(IntelliSense)
+
+VS Code는 `tsc`를 직접 실행하지 않아도 TypeScript 서버를 백그라운드에서 계속 띄워 두고, 코드를 입력하는 즉시 같은 타입 검사 결과를 빨간 밑줄과 툴팁으로 보여줍니다. 자동 완성 목록에 프로퍼티나 메서드 이름이 뜨는 것, 함수 위에 마우스를 올리면 매개변수 타입이 보이는 것도 모두 같은 서버가 하는 일입니다. `tsc`를 터미널에서 실행하는 것은 이 검사를 한 번에, 파일 전체에 대해, 자동화된 방식으로 확인하는 것입니다.
+
+## 실습
+
+<Steps>
+
+### 1. 임시 폴더 만들기
+
+```text
+mkdir ts-demo
+cd ts-demo
+npm init -y
+npm install --save-dev typescript
+```
+
+### 2. JS 버전 작성과 실행
+
+```js
+// bug.js
+function calculateTotal(prices) {
+  return prices.reduce((sum, price) => sum + price, 0)
+}
+
+const total = calculateTotal([1000, 2000, '3000'])
+console.log('합계:', total)
+```
+
+```text
+node bug.js
+```
+
+```text
+합계: 30003000
+```
+
+세 번째 값 `'3000'`은 숫자가 아니라 문자열입니다. `reduce`가 `1000 + 2000`까지는 숫자 덧셈을 하다가 `3000 + '3000'`에서 문자열 이어붙이기로 바뀌어, 합계가 `30003000`이라는 잘못된 값이 됩니다. 프로그램은 멈추지 않고 틀린 값을 그대로 출력합니다.
+
+### 3. TS 버전 작성
+
+```ts
+// bug.ts
+function calculateTotal(prices: number[]): number {
+  return prices.reduce((sum, price) => sum + price, 0)
+}
+
+const total = calculateTotal([1000, 2000, '3000'])
+console.log('합계:', total)
+```
+
+`prices: number[]`는 이 배열의 모든 원소가 숫자여야 한다는 타입 애너테이션입니다. 애너테이션은 03편에서 자세히 다룹니다.
+
+### 4. 타입 검사만 실행
+
+```text
+npx tsc --noEmit bug.ts
+```
+
+```text
+bug.ts:5:33 - error TS2345: Argument of type '(string | number)[]' is not assignable to parameter of type 'number[]'.
+  Type 'string | number' is not assignable to type 'number'.
+    Type 'string' is not assignable to type 'number'.
+
+5 const total = calculateTotal([1000, 2000, '3000'])
+                                ~~~~~~~~~~~~~~~~~~~~
+```
+
+`--noEmit`은 JavaScript 파일을 생성하지 않고 타입 검사만 수행하라는 옵션입니다. `bug.js`는 실행해야만 틀린 값이 드러났지만, `bug.ts`는 실행하지 않고도(컴파일타임에) 배열에 문자열이 섞여 있다는 문제를 짚어 줍니다.
+
+</Steps>
+
+## 확인
+
+- `node bug.js`는 오류 없이 실행되지만 합계가 `30003000`으로 틀립니다.
+- `npx tsc --noEmit bug.ts`는 실행 없이 5행에서 타입 오류를 출력합니다.
+- VS Code로 `bug.ts`를 열면 `'3000'` 아래에 빨간 밑줄이 바로 나타납니다. `tsc`를 실행하기도 전에 편집기가 같은 오류를 미리 보여주는 것입니다.
+
+## 직접 해보기
+
+1. `bug.js`의 배열에서 문자열 `'3000'`을 지우고 숫자 `3000`으로 바꿔 다시 실행한 뒤, 합계가 `6000`으로 정확하게 나오는지 확인합니다.
+2. `bug.ts`의 `calculateTotal` 함수에서 `: number[]` 애너테이션을 지우고 다시 `npx tsc --noEmit bug.ts`를 실행해, 오류가 사라지는지 아니면 형태만 바뀌는지 관찰합니다.
+
+<details>
+<summary>정답 보기</summary>
+
+애너테이션을 지워도 TypeScript는 함수 본문(`prices.reduce(...)`)에서 `prices`가 배열로 쓰이는 것을 보고 타입을 추론하려고 시도합니다. 하지만 매개변수 자체의 타입을 알려줄 단서가 없어 `prices`는 암시적으로 `any` 타입이 되고, 배열 안에 문자열이 섞여 있어도 오류가 나지 않습니다. 매개변수 타입 애너테이션이 있어야 호출하는 쪽의 실수를 잡을 수 있습니다.
+
+</details>
+
+## 자주 하는 실수
+
+| 증상 | 원인 | 고치는 법 |
+|------|------|-----------|
+| `tsc`를 설치했는데 명령을 못 찾음 | 전역 설치 없이 `tsc`만 입력함 | `npx tsc ...`로 실행하거나 `package.json`의 `devDependencies`에 설치되어 있는지 확인한다 |
+| `.ts` 파일인데 오류가 하나도 안 뜸 | 매개변수에 타입 애너테이션이 없어 `any`로 추론됨 | 매개변수에 타입을 명시한다 |
+| 오류 메시지를 보고도 어디를 고칠지 모름 | 오류가 가리키는 위치(행·열)를 확인하지 않음 | 메시지 앞의 `파일명:행:열`을 먼저 확인한다 |
+
+## 확인 문제
+
+<Quiz
+  questionNumber={1}
+  question="bug.js를 실행했을 때 합계가 30003000으로 틀리게 나오는 근본 원인은?"
+  options={['reduce 함수가 고장 나서', '배열에 숫자가 아닌 문자열 값이 섞여 있어도 실행이 멈추지 않아서', 'console.log가 숫자를 문자열로 바꿔서', 'Node.js 버전이 낮아서']}
+  correctAnswer={2}
+  explanation="JS는 값의 타입이 실행 시점에 결정되므로, 문자열이 섞인 배열도 오류 없이 실행되다가 덧셈이 문자열 이어붙이기로 바뀝니다."
+  optionExplanations={['reduce 자체는 정상 동작합니다', '정답입니다', 'console.log는 값을 그대로 출력할 뿐입니다', '버전과는 무관한 문제입니다']}
+/>
+
+<Quiz
+  questionNumber={2}
+  question="컴파일타임과 런타임을 바르게 구분한 것은?"
+  options={['컴파일타임은 코드가 실행되는 도중이다', '컴파일타임은 실행 전 타입을 검사하는 시점이고, 런타임은 코드가 실제로 실행되는 시점이다', '둘은 같은 시점을 가리키는 다른 이름이다', '런타임은 항상 컴파일타임보다 먼저 온다']}
+  correctAnswer={2}
+  explanation="컴파일타임은 실행 전에 타입을 검사하는 단계이고, 런타임은 그 검사를 통과한 코드가 실제로 동작하는 단계입니다."
+  optionExplanations={['실행 중은 런타임입니다', '정답입니다', '두 시점은 순서와 목적이 다릅니다', '컴파일타임이 먼저 옵니다']}
+/>
+
+<Quiz
+  questionNumber={3}
+  question="npx tsc --noEmit bug.ts 명령의 역할은?"
+  options={['bug.ts를 실행해 결과를 출력한다', 'JavaScript 파일을 생성하지 않고 타입 검사만 수행한다', 'bug.js를 자동으로 삭제한다', 'Node.js를 최신 버전으로 업데이트한다']}
+  correctAnswer={2}
+  explanation="--noEmit은 컴파일 결과 파일을 만들지 않고 타입 검사 결과만 확인하는 옵션입니다."
+  optionExplanations={['tsc는 실행이 아니라 검사를 합니다', '정답입니다', '파일 삭제와는 무관합니다', 'Node.js 버전과 무관한 옵션입니다']}
+/>
+
+<Quiz
+  questionNumber={4}
+  question="VS Code에서 .ts 파일에 빨간 밑줄이 tsc를 실행하기 전부터 보이는 이유는?"
+  options={['VS Code가 파일을 저장할 때마다 서버에 업로드해서', 'VS Code가 백그라운드에서 TypeScript 서버를 띄워 같은 타입 검사를 실시간으로 수행해서', '빨간 밑줄은 문법 강조일 뿐 타입 오류와 무관해서', '인터넷에 연결되어 있으면 자동으로 표시돼서']}
+  correctAnswer={2}
+  explanation="VS Code는 TypeScript 서버를 백그라운드에서 계속 실행해, 코드를 입력하는 즉시 tsc와 같은 타입 검사 결과를 보여줍니다."
+  optionExplanations={['업로드는 일어나지 않습니다', '정답입니다', '빨간 밑줄은 실제 타입 오류를 나타냅니다', '인터넷 연결과는 무관합니다']}
+/>
+
+## 참고 자료
+
+- [TypeScript — Announcing TypeScript 7.0](https://devblogs.microsoft.com/typescript/announcing-typescript-7-0/)
+- [TypeScript Handbook — TypeScript for JavaScript Programmers](https://www.typescriptlang.org/docs/handbook/typescript-in-5-minutes.html)

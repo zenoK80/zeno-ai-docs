@@ -1,0 +1,290 @@
+---
+title: '16. strict 모드 심화와 추가 엄격 옵션'
+description: 'noUncheckedIndexedAccess를 추가로 켜고, 배열 인덱스와 DOM 조회 결과의 null 처리에서 드러난 오류를 고칩니다'
+---
+
+<Callout type="info">
+  **이번 편의 결과물:** `tsconfig.json`에 `noUncheckedIndexedAccess`를 추가로 켜고, `StatsCalculator`에 새로 추가한 `latestTransaction`과 각 `ui` 모듈의 DOM 조회 결과에서 드러난 타입 오류를 모두 고쳐 `expense-tracker`가 정상 동작합니다. · **다루는 개념:** strict 하위 플래그, TypeScript 7 기본값, `noUncheckedIndexedAccess`, DOM null 처리
+</Callout>
+
+## 이 편에서 만드는 파일
+
+```
+expense-tracker/
+├── tsconfig.json                 ~ (noUncheckedIndexedAccess 추가)
+└── src/
+    ├── lib/
+    │   └── dom.ts                 + (getRequiredElement 헬퍼)
+    ├── services/
+    │   └── stats.ts               ~ (StatsCalculator에 latestTransaction 추가)
+    ├── ui/
+    │   ├── transactionForm.ts     ~ (querySelector 단정을 getRequiredElement로 교체)
+    │   ├── transactionList.ts     ~ (querySelector 단정을 getRequiredElement로 교체)
+    │   └── statsPanel.ts          ~ (최근 거래 표시 추가, querySelector 단정 교체)
+    └── main.ts                    ~ (getRequiredElement 적용)
+```
+
+12편이 확립한 `ui/transactionForm.ts`, `ui/transactionList.ts`, `ui/statsPanel.ts`, `services/index.ts` 배럴, `StatsCalculator`(14편), `BudgetEvaluator`(15편) 구조를 그대로 이어받습니다. DOM 조회 헬퍼는 08·06·07편의 `arrayUtils.ts`, `parsing.ts`, `signedAmount.ts`가 이미 있는 `lib/` 폴더에 추가하고, 별도의 `utils/` 폴더는 만들지 않습니다.
+
+## 개념 정리
+
+### strict가 이미 켜는 것
+
+TypeScript 7부터 `strict`는 기본값이 `true`입니다. `strict: true` 하나가 아래 하위 플래그를 한꺼번에 켭니다.
+
+| 플래그 | 잡아내는 문제 |
+|--------|----------------|
+| `noImplicitAny` | 타입을 추론할 수 없어 암묵적으로 `any`가 되는 지점 |
+| `strictNullChecks` | `null`/`undefined`를 다른 타입에 그냥 대입하는 코드 |
+| `strictPropertyInitialization` | 클래스 필드가 초기화되지 않고 사용되는 경우 |
+
+09편에서 제네릭 저장소 클래스를 만들고 12편에서 모듈을 분리할 때 이 플래그들은 이미 배경에서 계속 오류를 잡아 왔습니다. 이번 편은 "strict를 켠다"가 아니라 **strict보다 더 엄격한 옵션을 추가로 켜는** 편입니다.
+
+### noUncheckedIndexedAccess가 하는 일
+
+배열 인덱스나 인덱스 시그니처로 값을 꺼내면, 실제로는 그 위치에 값이 없을 수도 있습니다. 기본 `strict` 상태에서는 `배열[i]`의 타입이 원소 타입 그대로 나오지만, `noUncheckedIndexedAccess`를 켜면 여기에 `undefined`가 합쳐집니다.
+
+```ts
+const items: string[] = ['a', 'b']
+const first = items[0] // strict만: string / noUncheckedIndexedAccess: string 또는 undefined
+```
+
+주의할 점은 카테고리별 합계처럼 **키가 고정된 리터럴 유니온**을 쓰는 타입에는 영향을 주지 않는다는 것입니다. `Record<ExpenseCategory, number>`는 정해진 프로퍼티 목록을 갖는 객체 타입으로 취급되어 `totals.food`는 여전히 `number`입니다. 영향을 받는 쪽은 배열 인덱스 접근과 진짜 인덱스 시그니처뿐입니다.
+
+### 방치된 널 단정 다시 보기
+
+`querySelector` 결과처럼 `strictNullChecks`가 이미 `null` 가능성을 알려주는 자리에서도, 급하게 `!`(non-null assertion)를 붙여 넘어간 코드가 남아있을 수 있습니다. `!`는 컴파일러에게 "여기는 절대 null이 아니다"라고 우기는 것과 같아서 그 뒤로는 검사하지 않습니다. 이번 편에서 이런 자리를 제대로 된 분기로 바꿉니다.
+
+이 과목은 `noUncheckedIndexedAccess`까지만 켜고, `exactOptionalPropertyTypes`(선택 프로퍼티에 `undefined`를 명시적으로 대입하는 것도 막음) 같은 나머지 옵션은 "직접 해보기"에서 시험해 봅니다.
+
+## 실습
+
+<Steps>
+
+### 1. tsconfig.json에 옵션 추가
+
+02편에서 만든 `tsconfig.json`에 `noUncheckedIndexedAccess` 한 줄만 추가합니다.
+
+```json
+// tsconfig.json
+{
+  "compilerOptions": {
+    "target": "ES2023",
+    "useDefineForClassFields": true,
+    "module": "ESNext",
+    "lib": ["ES2023", "DOM", "DOM.Iterable"],
+    "skipLibCheck": true,
+
+    "moduleResolution": "bundler",
+    "allowImportingTsExtensions": true,
+    "isolatedModules": true,
+    "moduleDetection": "force",
+    "noEmit": true,
+
+    "strict": true,
+    "noUnusedLocals": true,
+    "noUnusedParameters": true,
+    "noFallthroughCasesInSwitch": true,
+    "noUncheckedSideEffectImports": true,
+    "noUncheckedIndexedAccess": true
+  },
+  "include": ["src"]
+}
+```
+
+### 2. StatsCalculator에 메서드를 추가해 새 오류 확인
+
+`StatsCalculator`(14편)에 가장 최근 거래를 찾는 메서드를 추가합니다. 배열을 정렬한 뒤 첫 번째 원소를 그대로 반환하는, 아직 오류가 있는 버전부터 시작합니다.
+
+```ts
+// src/services/stats.ts (발췌 — StatsCalculator 클래스 안에 메서드 추가, categoryTotals·monthlySummary는 14·15편과 동일)
+latestTransaction(transactions: Transaction[]): Transaction {
+  const sorted = [...transactions].sort((a, b) => b.date.localeCompare(a.date))
+  return sorted[0]
+}
+```
+
+```text
+npx tsc --noEmit
+
+src/services/stats.ts:24:5 - error TS2322: Type 'Transaction | undefined' is not assignable to type 'Transaction'.
+
+24     return sorted[0]
+       ~~~~~~~~~~~~~~~~
+```
+
+`noUncheckedIndexedAccess`를 켠 뒤로 `sorted[0]`의 타입에 `undefined`가 합쳐져, 선언한 반환 타입 `Transaction`과 더 이상 맞지 않습니다. `categoryTotals`, `monthlySummary`는 카테고리별로 고정된 키(`Record<ExpenseCategory, number>`)를 채우거나 `Map.get`으로 캐시를 조회할 뿐이라 이 옵션의 영향을 받지 않고 그대로 둡니다.
+
+### 3. 반환 타입에 null 반영
+
+```ts
+// src/services/stats.ts (발췌 — latestTransaction만 수정)
+latestTransaction(transactions: Transaction[]): Transaction | null {
+  const sorted = [...transactions].sort((a, b) => b.date.localeCompare(a.date))
+  return sorted[0] ?? null
+}
+```
+
+반환 타입을 `Transaction | null`로 바꾸고 `sorted[0] ?? null`로 값이 없을 때를 명시적으로 표현했습니다. 이제 이 결과를 쓰는 쪽이 반드시 null 처리를 하도록 컴파일러가 강제합니다.
+
+### 4. DOM 조회 결과를 위한 헬퍼 작성
+
+```ts
+// src/lib/dom.ts
+export function getRequiredElement<T extends Element>(root: ParentNode, selector: string): T {
+  const element = root.querySelector<T>(selector)
+  if (element === null) {
+    throw new Error(`화면 요소를 찾을 수 없습니다: ${selector}`)
+  }
+  return element
+}
+```
+
+`root`를 매개변수로 받아, `document` 전체뿐 아니라 각 `ui` 모듈이 자신에게 주어진 `root: HTMLElement` 안에서 요소를 찾을 때도 그대로 재사용합니다.
+
+### 5. querySelector 단정을 헬퍼로 교체
+
+```ts
+// src/ui/transactionForm.ts (발췌 — mountTransactionForm 안 변수 선언부만, 나머지는 12편과 동일)
+import { getRequiredElement } from '../lib/dom.ts'
+
+export function mountTransactionForm(root: HTMLElement, handlers: TransactionFormHandlers) {
+  // root.innerHTML 설정은 12편과 동일
+
+  const form = getRequiredElement<HTMLFormElement>(root, '#transaction-form')
+  const typeSelect = getRequiredElement<HTMLSelectElement>(root, '#type-select')
+  const categorySelect = getRequiredElement<HTMLSelectElement>(root, '#category-select')
+  const editForm = getRequiredElement<HTMLFormElement>(root, '#edit-form')
+  const editCancelButton = getRequiredElement<HTMLButtonElement>(root, '#edit-cancel')
+  // 이하 로직은 12편과 동일
+}
+```
+
+```ts
+// src/ui/transactionList.ts (발췌 — mountTransactionList 안 변수 선언부만, 나머지는 12편과 동일)
+import { getRequiredElement } from '../lib/dom.ts'
+
+export function mountTransactionList(root: HTMLElement, handlers: TransactionListHandlers) {
+  // root.innerHTML 설정은 12편과 동일
+
+  const filterSelect = getRequiredElement<HTMLSelectElement>(root, '#filter-type')
+  const sortSelect = getRequiredElement<HTMLSelectElement>(root, '#sort-key')
+  const listEl = getRequiredElement<HTMLUListElement>(root, '#transaction-list')
+  // 이하 로직은 12편과 동일
+}
+```
+
+기존에는 `root.querySelector<HTMLFormElement>('#transaction-form')!`처럼 non-null assertion(`!`)으로 넘어갔던 자리입니다. `getRequiredElement`는 요소가 없으면 즉시 에러를 던져 원인을 바로 알려줍니다.
+
+### 6. statsPanel.ts에 최근 거래 표시 추가
+
+```ts
+// src/ui/statsPanel.ts (발췌 — 이 편에서 바뀐·추가된 부분만, 카테고리 합계·예산 경고 로직은 14·15편과 동일)
+import { getRequiredElement } from '../lib/dom.ts'
+
+// root.innerHTML 템플릿에 다음 section을 추가합니다
+// <section><h2>최근 거래</h2><p id="latest-transaction"></p></section>
+
+export function mountStatsPanel(root: HTMLElement) {
+  const totalsEl = getRequiredElement<HTMLUListElement>(root, '#category-totals')
+  const summaryEl = getRequiredElement<HTMLParagraphElement>(root, '#monthly-summary')
+  const warningsEl = getRequiredElement<HTMLUListElement>(root, '#budget-warnings')
+  const latestEl = getRequiredElement<HTMLParagraphElement>(root, '#latest-transaction')
+
+  return {
+    update(transactions: Transaction[]): void {
+      // 카테고리 합계, 이번 달 요약, 예산 경고 렌더링은 14·15편과 동일
+
+      const latest = statsCalculator.latestTransaction(transactions)
+      latestEl.textContent =
+        latest === null ? '거래 내역이 없습니다.' : `최근 거래: ${latest.memo} (${latest.amount.toLocaleString()}원)`
+    },
+  }
+}
+```
+
+### 7. main.ts도 헬퍼로 정리
+
+```ts
+// src/main.ts (발췌 — 이 편에서 바뀐 부분만)
+import { getRequiredElement } from './lib/dom.ts'
+
+const app = getRequiredElement<HTMLDivElement>(document, '#app')
+```
+
+`document`도 `querySelector`를 가진 `ParentNode`라서, `ui` 모듈의 `root: HTMLElement`와 같은 헬퍼 함수를 그대로 쓸 수 있습니다.
+
+### 8. 실행과 확인
+
+```text
+npx tsc --noEmit
+npm run dev
+```
+
+- `npx tsc --noEmit`이 오류 없이 끝난다.
+- 거래를 하나도 추가하지 않은 상태에서 "최근 거래" 영역에 "거래 내역이 없습니다."가 보인다.
+- 거래를 추가하면 최근 거래 문구가 방금 추가한 내용으로 바뀐다.
+
+</Steps>
+
+## 직접 해보기
+
+1. `tsconfig.json`에 `exactOptionalPropertyTypes`를 추가로 켜고 `npx tsc --noEmit`을 실행해 어떤 파일에서 오류가 나는지 관찰한 뒤, 학습이 끝나면 다시 지웁니다.
+2. `noPropertyAccessFromIndexSignature`(인덱스 시그니처 프로퍼티를 점 표기법으로 접근하지 못하게 막는 옵션)를 추가로 켜고, `services/stats.ts`가 여전히 통과하는 이유를 생각해 봅니다.
+
+<details>
+<summary>정답 보기</summary>
+
+`exactOptionalPropertyTypes`를 켜면 선택 프로퍼티(`prop?: string`)에 `undefined`를 명시적으로 대입하는 코드가 오류로 바뀝니다. `expense-tracker`에는 아직 그런 코드가 없다면 오류 없이 통과할 수 있습니다. `noPropertyAccessFromIndexSignature`는 진짜 인덱스 시그니처로 선언된 프로퍼티에만 영향을 주므로, `Record<ExpenseCategory, number>`처럼 리터럴 유니온으로 키가 고정된 타입에는 영향이 없어 `stats.ts`는 그대로 통과합니다.
+
+</details>
+
+## 자주 하는 실수
+
+| 증상 | 원인 | 고치는 법 |
+|------|------|-----------|
+| `noUncheckedIndexedAccess`를 켠 뒤에도 배열 접근 결과에 `!`를 붙여 넘김 | 오류를 없애는 데만 급급해 원래 문제(값이 없을 수 있음)를 다시 숨김 | 실제로 값이 없는 경우를 분기로 처리하거나 반환 타입에 반영 |
+| `querySelector` 결과에 `as`로 강제 형변환 | 타입 오류를 빠르게 없애려는 습관 | `getRequiredElement`처럼 없으면 에러를 던지는 헬퍼로 대체 |
+
+## 확인 문제
+
+<Quiz
+  questionNumber={1}
+  question="noUncheckedIndexedAccess를 켰을 때 바뀌는 것은"
+  options={['모든 변수에 undefined가 추가된다', '배열 인덱스와 인덱스 시그니처 접근 결과에 undefined가 합쳐진다', 'strict 옵션이 자동으로 꺼진다', '함수 매개변수 타입 검사가 느슨해진다']}
+  correctAnswer={2}
+  explanation="배열이나 인덱스 시그니처로 값을 꺼낸 결과의 타입에 undefined가 추가되어, 값이 없을 가능성을 명시적으로 다루게 만듭니다."
+  optionExplanations={['모든 변수가 아니라 인덱스 접근 결과에만 적용됩니다', '정답입니다', 'strict와는 독립적인 별도 옵션입니다', '함수 매개변수 검사는 strictFunctionTypes가 담당합니다']}
+/>
+
+<Quiz
+  questionNumber={2}
+  question="TypeScript 7에서 strict 옵션의 기본값은"
+  options={['false, 필요할 때 켜야 한다', 'true, 이미 켜져 있다', '프로젝트 종류에 따라 다르다', 'strict 옵션 자체가 삭제되었다']}
+  correctAnswer={2}
+  explanation="TypeScript 7부터 strict의 기본값이 true로 바뀌어, 별도 설정 없이도 하위 플래그가 모두 켜진 상태로 시작합니다."
+  optionExplanations={['TS7부터는 기본값이 true입니다', '정답입니다', '프로젝트 종류와 무관하게 기본값은 true입니다', '옵션은 여전히 존재하며 기본값만 바뀌었습니다']}
+/>
+
+<Quiz
+  questionNumber={3}
+  question="카테고리를 키로 쓰는 Record 타입처럼 리터럴 유니온을 키로 쓰는 타입이 noUncheckedIndexedAccess의 영향을 받는가"
+  options={['받는다, 모든 객체 접근에 적용된다', '받지 않는다, 키가 고정된 프로퍼티로 취급되기 때문이다', '받는다, 다만 첫 번째 키에만 적용된다', '받지 않는다, Record 타입 자체가 사용 금지되기 때문이다']}
+  correctAnswer={2}
+  explanation="리터럴 유니온으로 키가 고정된 타입은 진짜 인덱스 시그니처가 아니라 정해진 프로퍼티 목록으로 취급되어 이 옵션의 영향을 받지 않습니다."
+  optionExplanations={['모든 접근이 아니라 진짜 인덱스 시그니처에만 적용됩니다', '정답입니다', '특정 키만 영향받는 방식이 아닙니다', 'Record 타입은 여전히 정상적으로 사용됩니다']}
+/>
+
+<Quiz
+  questionNumber={4}
+  question="querySelector 결과에 non-null assertion(!)을 남용하면 생기는 문제는"
+  options={['컴파일 속도가 느려진다', '컴파일러가 그 이후 null 가능성을 더 이상 검사하지 않아 런타임 오류로 이어질 수 있다', '브라우저가 해당 코드를 실행하지 않는다', '타입 오류가 오히려 늘어난다']}
+  correctAnswer={2}
+  explanation="!는 컴파일러에게 값이 확실히 있다고 알리는 것이라, 실제로 요소가 없을 때 런타임에서야 오류가 드러납니다."
+  optionExplanations={['컴파일 속도와는 무관합니다', '정답입니다', '코드는 정상적으로 실행 시도됩니다', '오히려 타입 오류를 줄이는 방향으로 작동합니다']}
+/>
+
+## 참고 자료
+
+- [TypeScript — TSConfig Option: strict](https://www.typescriptlang.org/tsconfig/strict.html)
+- [TypeScript — TSConfig Reference](https://www.typescriptlang.org/tsconfig/)

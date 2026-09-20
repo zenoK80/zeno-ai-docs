@@ -1,0 +1,428 @@
+---
+title: '07. 판별 유니온과 완전성 검사'
+description: '거래를 income/expense 판별 유니온으로 재모델링하고, 분기 누락을 컴파일 타임에 잡습니다.'
+---
+
+<Callout type="info">
+  **이번 편의 결과물:** 거래가 `income`/`expense` 판별 유니온으로 재모델링되고, 분기 케이스를 빠뜨리면 컴파일 오류가 나는 것을 실제로 확인합니다. · **다루는 개념:** 판별 유니온, 커스텀 타입 가드, `never`를 이용한 완전성 검사
+</Callout>
+
+06편에서 `category`는 리터럴 유니온으로 제한됐지만, 수입(급여)과 지출(식비 등)이 같은 `category` 안에 섞여 있습니다. 이 편에서는 거래를 `type: 'income' | 'expense'`라는 명시적인 태그로 구분하는 판별 유니온으로 다시 설계합니다. 도메인이 커지므로 `Expense`라는 이름 대신 `Transaction`(거래)으로 바꾸고, `expenseStore.ts`의 함수 이름도 그에 맞춥니다. 카테고리 값도 이 편부터 한글 리터럴 대신 영어 코드(`'food'`, `'salary'` 등)로 바꿉니다. 화면에 보여줄 한글 이름은 값 자체에 담지 않고 이후 편에서 카테고리 표시용 맵으로 따로 관리합니다.
+
+## 이 편에서 만드는 파일
+
+```
+expense-tracker/src/
+├── models/
+│   └── expense.ts        (~, ExpenseTransaction/IncomeTransaction/Transaction으로 재설계)
+├── services/
+│   └── expenseStore.ts   (~, addTransaction/getTransactions로 개명, 판별 유니온 반영)
+├── lib/
+│   ├── parsing.ts         (~, 카테고리 가드 분리, parseAmount 항상 양수로)
+│   └── signedAmount.ts    (+, 완전성 검사로 부호·레이블 계산)
+└── main.ts                 (~, Transaction 기준으로 폼·렌더링 갱신)
+```
+
+## 개념 정리
+
+### 판별 유니온(discriminated union)
+
+유니온을 이루는 각 타입이 같은 이름의 프로퍼티(태그)를 갖고 그 값만 다를 때를 판별 유니온이라고 합니다. 태그 값으로 조건을 나누면 TypeScript가 나머지 프로퍼티까지 자동으로 좁혀줍니다.
+
+### 커스텀 타입 가드
+
+`value is Type` 형태로 반환 타입을 선언한 함수입니다. 06편의 `isCategory`도 커스텀 타입 가드였습니다. 이 편에서는 수입 카테고리와 지출 카테고리가 서로 다른 유니온이라 가드도 두 개로 나눕니다.
+
+### never와 완전성 검사(exhaustiveness check)
+
+`switch`에서 판별 유니온의 모든 태그 값을 `case`로 처리하고 나면, 남는 타입은 `never`(어떤 값도 될 수 없는 타입)입니다. `default` 분기에서 이 `never`를 매개변수로 받는 함수에 넘기면, 나중에 유니온에 새 태그가 추가됐는데 `case`를 빠뜨렸을 때 그 자리에서 컴파일 오류가 납니다.
+
+## 실습
+
+<Steps>
+
+### 1. 모델을 판별 유니온으로 재설계
+
+```ts
+// expense-tracker/src/models/expense.ts
+export const CURRENCY: 'KRW' = 'KRW'
+
+export type ExpenseCategory = 'food' | 'transport' | 'housing' | 'shopping' | 'etc-expense'
+export type IncomeCategory = 'salary' | 'bonus' | 'interest' | 'etc-income'
+
+export const EXPENSE_CATEGORIES: readonly ExpenseCategory[] = ['food', 'transport', 'housing', 'shopping', 'etc-expense']
+export const INCOME_CATEGORIES: readonly IncomeCategory[] = ['salary', 'bonus', 'interest', 'etc-income']
+export const ALL_CATEGORIES: readonly string[] = [...new Set([...INCOME_CATEGORIES, ...EXPENSE_CATEGORIES])]
+
+export interface BaseRecord {
+  readonly id: number
+  date: string
+  amount: number
+  memo: string
+}
+
+export interface ExpenseTransaction extends BaseRecord {
+  type: 'expense'
+  category: ExpenseCategory
+}
+
+export interface IncomeTransaction extends BaseRecord {
+  type: 'income'
+  category: IncomeCategory
+}
+
+export type Transaction = ExpenseTransaction | IncomeTransaction
+```
+
+06편의 `Category`, `CATEGORIES`(통합 카테고리 유니온)는 `ExpenseCategory`/`IncomeCategory`, `EXPENSE_CATEGORIES`/`INCOME_CATEGORIES`로 나뉘고, 값도 한글 리터럴에서 영어 코드로 바뀝니다. `amount`는 이제 크기만 나타내고 항상 양수로 입력받으며, 수입·지출 구분은 `type` 태그로만 하고 부호는 그 태그를 기준으로 계산합니다.
+
+### 2. expenseStore.ts를 Transaction 기준으로 재작성
+
+```ts
+// expense-tracker/src/services/expenseStore.ts
+import { Transaction, ExpenseCategory, IncomeCategory } from '../models/expense.ts'
+
+const transactions: Transaction[] = []
+let nextId: number = 1
+
+type NewExpenseTransactionInput = {
+  type: 'expense'
+  date: string
+  category: ExpenseCategory
+  amount: number
+  memo?: string
+}
+
+type NewIncomeTransactionInput = {
+  type: 'income'
+  date: string
+  category: IncomeCategory
+  amount: number
+  memo?: string
+}
+
+type NewTransactionInput = NewExpenseTransactionInput | NewIncomeTransactionInput
+
+export function addTransaction(input: NewTransactionInput): Transaction {
+  const base = { id: nextId, date: input.date, amount: input.amount, memo: input.memo ?? '' }
+  const transaction: Transaction =
+    input.type === 'income'
+      ? { ...base, type: 'income', category: input.category }
+      : { ...base, type: 'expense', category: input.category }
+  transactions.push(transaction)
+  nextId += 1
+  return transaction
+}
+
+export function getTransactions(): Transaction[] {
+  return transactions
+}
+```
+
+`input.type === 'income'`으로 좁히면 그 분기 안에서 `input.category`는 자동으로 `IncomeCategory`가 됩니다. 판별 유니온의 태그로 좁힌 값은 나머지 프로퍼티 타입까지 함께 좁혀진다는 것을 여기서도 확인할 수 있습니다.
+
+### 3. 카테고리별 타입 가드와 금액 검증 갱신
+
+```ts
+// expense-tracker/src/lib/parsing.ts
+import { ExpenseCategory, IncomeCategory, EXPENSE_CATEGORIES, INCOME_CATEGORIES } from '../models/expense.ts'
+
+export function isExpenseCategory(value: unknown): value is ExpenseCategory {
+  if (typeof value !== 'string') {
+    return false
+  }
+  return (EXPENSE_CATEGORIES as readonly string[]).includes(value)
+}
+
+export function isIncomeCategory(value: unknown): value is IncomeCategory {
+  if (typeof value !== 'string') {
+    return false
+  }
+  return (INCOME_CATEGORIES as readonly string[]).includes(value)
+}
+
+export function parseAmount(value: FormDataEntryValue | null): number {
+  if (typeof value !== 'string') {
+    throw new Error('금액 입력값이 없습니다')
+  }
+  const amount = Number(value)
+  if (Number.isNaN(amount) || amount <= 0) {
+    throw new RangeError(`금액은 0보다 큰 숫자여야 합니다: ${value}`)
+  }
+  return amount
+}
+
+export type TransactionFilter = { category: string } | { month: string }
+
+export function matchesFilter(transaction: { date: string; category: string }, filter: TransactionFilter): boolean {
+  if ('category' in filter) {
+    return transaction.category === filter.category
+  }
+  return transaction.date.startsWith(filter.month)
+}
+```
+
+`isCategory` 하나였던 가드를 `isExpenseCategory`, `isIncomeCategory` 두 개로 나눴습니다. 폼에서 고른 `type`에 맞는 가드로만 검증해야, 수입인데 지출 카테고리가 들어오는 상황을 막을 수 있습니다.
+
+### 4. 완전성 검사 유틸 작성
+
+```ts
+// expense-tracker/src/lib/signedAmount.ts
+import { Transaction } from '../models/expense.ts'
+
+function assertNever(value: never): never {
+  throw new Error(`처리하지 않은 케이스입니다: ${JSON.stringify(value)}`)
+}
+
+export function toSignedAmount(transaction: Transaction): number {
+  switch (transaction.type) {
+    case 'income':
+      return transaction.amount
+    case 'expense':
+      return -transaction.amount
+    default:
+      return assertNever(transaction)
+  }
+}
+
+export function toTypeLabel(transaction: Transaction): string {
+  switch (transaction.type) {
+    case 'income':
+      return '수입'
+    case 'expense':
+      return '지출'
+    default:
+      return assertNever(transaction)
+  }
+}
+```
+
+`case 'income'`, `case 'expense'`를 모두 처리하고 나면 `default`에 도달한 `transaction`의 타입은 `never`입니다. `assertNever`는 매개변수 타입을 `never`로 선언해, `never`가 아닌 값이 들어오면(=처리하지 않은 케이스가 남으면) 그 자리에서 타입 오류가 나도록 만드는 역할만 합니다.
+
+### 5. main.ts를 Transaction 기준으로 갱신
+
+```ts
+// expense-tracker/src/main.ts
+import './style.css'
+import { CURRENCY, EXPENSE_CATEGORIES, INCOME_CATEGORIES, ALL_CATEGORIES, Transaction } from './models/expense.ts'
+import { addTransaction, getTransactions } from './services/expenseStore.ts'
+import { isExpenseCategory, isIncomeCategory, parseAmount, matchesFilter, TransactionFilter } from './lib/parsing.ts'
+import { toSignedAmount, toTypeLabel } from './lib/signedAmount.ts'
+
+addTransaction({ type: 'income', date: '2026-09-01', category: 'salary', amount: 3000000, memo: '9월 급여' })
+addTransaction({ type: 'expense', date: '2026-09-03', category: 'food', amount: 18000, memo: '점심' })
+addTransaction({ type: 'expense', date: '2026-09-10', category: 'transport', amount: 4500, memo: '버스' })
+
+let currentFilter: TransactionFilter | null = null
+
+function renderTransactionList(list: Transaction[]): string {
+  return list
+    .map((transaction) => {
+      const amountText = `${transaction.amount.toLocaleString()}${CURRENCY}`
+      const memoText = transaction.memo || '메모 없음'
+      return `<li>[${toTypeLabel(transaction)}] ${transaction.date} · ${transaction.category} · ${amountText} · ${memoText}</li>`
+    })
+    .join('')
+}
+
+function renderCategoryOptions(): string {
+  const incomeOptions = INCOME_CATEGORIES.map((category) => `<option value="${category}">${category}(수입)</option>`).join('')
+  const expenseOptions = EXPENSE_CATEGORIES.map((category) => `<option value="${category}">${category}(지출)</option>`).join('')
+  return incomeOptions + expenseOptions
+}
+
+function renderFilterCategoryOptions(): string {
+  const selected = currentFilter !== null && 'category' in currentFilter ? currentFilter.category : ''
+  const options = ALL_CATEGORIES.map(
+    (category) => `<option value="${category}"${category === selected ? ' selected' : ''}>${category}</option>`,
+  ).join('')
+  return `<option value="">전체</option>${options}`
+}
+
+function currentFilterMonth(): string {
+  return currentFilter !== null && 'month' in currentFilter ? currentFilter.month : ''
+}
+
+function renderTotal(list: Transaction[]): string {
+  const total = list.reduce((sum, transaction) => sum + toSignedAmount(transaction), 0)
+  return `${total.toLocaleString()}${CURRENCY}`
+}
+
+function render(): void {
+  const app = document.querySelector<HTMLDivElement>('#app')
+  if (!app) return
+  const filter = currentFilter
+  const transactions = getTransactions()
+  const filtered = filter === null ? transactions : transactions.filter((transaction) => matchesFilter(transaction, filter))
+  app.innerHTML = `
+    <main>
+      <h1>가계부</h1>
+      <form id="expense-form">
+        <fieldset>
+          <legend>구분</legend>
+          <label><input type="radio" name="type" value="income" /> 수입</label>
+          <label><input type="radio" name="type" value="expense" checked /> 지출</label>
+        </fieldset>
+
+        <label for="date">날짜</label>
+        <input id="date" name="date" type="date" required />
+
+        <label for="category">카테고리</label>
+        <select id="category" name="category">${renderCategoryOptions()}</select>
+
+        <label for="amount">금액</label>
+        <input id="amount" name="amount" type="number" min="1" required />
+
+        <label for="memo">메모</label>
+        <input id="memo" name="memo" type="text" />
+
+        <button type="submit">추가</button>
+      </form>
+
+      <section>
+        <label for="filter-category">카테고리로 필터</label>
+        <select id="filter-category">${renderFilterCategoryOptions()}</select>
+
+        <label for="filter-month">월로 필터</label>
+        <input id="filter-month" type="month" value="${currentFilterMonth()}" />
+      </section>
+
+      <p>합계: <span id="total-amount">${renderTotal(filtered)}</span></p>
+      <ul>${renderTransactionList(filtered)}</ul>
+    </main>
+  `
+}
+
+function handleSubmit(event: SubmitEvent): void {
+  event.preventDefault()
+  const form = event.target as HTMLFormElement
+  const formData = new FormData(form)
+  const type = formData.get('type')
+  const category = formData.get('category')
+  const date = String(formData.get('date'))
+  const memo = String(formData.get('memo'))
+
+  try {
+    const amount = parseAmount(formData.get('amount'))
+    if (type === 'income') {
+      if (!isIncomeCategory(category)) {
+        alert(`수입 카테고리가 아닙니다: ${String(category)}`)
+        return
+      }
+      addTransaction({ type: 'income', date, category, amount, memo })
+    } else {
+      if (!isExpenseCategory(category)) {
+        alert(`지출 카테고리가 아닙니다: ${String(category)}`)
+        return
+      }
+      addTransaction({ type: 'expense', date, category, amount, memo })
+    }
+    render()
+  } catch (error) {
+    if (error instanceof Error) {
+      alert(`입력 오류: ${error.message}`)
+    }
+  }
+}
+
+function handleChange(event: Event): void {
+  const target = event.target
+  if (target instanceof HTMLSelectElement && target.id === 'filter-category') {
+    currentFilter = target.value ? { category: target.value } : null
+    render()
+    return
+  }
+  if (target instanceof HTMLInputElement && target.id === 'filter-month') {
+    currentFilter = target.value ? { month: target.value } : null
+    render()
+  }
+}
+
+const app = document.querySelector<HTMLDivElement>('#app')
+app?.addEventListener('submit', handleSubmit)
+app?.addEventListener('change', handleChange)
+
+render()
+```
+
+### 6. 실행
+
+```text
+npm run dev
+```
+
+</Steps>
+
+## 확인
+
+- "구분"에서 수입을 고르고 지출 카테고리(식비 등)를 선택한 뒤 추가하면 "수입 카테고리가 아닙니다" 알림이 뜹니다.
+- 수입과 지출을 각각 추가하면 목록 항목 앞에 `[수입]`/`[지출]` 표시가 붙습니다.
+- 합계는 수입은 더하고 지출은 뺀 값으로 표시됩니다.
+
+## 직접 해보기
+
+1. `Transaction` 유니온에 `{ type: 'transfer'; ... }`(계좌 이체)를 임시로 추가하고, `signedAmount.ts`의 `switch`에서 어떤 오류가 나는지 확인한 뒤 되돌리세요.
+2. `toTypeLabel`이 반환하는 문자열 앞에 표시를 붙여 보세요(`'수입'` → `'(+) 수입'`).
+
+<details>
+<summary>정답 보기</summary>
+
+`Transaction`에 `type: 'transfer'`를 가진 세 번째 멤버를 추가하면, `toSignedAmount`와 `toTypeLabel`의 `switch`는 `'income'`, `'expense'`만 처리하므로 `default`에 도달한 `transaction`의 타입이 더 이상 `never`가 아니라 `transfer` 타입이 남습니다. `assertNever(transaction)` 호출부에서 다음과 비슷한 오류가 납니다.
+
+```text
+Argument of type transfer 관련 객체 is not assignable to parameter of type never.
+```
+
+이 오류가 바로 완전성 검사입니다. `case 'transfer':`를 추가해 값을 반환하기 전까지 컴파일이 통과하지 않습니다. 실습을 마치면 추가했던 `transfer` 관련 코드를 모두 지워 원래 상태로 되돌립니다.
+
+</details>
+
+## 자주 하는 실수
+
+| 증상 | 원인 | 고치는 법 |
+|------|------|-----------|
+| 새 거래 종류를 추가해도 컴파일 오류가 안 남 | `default`에서 `assertNever` 없이 그냥 값을 반환하거나 아무 처리 없이 넘어감 | `default: return assertNever(transaction)`처럼 `never` 매개변수 함수에 반드시 넘긴다 |
+| 수입에 지출 카테고리가 저장됨 | `type`과 무관하게 가드 하나로만 검증 | `type`별로 `isIncomeCategory`/`isExpenseCategory`를 나눠 검증한다 |
+| 합계가 항상 양수로만 계산됨 | 부호 계산 없이 `amount`를 그대로 더함 | `toSignedAmount`로 `type`에 따라 부호를 적용한 값을 합산한다 |
+
+## 확인 문제
+
+<Quiz
+  questionNumber={1}
+  question="판별 유니온에서 type 같은 공통 프로퍼티가 하는 역할은"
+  options={['성능을 높이는 캐시 키', '조건문에서 나머지 프로퍼티까지 좁혀주는 태그', 'HTML 폼의 name 속성과 무관한 장식용 값', '데이터베이스 기본키']}
+  correctAnswer={2}
+  explanation="type 같은 태그 프로퍼티 값을 조건으로 나누면 TypeScript가 해당 분기에서 나머지 프로퍼티 타입까지 자동으로 좁혀줍니다."
+  optionExplanations={['캐시와는 무관합니다', '정답입니다', '장식용이 아니라 타입 좁히기에 직접 쓰입니다', '데이터베이스 개념이 아닙니다']}
+/>
+
+<Quiz
+  questionNumber={2}
+  question="switch에서 모든 case를 처리한 뒤 default에 남는 타입은"
+  options={['any', 'unknown', 'never', '원래 유니온 전체']}
+  correctAnswer={3}
+  explanation="유니온의 모든 케이스를 case로 좁히고 나면, 더 이상 어떤 값도 될 수 없는 타입인 never가 남습니다."
+  optionExplanations={['any가 아닙니다', 'unknown이 아닙니다', '정답입니다', '이미 모두 좁혀졌으므로 유니온 전체가 남지 않습니다']}
+/>
+
+<Quiz
+  questionNumber={3}
+  question="assertNever 함수의 역할은"
+  options={['런타임에서 값을 문자열로 변환한다', '처리하지 않은 케이스가 남으면 그 호출부에서 컴파일 오류가 나게 만든다', '배열을 정렬한다', 'HTTP 요청을 재시도한다']}
+  correctAnswer={2}
+  explanation="매개변수 타입을 never로 선언해두면, 유니온에 새 케이스가 추가돼 default까지 값이 남았을 때 assertNever 호출부에서 타입 오류가 발생합니다."
+  optionExplanations={['문자열 변환이 목적이 아닙니다', '정답입니다', '정렬과는 무관합니다', 'HTTP 요청과는 관련이 없습니다']}
+/>
+
+<Quiz
+  questionNumber={4}
+  question="이번 편에서 amount를 항상 양수로만 받도록 바꾼 이유는"
+  options={['음수를 표현할 방법이 TypeScript에 없어서', '수입/지출 구분을 type 태그로 옮기고, 부호는 그 태그로 계산하기 위해서', 'HTML number 입력이 음수를 지원하지 않아서', '합계 계산 속도를 높이기 위해서']}
+  correctAnswer={2}
+  explanation="type이 수입/지출을 명확히 구분하므로 amount는 크기만 나타내고, 실제 부호는 toSignedAmount가 type을 보고 계산합니다."
+  optionExplanations={['TypeScript도 음수 리터럴을 표현할 수 있습니다', '정답입니다', 'number 입력 자체는 음수도 허용합니다', '속도가 목적이 아닙니다']}
+/>
+
+## 참고 자료
+
+- [TypeScript Handbook — Narrowing](https://www.typescriptlang.org/docs/handbook/2/narrowing.html)

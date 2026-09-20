@@ -1,7 +1,7 @@
 {
-  "generatedAt": "2026-09-20T13:11:23.233Z",
+  "generatedAt": "2026-09-20T18:00:15.241Z",
   "groupCount": 9,
-  "seriesCount": 43,
+  "seriesCount": 44,
   "groups": [
     {
       "title": "Web · HTML",
@@ -341,7 +341,7 @@
     },
     {
       "title": "자격증",
-      "description": "8개 시리즈 · 문서 206편",
+      "description": "9개 시리즈 · 문서 241편",
       "order": "09",
       "series": [
         {
@@ -407,6 +407,14 @@
           "documentCount": 28,
           "preview": "code",
           "accent": "amber"
+        },
+        {
+          "title": "정보보안기사 필기",
+          "description": "자산·위협·취약점·위험 관계와 CIA 목표를 CVE·CVSS·실제 침해사고 로그로 재확인하고, 필기 5과목이 이 지도의 어디를 맡는지 정리한다",
+          "href": "/자격증/정보보안기사_필기/01_infosec-domain-map",
+          "documentCount": 35,
+          "preview": "code",
+          "accent": "red"
         }
       ]
     }

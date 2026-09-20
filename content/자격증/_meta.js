@@ -23,6 +23,10 @@ const meta = {
     title: 'ADsP',
     type: 'page',
   },
+  서비스경험디자인기사_실기: {
+    title: '서비스경험디자인기사 실기',
+    type: 'page',
+  },
 }
 
 export default meta

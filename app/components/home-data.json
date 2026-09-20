@@ -1,7 +1,7 @@
 {
-  "generatedAt": "2026-09-18T20:40:42.468Z",
+  "generatedAt": "2026-09-20T13:06:55.633Z",
   "groupCount": 9,
-  "seriesCount": 41,
+  "seriesCount": 42,
   "groups": [
     {
       "title": "Web · HTML",
@@ -341,7 +341,7 @@
     },
     {
       "title": "자격증",
-      "description": "6개 시리즈 · 문서 150편",
+      "description": "7개 시리즈 · 문서 179편",
       "order": "09",
       "series": [
         {
@@ -391,6 +391,14 @@
           "documentCount": 30,
           "preview": "code",
           "accent": "blue"
+        },
+        {
+          "title": "서비스경험디자인기사 실기",
+          "description": "서비스디자인과 경험디자인(UX디자인)의 정의·차이, 디자인씽킹 5단계, UI·사용성 개념을 실기 답안 형태로 서술할 수 있게 정리한다",
+          "href": "/자격증/서비스경험디자인기사_실기/01_what-is-service-experience-design",
+          "documentCount": 29,
+          "preview": "code",
+          "accent": "green"
         }
       ]
     }

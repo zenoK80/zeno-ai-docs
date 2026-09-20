@@ -1,7 +1,7 @@
 {
-  "generatedAt": "2026-09-20T18:00:15.241Z",
+  "generatedAt": "2026-09-20T18:03:34.644Z",
   "groupCount": 9,
-  "seriesCount": 44,
+  "seriesCount": 45,
   "groups": [
     {
       "title": "Web · HTML",
@@ -341,7 +341,7 @@
     },
     {
       "title": "자격증",
-      "description": "9개 시리즈 · 문서 241편",
+      "description": "10개 시리즈 · 문서 273편",
       "order": "09",
       "series": [
         {
@@ -415,6 +415,14 @@
           "documentCount": 35,
           "preview": "code",
           "accent": "red"
+        },
+        {
+          "title": "정보통신기사 필기",
+          "description": "로그와 데시벨(dB) 계산, 삼각함수와 위상·주기·주파수·파장의 관계, 통신에서 쓰는 벡터·복소수의 초급 감각을 손 계산으로 익힌다",
+          "href": "/자격증/정보통신기사_필기/01_transmission-math-basics",
+          "documentCount": 32,
+          "preview": "code",
+          "accent": "blue"
         }
       ]
     }

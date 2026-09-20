@@ -35,6 +35,10 @@ const meta = {
     title: '정보보안기사 필기',
     type: 'page',
   },
+  정보통신기사_필기: {
+    title: '정보통신기사 필기',
+    type: 'page',
+  },
 }
 
 export default meta

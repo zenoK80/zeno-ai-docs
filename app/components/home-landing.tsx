@@ -44,6 +44,7 @@ import {
   TbMessageLanguage,
   TbNetwork,
   TbPalette,
+  TbPiano,
   TbSchool,
   TbServer,
   TbSettingsAutomation,
@@ -100,8 +101,10 @@ function groupLogo(title: string): { Icon: typeof SiHtml5; color: string } {
   if (title.includes('HTML')) return { Icon: SiHtml5, color: '#e34f26' }
   if (title.includes('CSS')) return { Icon: SiCss, color: '#1572b6' }
   if (title.includes('JavaScript')) return { Icon: SiJavascript, color: '#d4a900' }
+  if (title.includes('TypeScript')) return { Icon: SiTypescript, color: '#3178c6' }
   if (title.includes('React')) return { Icon: SiReact, color: '#149eca' }
   if (title.includes('독학사')) return { Icon: TbSchool, color: '#0b5fb2' }
+  if (title.includes('피아노') || title.includes('기타')) return { Icon: TbPiano, color: '#7c3aed' }
   return { Icon: TbCertificate, color: '#1b7f5f' }
 }
 
@@ -148,6 +151,16 @@ const seriesLogos: Record<string, { Icon: typeof SiHtml5; color: string }> = {
   PC정비사_2급_실기: { Icon: TbDeviceDesktop, color: '#c8102e' },
   SQLD: { Icon: TbDatabase, color: '#0055a5' },
   ADSP: { Icon: TbChartPie, color: '#0055a5' },
+  재즈피아노_기초: { Icon: TbPiano, color: '#7c3aed' },
+  재즈피아노_중급: { Icon: TbPiano, color: '#7c3aed' },
+  재즈피아노_고급: { Icon: TbPiano, color: '#7c3aed' },
+  typescript_fundamentals: { Icon: SiTypescript, color: '#3178c6' },
+  nextjs: { Icon: SiNextdotjs, color: '#151515' },
+  coding_test: { Icon: TbCode, color: '#d4a900' },
+  서비스경험디자인기사_실기: { Icon: TbPalette, color: '#db2777' },
+  정보보안기사_필기: { Icon: TbShieldLock, color: '#b91c1c' },
+  정보통신기사_필기: { Icon: TbNetwork, color: '#0369a1' },
+  적성검사_공통: { Icon: TbBrain, color: '#2b6cb0' },
 }
 
 function seriesLogo(href: string): { Icon: typeof SiHtml5; color: string } {

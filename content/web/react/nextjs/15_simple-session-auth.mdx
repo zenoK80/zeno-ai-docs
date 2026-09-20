@@ -1,0 +1,492 @@
+---
+title: '15. 로그인과 쿠키 기반 간단 세션'
+description: '로그인 Server Action과 서명된 httpOnly 쿠키로 세션을 직접 구현하고 헤더에 로그인 상태를 표시합니다'
+---
+
+<Callout type="info">
+  **이번 편의 결과물:** 시드 계정으로 로그인하면 세션 쿠키가 발급되고 헤더에 로그인 상태가 표시되며, 로그아웃하면 쿠키가 사라집니다. · **다루는 개념:** 로그인 폼 Server Action, `db.json`의 `users`와 대조, 서명된 httpOnly 쿠키로 세션 발급(별도 라이브러리 없이 구현), 로그아웃
+</Callout>
+
+## 이 편에서 만드는 파일
+
+```
+bookshelf-next/
+├── .env.local                       (+, SESSION_SECRET 값)
+├── lib/
+│   └── auth.js                      (+, 세션 서명·검증, 로그인·로그아웃)
+└── app/
+    ├── layout.js                    (~, 세션을 읽어 SiteHeader에 전달)
+    ├── components/
+    │   └── site-header.js           (~, 로그인 상태 표시·로그아웃 버튼)
+    ├── globals.css                  (~, 로그인 폼·헤더 인증 영역 스타일 추가)
+    └── login/
+        ├── page.js                  (+, 로그인 페이지)
+        ├── login-form.js            (+, 클라이언트 폼)
+        └── actions.js               (+, login·logout Server Actions)
+```
+
+## 개념 정리
+
+### react_3와 다른 점 — 메모리 보관에서 httpOnly 쿠키로
+
+`react_3`의 `bookshelf`는 SPA라서 로그인 상태를 브라우저 메모리에 두고, 새로고침하면 다시 조회해야 했습니다. 서버 렌더링 환경인 `bookshelf-next`는 다릅니다. 서버가 매 요청마다 브라우저가 보낸 쿠키를 읽어 로그인 여부를 바로 판단할 수 있고, 쿠키에 `httpOnly`를 붙이면 자바스크립트로는 그 값을 읽을 수 없어 더 안전합니다.
+
+### 세션을 직접 서명하는 이유
+
+실제 서비스는 `jose`, `iron-session` 같은 세션 관리 라이브러리를 씁니다. 이 과목은 01_학습방향에서 정한 대로 별도 라이브러리 없이, Node가 기본 제공하는 `crypto` 모듈만으로 세션을 직접 만듭니다. 원리는 다음과 같습니다.
+
+1. 로그인한 사용자의 이메일과 만료 시각을 담은 값(payload)을 만든다.
+2. payload를 서버만 아는 비밀 키(`SESSION_SECRET`)로 서명(HMAC-SHA256)한다.
+3. `payload.서명` 형태의 문자열을 쿠키 값으로 저장한다.
+4. 다음 요청에서 같은 비밀 키로 서명을 다시 계산해 쿠키에 들어있던 서명과 비교한다. 값이 다르면 쿠키가 위조된 것이므로 무시한다.
+
+비밀 키가 없으면 서명을 다시 만들 수 없으므로, 사용자가 쿠키 값을 직접 바꿔도 서버는 그 위조를 감지합니다.
+
+### cookies()는 비동기 함수
+
+`next/headers`의 `cookies` 함수는 Next.js 15부터 비동기 함수로 바뀌었고, Next.js 16도 동일합니다. 반드시 `await cookies()`로 쿠키 저장소를 먼저 얻은 뒤 `get`·`set`·`delete` 메서드를 호출합니다. `get`은 서버 컴포넌트에서도 쓸 수 있지만, 새 쿠키를 내려보내는 `set`·`delete`는 응답 헤더를 직접 다룰 수 있는 Server Action이나 Route Handler에서만 호출할 수 있습니다.
+
+### 헤더가 로그인 상태를 아는 방법
+
+04편에서 만든 `site-header.js`는 클라이언트 컴포넌트라 쿠키를 직접 읽지 않습니다. 02편의 판단 절차를 그대로 따라, 쿠키를 읽는 일은 서버 컴포넌트인 `app/layout.js`가 맡고, 그 결과(로그인한 이메일 또는 `null`)만 `session`이라는 직렬화 가능한 값으로 `SiteHeader`에 props로 내려줍니다.
+
+## 실습
+
+<Steps>
+
+### 1. 세션 서명용 비밀 키 준비
+
+터미널에서 무작위 문자열을 생성합니다.
+
+```text
+openssl rand -base64 32
+```
+
+`openssl`이 없다면 Node로도 만들 수 있습니다.
+
+```text
+node -e "console.log(require('crypto').randomBytes(32).toString('base64'))"
+```
+
+프로젝트 루트에 `.env.local` 파일을 만들고 생성된 값을 넣습니다.
+
+```text
+# .env.local
+SESSION_SECRET=여기에_방금_생성한_문자열을_붙여넣는다
+```
+
+`create-next-app`이 만든 `.gitignore`에는 `.env*.local`이 이미 포함되어 있어 이 파일은 git에 올라가지 않습니다. 값을 직접 확인해 커밋 대상에서 빠져 있는지 확인합니다.
+
+### 2. 세션 유틸리티 작성
+
+`lib/auth.js` 파일을 만듭니다. 07편에서 만든 `lib/db.js`는 책 데이터만 다루므로, 사용자 조회는 이 파일에서 `data/db.json`을 직접 읽어 처리합니다.
+
+```js
+// lib/auth.js
+import crypto from 'node:crypto'
+import fs from 'node:fs/promises'
+import path from 'node:path'
+import { cookies } from 'next/headers'
+
+const dbPath = path.join(process.cwd(), 'data', 'db.json')
+const SESSION_COOKIE_NAME = 'bookshelf_session'
+const SESSION_MAX_AGE_SECONDS = 60 * 60 * 24 * 7
+
+async function getUserByEmail(email) {
+  const raw = await fs.readFile(dbPath, 'utf-8')
+  const { users } = JSON.parse(raw)
+  return users.find((user) => user.email === email)
+}
+
+function getSecretKey() {
+  const secret = process.env.SESSION_SECRET
+  if (!secret) {
+    throw new Error('SESSION_SECRET 환경 변수가 설정되지 않았습니다.')
+  }
+  return secret
+}
+
+function sign(payload) {
+  return crypto.createHmac('sha256', getSecretKey()).update(payload).digest('base64url')
+}
+
+function createSessionToken(email) {
+  const payload = JSON.stringify({
+    email,
+    expiresAt: Date.now() + SESSION_MAX_AGE_SECONDS * 1000,
+  })
+  const encodedPayload = Buffer.from(payload, 'utf-8').toString('base64url')
+  const signature = sign(encodedPayload)
+  return `${encodedPayload}.${signature}`
+}
+
+function verifySessionToken(token) {
+  if (!token) {
+    return null
+  }
+
+  const [encodedPayload, signature] = token.split('.')
+  if (!encodedPayload || !signature) {
+    return null
+  }
+
+  const expectedSignature = sign(encodedPayload)
+  const signatureBuffer = Buffer.from(signature)
+  const expectedBuffer = Buffer.from(expectedSignature)
+
+  if (
+    signatureBuffer.length !== expectedBuffer.length ||
+    !crypto.timingSafeEqual(signatureBuffer, expectedBuffer)
+  ) {
+    return null
+  }
+
+  const payload = JSON.parse(Buffer.from(encodedPayload, 'base64url').toString('utf-8'))
+  if (payload.expiresAt < Date.now()) {
+    return null
+  }
+
+  return payload
+}
+
+export async function login(email, password) {
+  const user = await getUserByEmail(email)
+
+  if (!user || user.password !== password) {
+    return null
+  }
+
+  const token = createSessionToken(user.email)
+  const cookieStore = await cookies()
+
+  cookieStore.set(SESSION_COOKIE_NAME, token, {
+    httpOnly: true,
+    secure: process.env.NODE_ENV === 'production',
+    sameSite: 'lax',
+    path: '/',
+    maxAge: SESSION_MAX_AGE_SECONDS,
+  })
+
+  return user
+}
+
+export async function logout() {
+  const cookieStore = await cookies()
+  cookieStore.delete(SESSION_COOKIE_NAME)
+}
+
+export async function getSession() {
+  const cookieStore = await cookies()
+  const token = cookieStore.get(SESSION_COOKIE_NAME)?.value
+  return verifySessionToken(token)
+}
+```
+
+`crypto.timingSafeEqual`은 두 버퍼를 항상 같은 시간에 비교해, 서명이 몇 글자까지 맞았는지를 응답 시간 차이로 추측하는 공격(타이밍 공격)을 막습니다. 비밀번호는 `data/db.json`의 `users` 배열에 평문으로 들어 있는 값과 그대로 비교합니다. 실제 서비스라면 비밀번호를 해시로 저장하고 해시끼리 비교해야 합니다. `getUserByEmail`은 07편의 `lib/db.js`와 같은 이유로 `node:fs/promises`의 `readFile`을 씁니다. 동기 함수인 `readFileSync`도 동작은 하지만, 이 과목은 파일을 다루는 함수를 항상 비동기로 통일합니다.
+
+### 3. 로그인·로그아웃 Server Action
+
+`app/login/actions.js`를 만듭니다.
+
+```js
+// app/login/actions.js
+'use server'
+
+import { redirect } from 'next/navigation'
+import { login as loginUser, logout as clearSession } from '@/lib/auth.js'
+
+export async function login(prevState, formData) {
+  const email = formData.get('email')?.toString().trim() ?? ''
+  const password = formData.get('password')?.toString() ?? ''
+
+  if (!email || !password) {
+    return { error: '이메일과 비밀번호를 모두 입력합니다.' }
+  }
+
+  const user = await loginUser(email, password)
+
+  if (!user) {
+    return { error: '이메일 또는 비밀번호가 올바르지 않습니다.' }
+  }
+
+  redirect('/books')
+}
+
+export async function logout() {
+  await clearSession()
+  redirect('/login')
+}
+```
+
+`login`은 `useActionState`가 호출하는 형태(`prevState`, `formData` 두 인자)로 작성합니다. 성공하면 `redirect`가 응답을 대신하므로 별도의 반환값이 필요 없습니다.
+
+### 4. 로그인 폼 작성
+
+`app/login/login-form.js`를 만듭니다.
+
+```js
+// app/login/login-form.js
+'use client'
+
+import { useActionState } from 'react'
+import { useFormStatus } from 'react-dom'
+import { login } from './actions.js'
+
+const initialState = { error: null }
+
+function SubmitButton() {
+  const { pending } = useFormStatus()
+  return (
+    <button type="submit" disabled={pending}>
+      {pending ? '로그인하는 중...' : '로그인'}
+    </button>
+  )
+}
+
+export default function LoginForm() {
+  const [state, formAction] = useActionState(login, initialState)
+
+  return (
+    <form action={formAction} className="login-form">
+      <div>
+        <label htmlFor="email">이메일</label>
+        <input id="email" name="email" type="email" required />
+      </div>
+      <div>
+        <label htmlFor="password">비밀번호</label>
+        <input id="password" name="password" type="password" required />
+      </div>
+      {state?.error && <p role="alert">{state.error}</p>}
+      <SubmitButton />
+    </form>
+  )
+}
+```
+
+### 5. 로그인 페이지 작성
+
+`app/login/page.js`를 만듭니다.
+
+```js
+// app/login/page.js
+import LoginForm from './login-form.js'
+
+export const metadata = {
+  title: '로그인 — bookshelf-next',
+}
+
+export default function LoginPage() {
+  return (
+    <section className="login-page">
+      <h1>로그인</h1>
+      <p>시드 계정: reader@bookshelf.dev / bookshelf1234!</p>
+      <LoginForm />
+    </section>
+  )
+}
+```
+
+### 6. 루트 레이아웃에서 세션 읽어 전달
+
+`app/layout.js`를 수정합니다.
+
+```js
+// app/layout.js
+import './globals.css'
+import SiteHeader from './components/site-header.js'
+import { getSession } from '@/lib/auth.js'
+
+export const metadata = {
+  title: 'bookshelf-next',
+  description: 'bookshelf를 Next.js App Router로 새로 만드는 연습 프로젝트입니다.',
+}
+
+export default async function RootLayout({ children }) {
+  const session = await getSession()
+
+  return (
+    <html lang="ko">
+      <body>
+        <SiteHeader session={session} />
+        <main className="page-content">{children}</main>
+      </body>
+    </html>
+  )
+}
+```
+
+`RootLayout`이 `async` 함수가 되고 `getSession`을 `await`합니다. 서버 컴포넌트이므로 문제없습니다.
+
+### 7. 헤더에 로그인 상태 표시
+
+`app/components/site-header.js`를 수정합니다.
+
+```js
+// app/components/site-header.js
+'use client'
+
+import Link from 'next/link'
+import { usePathname } from 'next/navigation'
+import { logout } from '../login/actions.js'
+
+const NAV_ITEMS = [
+  { href: '/', label: '홈' },
+  { href: '/books', label: '책 목록' },
+]
+
+export default function SiteHeader({ session }) {
+  const pathname = usePathname()
+
+  return (
+    <header className="site-header">
+      <nav>
+        <ul className="site-nav">
+          {NAV_ITEMS.map((item) => {
+            const isActive = pathname === item.href
+            const linkClassName = isActive ? 'site-nav__link is-active' : 'site-nav__link'
+            return (
+              <li key={item.href}>
+                <Link href={item.href} className={linkClassName}>
+                  {item.label}
+                </Link>
+              </li>
+            )
+          })}
+        </ul>
+      </nav>
+      <div className="site-header__auth">
+        {session ? (
+          <form action={logout}>
+            <span>{session.email}님</span>
+            <button type="submit">로그아웃</button>
+          </form>
+        ) : (
+          <Link href="/login" className="site-nav__link">
+            로그인
+          </Link>
+        )}
+      </div>
+    </header>
+  )
+}
+```
+
+`logout`은 `'use server'`가 붙은 액션이지만 클라이언트 컴포넌트 파일에서 그대로 `import`해 `form`의 `action`으로 넘길 수 있습니다. Next.js가 이 함수를 서버 호출로 자동 연결해 줍니다.
+
+### 8. 스타일 추가
+
+`app/globals.css`에 아래 규칙을 이어서 추가합니다.
+
+```css
+/* app/globals.css (추가분) */
+.site-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.site-header__auth {
+  padding: 0 16px;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.login-page {
+  max-width: 320px;
+  margin: 0 auto;
+}
+
+.login-form {
+  display: grid;
+  gap: 12px;
+}
+
+.login-form label {
+  display: block;
+  margin-bottom: 4px;
+}
+```
+
+### 9. 실행과 확인
+
+```text
+npm run dev
+```
+
+</Steps>
+
+## 확인
+
+- `/login`에 접속하면 이메일·비밀번호 입력 폼이 보입니다.
+- 잘못된 비밀번호로 제출하면 "이메일 또는 비밀번호가 올바르지 않습니다." 문구가 폼 위에 보입니다.
+- 시드 계정(`reader@bookshelf.dev` / `bookshelf1234!`)으로 로그인하면 `/books`로 이동하고, 헤더 오른쪽에 "reader@bookshelf.dev님"과 로그아웃 버튼이 보입니다.
+- 개발자 도구의 Application(또는 저장공간) 탭에서 쿠키 목록을 열면 `bookshelf_session` 쿠키의 HttpOnly 칸에 체크가 되어 있습니다.
+- 로그아웃을 누르면 `/login`으로 돌아가고, 헤더는 다시 "로그인" 링크만 보입니다.
+- 브라우저를 새로고침해도 로그인 상태가 유지됩니다(쿠키가 서버에 계속 전송되기 때문입니다).
+
+## 직접 해보기
+
+1. `lib/auth.js`의 `SESSION_MAX_AGE_SECONDS`를 `60`(1분)으로 바꾸고, 로그인 1분 뒤 페이지를 새로고침하면 로그인 상태가 풀리는지 확인해보세요.
+2. 비밀번호를 평문으로 비교하는 대신, Node 내장 `crypto.scryptSync`로 저장된 값과 입력값을 해시해서 비교하려면 어떤 값들을 `db.json`에 함께 저장해야 할지 생각해보세요.
+
+<details>
+<summary>정답 보기</summary>
+
+1번은 `SESSION_MAX_AGE_SECONDS`와 `maxAge`가 같은 상수를 쓰므로 값만 바꾸면 됩니다. 1분 뒤 새로고침하면 `verifySessionToken`이 만료 조건에서 `null`을 반환해 로그아웃 상태로 보입니다.
+
+2번은 `scryptSync`가 매번 다른 무작위 값(salt)을 섞어 해시를 만들므로, `db.json`에 해시 값과 그 salt를 함께 저장해야 합니다. 로그인 시 저장된 salt로 입력 비밀번호를 다시 해시해 비교합니다.
+
+</details>
+
+## 자주 하는 실수
+
+| 증상 | 원인 | 고치는 법 |
+|------|------|-----------|
+| `cookies is not a function` 또는 값이 항상 비어 있음 | `await` 없이 `cookies()`를 바로 사용 | `const cookieStore = await cookies()`로 먼저 저장소를 얻은 뒤 메서드를 호출한다 |
+| `SESSION_SECRET 환경 변수가 설정되지 않았습니다` 에러 | `.env.local`을 만들지 않았거나 서버를 재시작하지 않음 | `.env.local`을 확인하고 `npm run dev`를 다시 실행한다(환경 변수는 서버 시작 시점에 읽힌다) |
+| 로그인은 되는데 헤더에 이메일이 안 보임 | `app/layout.js`에서 `getSession()` 결과를 `SiteHeader`에 넘기는 것을 빠뜨림 | `<SiteHeader session={session} />`처럼 props로 전달한다 |
+| 로그아웃 버튼을 눌러도 반응이 없음 | `logout` Server Action을 `form`의 `action`이 아니라 `onClick`에 연결하려 함 | 클라이언트 컴포넌트에서도 `form action={logout}`으로 연결한다 |
+
+## 확인 문제
+
+<Quiz
+  questionNumber={1}
+  question="Next.js 16에서 next/headers의 cookies 함수를 다루는 방법으로 올바른 것은"
+  options={['항상 동기 함수라 바로 값을 반환한다', '비동기 함수이므로 await로 저장소를 얻은 뒤 메서드를 호출한다', '클라이언트 컴포넌트에서만 호출할 수 있다', 'Route Handler에서는 사용할 수 없다']}
+  correctAnswer={2}
+  explanation="cookies는 Next.js 15부터 비동기 함수가 되었고 16도 동일하므로, await cookies()로 저장소를 얻은 뒤 get/set/delete를 호출해야 합니다."
+  optionExplanations={['15 이전에는 동기였지만 지금은 비동기입니다', '정답입니다', '서버 컴포넌트·Server Action·Route Handler에서 사용합니다', 'Route Handler에서도 사용할 수 있습니다']}
+/>
+
+<Quiz
+  questionNumber={2}
+  question="이 편에서 세션 쿠키에 서명을 넣는 이유는"
+  options={['쿠키 용량을 줄이기 위해서', '사용자가 쿠키 값을 임의로 바꿔도 서버가 위조를 감지하게 하기 위해서', '쿠키를 여러 개 저장하기 위해서', 'HTTPS 없이도 값을 숨기기 위해서']}
+  correctAnswer={2}
+  explanation="서명은 비밀 키를 아는 서버만 유효한 값을 만들 수 있게 해, 클라이언트가 쿠키 내용을 조작해도 서명 불일치로 걸러낼 수 있게 합니다."
+  optionExplanations={['용량 절감이 목적이 아닙니다', '정답입니다', '쿠키 개수와는 무관합니다', '서명은 암호화가 아니라 위조 방지입니다']}
+/>
+
+<Quiz
+  questionNumber={3}
+  question="쿠키에 httpOnly 옵션을 주는 이유는"
+  options={['쿠키를 서버에서만 삭제할 수 있게 하려고', '브라우저 자바스크립트가 그 쿠키 값을 읽지 못하게 하려고', '쿠키 만료 시간을 자동으로 늘리려고', '쿠키를 여러 도메인에서 공유하려고']}
+  correctAnswer={2}
+  explanation="httpOnly는 document.cookie 같은 클라이언트 스크립트의 접근을 막아, 쿠키 값이 스크립트 삽입 공격에 노출되는 것을 줄입니다."
+  optionExplanations={['삭제 권한과는 무관합니다', '정답입니다', '만료 시간은 maxAge·expires가 정합니다', '도메인 공유는 domain 옵션의 역할입니다']}
+/>
+
+<Quiz
+  questionNumber={4}
+  question="app/components/site-header.js가 로그인한 사용자의 이메일을 알 수 있는 경로는"
+  options={['site-header.js가 직접 쿠키를 읽는다', 'app/layout.js가 getSession으로 세션을 읽어 props로 내려준다', '브라우저 로컬 스토리지에서 읽는다', 'usePathname 훅이 세션 정보도 함께 반환한다']}
+  correctAnswer={2}
+  explanation="쿠키를 읽는 일은 서버 컴포넌트인 RootLayout이 하고, 그 결과만 직렬화 가능한 값으로 클라이언트 컴포넌트에 props로 전달합니다."
+  optionExplanations={['site-header.js는 클라이언트 컴포넌트라 쿠키를 직접 읽지 않습니다', '정답입니다', '로컬 스토리지를 쓰지 않습니다', 'usePathname은 경로만 반환합니다']}
+/>
+
+## 참고 자료
+
+- [Next.js Docs — Authentication 가이드](https://nextjs.org/docs/app/guides/authentication)
+- [Next.js Docs — cookies() API 레퍼런스](https://nextjs.org/docs/app/api-reference/functions/cookies)

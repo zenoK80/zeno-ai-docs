@@ -1,0 +1,379 @@
+---
+title: '09. Server Actions로 책 등록·수정·삭제'
+description: 'use server 지시어로 만든 Server Action으로 책 등록·수정·삭제 폼을 처리하고 revalidatePath로 목록을 즉시 갱신합니다'
+---
+
+<Callout type="info">
+  **이번 편의 결과물:** 책 등록·수정·삭제 폼을 제출하면 페이지 새로고침 없이 목록이 갱신됩니다. · **다루는 개념:** `'use server'` Server Action, form의 action 연결, `revalidatePath`로 캐시 갱신
+</Callout>
+
+지금까지 `bookshelf-next`는 데이터를 읽기만 했습니다. 이 편부터는 화면에서 책을 등록·수정·삭제할 수 있게 만듭니다. `react_3`의 `bookshelf`는 `useMutation`으로 mock API를 호출하고 `invalidateQueries`로 캐시를 다시 불러왔습니다. Next.js는 이 흐름을 Server Action이라는 서버 전용 함수와 `revalidatePath`로 대신합니다.
+
+## 이 편에서 만드는 파일
+
+```
+bookshelf-next/
+└── app/
+    ├── globals.css                  ~ (폼 스타일 추가)
+    └── books/
+        ├── actions.js               + (use server 지시어를 쓴 등록·수정·삭제 함수)
+        ├── page.js                  ~ (등록 페이지 링크 + 삭제 폼 추가)
+        ├── new/
+        │   └── page.js              + (책 등록 폼 페이지)
+        └── [bookId]/
+            └── page.js              ~ (수정 폼 + 삭제 폼 추가)
+```
+
+## 개념 정리
+
+### react_3와 비교
+
+| | react_3(bookshelf) | bookshelf-next |
+|---|---|---|
+| 변경 요청 | 클라이언트에서 useMutation이 mock API를 fetch | 클라이언트에서 폼을 제출하면 서버의 Server Action이 직접 실행 |
+| 캐시 갱신 | invalidateQueries로 쿼리 캐시 무효화 | revalidatePath로 라우트 캐시 무효화 |
+| 변경 로직 위치 | 브라우저 번들 안 | 서버에만 존재, 브라우저 번들에는 포함되지 않음 |
+
+### use server로 Server Function 만들기
+
+파일 맨 위에 use server 지시어를 쓰면 그 파일이 export하는 모든 함수가 서버에서만 실행되는 Server Function이 됩니다. 브라우저 번들에는 실제 코드 대신 서버를 호출하는 참조만 남습니다. 폼의 action 속성에 연결해 쓰면 이를 특별히 Server Action이라고 부릅니다.
+
+```js
+// bookshelf-next/app/books/actions.js (형태만)
+'use server'
+
+export async function createBookAction(formData) {
+  // ...
+}
+```
+
+### 폼 action에 연결하기
+
+폼 요소의 action 속성에 함수를 그대로 넘기면, 제출 시 그 함수가 FormData 객체를 첫 번째 인자로 받습니다. 값은 `formData.get('title')`처럼 꺼냅니다. 서버 컴포넌트에 그대로 써도 되므로, 이 폼들은 클라이언트 컴포넌트로 바꿀 필요가 없습니다. 자바스크립트가 아직 실행되지 않은 상태에서도 폼 제출 자체는 그대로 동작합니다.
+
+### 추가 인자 넘기기: bind
+
+목록의 각 책마다 다른 id로 삭제를 실행해야 합니다. 자바스크립트의 bind 메서드로 첫 번째 인자를 미리 고정한 새 함수를 만들어 action에 넘깁니다.
+
+```js
+const deleteThisBook = deleteBookAction.bind(null, book.id)
+```
+
+이렇게 넘기면 실제 함수는 고정한 인자 다음에 FormData를 받습니다.
+
+```js
+export async function deleteBookAction(id, formData) {
+  // id가 먼저, formData가 나중
+}
+```
+
+`deleteBookAction`처럼 폼에 별도 입력 필드가 없다면 두 번째 인자(formData)는 그냥 안 쓰고 넘어가도 됩니다.
+
+### 변경 뒤 화면 갱신: revalidatePath와 redirect
+
+Server Action이 데이터를 바꾼 뒤 revalidatePath를 호출하면, 같은 응답 안에서 현재 라우트가 다시 렌더링되어 페이지를 새로고침하지 않아도 최신 값이 보입니다. 삭제처럼 보고 있던 라우트 자체가 사라지는 경우에는 redirect로 목록 페이지로 돌려보냅니다. redirect는 예외를 던지는 방식으로 동작하므로 revalidatePath를 반드시 먼저 호출합니다.
+
+### 07편 Route Handler와의 역할 구분
+
+07편의 app/api/books/route.js POST는 외부에서도 호출할 수 있는 REST 엔드포인트로 남겨두고, 화면의 폼은 이 엔드포인트를 다시 fetch하지 않고 Server Action이 lib/db.js를 직접 불러 처리합니다.
+
+### 입력 검증은 최소한만
+
+지금은 값이 비어 있는지만 확인합니다. 필드별 에러 메시지와 제출 상태 표시는 10편의 useActionState에서 다룹니다.
+
+## 실습
+
+<Steps>
+
+### 1. Server Action 작성
+
+```js
+// bookshelf-next/app/books/actions.js
+'use server'
+
+import { revalidatePath } from 'next/cache'
+import { redirect } from 'next/navigation'
+import { createBook, updateBook, deleteBook } from '@/lib/db.js'
+
+export async function createBookAction(formData) {
+  const title = formData.get('title')
+  const author = formData.get('author')
+
+  if (!title || !author) {
+    return
+  }
+
+  await createBook({ title, author })
+  revalidatePath('/books')
+}
+
+export async function updateBookAction(id, formData) {
+  const status = formData.get('status')
+  const memo = formData.get('memo')
+
+  await updateBook(id, { status, memo })
+  revalidatePath('/books')
+  revalidatePath(`/books/${id}`)
+}
+
+export async function deleteBookAction(id) {
+  await deleteBook(id)
+  revalidatePath('/books')
+  redirect('/books')
+}
+```
+
+Server Action 파일을 `lib/` 대신 `app/books/actions.js`에 두는 이유는, 이 함수들이 `/books` 세그먼트의 폼에서만 쓰이는 전용 로직이라 그 라우트 폴더 안에 함께 두는 쪽이 찾기 쉽기 때문입니다. `route.js`와 달리 `actions.js`는 Next.js가 특별히 인식하는 파일 이름이 아니므로, `page.js`와 같은 폴더에 두어도 라우트에 영향을 주지 않습니다.
+
+### 2. 책 등록 페이지 작성
+
+목록 페이지에 폼을 얹는 대신, 등록 전용 페이지를 따로 둡니다.
+
+```js
+// bookshelf-next/app/books/new/page.js
+import Link from 'next/link'
+import { createBookAction } from '../actions'
+
+export default function NewBookPage() {
+  return (
+    <section>
+      <p>
+        <Link href="/books">목록으로</Link>
+      </p>
+      <h1>새 책 등록</h1>
+      <form action={createBookAction} className="book-form">
+        <input type="text" name="title" placeholder="제목" required />
+        <input type="text" name="author" placeholder="저자" required />
+        <button type="submit">등록</button>
+      </form>
+    </section>
+  )
+}
+```
+
+### 3. 목록 페이지에 등록 링크와 삭제 폼 추가
+
+```js
+// bookshelf-next/app/books/page.js
+import Link from 'next/link'
+import { BASE_URL } from '@/lib/site-url.js'
+import { deleteBookAction } from './actions'
+
+export default async function BooksPage() {
+  const response = await fetch(`${BASE_URL}/api/books`, { cache: 'force-cache' })
+  const books = await response.json()
+
+  return (
+    <section>
+      <p>
+        <Link href="/books/new">+ 새 책 등록</Link>
+      </p>
+      <ul className="book-list">
+        {books.map((book) => {
+          const deleteThisBook = deleteBookAction.bind(null, book.id)
+          return (
+            <li key={book.id}>
+              <Link href={`/books/${book.id}`}>{book.title}</Link>
+              <p>{book.author}</p>
+              <form action={deleteThisBook}>
+                <button type="submit">삭제</button>
+              </form>
+            </li>
+          )
+        })}
+      </ul>
+    </section>
+  )
+}
+```
+
+### 4. 상세 페이지에 수정 폼과 삭제 폼 추가
+
+```js
+// bookshelf-next/app/books/[bookId]/page.js
+import { Suspense } from 'react'
+import { notFound } from 'next/navigation'
+import Link from 'next/link'
+import { BASE_URL } from '@/lib/site-url.js'
+import { wait } from '@/lib/wait.js'
+import { updateBookAction, deleteBookAction } from '../actions'
+
+export default async function BookDetailPage({ params }) {
+  const { bookId } = await params
+  const response = await fetch(`${BASE_URL}/api/books/${bookId}`, { cache: 'no-store' })
+
+  if (response.status === 404) {
+    notFound()
+  }
+
+  const book = await response.json()
+  const updateThisBook = updateBookAction.bind(null, book.id)
+  const deleteThisBook = deleteBookAction.bind(null, book.id)
+
+  return (
+    <article>
+      <p>
+        <Link href="/books">목록으로</Link>
+      </p>
+      <h1>{book.title}</h1>
+      <p>{book.author}</p>
+      <dl>
+        <dt>쪽수</dt>
+        <dd>{book.pages}쪽</dd>
+        <dt>상태</dt>
+        <dd>{book.status}</dd>
+        <dt>메모</dt>
+        <dd>{book.memo || '메모 없음'}</dd>
+      </dl>
+
+      <form action={updateThisBook} className="edit-form">
+        <label htmlFor="status">상태</label>
+        <select id="status" name="status" defaultValue={book.status}>
+          <option value="wish">읽고 싶음</option>
+          <option value="reading">읽는 중</option>
+          <option value="done">완독</option>
+        </select>
+        <label htmlFor="memo">메모</label>
+        <textarea id="memo" name="memo" defaultValue={book.memo}></textarea>
+        <button type="submit">수정 저장</button>
+      </form>
+
+      <form action={deleteThisBook}>
+        <button type="submit">이 책 삭제</button>
+      </form>
+
+      <Suspense fallback={<p>추천 정보를 불러오는 중입니다...</p>}>
+        <ReadingTip pages={book.pages} />
+      </Suspense>
+    </article>
+  )
+}
+
+async function ReadingTip({ pages }) {
+  await wait(1500)
+  const days = Math.ceil(pages / 40)
+  return <p>하루 40쪽씩 읽으면 약 {days}일 만에 완독할 수 있습니다.</p>
+}
+```
+
+### 5. 폼 스타일 추가
+
+```css
+/* app/globals.css (추가분) */
+.book-form,
+.edit-form {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  max-width: 320px;
+  margin-bottom: 16px;
+  padding: 12px;
+  border: 1px solid #e5e7eb;
+  border-radius: 8px;
+  background-color: #ffffff;
+}
+
+.book-form input,
+.edit-form select,
+.edit-form textarea {
+  padding: 6px 8px;
+  border: 1px solid #d1d5db;
+  border-radius: 4px;
+}
+```
+
+### 6. 실행과 확인
+
+```text
+npm run dev
+```
+
+</Steps>
+
+## 확인
+
+- `/books`에서 "+ 새 책 등록" 링크를 누르면 `/books/new`로 이동합니다.
+- `/books/new`에서 제목과 저자를 입력해 등록 버튼을 누르면 책이 저장되고, "목록으로" 링크를 눌러 `/books`로 돌아가면 방금 등록한 책이 보입니다.
+- 목록의 삭제 버튼을 누르면 해당 항목이 바로 사라집니다.
+- 상세 페이지에서 상태를 읽는 중으로 바꾸고 메모를 입력한 뒤 수정 저장을 누르면 같은 화면에 바뀐 값이 바로 보입니다.
+- 상세 페이지에서 이 책 삭제를 누르면 `/books` 목록으로 이동하고, 그 책이 목록에서 사라져 있습니다.
+- `data/db.json`을 열어보면 화면에서 등록·수정·삭제한 내용이 실제로 저장되어 있습니다.
+
+## 직접 해보기
+
+1. createBookAction에서 title이 공백만 있는 문자열일 때도 등록되는지 확인하고, trim으로 걸러 등록되지 않게 만들어보세요.
+2. deleteBookAction에서 redirect 호출을 지우면 상세 페이지에서 삭제한 뒤 화면이 어떻게 되는지 관찰해보세요.
+
+<details>
+<summary>정답 보기</summary>
+
+```js
+// bookshelf-next/app/books/actions.js (일부 변경)
+export async function createBookAction(formData) {
+  const title = formData.get('title')?.trim()
+  const author = formData.get('author')?.trim()
+
+  if (!title || !author) {
+    return
+  }
+
+  await createBook({ title, author })
+  revalidatePath('/books')
+}
+```
+
+redirect를 지우면 브라우저 주소는 여전히 `/books/그 id`에 남은 채로 revalidatePath만 실행됩니다. 폼 제출 뒤 Next.js가 같은 라우트를 다시 렌더링하는데, 이미 지워진 책을 다시 조회하므로 `notFound()`가 호출되어 06편에서 만든 커스텀 404 화면이 대신 나타납니다. 목록으로 돌아가려면 그 화면의 링크를 다시 눌러야 하므로, 곧바로 목록으로 이동시키는 redirect가 있는 쪽이 사용자 경험이 더 매끄럽습니다.
+
+</details>
+
+## 자주 하는 실수
+
+| 증상 | 원인 | 고치는 법 |
+|------|------|-----------|
+| app/books/actions.js 최상단에 use client를 붙임 | use server와 반대되는 지시어를 착각해서 씀 | 서버에서만 실행할 파일이므로 use server를 남긴다 |
+| bind로 넘긴 함수가 인자 순서 오류를 냄 | bind(null, id) 뒤 함수 시그니처를 (formData, id)로 착각 | bind로 고정한 인자가 먼저 오므로 (id, formData) 순서로 선언한다 |
+| 삭제 후에도 이전 화면이 그대로 보임 | redirect를 revalidatePath보다 먼저 호출 | revalidatePath를 먼저 호출하고 그다음 redirect를 호출한다 |
+| 등록 폼 제출 후 아무 반응이 없음 | form의 action에 함수가 아니라 문자열 경로를 넣음 | action에 반드시 use server로 만든 함수 자체를 넘긴다 |
+
+## 확인 문제
+
+<Quiz
+  questionNumber={1}
+  question="app/books/actions.js 최상단에 use server를 쓰는 목적은"
+  options={['파일 안 함수를 클라이언트 번들에 포함시키기 위해서', '파일이 export하는 함수를 서버에서만 실행되는 함수로 만들기 위해서', 'CSS를 적용하기 위해서', '파일을 정적 자산으로 만들기 위해서']}
+  correctAnswer={2}
+  explanation="use server 지시어는 그 파일의 모든 export를 서버 전용 함수로 만들고, 클라이언트에는 서버를 호출하는 참조만 남깁니다."
+  optionExplanations={['오히려 클라이언트 번들에서 제외됩니다', '정답입니다', 'CSS와는 무관합니다', '정적 자산과는 무관한 개념입니다']}
+/>
+
+<Quiz
+  questionNumber={2}
+  question="목록의 각 책마다 다른 id로 삭제 함수를 실행하기 위해 쓴 방법은"
+  options={['전역 변수에 id를 저장', 'deleteBookAction.bind(null, book.id)로 인자를 미리 고정', 'URL 쿼리로 id를 전달', '별도의 파일을 책마다 새로 생성']}
+  correctAnswer={2}
+  explanation="bind로 첫 번째 인자를 미리 고정한 새 함수를 만들어 각 책의 폼 action에 연결했습니다."
+  optionExplanations={['전역 변수는 동시성 문제를 일으킬 수 있습니다', '정답입니다', '이 편에서는 폼 action 함수로 직접 전달했습니다', '파일을 새로 만들 필요는 없습니다']}
+/>
+
+<Quiz
+  questionNumber={3}
+  question="deleteBookAction에서 revalidatePath를 redirect보다 먼저 호출하는 이유는"
+  options={['호출 순서는 결과에 영향이 없다', 'redirect는 예외를 던져 이후 코드가 실행되지 않으므로', 'revalidatePath가 더 느린 함수라서', 'redirect가 revalidatePath를 자동으로 실행하기 때문에']}
+  correctAnswer={2}
+  explanation="redirect는 예외를 던지는 방식으로 동작해 호출 이후의 코드가 실행되지 않으므로, 필요한 재검증은 그 전에 끝내야 합니다."
+  optionExplanations={['순서가 바뀌면 재검증이 누락될 수 있습니다', '정답입니다', '속도 차이가 이유는 아닙니다', 'redirect가 대신 호출해주지 않습니다']}
+/>
+
+<Quiz
+  questionNumber={4}
+  question="react_3의 useMutation과 invalidateQueries 조합을 이 편에서 대체하는 것은"
+  options={['useEffect와 useState', 'Server Action과 revalidatePath', 'CodePlayground와 CSS', 'notFound와 not-found.js']}
+  correctAnswer={2}
+  explanation="변경 요청은 Server Action이, 캐시 갱신은 revalidatePath가 프레임워크 차원에서 대신 처리합니다."
+  optionExplanations={['이 편의 데이터 변경 방식이 아닙니다', '정답입니다', '스타일·실습 도구와는 무관합니다', '404 처리와는 무관합니다']}
+/>
+
+## 참고 자료
+
+- [Next.js Docs — Mutating Data(Server Functions)](https://nextjs.org/docs/app/getting-started/mutating-data)
+- [Next.js Docs — Forms 가이드](https://nextjs.org/docs/app/guides/forms)

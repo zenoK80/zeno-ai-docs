@@ -1,0 +1,319 @@
+---
+title: '10. 폼 제출 상태와 서버 측 검증'
+description: 'useActionState로 필드 에러와 입력값을 관리하고, useFormStatus로 제출 버튼을 자동으로 비활성화하고, zod로 서버에서 입력을 검증합니다'
+---
+
+<Callout type="info">
+  **이번 편의 결과물:** 필수 항목을 비우고 제출하면 필드별 에러 메시지가 보이고, 제출 중에는 버튼이 비활성화됩니다. · **다루는 개념:** useActionState로 제출 상태·에러 관리, useFormStatus로 제출 버튼 비활성화, zod로 서버에서 입력 검증 후 필드 에러 반환
+</Callout>
+
+09편에서 `app/books/new/page.js`에 책 등록 폼을 만들고 createBookAction으로 데이터를 저장했습니다. 폼 자체는 동작하지만 제목을 비운 채 제출해도 아무 안내 없이 조용히 실패하거나 서버 에러로 이어집니다. 사용자에게 무엇이 잘못됐는지 알려주려면 서버에서 값을 검증하고, 그 결과를 폼으로 다시 돌려주는 상태 관리가 필요합니다. 이 편에서는 useActionState로 그 상태를 다루고, zod로 검증 규칙을 명확하게 정의합니다.
+
+## 이 편에서 만드는 파일
+
+```
+bookshelf-next/
+├── lib/
+│   └── book-status.js           + (책 상태 값과 한글 라벨 목록)
+└── app/
+    └── books/
+        ├── actions.js            ~ (createBookAction을 useActionState 시그니처 + zod 검증으로 변경)
+        └── new/
+            ├── page.js           ~ (BookForm 컴포넌트를 렌더하도록 정리)
+            ├── BookForm.js       + (useActionState로 필드 에러·입력값 관리)
+            └── SubmitButton.js   + (useFormStatus로 제출 버튼 비활성화)
+```
+
+## 개념 정리
+
+### useActionState — 액션의 결과를 상태로 받기
+
+useActionState는 액션 함수와 초기 상태를 받아 현재 상태, 폼에 연결할 액션, 진행 중 여부 세 가지를 돌려줍니다.
+
+```js
+const [state, formAction, isPending] = useActionState(createBookAction, initialState)
+```
+
+폼의 action 속성에 formAction을 연결하면, React가 제출을 가로채 createBookAction을 직전 state 값(previousState)과 제출된 FormData 두 인자로 호출합니다. 액션이 반환한 값이 다음 state가 되어 컴포넌트가 다시 렌더링됩니다. 검증에 실패하면 예외를 던지는 대신 에러 정보를 담은 객체를 반환해, 그 값을 그대로 state로 받아 화면에 표시합니다.
+
+### zod로 서버에서 검증하기
+
+브라우저의 required 속성만으로는 부족합니다. 폼 데이터를 직접 조작한 요청이나 자바스크립트가 꺼진 환경도 있으므로, 실제 데이터를 저장하기 전 서버 함수 안에서 다시 검증합니다. zod의 safeParse는 예외를 던지지 않고 성공 여부와 결과를 담은 객체를 돌려주고, 실패하면 z.flattenError로 필드 이름을 키로 갖는 fieldErrors 객체를 뽑아냅니다. react_3의 react-hook-form+zod는 검증이 브라우저에서 즉시 일어났지만, 이 조합은 검증 로직이 서버에만 있고 클라이언트는 결과만 받는다는 점이 다릅니다.
+
+### useFormStatus — 폼 하위 컴포넌트에서 제출 상태 읽기
+
+useFormStatus는 가장 가까운 조상 폼의 제출 상태를 돌려줍니다. 다만 그 폼을 렌더하는 컴포넌트가 아니라 폼 안에 중첩된 별도 컴포넌트에서 호출해야 값이 제대로 들어옵니다. BookForm이 폼 태그를 직접 렌더하면서 같은 함수 안에서 useFormStatus를 호출하면 항상 초기값만 받으므로, 제출 버튼을 SubmitButton이라는 별도 컴포넌트로 분리합니다. useActionState의 세 번째 값(isPending)으로도 같은 정보를 얻을 수 있지만, 그러면 그 값을 prop으로 내려줘야 합니다. useFormStatus를 쓰면 폼 안 어디서든 prop 없이 상태를 직접 읽을 수 있습니다.
+
+## 실습
+
+<Steps>
+
+### 1. zod 설치
+
+```text
+npm install zod
+```
+
+### 2. 책 상태 값과 라벨 정리
+
+여러 파일에서 반복해 쓸 책 상태 목록을 한 곳에 모읍니다.
+
+```js
+// bookshelf-next/lib/book-status.js
+export const BOOK_STATUSES = [
+  { value: 'wish', label: '읽고 싶음' },
+  { value: 'reading', label: '읽는 중' },
+  { value: 'done', label: '완독' },
+]
+
+export const STATUS_LABELS = Object.fromEntries(
+  BOOK_STATUSES.map((status) => [status.value, status.label])
+)
+```
+
+### 3. createBookAction을 useActionState 시그니처로 변경
+
+```js
+// bookshelf-next/app/books/actions.js
+'use server'
+
+import { z } from 'zod'
+import { revalidatePath } from 'next/cache'
+import { redirect } from 'next/navigation'
+import { createBook, updateBook, deleteBook } from '@/lib/db'
+import { BOOK_STATUSES } from '@/lib/book-status'
+
+const bookSchema = z.object({
+  title: z.string().trim().min(1, '제목을 입력하세요'),
+  author: z.string().trim().min(1, '저자를 입력하세요'),
+  status: z.enum(BOOK_STATUSES.map((status) => status.value), '상태를 선택하세요'),
+  pages: z.coerce.number().int('쪽수는 정수여야 합니다').positive('쪽수는 1 이상이어야 합니다'),
+  memo: z.string().trim().optional(),
+})
+
+export async function createBookAction(previousState, formData) {
+  const values = {
+    title: formData.get('title') ?? '',
+    author: formData.get('author') ?? '',
+    status: formData.get('status') ?? '',
+    pages: formData.get('pages') ?? '',
+    memo: formData.get('memo') ?? '',
+  }
+
+  const result = bookSchema.safeParse(values)
+
+  if (!result.success) {
+    const { fieldErrors } = z.flattenError(result.error)
+    return { errors: fieldErrors, values }
+  }
+
+  await createBook({ ...result.data, memo: result.data.memo || '' })
+
+  revalidatePath('/books')
+  redirect('/books')
+}
+
+export async function updateBookAction(id, formData) {
+  const status = formData.get('status')
+  const memo = formData.get('memo')
+
+  await updateBook(id, { status, memo })
+  revalidatePath('/books')
+  revalidatePath(`/books/${id}`)
+}
+
+export async function deleteBookAction(id) {
+  await deleteBook(id)
+  revalidatePath('/books')
+  redirect('/books')
+}
+```
+
+revalidatePath와 redirect는 반드시 try/catch 바깥에서 순서대로 호출합니다. redirect는 내부적으로 예외를 던지는 방식으로 페이지 이동을 일으키므로, catch 블록 안에 있으면 그 예외가 붙잡혀 정상적으로 이동하지 않습니다. updateBookAction과 deleteBookAction은 09편과 완전히 같습니다. 이 편은 createBookAction만 useActionState·zod 검증 형태로 바꿉니다.
+
+### 4. useActionState로 폼 상태 관리
+
+```js
+// bookshelf-next/app/books/new/BookForm.js
+'use client'
+
+import { useActionState } from 'react'
+import { createBookAction } from '../actions'
+import { BOOK_STATUSES } from '@/lib/book-status'
+import SubmitButton from './SubmitButton'
+
+const initialState = {
+  errors: null,
+  values: { title: '', author: '', status: 'wish', pages: '', memo: '' },
+}
+
+export default function BookForm() {
+  const [state, formAction] = useActionState(createBookAction, initialState)
+  const fieldErrors = state.errors ?? {}
+  const values = state.values
+
+  return (
+    <form action={formAction} className="book-form">
+      <TextField name="title" label="제목" value={values.title} error={fieldErrors.title} />
+      <TextField name="author" label="저자" value={values.author} error={fieldErrors.author} />
+
+      <div className="form-field">
+        <label htmlFor="status">상태</label>
+        <select id="status" name="status" defaultValue={values.status}>
+          {BOOK_STATUSES.map((status) => (
+            <option key={status.value} value={status.value}>
+              {status.label}
+            </option>
+          ))}
+        </select>
+        {fieldErrors.status && <p className="form-error">{fieldErrors.status[0]}</p>}
+      </div>
+
+      <TextField name="pages" label="쪽수" type="number" value={values.pages} error={fieldErrors.pages} />
+
+      <div className="form-field">
+        <label htmlFor="memo">메모</label>
+        <textarea id="memo" name="memo" defaultValue={values.memo}></textarea>
+      </div>
+
+      <SubmitButton />
+    </form>
+  )
+}
+
+function TextField({ name, label, type = 'text', value, error }) {
+  return (
+    <div className="form-field">
+      <label htmlFor={name}>{label}</label>
+      <input id={name} name={name} type={type} defaultValue={value} />
+      {error && <p className="form-error">{error[0]}</p>}
+    </div>
+  )
+}
+```
+
+TextField는 제목·저자·쪽수처럼 구조가 같은 입력을 반복하지 않으려고 뽑아낸 작은 컴포넌트입니다. 검증에 실패해 다시 렌더링돼도 defaultValue가 state.values를 가리키므로 입력했던 값이 그대로 남습니다. defaultValue 대신 value를 쓰면 리액트가 입력을 제어 컴포넌트로 취급해 onChange 없이는 값을 바꿀 수 없게 되므로 defaultValue를 씁니다.
+
+### 5. useFormStatus로 제출 버튼 분리
+
+```js
+// bookshelf-next/app/books/new/SubmitButton.js
+'use client'
+
+import { useFormStatus } from 'react-dom'
+
+export default function SubmitButton() {
+  const { pending } = useFormStatus()
+
+  return (
+    <button type="submit" disabled={pending}>
+      {pending ? '등록하는 중입니다...' : '책 등록'}
+    </button>
+  )
+}
+```
+
+### 6. 등록 페이지 정리
+
+```js
+// bookshelf-next/app/books/new/page.js
+import Link from 'next/link'
+import BookForm from './BookForm'
+
+export default function NewBookPage() {
+  return (
+    <section>
+      <p>
+        <Link href="/books">목록으로</Link>
+      </p>
+      <h1>새 책 등록</h1>
+      <BookForm />
+    </section>
+  )
+}
+```
+
+### 7. 실행
+
+```text
+npm run dev
+```
+
+</Steps>
+
+## 확인
+
+- `/books/new`에서 제목과 저자를 비운 채 책 등록을 누르면 각 입력 아래에 "제목을 입력하세요", "저자를 입력하세요" 메시지가 보입니다.
+- 쪽수에 0이나 음수를 넣으면 "쪽수는 1 이상이어야 합니다" 메시지가 보입니다.
+- 오류가 난 상태에서도 이미 입력했던 값은 지워지지 않고 그대로 남아 있습니다.
+- 책 등록 버튼을 누르는 순간 잠깐 "등록하는 중입니다..."로 문구가 바뀌고 버튼이 눌리지 않습니다.
+- 모든 값을 올바르게 채워 제출하면 `/books` 목록으로 이동하고 방금 등록한 책이 보입니다.
+
+## 직접 해보기
+
+책 데이터에 평점(rating, 1~5 사이 숫자) 필드를 추가하고 싶습니다. bookSchema에 rating 검증 규칙을 추가하고, BookForm에 숫자 입력을 하나 더 만들어 필드 에러가 보이게 만들어 보세요.
+
+<details>
+<summary>정답 보기</summary>
+
+```js
+// bookSchema에 추가
+rating: z.coerce.number().int('평점은 정수여야 합니다').min(1, '평점은 1 이상').max(5, '평점은 5 이하'),
+```
+
+BookForm.js에는 `<TextField name="rating" label="평점" type="number" value={values.rating} error={fieldErrors.rating} />` 한 줄만 추가하면 됩니다. initialState.values와 createBookAction의 values 객체에도 rating 항목을 빠짐없이 추가해야 값이 누락되지 않습니다.
+
+</details>
+
+## 자주 하는 실수
+
+| 증상 | 원인 | 고치는 법 |
+|------|------|-----------|
+| 제출 버튼이 항상 비활성화되지 않음(pending이 계속 false) | useFormStatus를 폼 태그를 직접 렌더하는 컴포넌트 안에서 호출 | SubmitButton처럼 폼 하위의 별도 컴포넌트로 분리해 그 안에서 호출한다 |
+| 등록에 성공했는데 화면이 에러로 바뀜 | redirect 호출을 try/catch로 감쌈 | redirect는 revalidatePath 다음, try/catch 밖에서 호출한다 |
+| 검증 실패 후 입력했던 값이 모두 사라짐 | input에 defaultValue를 연결하지 않음 | state.values의 값을 각 input의 defaultValue로 넘긴다 |
+
+## 확인 문제
+
+<Quiz
+  questionNumber={1}
+  question="useActionState에 전달한 액션 함수가 실제로 받는 두 인자는 무엇인가"
+  options={['이벤트 객체와 폼 데이터', '직전 상태와 폼 데이터', '상태와 상태를 바꾸는 함수', '폼 데이터와 이벤트 객체']}
+  correctAnswer={2}
+  explanation="useActionState의 액션 함수는 직전 state 값과 제출된 FormData를 순서대로 인자로 받습니다."
+  optionExplanations={['이벤트 객체를 받지 않습니다', '정답입니다', '상태 변경 함수를 인자로 받지 않습니다', '순서와 종류가 다릅니다']}
+/>
+
+<Quiz
+  questionNumber={2}
+  question="useFormStatus를 호출하는 컴포넌트가 반드시 지켜야 하는 조건은"
+  options={['폼 태그를 직접 렌더하는 컴포넌트여야 한다', '폼 태그 하위에 렌더되는 별도 컴포넌트여야 한다', '서버 컴포넌트여야 한다', 'useActionState와 반드시 같은 파일에 있어야 한다']}
+  correctAnswer={2}
+  explanation="useFormStatus는 자신을 렌더한 컴포넌트가 아니라 조상 폼의 상태를 읽으므로, 폼 태그 하위에 중첩된 별도 컴포넌트에서 호출해야 합니다."
+  optionExplanations={['폼을 직접 렌더하는 컴포넌트에서는 값이 갱신되지 않습니다', '정답입니다', '클라이언트 컴포넌트여야 합니다', '파일 위치는 중요하지 않습니다']}
+/>
+
+<Quiz
+  questionNumber={3}
+  question="이 편에서 zod의 safeParse가 검증에 실패했을 때 일어나는 일은"
+  options={['예외를 던져 서버 함수 실행을 중단시킨다', '성공 여부와 에러 정보를 담은 객체를 반환한다', '자동으로 데이터베이스를 롤백한다', '서버를 재시작한다']}
+  correctAnswer={2}
+  explanation="safeParse는 parse와 달리 예외를 던지지 않고 성공 여부와 결과(또는 에러)를 담은 객체를 돌려줍니다."
+  optionExplanations={['예외를 던지는 것은 parse입니다', '정답입니다', '데이터베이스 롤백과는 무관합니다', '서버 재시작과 무관합니다']}
+/>
+
+<Quiz
+  questionNumber={4}
+  question="createBookAction에서 redirect를 revalidatePath 다음, try/catch 밖에서 호출하는 이유는"
+  options={['redirect 실행 속도가 느려서 미리 끝내야 하므로', 'redirect가 예외를 던지는 방식으로 동작해 catch에 붙잡히면 정상 동작하지 않으므로', 'revalidatePath보다 먼저 실행하면 캐시가 깨지므로', '순서는 결과에 영향을 주지 않으므로 상관없다']}
+  correctAnswer={2}
+  explanation="redirect는 프레임워크가 처리하는 예외를 던져 흐름을 제어하므로, try/catch 안에 있으면 그 예외가 잡혀 정상적으로 페이지가 이동하지 않습니다."
+  optionExplanations={['속도 문제가 아닙니다', '정답입니다', '순서 문제는 캐시 손상이 아니라 예외 처리와 관련됩니다', '순서가 결과에 직접 영향을 줍니다']}
+/>
+
+## 참고 자료
+
+- [React Docs — useActionState](https://react.dev/reference/react/useActionState)
+- [React Docs — useFormStatus](https://react.dev/reference/react-dom/hooks/useFormStatus)
+- [Next.js Docs — Mutating Data(Server Functions)](https://nextjs.org/docs/app/getting-started/mutating-data)
+- [zod Docs — Error Customization](https://zod.dev/error-customization)

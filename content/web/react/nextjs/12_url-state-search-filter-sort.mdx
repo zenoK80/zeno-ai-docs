@@ -1,0 +1,257 @@
+---
+title: '12. URL 파라미터로 만드는 검색·필터·정렬'
+description: 'searchParams를 서버 컴포넌트에서 읽어 검색어·상태 필터·정렬을 URL 상태로 관리합니다'
+---
+
+<Callout type="info">
+  **이번 편의 결과물:** 검색어를 입력하고 정렬을 바꾸면 URL이 바뀌고, 그 URL을 새로고침하거나 다른 탭에서 열어도 같은 결과가 보입니다. · **다루는 개념:** searchParams를 서버 컴포넌트 props로 받기, 검색어·상태 필터·정렬 폼(GET 제출), 새로고침·공유 시 상태 복원
+</Callout>
+
+react_3의 BookListPage는 Zustand 스토어에 검색어와 정렬 상태를 저장했습니다. 그 값은 브라우저 메모리에만 있어서 새로고침하면 사라지고, 다른 사람과 URL을 공유해도 검색 조건은 전달되지 않았습니다. Next.js에서는 검색 조건 자체를 URL 쿼리 문자열에 담아, 서버 컴포넌트가 그 값을 읽어 목록을 걸러주는 방식으로 이 문제를 해결합니다. 상태를 저장할 스토어가 따로 필요 없습니다.
+
+## 이 편에서 만드는 파일
+
+```
+bookshelf-next/
+└── app/
+    └── books/
+        ├── page.js          ~ (searchParams로 검색어·상태 필터·정렬 처리, Form으로 검색 폼 추가)
+        └── SearchButton.js  + (useFormStatus로 검색 중 상태 표시)
+```
+
+## 개념 정리
+
+### searchParams도 Promise다
+
+05편에서 다룬 params처럼, page.js가 받는 searchParams도 즉시 쓸 수 있는 객체가 아니라 Promise입니다. await로 값을 꺼낸 뒤 사용합니다.
+
+```js
+export default async function BooksPage({ searchParams }) {
+  const { q = '', status = 'all', sort = 'title-asc' } = await searchParams
+}
+```
+
+쿼리 문자열에 해당 키가 없으면 값이 undefined로 들어오므로, 구조분해 시 기본값을 함께 지정해 둡니다.
+
+### searchParams를 읽으면 페이지가 동적 렌더링으로 바뀐다
+
+08편에서 정적 렌더링과 동적 렌더링을 나눴습니다. searchParams는 요청이 올 때까지 값을 알 수 없는 요청 시점 정보라서, 이 값을 읽는 순간 그 페이지는 자동으로 동적 렌더링 대상이 됩니다. 검색 결과 페이지는 애초에 사용자마다 다른 값을 보여줘야 하므로 이 전환이 자연스럽습니다.
+
+### next/form으로 GET 제출을 URL 이동으로 연결
+
+일반 a 태그나 useState만으로는 입력값을 URL에 반영하는 코드를 직접 작성해야 합니다. next/form이 제공하는 Form 컴포넌트는 action에 문자열을 주면 네이티브 폼처럼 입력값을 쿼리 문자열로 만들어 그 주소로 이동하되, 페이지 전체를 새로 불러오지 않는 클라이언트 사이드 내비게이션으로 처리합니다. action에 빈 문자열을 주면 현재 라우트에 쿼리 문자열만 새로 반영해 이동합니다.
+
+```js
+<Form action="">
+  <input name="q" />
+  <button type="submit">검색</button>
+</Form>
+```
+
+폼 안의 각 입력은 name 속성이 곧 쿼리 파라미터 이름이 됩니다. 제출하면 `/books?q=입력값` 형태로 이동합니다.
+
+## 실습
+
+<Steps>
+
+### 1. 검색 폼과 필터링 로직 작성
+
+```js
+// bookshelf-next/app/books/page.js
+import Link from 'next/link'
+import Form from 'next/form'
+import { getBooks } from '@/lib/db'
+import { BOOK_STATUSES } from '@/lib/book-status'
+import BookList from './BookList'
+import SearchButton from './SearchButton'
+
+const STATUS_FILTER_OPTIONS = [{ value: 'all', label: '전체' }, ...BOOK_STATUSES]
+
+const SORT_OPTIONS = [
+  { value: 'title-asc', label: '제목 오름차순' },
+  { value: 'title-desc', label: '제목 내림차순' },
+  { value: 'pages-asc', label: '쪽수 적은 순' },
+  { value: 'pages-desc', label: '쪽수 많은 순' },
+]
+
+export default async function BooksPage({ searchParams }) {
+  const { q = '', status = 'all', sort = 'title-asc' } = await searchParams
+
+  const books = await getBooks()
+  const filteredBooks = filterAndSortBooks(books, { q, status, sort })
+
+  return (
+    <section>
+      <p>
+        <Link href="/books/new">+ 새 책 등록</Link>
+      </p>
+
+      <Form action="" className="book-filter">
+        <input type="text" name="q" placeholder="제목·저자 검색" defaultValue={q} />
+
+        <select name="status" defaultValue={status}>
+          {STATUS_FILTER_OPTIONS.map((option) => (
+            <option key={option.value} value={option.value}>
+              {option.label}
+            </option>
+          ))}
+        </select>
+
+        <select name="sort" defaultValue={sort}>
+          {SORT_OPTIONS.map((option) => (
+            <option key={option.value} value={option.value}>
+              {option.label}
+            </option>
+          ))}
+        </select>
+
+        <SearchButton />
+      </Form>
+
+      <p className="book-filter__result">검색 결과 {filteredBooks.length}권</p>
+
+      <BookList books={filteredBooks} />
+    </section>
+  )
+}
+
+function filterAndSortBooks(books, { q, status, sort }) {
+  let result = books
+
+  const keyword = q.trim().toLowerCase()
+  if (keyword) {
+    result = result.filter(
+      (book) =>
+        book.title.toLowerCase().includes(keyword) || book.author.toLowerCase().includes(keyword)
+    )
+  }
+
+  if (status !== 'all') {
+    result = result.filter((book) => book.status === status)
+  }
+
+  const sorted = [...result]
+  if (sort === 'pages-asc') {
+    sorted.sort((a, b) => a.pages - b.pages)
+  } else if (sort === 'pages-desc') {
+    sorted.sort((a, b) => b.pages - a.pages)
+  } else if (sort === 'title-desc') {
+    sorted.sort((a, b) => b.title.localeCompare(a.title))
+  } else {
+    sorted.sort((a, b) => a.title.localeCompare(b.title))
+  }
+
+  return sorted
+}
+```
+
+filterAndSortBooks는 컴포넌트 밖에 둔 일반 함수입니다. books 배열을 직접 바꾸지 않고 filter와 정렬 대상 복사본([...result])을 새로 만들어 반환해, 원본 배열을 건드리지 않습니다. BookList는 11편에서 만든 그대로이고, 걸러지고 정렬된 filteredBooks를 books prop으로 받는 것만 달라집니다.
+
+### 2. 검색 버튼에 진행 상태 표시
+
+```js
+// bookshelf-next/app/books/SearchButton.js
+'use client'
+
+import { useFormStatus } from 'react-dom'
+
+export default function SearchButton() {
+  const { pending } = useFormStatus()
+
+  return (
+    <button type="submit" disabled={pending}>
+      {pending ? '검색하는 중...' : '검색'}
+    </button>
+  )
+}
+```
+
+10편에서 등록 폼에 썼던 useFormStatus를 그대로 재사용합니다. 이번에는 Server Action이 아니라 URL 이동이 진행되는 동안의 대기 상태를 보여줍니다.
+
+### 3. 실행
+
+```text
+npm run dev
+```
+
+</Steps>
+
+## 확인
+
+- `/books`에서 검색창에 저자 이름 일부를 입력하고 검색을 누르면 주소가 `/books?q=...` 형태로 바뀌고 일치하는 책만 보입니다.
+- 상태 필터를 "완독"으로 바꾸고 검색을 누르면 주소에 `status=done`이 추가되고 완독한 책만 남습니다.
+- 정렬을 "쪽수 많은 순"으로 바꾸면 목록이 쪽수 내림차순으로 다시 정렬됩니다.
+- 검색 결과가 반영된 주소를 복사해 새 탭에 붙여넣으면 같은 검색어·필터·정렬 상태로 같은 결과가 보입니다.
+- 새로고침해도 입력창과 드롭다운에 방금 선택했던 값이 그대로 남아 있습니다(defaultValue 효과).
+
+## 직접 해보기
+
+검색어와 상태 필터를 모두 초기화하는 "전체 보기" 링크를 목록 위에 추가해 보세요. href를 `/books`로 고정한 일반 Link면 충분합니다.
+
+<details>
+<summary>정답 보기</summary>
+
+```js
+<p>
+  <Link href="/books/new">+ 새 책 등록</Link>
+  {' · '}
+  <Link href="/books">전체 보기</Link>
+</p>
+```
+
+`/books`로 이동하면 쿼리 문자열이 없으므로 searchParams가 빈 객체가 되고, q·status·sort 모두 구조분해 시 지정한 기본값(빈 문자열, all, title-asc)으로 돌아가 전체 목록이 다시 보입니다.
+
+</details>
+
+## 자주 하는 실수
+
+| 증상 | 원인 | 고치는 법 |
+|------|------|-----------|
+| searchParams.q에서 타입 에러 발생 | searchParams를 await 없이 바로 구조분해 | `const { q } = await searchParams`로 먼저 값을 꺼낸다 |
+| 새로고침하면 입력창·드롭다운 값이 비어 보임 | input과 select에 defaultValue를 연결하지 않음 | searchParams에서 읽은 값을 각각 defaultValue로 넘긴다 |
+| 검색을 눌러도 주소가 안 바뀌고 새로고침만 됨 | next/form의 Form 대신 일반 form 태그를 사용 | next/form에서 가져온 Form 컴포넌트로 바꾸고 action에 빈 문자열을 준다 |
+| 대문자로 검색하면 결과가 안 나옴 | 검색어와 대상 문자열의 대소문자를 맞추지 않음 | 양쪽 모두 toLowerCase()로 변환한 뒤 비교한다 |
+
+## 확인 문제
+
+<Quiz
+  questionNumber={1}
+  question="app/books/page.js에서 searchParams를 다루는 올바른 방법은"
+  options={['props에서 곧바로 구조분해해 사용한다', 'searchParams는 Promise이므로 await로 값을 꺼낸 뒤 사용한다', '클라이언트 컴포넌트에서만 사용할 수 있다', '항상 빈 객체만 전달된다']}
+  correctAnswer={2}
+  explanation="searchParams는 Promise이므로 async 함수 안에서 await searchParams로 실제 값을 얻어야 합니다."
+  optionExplanations={['바로 구조분해하면 타입 에러가 납니다', '정답입니다', '서버 컴포넌트에서도 사용합니다', '쿼리 문자열이 있으면 그 값이 들어옵니다']}
+/>
+
+<Quiz
+  questionNumber={2}
+  question="next/form의 Form 컴포넌트에서 action에 빈 문자열을 넘겼을 때 일어나는 일은"
+  options={['아무 동작도 하지 않는다', '현재 라우트에 입력값을 쿼리 문자열로 반영해 이동한다', '항상 홈 화면으로 이동한다', '서버 액션이 즉시 호출된다']}
+  correctAnswer={2}
+  explanation="action에 빈 문자열을 주면 폼 데이터가 쿼리 문자열로 인코딩되어 현재 라우트로 이동하면서 검색 조건이 URL에 반영됩니다."
+  optionExplanations={['빈 문자열도 유효한 경로로 처리됩니다', '정답입니다', '현재 라우트를 유지합니다', 'action이 문자열이면 서버 액션이 아니라 URL 이동으로 동작합니다']}
+/>
+
+<Quiz
+  questionNumber={3}
+  question="searchParams를 읽는 페이지가 정적 렌더링 대신 동적 렌더링으로 전환되는 이유는"
+  options={['searchParams 값이 요청이 올 때까지 알 수 없는 값이라서', '코드 길이가 길어져서', 'Form 컴포넌트를 쓰면 항상 동적으로 바뀌어서', 'zod를 쓰지 않아서']}
+  correctAnswer={1}
+  explanation="searchParams는 요청 시점에만 결정되는 정보이므로, 이를 읽는 페이지는 빌드 시점에 미리 렌더링할 수 없어 동적 렌더링으로 전환됩니다."
+  optionExplanations={['정답입니다', '코드 길이와는 무관합니다', 'Form 자체가 렌더링 방식을 결정하지 않습니다', 'zod 사용 여부와 무관합니다']}
+/>
+
+<Quiz
+  questionNumber={4}
+  question="next/form의 Form 컴포넌트가 네이티브 form 태그와 다른 점은"
+  options={['서버에서만 동작하고 브라우저에서는 동작하지 않는다', '클라이언트 사이드 내비게이션과 이동 경로의 사전 로딩(prefetch)을 지원한다', 'GET 방식 제출을 지원하지 않는다', '제출할 때마다 페이지 전체를 새로 불러온다']}
+  correctAnswer={2}
+  explanation="Form은 action이 문자열일 때 네이티브 GET 폼처럼 동작하되, 페이지 전체를 새로 불러오지 않는 클라이언트 사이드 내비게이션과 prefetch를 추가로 지원합니다."
+  optionExplanations={['브라우저에서 정상적으로 동작합니다', '정답입니다', 'action이 문자열이면 GET 방식으로 동작합니다', '전체 새로고침 없이 이동합니다']}
+/>
+
+## 참고 자료
+
+- [Next.js Docs — page.js 파일 컨벤션(searchParams)](https://nextjs.org/docs/app/api-reference/file-conventions/page)
+- [Next.js Docs — Form 컴포넌트](https://nextjs.org/docs/app/api-reference/components/form)
+- [React Docs — useFormStatus](https://react.dev/reference/react-dom/hooks/useFormStatus)

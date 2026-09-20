@@ -1,0 +1,142 @@
+---
+title: '01. SPA에서 App Router로 — Next.js가 다르게 푸는 문제'
+description: 'react_3 bookshelf의 SPA 렌더링 한계와 Next.js App Router의 파일 기반 라우팅·파일 컨벤션을 정리하고 bookshelf-next의 청사진을 확정합니다'
+---
+
+<Callout type="info">
+  **이번 편의 결과물:** 코드는 바꾸지 않습니다. `bookshelf-next`가 따를 렌더링 모델과 최종 라우트 구성을 확정합니다. · **다루는 개념:** SPA 렌더링 모델의 한계, 파일 기반 라우팅, App Router 파일 컨벤션(`page`/`layout`/`loading`/`error`), `bookshelf-next` 청사진
+</Callout>
+
+## 이 편에서 만드는 파일
+
+개념 편입니다. 새로 만들거나 고치는 파일이 없습니다. 03편부터 실제로 `bookshelf-next` 프로젝트를 만들며 이 편에서 정리한 구조를 그대로 적용합니다.
+
+## 개념 정리
+
+### react_3 bookshelf가 브라우저에서 하는 일
+
+`react_3`에서 완성한 `bookshelf`는 SPA(Single Page Application)입니다. 브라우저가 처음 받는 HTML은 빈 `div` 하나뿐이고, 화면은 자바스크립트 번들이 실행된 뒤에야 그려집니다. 책 목록도 컴포넌트가 마운트된 다음 `useQuery`가 mock API를 호출해야 나타납니다.
+
+이 방식에는 세 가지 한계가 있습니다.
+
+| 한계 | 내용 |
+|------|------|
+| 초기 화면 지연 | 자바스크립트 번들을 내려받고 실행할 때까지 화면이 비어 있거나 로딩 표시만 보인다 |
+| 클라이언트에 노출되는 코드 | API 호출 로직과 토큰 처리 로직이 모두 브라우저에서 실행되는 번들 안에 들어간다 |
+| 검색엔진과 공유 미리보기 | 브라우저가 자바스크립트를 실행해야 내용이 채워지므로, 크롤러나 링크 미리보기는 빈 화면만 본다 |
+
+Next.js는 이 세 가지를 서버에서 먼저 렌더링하는 방식으로 다르게 풉니다. 서버가 데이터를 읽고 HTML을 만들어 브라우저에 보내므로, 화면은 자바스크립트 실행을 기다리지 않고도 먼저 보입니다.
+
+### 파일 기반 라우팅
+
+`react_3`는 `react-router`로 라우트를 코드로 선언했습니다. 라우터 컴포넌트에 `path`와 `element`를 나열하는 방식입니다. Next.js App Router는 라우트를 코드가 아니라 **폴더 구조**로 선언합니다. `app` 폴더 안 폴더 하나가 URL 세그먼트 하나에 대응합니다.
+
+| Next.js 폴더 | URL |
+|---|---|
+| `app/page.js` | `/` |
+| `app/books/page.js` | `/books` |
+| `app/books/[bookId]/page.js` | `/books/1`, `/books/2` 등 |
+
+대괄호로 감싼 폴더명(`[bookId]`)은 동적 세그먼트입니다. 05편에서 실제로 만듭니다.
+
+### App Router 파일 컨벤션
+
+폴더 안에 정해진 이름의 파일을 두면 Next.js가 그 역할을 자동으로 인식합니다.
+
+| 파일명 | 역할 |
+|---|---|
+| `page.js` | 그 세그먼트를 실제 URL로 공개한다. 없으면 폴더가 있어도 라우트가 열리지 않는다 |
+| `layout.js` | 그 세그먼트와 하위 세그먼트가 공유하는 UI. 페이지 이동 시 다시 그려지지 않는다 |
+| `loading.js` | 데이터를 불러오는 동안 자동으로 보여줄 화면 |
+| `error.js` | 렌더링 중 에러가 나면 자동으로 보여줄 화면 |
+| `not-found.js` | `notFound()`를 호출했을 때 보여줄 화면 |
+
+`page.js`가 없는 폴더는 URL로 접근할 수 없습니다. 이 규칙 덕분에 컴포넌트나 유틸 파일을 라우트 폴더 안에 함께 두어도 실수로 라우트가 되는 일이 없습니다.
+
+### bookshelf-next 청사진
+
+`react_1~3`의 `bookshelf` 코드를 그대로 옮기지 않고, 같은 도메인(책 관리)을 App Router 구조로 새로 짭니다. 이후 편에서 하나씩 채울 라우트는 다음과 같습니다.
+
+```
+app/
+├── page.js                 (홈 — 04편)
+├── books/
+│   ├── page.js              (책 목록 — 04편)
+│   └── [bookId]/
+│       └── page.js          (책 상세 — 05편)
+└── api/
+    └── books/
+        └── route.js          (REST 엔드포인트 — 07편)
+```
+
+이 트리는 목표 지점을 미리 보여주기 위한 스케치이고, 실제로는 03편부터 한 단계씩 만듭니다.
+
+### 왜 서버 컴포넌트가 기본값인가
+
+App Router의 모든 컴포넌트는 별다른 표시가 없으면 **서버 컴포넌트**입니다. 서버 컴포넌트는 서버에서 실행되고 결과만 HTML과 최소한의 데이터로 브라우저에 전달됩니다. 상태나 이벤트 핸들러처럼 브라우저에서만 의미 있는 기능이 필요한 부분만 예외적으로 클라이언트 컴포넌트로 선언합니다. 이 경계를 어디에 그을지가 02편의 주제입니다.
+
+## 직접 해보기
+
+<details>
+<summary>react_3의 BookListPage가 화면에 나타나기까지 어떤 순서로 일이 벌어지는지 단계별로 적어보세요.</summary>
+
+1. 브라우저가 빈 `div#root`만 담긴 HTML을 받는다.
+2. 자바스크립트 번들을 내려받고 실행한다.
+3. React가 `BookListPage` 컴포넌트를 마운트한다.
+4. `useQuery`가 mock API에 요청을 보낸다.
+5. 응답이 오면 그제서야 책 목록이 화면에 그려진다.
+
+이 다섯 단계가 끝나기 전까지 사용자는 로딩 화면만 봅니다. Next.js는 3~5단계를 서버에서 먼저 처리해, 완성된 HTML을 1단계에서 바로 보냅니다.
+
+</details>
+
+## 자주 하는 실수
+
+| 증상 | 원인 | 고치는 법 |
+|------|------|-----------|
+| Next.js도 react-router처럼 라우트 설정 파일을 찾는다 | SPA 라우팅 습관이 남음 | App Router는 폴더 구조 자체가 라우트다. 별도 설정 파일이 없다 |
+| 모든 페이지에 `page.js`만 있으면 된다고 생각한다 | 파일 컨벤션을 다 외우지 않음 | 공통 UI는 `layout.js`, 로딩·에러는 각각 `loading.js`와 `error.js`로 분리한다 |
+| `bookshelf`(react_3) 코드를 그대로 복사하려 한다 | 두 프로젝트가 같은 도메인이라 착각 | 렌더링 모델 자체가 다르므로 03편부터 새로 만든다 |
+
+## 확인 문제
+
+<Quiz
+  questionNumber={1}
+  question="react_3의 bookshelf(SPA)에서 책 목록이 화면에 보이기까지 반드시 거치는 과정은"
+  options={['서버가 완성된 HTML을 미리 보낸다', '브라우저가 자바스크립트 번들을 내려받아 실행한 뒤 데이터를 요청한다', 'CSS만 로드하면 바로 보인다', '브라우저 캐시에서 즉시 복원된다']}
+  correctAnswer={2}
+  explanation="SPA는 빈 HTML을 받은 뒤 자바스크립트가 실행되고 나서야 데이터 요청과 렌더링이 시작됩니다."
+  optionExplanations={['이것이 Next.js가 다르게 푸는 부분입니다', '정답입니다', 'CSS만으로는 데이터가 채워지지 않습니다', '캐시 복원이 기본 동작은 아닙니다']}
+/>
+
+<Quiz
+  questionNumber={2}
+  question="Next.js App Router가 라우트를 정의하는 방식은"
+  options={['react-router처럼 코드로 라우트 목록을 선언한다', 'app 폴더 안의 폴더 구조로 라우트를 정의한다', '설정 파일 하나에 모든 경로를 나열한다', '데이터베이스에서 경로 목록을 읽는다']}
+  correctAnswer={2}
+  explanation="App Router는 폴더 구조 자체가 URL 세그먼트에 대응하는 파일 기반 라우팅입니다."
+  optionExplanations={['react-router의 방식과 다릅니다', '정답입니다', '별도 설정 파일이 필요 없습니다', '데이터베이스와 무관합니다']}
+/>
+
+<Quiz
+  questionNumber={3}
+  question="app/books 폴더에 page.js가 없다면 어떻게 되는가"
+  options={['/books는 여전히 접근 가능하다', '/books는 URL로 접근할 수 없다', '자동으로 404 페이지가 생성된다', 'layout.js가 대신 페이지 역할을 한다']}
+  correctAnswer={2}
+  explanation="page.js가 없는 세그먼트는 폴더가 있어도 공개 라우트가 되지 않습니다."
+  optionExplanations={['page.js 없이는 접근할 수 없습니다', '정답입니다', '404는 not-found.js가 있을 때의 동작입니다', 'layout.js는 페이지를 대신하지 않습니다']}
+/>
+
+<Quiz
+  questionNumber={4}
+  question="App Router에서 컴포넌트의 기본값은 무엇인가"
+  options={['클라이언트 컴포넌트', '서버 컴포넌트', '둘 다 아님', '설정에 따라 랜덤으로 정해짐']}
+  correctAnswer={2}
+  explanation="별다른 표시가 없으면 모든 컴포넌트는 서버 컴포넌트로 취급됩니다."
+  optionExplanations={['클라이언트가 기본값이 아닙니다', '정답입니다', '기본값은 명확히 정해져 있습니다', '랜덤이 아니라 규칙입니다']}
+/>
+
+## 참고 자료
+
+- [Next.js Blog — Next.js 16](https://nextjs.org/blog/next-16)
+- [Next.js Docs — Getting Started](https://nextjs.org/docs/app/getting-started)

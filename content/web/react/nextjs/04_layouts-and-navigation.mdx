@@ -1,0 +1,300 @@
+---
+title: '04. 루트 레이아웃과 중첩 레이아웃, 내비게이션'
+description: '공통 헤더를 루트 레이아웃에 두고, books 세그먼트에 중첩 레이아웃을 추가해 Link로 이동합니다'
+---
+
+<Callout type="info">
+  **이번 편의 결과물:** 모든 페이지에 공통 헤더가 보이고, 헤더 링크로 홈과 책 목록 사이를 이동할 수 있습니다. · **다루는 개념:** 루트 `layout.js`(공통 헤더), `/books` 세그먼트 중첩 레이아웃, `Link` 컴포넌트와 활성 링크 표시
+</Callout>
+
+## 이 편에서 만드는 파일
+
+```
+bookshelf-next/
+└── app/
+    ├── layout.js                  (~, SiteHeader를 렌더하도록 수정)
+    ├── page.js                    (~, 목록 대신 소개 화면으로 변경)
+    ├── globals.css                (~, 헤더·내비게이션 스타일 추가)
+    ├── components/
+    │   └── site-header.js         (+, 활성 링크를 표시하는 헤더)
+    └── books/
+        ├── layout.js              (+, books 세그먼트 중첩 레이아웃)
+        └── page.js                (+, 03편의 목록 렌더 로직을 이 자리로 이동)
+```
+
+## 개념 정리
+
+### 레이아웃은 페이지 이동에도 다시 그려지지 않는다
+
+`layout.js`는 그 세그먼트와 하위 세그먼트가 공유하는 UI입니다. 사용자가 페이지 사이를 이동해도 레이아웃은 상태를 유지한 채 그대로 남고, `children` 자리만 새 페이지로 바뀝니다. `react_3`에서 `react-router`의 `Outlet`을 감싸던 공통 레이아웃과 같은 역할이지만, App Router에서는 파일 위치 자체가 적용 범위를 정합니다.
+
+| 레이아웃 위치 | 적용 범위 |
+|---|---|
+| `app/layout.js` | 모든 라우트(루트 레이아웃, 필수) |
+| `app/books/layout.js` | `/books`와 `/books/[bookId]` 등 `books` 하위 전체 |
+
+루트 레이아웃은 `html`과 `body` 태그를 반드시 포함해야 하는 유일한 레이아웃입니다. 하위 레이아웃은 그 안에 중첩되는 일반 컴포넌트일 뿐입니다.
+
+### children이 페이지가 채워지는 자리
+
+레이아웃 컴포넌트는 `children` prop을 받아 원하는 위치에 배치합니다. 루트 레이아웃의 `children` 자리에는 다음 단계 레이아웃(`app/books/layout.js`)이 들어가고, 그 레이아웃의 `children` 자리에 실제 `page.js`가 들어갑니다. 이렇게 중첩된 레이아웃이 순서대로 서로를 감쌉니다.
+
+### Link 컴포넌트
+
+`a` 태그로 이동하면 브라우저가 페이지 전체를 다시 요청합니다. `next/link`의 `Link`는 클라이언트 사이드 내비게이션을 수행해 화면을 통째로 다시 불러오지 않고, 화면에 보이는 링크를 미리 가져오는(prefetch) 최적화까지 자동으로 합니다.
+
+```js
+import Link from 'next/link'
+
+<Link href="/books">책 목록</Link>
+```
+
+### 활성 링크 표시에 클라이언트 컴포넌트가 필요한 이유
+
+지금 이동 중인 경로를 알아야 헤더에서 어떤 링크가 활성 상태인지 표시할 수 있습니다. 현재 경로는 `next/navigation`의 `usePathname` 훅으로 읽는데, 이 훅은 브라우저의 현재 위치를 구독하는 훅이라 클라이언트 컴포넌트에서만 쓸 수 있습니다. 02편의 판단 절차를 그대로 적용하면, 헤더 전체가 아니라 "활성 링크를 계산하는 부분"만 클라이언트 컴포넌트로 분리하면 됩니다. 이 과목은 헤더가 작고 상호작용이 헤더 전체에 걸쳐 있으므로, `site-header.js` 파일 전체에 `use client`를 붙입니다.
+
+## 실습
+
+<Steps>
+
+### 1. 헤더 컴포넌트 만들기
+
+`app/components/site-header.js` 파일을 만듭니다.
+
+```js
+// app/components/site-header.js
+'use client'
+
+import Link from 'next/link'
+import { usePathname } from 'next/navigation'
+
+const NAV_ITEMS = [
+  { href: '/', label: '홈' },
+  { href: '/books', label: '책 목록' },
+]
+
+export default function SiteHeader() {
+  const pathname = usePathname()
+
+  return (
+    <header className="site-header">
+      <nav>
+        <ul className="site-nav">
+          {NAV_ITEMS.map((item) => {
+            const isActive = pathname === item.href
+            const linkClassName = isActive ? 'site-nav__link is-active' : 'site-nav__link'
+            return (
+              <li key={item.href}>
+                <Link href={item.href} className={linkClassName}>
+                  {item.label}
+                </Link>
+              </li>
+            )
+          })}
+        </ul>
+      </nav>
+    </header>
+  )
+}
+```
+
+`NAV_ITEMS`를 컴포넌트 밖 상수로 빼서, 링크를 추가할 때 배열에 한 줄만 더하면 되게 만들었습니다.
+
+### 2. 루트 레이아웃에 헤더 연결
+
+`app/layout.js`를 수정해 모든 페이지 위에 `SiteHeader`가 보이게 합니다.
+
+```js
+// app/layout.js
+import './globals.css'
+import SiteHeader from './components/site-header'
+
+export const metadata = {
+  title: 'bookshelf-next',
+  description: 'bookshelf를 Next.js App Router로 새로 만드는 연습 프로젝트입니다.',
+}
+
+export default function RootLayout({ children }) {
+  return (
+    <html lang="ko">
+      <body>
+        <SiteHeader />
+        <main className="page-content">{children}</main>
+      </body>
+    </html>
+  )
+}
+```
+
+`SiteHeader`는 클라이언트 컴포넌트지만, 그것을 불러와 렌더하는 `RootLayout` 자체는 여전히 서버 컴포넌트입니다. 서버 컴포넌트가 클라이언트 컴포넌트를 자식으로 렌더하는 것은 문제 없습니다.
+
+### 3. 홈 화면을 소개 화면으로 변경
+
+책 목록은 이제 `/books`가 전담합니다. `app/page.js`를 짧은 소개 화면으로 바꿉니다.
+
+```js
+// app/page.js
+import Link from 'next/link'
+
+export default function Page() {
+  return (
+    <section>
+      <h1>bookshelf-next</h1>
+      <p>읽은 책과 읽고 있는 책을 기록하는 독서 기록 앱입니다.</p>
+      <Link href="/books">책 목록 보러가기</Link>
+    </section>
+  )
+}
+```
+
+### 4. books 세그먼트 만들기
+
+`app/books` 폴더를 만들고 레이아웃과 페이지를 각각 추가합니다. 목록을 감싸는 제목은 페이지가 아니라 레이아웃에 둬, `/books`와 이후 05편의 `/books/[bookId]`가 이 제목을 함께 씁니다.
+
+```js
+// app/books/layout.js
+export default function BooksLayout({ children }) {
+  return (
+    <section className="books-section">
+      <h1>내 서재</h1>
+      {children}
+    </section>
+  )
+}
+```
+
+```js
+// app/books/page.js
+import books from '../../data/books.seed.json'
+
+export default function Page() {
+  return (
+    <ul className="book-list">
+      {books.map((book) => (
+        <li key={book.id} className="book-card">
+          <h2 className="book-card__title">{book.title}</h2>
+          <p>{book.author}</p>
+        </li>
+      ))}
+    </ul>
+  )
+}
+```
+
+03편에서 `app/page.js`에 있던 목록 렌더 코드를 그대로 옮겨왔습니다. import 경로만 `data` 폴더까지의 상대 경로가 한 단계 늘어난 것(`../../data/...`)에 주의합니다.
+
+### 5. 헤더·내비게이션 스타일 추가
+
+`app/globals.css`에 아래 규칙을 이어서 추가합니다. 03편에서 작성한 `.book-list`, `.book-card` 규칙은 그대로 둡니다.
+
+```css
+/* app/globals.css (추가분) */
+.site-header {
+  border-bottom: 1px solid #e5e7eb;
+  background-color: #ffffff;
+}
+
+.site-nav {
+  list-style: none;
+  display: flex;
+  gap: 16px;
+  margin: 0;
+  padding: 12px 16px;
+}
+
+.site-nav__link {
+  color: #4b5563;
+  text-decoration: none;
+}
+
+.site-nav__link.is-active {
+  color: #2563eb;
+  font-weight: bold;
+}
+
+.page-content {
+  padding: 16px;
+}
+
+.books-section h1 {
+  margin-top: 0;
+}
+```
+
+### 6. 실행과 확인
+
+```text
+npm run dev
+```
+
+</Steps>
+
+## 확인
+
+- 어느 페이지에 있든 상단에 "홈"과 "책 목록" 링크가 있는 헤더가 보입니다.
+- "책 목록" 링크를 누르면 `/books`로 이동하고, 그 링크의 글자색이 파란색(`is-active`)으로 바뀝니다.
+- "홈" 링크를 눌러 `/`로 돌아오면 반대로 "홈" 링크가 강조되고 소개 문구가 보입니다.
+- `/books` 화면 상단에 "내 서재" 제목이 보이고, 그 아래 03편에서 만든 책 6권 카드 목록이 그대로 보입니다.
+- 새로고침해도 헤더 위치나 스타일이 깨지지 않습니다.
+
+## 직접 해보기
+
+`NAV_ITEMS`에 `{ href: '/about', label: '소개' }`를 추가해보고, 링크를 눌렀을 때 어떤 화면이 나오는지 확인해보세요.
+
+<details>
+<summary>정답 보기</summary>
+
+`app/about` 폴더도, 그 안의 `page.js`도 없으므로 Next.js는 자동으로 404 화면을 보여줍니다. 헤더에 링크만 추가한다고 라우트가 생기지 않고, 실제 폴더와 `page.js`가 있어야 화면이 만들어집니다. 자동 404 화면을 원하는 문구로 바꾸는 방법은 06편의 `not-found.js`에서 다룹니다.
+
+</details>
+
+## 자주 하는 실수
+
+| 증상 | 원인 | 고치는 법 |
+|------|------|-----------|
+| 헤더가 안 보인다 | `SiteHeader`를 `app/layout.js`에 렌더하는 것을 빠뜨림 | `RootLayout`의 `body` 안, `children`보다 위에 `SiteHeader`를 배치한다 |
+| `usePathname is not a function` 같은 에러 | `site-header.js`에 `use client`를 빠뜨림 | 파일 맨 위, import보다 앞에 `use client`를 추가한다 |
+| 링크를 눌러도 활성 스타일이 안 바뀐다 | `pathname === item.href` 비교 경로 문자열이 실제 경로와 다름 | 브라우저 주소창의 실제 경로와 `NAV_ITEMS`의 `href` 값이 정확히 같은지 확인한다 |
+| `/books` 목록이 두 번 보인다 | `app/books/page.js`와 `app/books/layout.js` 양쪽에 목록 렌더 코드를 남겨둠 | 목록은 `page.js`에만 두고, `layout.js`에는 공통 제목만 둔다 |
+
+## 확인 문제
+
+<Quiz
+  questionNumber={1}
+  question="app/books/layout.js가 적용되는 범위는"
+  options={['앱의 모든 라우트', '/books와 그 하위 라우트', '/ 홈 화면만', 'app/components 폴더 안 파일들']}
+  correctAnswer={2}
+  explanation="레이아웃은 자신이 위치한 세그먼트와 그 하위 세그먼트에만 적용됩니다."
+  optionExplanations={['모든 라우트에 적용되는 것은 루트 레이아웃입니다', '정답입니다', '홈 화면은 app/layout.js만 적용됩니다', '컴포넌트 폴더는 라우트가 아닙니다']}
+/>
+
+<Quiz
+  questionNumber={2}
+  question="next/link의 Link가 일반 a 태그와 다른 점은"
+  options={['스타일을 자동으로 입혀준다', '클라이언트 사이드 내비게이션과 prefetch를 지원한다', '외부 사이트로만 이동할 수 있다', '항상 새 탭에서 연다']}
+  correctAnswer={2}
+  explanation="Link는 페이지 전체를 다시 불러오지 않는 클라이언트 사이드 내비게이션과, 화면에 보이는 링크의 prefetch를 자동으로 처리합니다."
+  optionExplanations={['스타일은 별도로 지정해야 합니다', '정답입니다', '내부 라우트 이동에 주로 쓰입니다', '새 탭 여부는 별도 속성으로 지정합니다']}
+/>
+
+<Quiz
+  questionNumber={3}
+  question="site-header.js 파일 전체에 use client를 붙인 이유는"
+  options={['헤더에 이미지가 들어가서', '현재 경로를 읽는 usePathname 훅이 클라이언트 전용이라서', 'CSS를 적용하기 위해서', 'Link 컴포넌트를 쓰기 위해서 항상 필요해서']}
+  correctAnswer={2}
+  explanation="usePathname은 브라우저의 현재 경로를 구독하는 훅이라 클라이언트 컴포넌트에서만 쓸 수 있습니다."
+  optionExplanations={['이미지 여부와 무관합니다', '정답입니다', 'CSS 적용에는 use client가 필요 없습니다', 'Link 자체는 서버 컴포넌트에서도 쓸 수 있습니다']}
+/>
+
+<Quiz
+  questionNumber={4}
+  question="루트 레이아웃이 다른 레이아웃과 다르게 반드시 포함해야 하는 것은"
+  options={['SiteHeader 컴포넌트', 'html과 body 태그', 'CSS 파일 import', 'metadata 객체']}
+  correctAnswer={2}
+  explanation="루트 레이아웃은 App Router에서 html과 body 태그를 직접 포함해야 하는 유일한 레이아웃입니다."
+  optionExplanations={['헤더는 이 과목에서 선택한 구성일 뿐입니다', '정답입니다', 'CSS import는 필수 조건이 아닙니다', 'metadata는 선택적으로 export합니다']}
+/>
+
+## 참고 자료
+
+- [Next.js Docs — Layouts and Pages](https://nextjs.org/docs/app/getting-started/layouts-and-pages)

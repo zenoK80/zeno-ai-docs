@@ -1,0 +1,368 @@
+---
+title: '14. next/image로 표지 이미지 최적화'
+description: 'next/image와 remotePatterns로 원격 표지 이미지를 최적화하고 레이아웃 시프트를 방지합니다'
+---
+
+<Callout type="info">
+  **이번 편의 결과물:** 각 책 카드에 표지 이미지가 `next/image`로 렌더되고, 느린 네트워크에서도 레이아웃이 밀리지 않습니다. · **다루는 개념:** `next/image` 컴포넌트, 원격 이미지 도메인(`remotePatterns`) 설정, 표지 이미지 URL 필드 추가, 레이아웃 시프트 방지
+</Callout>
+
+지금까지 책 데이터에는 표지 색상(`coverColor`)만 있었습니다. 이 편에서는 실제 표지 이미지 URL 필드를 추가하고, `next/image`로 최적화해서 렌더합니다. 실습용 표지 이미지는 무료 플레이스홀더 이미지 서비스(picsum.photos)를 원격 이미지로 사용합니다.
+
+## 이 편에서 만드는 파일
+
+```
+bookshelf-next/
+├── next.config.js                      ~ (images.remotePatterns 설정 추가)
+├── data/
+│   └── db.json                         ~ (책마다 coverImage 필드 추가)
+└── app/
+    ├── globals.css                     ~ (표지 이미지 스타일 추가)
+    └── books/
+        ├── BookList.js                 ~ (next/image로 작은 표지 렌더)
+        └── [bookId]/
+            └── page.js                 ~ (next/image로 큰 표지 렌더)
+```
+
+목록의 실제 책 카드는 11편부터 `app/books/BookList.js`가 그리고, `app/books/page.js`는 검색·필터·정렬 폼만 담당합니다. 그래서 표지 이미지는 `page.js`가 아니라 `BookList.js`에 추가합니다. `data/books.seed.json`은 07편 이후로 화면에 쓰이지 않으므로, 실제로 읽고 쓰는 `data/db.json`에 필드를 추가합니다.
+
+## 개념 정리
+
+### next/image가 img 태그와 다른 점
+
+`next/image`의 `Image` 컴포넌트는 요청 시점에 이미지 크기를 줄이고, 브라우저가 지원하면 WebP 같은 더 가벼운 포맷으로 바꿔 보냅니다. 화면에 보이기 전까지는 불러오지 않는 지연 로딩도 기본으로 적용됩니다.
+
+### width와 height는 렌더 크기가 아니라 비율 정보
+
+`width`와 `height`는 이미지가 로드되기 전에 브라우저가 미리 확보할 자리(가로세로 비율)를 계산하는 값입니다. 화면에 실제로 보이는 크기는 CSS가 따로 정합니다. 이 값을 생략하면 이미지가 로드되는 순간 주변 요소가 밀리는 레이아웃 시프트가 생깁니다.
+
+### 원격 이미지는 remotePatterns 허용이 필요
+
+`next/image`는 프로젝트 폴더 밖의 URL을 그대로 최적화하지 않습니다. `next.config.js`의 `images.remotePatterns`에 등록한 호스트의 이미지만 최적화 대상으로 허용합니다. 등록하지 않은 호스트의 이미지를 `src`에 넣으면 빌드는 되지만 실행 중 오류가 발생합니다.
+
+| 옵션 | 역할 |
+|---|---|
+| `protocol` | `https`처럼 허용할 프로토콜 |
+| `hostname` | 허용할 도메인. `*`, `**`로 일부만 감싸는 와일드카드도 가능하다 |
+| `pathname` | 허용할 경로 패턴 |
+
+### priority 대신 preload
+
+Next.js 16부터 이미지 우선 로딩을 지정하는 `priority` 속성이 폐기 예정으로 바뀌고 `preload` 속성이 그 자리를 대신합니다. 화면에서 가장 먼저 눈에 띄는 이미지(이 과목에서는 책 상세 페이지의 큰 표지)에만 `preload`를 붙입니다.
+
+## 실습
+
+<Steps>
+
+### 1. next.config.js에 remotePatterns 추가
+
+```js
+// bookshelf-next/next.config.js
+/** @type {import('next').NextConfig} */
+const nextConfig = {
+  images: {
+    remotePatterns: [
+      {
+        protocol: 'https',
+        hostname: 'picsum.photos',
+        port: '',
+        pathname: '/**',
+      },
+    ],
+  },
+}
+
+module.exports = nextConfig
+```
+
+`next.config.js`를 고치면 다음에 실행할 때부터 적용됩니다. 지금 `npm run dev`가 켜져 있다면 껐다가 다시 실행합니다.
+
+### 2. db.json에 coverImage 필드 추가
+
+`data/db.json`은 07편부터 화면이 실제로 읽고 쓰는 파일입니다. 책마다 `coverImage` 필드를 추가합니다. 값은 책 `id`를 시드값으로 쓴 picsum.photos 주소입니다.
+
+```json
+// data/db.json (일부)
+{
+  "id": 1,
+  "title": "클린 코드",
+  "author": "로버트 C. 마틴",
+  "status": "done",
+  "rating": 5,
+  "pages": 584,
+  "coverColor": "#2563eb",
+  "coverImage": "https://picsum.photos/seed/book-1/480/640",
+  "startedAt": "2026-07-01",
+  "finishedAt": "2026-07-20",
+  "memo": "함수는 한 가지 일만."
+}
+```
+
+나머지 5권에도 같은 패턴으로 `coverImage`를 추가합니다. 주소의 `book-1` 부분만 각 책의 `id`에 맞춰 `book-2`, `book-3`처럼 바꾸면 됩니다. `data/books.seed.json`은 화면에 직접 쓰이지 않지만, 두 파일의 책 데이터 스키마를 맞춰두기 위해 같은 필드를 `books.seed.json`에도 동일하게 추가해 둡니다.
+
+### 3. 책 목록에 작은 표지 렌더
+
+목록의 각 책 카드는 11편부터 `app/books/BookList.js`가 그립니다. `page.js`는 12·13편의 검색·필터·정렬·메타데이터를 그대로 유지하므로 고치지 않고, `BookList.js`에만 `next/image`와 `coverImage`를 추가합니다.
+
+```js
+// bookshelf-next/app/books/BookList.js
+'use client'
+
+import { useOptimistic, useTransition } from 'react'
+import Image from 'next/image'
+import Link from 'next/link'
+import { deleteBookAction } from './actions'
+import { STATUS_LABELS } from '@/lib/book-status'
+
+export default function BookList({ books }) {
+  const [optimisticBooks, removeOptimisticBook] = useOptimistic(
+    books,
+    (currentBooks, id) => currentBooks.filter((book) => book.id !== id)
+  )
+  const [isPending, startTransition] = useTransition()
+
+  function handleDelete(id) {
+    startTransition(async () => {
+      removeOptimisticBook(id)
+      try {
+        await deleteBookAction(id)
+      } catch (error) {
+        console.error('삭제 실패:', error.message)
+      }
+    })
+  }
+
+  return (
+    <ul className="book-list">
+      {optimisticBooks.map((book) => (
+        <li key={book.id} className="book-card">
+          <Image
+            src={book.coverImage}
+            alt={`${book.title} 표지`}
+            width={80}
+            height={107}
+            className="book-cover"
+          />
+          <div>
+            <Link href={`/books/${book.id}`}>{book.title}</Link>
+            <p>
+              {book.author} · {STATUS_LABELS[book.status]}
+            </p>
+          </div>
+          <button type="button" onClick={() => handleDelete(book.id)} disabled={isPending}>
+            삭제
+          </button>
+        </li>
+      ))}
+    </ul>
+  )
+}
+```
+
+11편의 `useOptimistic` 낙관적 삭제 로직은 그대로 두고, 각 항목 맨 앞에 표지 이미지만 추가했습니다.
+
+### 4. 책 상세에 큰 표지 렌더
+
+`app/books/[bookId]/page.js`는 13편의 `generateMetadata`·`fetch` 조회·수정삭제 폼·`Suspense` 스트리밍을 그대로 두고, 표지 이미지만 추가합니다.
+
+```js
+// bookshelf-next/app/books/[bookId]/page.js
+import Image from 'next/image'
+import { Suspense } from 'react'
+import { notFound } from 'next/navigation'
+import Link from 'next/link'
+import { BASE_URL } from '@/lib/site-url.js'
+import { wait } from '@/lib/wait.js'
+import { getBookById } from '@/lib/db.js'
+import { BOOK_STATUSES } from '@/lib/book-status'
+import { updateBookAction, deleteBookAction } from '../actions'
+
+export async function generateMetadata({ params }) {
+  const { bookId } = await params
+  const book = await getBookById(Number(bookId))
+
+  if (!book) {
+    return {
+      title: '책을 찾을 수 없음',
+    }
+  }
+
+  return {
+    title: book.title,
+    description: `${book.author} 저 · ${book.pages}쪽`,
+  }
+}
+
+export default async function BookDetailPage({ params }) {
+  const { bookId } = await params
+  const response = await fetch(`${BASE_URL}/api/books/${bookId}`, { cache: 'no-store' })
+
+  if (response.status === 404) {
+    notFound()
+  }
+
+  const book = await response.json()
+  const updateThisBook = updateBookAction.bind(null, book.id)
+  const deleteThisBook = deleteBookAction.bind(null, book.id)
+
+  return (
+    <article>
+      <p>
+        <Link href="/books">목록으로</Link>
+      </p>
+      <Image
+        src={book.coverImage}
+        alt={`${book.title} 표지`}
+        width={240}
+        height={320}
+        preload
+        className="book-cover book-cover--large"
+      />
+      <h1>{book.title}</h1>
+      <p>{book.author}</p>
+      <dl>
+        <dt>쪽수</dt>
+        <dd>{book.pages}쪽</dd>
+        <dt>상태</dt>
+        <dd>{book.status}</dd>
+        <dt>메모</dt>
+        <dd>{book.memo || '메모 없음'}</dd>
+      </dl>
+
+      <form action={updateThisBook} className="edit-form">
+        <label htmlFor="status">상태</label>
+        <select id="status" name="status" defaultValue={book.status}>
+          {BOOK_STATUSES.map((status) => (
+            <option key={status.value} value={status.value}>
+              {status.label}
+            </option>
+          ))}
+        </select>
+        <label htmlFor="memo">메모</label>
+        <textarea id="memo" name="memo" defaultValue={book.memo}></textarea>
+        <button type="submit">수정 저장</button>
+      </form>
+
+      <form action={deleteThisBook}>
+        <button type="submit">이 책 삭제</button>
+      </form>
+
+      <Suspense fallback={<p>추천 정보를 불러오는 중입니다...</p>}>
+        <ReadingTip pages={book.pages} />
+      </Suspense>
+    </article>
+  )
+}
+
+async function ReadingTip({ pages }) {
+  await wait(1500)
+  const days = Math.ceil(pages / 40)
+  return <p>하루 40쪽씩 읽으면 약 {days}일 만에 완독할 수 있습니다.</p>
+}
+```
+
+목록의 작은 표지는 여러 장이 한 화면에 함께 보이므로 `preload`를 붙이지 않습니다. 상세 페이지의 큰 표지는 그 화면에서 가장 먼저 눈에 띄는 이미지이므로 `preload`를 붙였습니다.
+
+### 5. 표지 스타일 추가
+
+`app/globals.css`에 아래 규칙을 이어서 추가합니다.
+
+```css
+/* app/globals.css (추가분) */
+.book-card {
+  display: flex;
+  gap: 12px;
+  align-items: flex-start;
+}
+
+.book-cover {
+  border-radius: 6px;
+  object-fit: cover;
+  flex-shrink: 0;
+}
+
+.book-cover--large {
+  margin: 16px 0;
+}
+```
+
+### 6. 실행과 확인
+
+```text
+npm run dev
+```
+
+</Steps>
+
+## 확인
+
+- `/books`에서 각 책 카드 왼쪽에 세로로 긴 작은 표지 이미지가 보입니다.
+- `/books/1`에서 제목 위에 더 큰 표지 이미지가 보입니다.
+- 개발자 도구 네트워크 탭을 느린 3G로 설정하고 새로고침하면, 표지가 다 불러와지기 전에도 그 자리가 미리 비어 확보되어 있고 아래 글자가 밀리지 않습니다.
+- 개발자 도구 요소 탭에서 표지 `img` 태그의 `src`가 `/_next/image?url=...` 형태의 최적화 경로로 바뀐 것을 확인할 수 있습니다.
+
+## 직접 해보기
+
+1. `next.config.js`의 `remotePatterns`에서 `hostname` 값을 일부러 오타로 바꾼 뒤 다시 실행하고, 브라우저와 터미널에 어떤 메시지가 나오는지 확인해보세요.
+2. `app/books/[bookId]/page.js`의 표지 이미지에서 `preload`를 지우면 무엇이 달라지는지 관찰해보세요.
+
+<details>
+<summary>정답 보기</summary>
+
+`hostname`을 오타로 바꾸면 등록되지 않은 도메인이 되어, 브라우저에는 깨진 이미지 아이콘과 함께 400 오류가 표시되고 터미널에는 `Invalid src prop`으로 시작하는 오류 메시지가 출력됩니다.
+
+`preload`를 지워도 화면은 똑같이 보이지만, 개발자 도구 네트워크 탭에서 표지 이미지 요청이 `head`의 `link` 태그를 통한 우선 요청 없이 다른 리소스와 같은 순서로 시작됩니다. 화면에서 가장 먼저 보여야 하는 이미지일수록 그 차이가 체감됩니다.
+
+</details>
+
+## 자주 하는 실수
+
+| 증상 | 원인 | 고치는 법 |
+|------|------|-----------|
+| next.config.js를 고쳤는데도 이미지 오류가 그대로 | 개발 서버를 재시작하지 않음 | `npm run dev`를 껐다가 다시 실행한다 |
+| `Invalid src prop` 에러 | 이미지 호스트가 `remotePatterns`에 없음 | `next.config.js`에 해당 `hostname`을 추가한다 |
+| 이미지가 로드되며 아래 글자가 순간적으로 밀림 | `width`, `height`를 지정하지 않음 | 두 값을 모두 지정하거나 부모에 `position: relative`를 주고 `fill`을 쓴다 |
+| `priority` 경고 로그 출력 | Next.js 16에서 `priority`가 폐기 예정으로 바뀜 | `preload`로 바꾼다 |
+
+## 확인 문제
+
+<Quiz
+  questionNumber={1}
+  question="next.config.js에 images.remotePatterns를 설정하는 이유는"
+  options={['이미지 파일 이름을 자동으로 바꾸기 위해서', '허용하지 않은 외부 호스트의 이미지가 최적화되는 것을 막기 위해서', 'CSS 스타일을 자동으로 입히기 위해서', '이미지를 로컬 파일로 자동 복사하기 위해서']}
+  correctAnswer={2}
+  explanation="remotePatterns에 등록한 호스트의 이미지만 최적화 대상으로 허용해 의도하지 않은 외부 URL 최적화를 막습니다."
+  optionExplanations={['파일 이름과는 무관합니다', '정답입니다', 'CSS와는 무관합니다', '이미지를 복사하지 않습니다']}
+/>
+
+<Quiz
+  questionNumber={2}
+  question="next/image에서 width, height를 지정하는 주된 목적은"
+  options={['이미지가 실제로 화면에 보이는 크기를 결정하기 위해서', '브라우저가 이미지 자리를 미리 확보해 레이아웃 시프트를 막기 위해서', '이미지 파일 용량을 압축하기 위해서', '이미지를 흑백으로 표시하기 위해서']}
+  correctAnswer={2}
+  explanation="width와 height는 가로세로 비율 계산에 쓰여 로드 전에도 자리를 미리 확보하게 합니다. 실제 렌더 크기는 CSS가 정합니다."
+  optionExplanations={['렌더 크기는 CSS가 결정합니다', '정답입니다', '용량 압축은 별도 최적화 과정에서 처리됩니다', '색상과는 무관합니다']}
+/>
+
+<Quiz
+  questionNumber={3}
+  question="Next.js 16에서 이미지 우선 로딩을 지정할 때 쓰는 속성은"
+  options={['priority', 'preload', 'urgent', 'first']}
+  correctAnswer={2}
+  explanation="Next.js 16부터 priority가 폐기 예정으로 바뀌고 preload가 그 역할을 대신합니다."
+  optionExplanations={['이전 버전에서 쓰던 속성이며 폐기 예정입니다', '정답입니다', '존재하지 않는 속성입니다', '존재하지 않는 속성입니다']}
+/>
+
+<Quiz
+  questionNumber={4}
+  question="remotePatterns에 등록되지 않은 호스트의 이미지를 src에 넣으면 일어나는 일은"
+  options={['자동으로 remotePatterns에 추가된다', '실행 중 오류가 발생하고 이미지가 표시되지 않는다', '최적화 없이 원본 그대로 조용히 표시된다', '빌드 자체가 실패한다']}
+  correctAnswer={2}
+  explanation="등록되지 않은 호스트는 Invalid src prop 오류를 일으켜 이미지가 표시되지 않습니다."
+  optionExplanations={['자동 등록은 되지 않습니다', '정답입니다', '조용히 통과되지 않고 오류가 납니다', '빌드 시점이 아니라 실행 시점에 드러납니다']}
+/>
+
+## 참고 자료
+
+- [Next.js Docs — Image Optimization(Getting Started)](https://nextjs.org/docs/app/getting-started/images)
+- [Next.js Docs — Image API 레퍼런스](https://nextjs.org/docs/app/api-reference/components/image)

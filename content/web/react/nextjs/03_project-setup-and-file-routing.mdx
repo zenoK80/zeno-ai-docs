@@ -1,0 +1,304 @@
+---
+title: '03. 프로젝트 생성과 파일 기반 라우팅'
+description: 'create-next-app으로 bookshelf-next를 만들고 시드 데이터를 옮겨 홈 화면에 책 목록을 정적으로 렌더합니다'
+---
+
+<Callout type="info">
+  **이번 편의 결과물:** `bookshelf-next`가 로컬에서 실행되고, 홈 화면에 시드 데이터 책 6권이 목록으로 보입니다. · **다루는 개념:** `create-next-app` 스캐폴드(App Router, JavaScript), 시드 데이터(`books.seed.json`) 복사, `app/page.js`에서 정적 목록 렌더
+</Callout>
+
+## 이 편에서 만드는 파일
+
+```
+bookshelf-next/                    (+)
+├── package.json                   (+)
+├── next.config.js                 (+)
+├── jsconfig.json                  (+)
+├── eslint.config.mjs              (+)
+├── data/
+│   └── books.seed.json            (+, 시드 데이터)
+└── app/
+    ├── layout.js                  (+, 생성된 기본 레이아웃을 정리)
+    ├── page.js                    (~, 기본 안내 화면을 지우고 목록 렌더)
+    └── globals.css                (~, 기본 스타일을 정리)
+```
+
+## 개념 정리
+
+### create-next-app이 하는 일
+
+`react_1`에서 쓴 `npm create vite`가 Vite 프로젝트 템플릿을 만들어주는 도구였다면, `create-next-app`은 그 자리를 대신하는 Next.js 전용 스캐폴드 도구입니다. 실행하면 `app` 디렉터리, 설정 파일, `package.json`의 `dev`/`build`/`start` 스크립트까지 한 번에 만들어줍니다.
+
+| 생성 파일 | 역할 |
+|---|---|
+| `app/` | App Router 라우트가 들어가는 폴더 |
+| `next.config.js` | Next.js 설정 파일 |
+| `jsconfig.json` | 절대 경로 import 별칭(`@/*`) 설정 |
+| `eslint.config.mjs` | ESLint 설정 |
+| `public/` | 정적 파일(이미지 등)을 그대로 서빙하는 폴더 |
+
+### 이 과목이 선택한 create-next-app 옵션
+
+`create-next-app`을 옵션 없이 실행하면 TypeScript와 Tailwind CSS가 기본값으로 켜집니다. 이 과목은 `react_1~3`과 동일하게 JavaScript를 유지하고, 스타일도 `bookshelf`(react_1~3)와 같은 일반 CSS 파일 방식을 그대로 씁니다. 그래서 아래 표처럼 옵션을 직접 지정합니다.
+
+| 옵션 | 선택 | 이유 |
+|---|---|---|
+| TypeScript | 아니오 | react_1–3과 동일하게 JavaScript를 유지(01_학습방향 범위 제외) |
+| Tailwind CSS | 아니오 | `bookshelf`와 동일하게 일반 CSS 파일로 스타일링 |
+| ESLint | 예 | 기본 린트 규칙을 그대로 사용 |
+| React Compiler | 아니오 | 이 과목 범위 밖 |
+| `src/` 디렉터리 | 아니오 | `app`을 프로젝트 최상위에 두어 공식 문서 예제와 같은 형태 유지 |
+| App Router | 예 | 이 과목의 전제 |
+| import 별칭 | 기본값(`@/*`) | 변경할 이유 없음 |
+| `AGENTS.md` 포함 | 아니오 | 이 과목 학습 흐름에 불필요 |
+
+### App Router가 폴더를 URL로 바꾸는 규칙
+
+01편에서 정리했듯 `app` 아래 폴더가 URL 세그먼트가 되고, 그 폴더 안 `page.js`가 있어야 실제로 접근할 수 있는 라우트가 됩니다. 이번 편은 `app/page.js` 하나만 다루므로 홈(`/`) 라우트만 생깁니다. `/books`, `/books/[bookId]`는 04·05편에서 추가합니다.
+
+### 정적 데이터는 fetch 없이 import한다
+
+`react_3`의 `BookListPage`는 컴포넌트가 마운트된 뒤 `useQuery`로 mock API를 호출해 목록을 받았습니다. `app/page.js`는 서버 컴포넌트이므로 브라우저의 `fetch`나 `useEffect` 없이, 서버가 파일을 읽는 시점에 시드 데이터를 그대로 `import`할 수 있습니다.
+
+```js
+import books from '../data/books.seed.json'
+```
+
+이 방식은 데이터가 파일에 고정되어 있을 때만 쓸 수 있습니다. 실행 중에 책을 추가·삭제하려면 07편에서 만드는 `lib/db.js`와 Route Handler가 필요합니다. 지금은 화면에 목록을 띄우는 것까지만 합니다.
+
+## 실습
+
+<Steps>
+
+### 1. Node 버전 확인
+
+```text
+node -v
+```
+
+`v20.9.0` 이상이면 됩니다. 이 과목은 Node 22를 기준으로 합니다.
+
+### 2. 프로젝트 생성
+
+원하는 작업 폴더(다른 실습 폴더와 나란한 위치)에서 실행합니다.
+
+```text
+npx create-next-app@latest bookshelf-next --js --eslint --no-tailwind --app --no-src-dir --import-alias "@/*" --no-agents-md --use-npm
+```
+
+각 플래그의 의미는 위 표와 같습니다. 프롬프트 없이 바로 프로젝트가 만들어집니다. 이 편 작성 시점 기준 설치되는 버전은 Next.js 16.3.5, React 19.3.0입니다. 명령을 실행한 시점에 더 새 버전이 설치되면 그 버전을 그대로 씁니다.
+
+### 3. 의존 패키지 확인과 실행
+
+```text
+cd bookshelf-next
+npm run dev
+```
+
+터미널에 뜬 주소(기본값 `http://localhost:3000`)를 브라우저에서 엽니다. Next.js 기본 시작 화면이 보이면 정상입니다.
+
+### 4. 시드 데이터 옮기기
+
+`bookshelf-next`는 `react_1~3`의 `bookshelf`가 쓰던 시드 데이터를 그대로 재사용합니다. 프로젝트 루트에 `data` 폴더를 만들고 내려받습니다.
+
+```text
+mkdir data
+curl -o data/books.seed.json https://zeno.it.kr/practice/bookshelf/books.seed.json
+```
+
+`curl`을 쓸 수 없는 환경이면 브라우저로 주소를 열어 전체 내용을 복사한 뒤 `data/books.seed.json` 파일을 새로 만들어 붙여넣습니다. 저장된 파일의 앞부분은 아래와 같아야 합니다.
+
+```json
+// data/books.seed.json (일부)
+[
+  {
+    "id": 1,
+    "title": "클린 코드",
+    "author": "로버트 C. 마틴",
+    "status": "done",
+    "rating": 5,
+    "pages": 584,
+    "coverColor": "#2563eb",
+    "startedAt": "2026-07-01",
+    "finishedAt": "2026-07-20",
+    "memo": "함수는 한 가지 일만."
+  }
+]
+```
+
+6권의 책 객체 배열입니다. 각 책은 `id`, `title`, `author`, `status`(`wish`|`reading`|`done`), `rating`, `pages`, `coverColor`, `startedAt`, `finishedAt`, `memo` 필드를 가집니다. 이 필드 구성은 이 과목 마지막 편까지 그대로 유지됩니다.
+
+### 5. 기본 레이아웃 정리
+
+`create-next-app`이 만든 `app/layout.js`에는 폰트 설정과 예시 메타데이터가 들어 있습니다. 이 과목에서 당장 쓰지 않는 부분을 지우고 최소한만 남깁니다.
+
+```js
+// app/layout.js
+import './globals.css'
+
+export const metadata = {
+  title: 'bookshelf-next',
+  description: 'bookshelf를 Next.js App Router로 새로 만드는 연습 프로젝트입니다.',
+}
+
+export default function RootLayout({ children }) {
+  return (
+    <html lang="ko">
+      <body>{children}</body>
+    </html>
+  )
+}
+```
+
+`metadata` 객체를 export하면 Next.js가 자동으로 `head` 태그의 제목과 설명을 채웁니다. `generateMetadata`로 페이지마다 다른 값을 주는 방법은 13편에서 다룹니다. 전역 스타일(`globals.css`)은 루트 레이아웃에서 한 번만 `import`합니다. 다른 페이지나 컴포넌트에서 다시 import할 필요가 없습니다.
+
+### 6. 전역 스타일 정리
+
+`app/globals.css`도 기본 템플릿 내용을 지우고 목록 화면에 필요한 최소 스타일만 남깁니다.
+
+```css
+/* app/globals.css */
+* {
+  box-sizing: border-box;
+}
+
+body {
+  margin: 0;
+  font-family: system-ui, -apple-system, 'Malgun Gothic', sans-serif;
+  color: #1f2937;
+  background-color: #f9fafb;
+}
+
+.book-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: grid;
+  gap: 12px;
+  max-width: 640px;
+}
+
+.book-card {
+  border: 1px solid #e5e7eb;
+  border-radius: 8px;
+  padding: 16px;
+  background-color: #ffffff;
+}
+
+.book-card__title {
+  margin: 0 0 4px;
+}
+```
+
+### 7. 홈 화면에 목록 렌더
+
+`app/page.js`를 아래 내용으로 바꿉니다.
+
+```js
+// app/page.js
+import books from '../data/books.seed.json'
+
+export default function Page() {
+  return (
+    <main>
+      <h1>bookshelf-next</h1>
+      <ul className="book-list">
+        {books.map((book) => (
+          <li key={book.id} className="book-card">
+            <h2 className="book-card__title">{book.title}</h2>
+            <p>{book.author}</p>
+          </li>
+        ))}
+      </ul>
+    </main>
+  )
+}
+```
+
+`books.map`으로 배열을 그대로 순회합니다. 서버 컴포넌트라서 `useState`나 `useEffect` 없이도, 파일을 읽어 만든 배열을 바로 화면에 그릴 수 있습니다.
+
+### 8. 다시 실행
+
+```text
+npm run dev
+```
+
+</Steps>
+
+## 확인
+
+- 터미널에 `Local: http://localhost:3000` 형태의 주소가 출력됩니다.
+- 브라우저에서 그 주소를 열면 "bookshelf-next" 제목과 책 6권 카드 목록이 보입니다.
+- 브라우저 탭 제목이 "bookshelf-next"로 표시됩니다(`app/layout.js`의 `metadata` 효과).
+- 페이지 소스 보기(마우스 오른쪽 클릭 → 페이지 소스 보기)를 열면, 자바스크립트 실행 전에도 책 제목 문자열이 HTML 안에 이미 들어 있습니다. `react_3`의 SPA였다면 이 화면에는 빈 `div`만 보였을 것입니다.
+
+## 직접 해보기
+
+1. `data/books.seed.json`에서 `status`가 `wish`인 책만 걸러 목록에서 빼고, 몇 권이 남는지 확인해보세요.
+2. `package.json`을 열어 `next`, `react`, `react-dom`의 설치된 버전을 확인해보세요.
+
+<details>
+<summary>정답 보기</summary>
+
+```js
+// app/page.js (일부 변경)
+const readableBooks = books.filter((book) => book.status !== 'wish')
+```
+
+`books.map` 대신 `readableBooks.map`으로 순회하면 `wish` 상태인 "함께 자라기" 한 권이 빠지고 5권만 남습니다. 배열을 화면에 그리기 전에 `filter`로 먼저 걸러내는 방식은 12편의 검색·정렬 기능에서도 그대로 씁니다.
+
+`package.json`의 `dependencies` 항목에서 `next`, `react`, `react-dom` 버전을 확인할 수 있습니다.
+
+</details>
+
+## 자주 하는 실수
+
+| 증상 | 원인 | 고치는 법 |
+|------|------|-----------|
+| `create-next-app` 실행 후 TypeScript 파일(`.tsx`)이 생성됨 | `--js` 플래그를 빠뜨림 | 명령을 다시 실행하거나 생성된 파일을 확인해 처음부터 옵션을 맞춰 다시 만든다 |
+| `npm run dev` 실행 시 `Missing script: "dev"` | `bookshelf-next` 폴더 밖에서 명령 실행 | `cd bookshelf-next` 후 다시 실행한다 |
+| 화면에 아무것도 안 보임 | `data/books.seed.json` 경로가 `app/page.js`의 import 경로와 다름 | `import books from '../data/books.seed.json'`의 상대 경로를 실제 폴더 구조와 맞춘다 |
+| `books.seed.json`이 HTML 페이지 내용으로 저장됨 | `curl`이 리다이렉트나 오류 페이지를 그대로 받음 | 저장된 파일을 열어 대괄호로 시작하는 배열인지 확인 후 다시 받는다 |
+
+## 확인 문제
+
+<Quiz
+  questionNumber={1}
+  question="이 과목이 create-next-app에서 TypeScript 대신 JavaScript를 선택한 이유는"
+  options={['TypeScript가 Next.js에서 지원되지 않아서', 'react_1~3과 동일하게 JavaScript를 유지하기 위해서', 'JavaScript가 항상 더 빠르게 실행되어서', 'Tailwind CSS를 쓰려면 JavaScript가 필수라서']}
+  correctAnswer={2}
+  explanation="01_학습방향의 범위 제외 항목대로, react_1~3의 학습 경험과 동일하게 JavaScript를 유지합니다."
+  optionExplanations={['Next.js는 TypeScript를 지원합니다', '정답입니다', '실행 속도와는 무관합니다', 'Tailwind와 TypeScript는 독립적인 선택입니다']}
+/>
+
+<Quiz
+  questionNumber={2}
+  question="app/page.js에서 시드 데이터를 fetch 대신 import로 가져올 수 있는 이유는"
+  options={['app/page.js가 클라이언트 컴포넌트라서', 'app/page.js가 서버 컴포넌트라서 파일을 직접 읽을 수 있어서', 'JSON 파일은 항상 import만 가능해서', 'Next.js가 fetch를 지원하지 않아서']}
+  correctAnswer={2}
+  explanation="서버 컴포넌트는 서버에서 실행되므로 파일 시스템의 데이터를 fetch 없이 바로 import해 쓸 수 있습니다."
+  optionExplanations={['클라이언트 컴포넌트였다면 이 방식이 불가능합니다', '정답입니다', 'JSON도 fetch로 받아올 수 있습니다', 'Next.js는 fetch를 지원합니다']}
+/>
+
+<Quiz
+  questionNumber={3}
+  question="app 폴더 구조에서 홈(/) 라우트를 공개하는 파일은"
+  options={['app/layout.js', 'app/page.js', 'app/index.js', 'app/main.js']}
+  correctAnswer={2}
+  explanation="app 최상위의 page.js가 루트 URL(/)을 공개하는 파일입니다."
+  optionExplanations={['layout.js는 공통 UI를 담당합니다', '정답입니다', 'App Router에는 index.js 컨벤션이 없습니다', 'main.js는 App Router 파일 컨벤션이 아닙니다']}
+/>
+
+<Quiz
+  questionNumber={4}
+  question="app/layout.js에서 export한 metadata 객체의 역할은"
+  options={['화면에 보이는 본문 내용을 정의한다', 'head 태그의 제목·설명 같은 문서 메타정보를 채운다', 'CSS 스타일을 정의한다', '라우트 목록을 정의한다']}
+  correctAnswer={2}
+  explanation="metadata를 export하면 Next.js가 자동으로 문서의 title, description 등을 채워줍니다."
+  optionExplanations={['본문은 컴포넌트가 반환하는 JSX가 담당합니다', '정답입니다', '스타일은 CSS 파일이 담당합니다', '라우트는 폴더 구조로 정의됩니다']}
+/>
+
+## 참고 자료
+
+- [Next.js Docs — Getting Started](https://nextjs.org/docs/app/getting-started)
+- [Next.js Docs — Project Structure](https://nextjs.org/docs/app/getting-started/project-structure)

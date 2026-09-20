@@ -1,0 +1,278 @@
+---
+title: '08. fetch 캐싱과 재검증'
+description: '자체 Route Handler를 fetch로 호출해 캐시 옵션과 revalidatePath로 새 데이터가 반영되는 시점을 관찰합니다'
+---
+
+<Callout type="info">
+  **이번 편의 결과물:** 책 목록 페이지가 캐시되어 즉시 뜨고, 데이터 변경 후 재검증하면 새 값이 반영된 시점을 확인할 수 있습니다. · **다루는 개념:** `fetch` 캐시 옵션(`force-cache`/`no-store`), `revalidatePath`/`revalidateTag`, 정적 렌더링 vs 동적 렌더링 선택
+</Callout>
+
+07편까지 목록·상세 페이지는 `lib/db.js`를 직접 호출했습니다. 이 방식은 `fetch`가 아니므로 Next.js의 캐시 대상이 아니고, 매 요청마다 새로 실행됩니다. 이번 편에서는 두 페이지를 07편에서 만든 Route Handler를 `fetch`로 호출하는 방식으로 바꿔, 실무에서 외부 API를 호출할 때와 같은 캐시 동작을 관찰합니다. 같은 서버 안에서 자기 자신의 API를 다시 호출하는 것은 비효율적이라 실무라면 07편처럼 모듈을 직접 부르는 쪽이 낫지만, `fetch` 캐시 옵션을 실제로 체험하려면 진짜 `fetch` 요청이 필요하므로 이번 편에서만 이렇게 바꿉니다.
+
+## 이 편에서 만드는 파일
+
+```
+bookshelf-next/
+├── lib/
+│   └── site-url.js                  + (로컬 개발용 절대 URL 상수)
+└── app/
+    ├── api/
+    │   └── books/
+    │       └── route.js             ~ (POST에 revalidatePath 추가)
+    └── books/
+        ├── page.js                  ~ (fetch + force-cache로 전환)
+        └── [bookId]/
+            └── page.js              ~ (fetch + no-store로 전환)
+```
+
+## 개념 정리
+
+### fetch는 기본적으로 캐시되지 않는다
+
+Next.js 15부터(이 과목이 쓰는 16도 동일) `fetch` 요청은 옵션을 주지 않으면 캐시되지 않고 매번 새로 요청합니다. 캐시를 켜려면 `cache` 옵션을 명시해야 합니다.
+
+| cache 옵션 | 동작 |
+|---|---|
+| 지정하지 않음(기본값) | 매 요청마다 새로 가져온다 |
+| `'force-cache'` | 처음 받은 응답을 저장해두고, 같은 요청은 저장된 값을 그대로 돌려준다 |
+| `'no-store'` | 항상 새로 요청하고 결과를 저장하지 않는다 |
+
+시간이 지나면 자동으로 새로 받고 싶다면 `next: { revalidate: 초 }`를 함께 씁니다.
+
+### 정적 렌더링과 동적 렌더링은 fetch 옵션이 갈라놓는다
+
+라우트마다 `export const dynamic`으로 렌더링 방식을 강제로 지정할 수도 있지만(`'auto'`가 기본값), 이 과목은 별도로 지정하지 않고 `fetch` 옵션만으로 자연스럽게 갈립니다. 목록 페이지는 `force-cache`만 쓰므로 캐시된 정적에 가까운 결과를 재사용하고, 상세 페이지는 `no-store`를 쓰므로 요청마다 새로 렌더링되는 동적 페이지가 됩니다.
+
+### 재검증: revalidatePath와 revalidateTag
+
+데이터를 바꾼 뒤 캐시된 값을 새로 고치려면 `next/cache`가 제공하는 함수를 부릅니다. `revalidatePath`는 경로 하나를 지정해 그 경로에서 쓰인 캐시를 무효화합니다.
+
+```js
+import { revalidatePath } from 'next/cache'
+
+revalidatePath('/books')
+```
+
+`fetch`에 `next: { tags: ['books'] }`처럼 태그를 붙이면, 여러 경로에 흩어진 같은 데이터를 `revalidateTag('books')` 한 번으로 함께 무효화할 수 있습니다. 이 과목은 경로가 단순하므로 `revalidatePath`만 씁니다.
+
+## 실습
+
+<Steps>
+
+### 1. 절대 URL 상수 만들기
+
+서버 컴포넌트의 `fetch`는 상대 경로를 쓸 수 없으므로 호스트를 포함한 절대 주소가 필요합니다. 개발 환경 전용 상수로 만듭니다.
+
+```js
+// bookshelf-next/lib/site-url.js
+export const BASE_URL = 'http://localhost:3000'
+```
+
+배포 환경에서는 실제 도메인이 다르므로 환경 변수로 관리해야 하지만, 그 구성은 이 과목 범위 밖입니다.
+
+### 2. 목록 페이지를 fetch + force-cache로 전환
+
+```js
+// bookshelf-next/app/books/page.js
+import Link from 'next/link'
+import { BASE_URL } from '@/lib/site-url.js'
+
+export default async function BooksPage() {
+  const response = await fetch(`${BASE_URL}/api/books`, { cache: 'force-cache' })
+  const books = await response.json()
+
+  return (
+    <ul className="book-list">
+      {books.map((book) => (
+        <li key={book.id}>
+          <Link href={`/books/${book.id}`}>{book.title}</Link>
+          <p>{book.author}</p>
+        </li>
+      ))}
+    </ul>
+  )
+}
+```
+
+### 3. 상세 페이지를 fetch + no-store로 전환
+
+책 상세는 방금 수정한 값을 바로 보여줘야 하므로 캐시하지 않습니다.
+
+```js
+// bookshelf-next/app/books/[bookId]/page.js
+import { Suspense } from 'react'
+import { notFound } from 'next/navigation'
+import Link from 'next/link'
+import { BASE_URL } from '@/lib/site-url.js'
+import { wait } from '@/lib/wait.js'
+
+export default async function BookDetailPage({ params }) {
+  const { bookId } = await params
+  const response = await fetch(`${BASE_URL}/api/books/${bookId}`, { cache: 'no-store' })
+
+  if (response.status === 404) {
+    notFound()
+  }
+
+  const book = await response.json()
+
+  return (
+    <article>
+      <p>
+        <Link href="/books">목록으로</Link>
+      </p>
+      <h1>{book.title}</h1>
+      <p>{book.author}</p>
+      <dl>
+        <dt>쪽수</dt>
+        <dd>{book.pages}쪽</dd>
+        <dt>상태</dt>
+        <dd>{book.status}</dd>
+        <dt>메모</dt>
+        <dd>{book.memo || '메모 없음'}</dd>
+      </dl>
+      <Suspense fallback={<p>추천 정보를 불러오는 중입니다...</p>}>
+        <ReadingTip pages={book.pages} />
+      </Suspense>
+    </article>
+  )
+}
+
+async function ReadingTip({ pages }) {
+  await wait(1500)
+  const days = Math.ceil(pages / 40)
+  return <p>하루 40쪽씩 읽으면 약 {days}일 만에 완독할 수 있습니다.</p>
+}
+```
+
+### 4. 캐시된 목록이 새 데이터를 반영하지 않는지 확인
+
+```text
+npm run dev
+```
+
+개발자 도구 콘솔에서 새 책을 등록합니다.
+
+```js
+await fetch('/api/books', {
+  method: 'POST',
+  headers: { 'Content-Type': 'application/json' },
+  body: JSON.stringify({ title: '함수형 사고', author: '닐 포드' }),
+}).then((res) => res.json())
+```
+
+`/books`를 새로고침해도 방금 등록한 책이 아직 보이지 않습니다. `force-cache`로 저장해둔 첫 응답을 계속 재사용하기 때문입니다.
+
+### 5. Route Handler에 revalidatePath 추가
+
+```js
+// bookshelf-next/app/api/books/route.js
+import { revalidatePath } from 'next/cache'
+import { getBooks, createBook } from '@/lib/db.js'
+
+export async function GET() {
+  const books = await getBooks()
+  return Response.json(books)
+}
+
+export async function POST(request) {
+  const input = await request.json()
+
+  if (!input.title || !input.author) {
+    return Response.json({ error: 'title과 author는 필수입니다' }, { status: 400 })
+  }
+
+  const book = await createBook(input)
+  revalidatePath('/books')
+  return Response.json(book, { status: 201 })
+}
+```
+
+### 6. 다시 확인
+
+같은 방식으로 새 책을 하나 더 등록한 뒤 `/books`를 새로고침합니다.
+
+</Steps>
+
+## 확인
+
+- `/books`를 여러 번 새로고침해도 매번 빠르게 같은 목록이 보입니다(캐시된 값 재사용).
+- 4단계에서 등록한 책은 5단계 전까지 `/books`에 보이지 않습니다.
+- `route.js`에 `revalidatePath`를 추가한 뒤 6단계에서 등록한 책은 새로고침하자마자 목록에 보입니다.
+- `/books/1`은 새로고침할 때마다 매번 서버에 새로 요청합니다(`no-store`이므로 캐시되지 않음).
+
+## 직접 해보기
+
+1. 목록 페이지의 `{ cache: 'force-cache' }`를 `{ next: { revalidate: 10 } }`로 바꾸고, 책을 등록한 뒤 10초 전과 후에 각각 새로고침해 결과가 어떻게 달라지는지 관찰해보세요.
+2. `revalidatePath` 대신 `revalidateTag`를 쓰도록 바꿔보세요. 목록 페이지의 fetch에 `next: { tags: ['books'] }`를 추가하고, `route.js`의 POST에서 `revalidateTag('books')`를 호출하면 됩니다.
+
+<details>
+<summary>정답 보기</summary>
+
+`revalidate: 10`으로 바꾸면 10초 안에는 캐시된 값이 그대로 보이고, 10초가 지난 뒤 새로고침하면 그제서야 새 데이터를 다시 받아옵니다. 시간 기반 재검증은 `revalidatePath` 같은 즉시 무효화 없이도 일정 주기로 데이터를 새로 고치고 싶을 때 씁니다.
+
+```js
+// bookshelf-next/app/books/page.js (일부 변경)
+const response = await fetch(`${BASE_URL}/api/books`, { next: { tags: ['books'] } })
+```
+
+```js
+// bookshelf-next/app/api/books/route.js (일부 변경)
+import { revalidateTag } from 'next/cache'
+// ...
+revalidateTag('books')
+```
+
+</details>
+
+## 자주 하는 실수
+
+| 증상 | 원인 | 고치는 법 |
+|------|------|-----------|
+| 서버 컴포넌트의 fetch가 실패함 | 상대 경로(`/api/books`)만 넘김 | 서버 컴포넌트의 fetch는 절대 URL이 필요하므로 BASE_URL을 붙인다 |
+| 데이터를 바꿔도 목록이 그대로임 | Route Handler에 revalidatePath 호출을 빠뜨림 | 데이터를 바꾸는 코드 뒤에 해당 경로의 revalidatePath를 추가한다 |
+| revalidatePath를 호출했는데도 안 바뀜 | 경로 문자열이 실제 라우트와 다름(`/book`처럼 오타) | 실제 주소창의 경로와 정확히 같은 문자열을 넘긴다 |
+| 실험 중 캐시 동작이 헷갈림 | 여러 옵션을 계속 바꿔가며 테스트해 어떤 상태인지 추적이 안 됨 | 개발 서버를 껐다 다시 켜서 캐시를 초기화하고 한 옵션씩 확인한다 |
+
+## 확인 문제
+
+<Quiz
+  questionNumber={1}
+  question="Next.js 16에서 fetch 요청에 아무 cache 옵션도 주지 않았을 때 기본 동작은"
+  options={['항상 캐시되어 다시 요청하지 않는다', '캐시되지 않고 매번 새로 요청한다', '10초 동안만 캐시된다', '브라우저가 자동으로 결정한다']}
+  correctAnswer={2}
+  explanation="Next.js 15부터 fetch는 옵션을 지정하지 않으면 캐시되지 않고 매 요청마다 새로 데이터를 가져옵니다."
+  optionExplanations={['캐시하려면 force-cache를 명시해야 합니다', '정답입니다', '고정된 기본 시간이 있는 것은 아닙니다', '서버 쪽에서 결정되는 동작입니다']}
+/>
+
+<Quiz
+  questionNumber={2}
+  question="책 상세 페이지에서 fetch에 no-store 옵션을 준 이유는"
+  options={['응답 속도를 더 빠르게 하려고', '수정한 내용을 항상 최신 상태로 바로 보여주려고', 'JSON 파싱을 생략하려고', '목록 페이지와 같은 캐시를 공유하려고']}
+  correctAnswer={2}
+  explanation="no-store는 캐시를 쓰지 않고 매번 새로 요청하므로, 방금 바뀐 값을 지연 없이 그대로 보여줄 수 있습니다."
+  optionExplanations={['오히려 매번 새로 요청하므로 느려질 수 있습니다', '정답입니다', '파싱 여부와는 무관합니다', '캐시를 공유하지 않는 것이 목적입니다']}
+/>
+
+<Quiz
+  questionNumber={3}
+  question="revalidatePath를 호출하는 위치로 가장 적절한 것은"
+  options={['데이터를 읽기만 하는 GET 핸들러', '데이터를 바꾼 직후, 같은 요청 처리 안에서', '서버가 시작될 때 한 번', '클라이언트 컴포넌트의 렌더링 도중']}
+  correctAnswer={2}
+  explanation="데이터를 실제로 바꾼 직후 revalidatePath를 호출해야 그 시점부터 해당 경로의 캐시가 무효화됩니다."
+  optionExplanations={['읽기만 하는 곳에서는 무효화할 대상이 없습니다', '정답입니다', '서버 시작 시점과는 무관한 함수입니다', '서버에서만 호출할 수 있습니다']}
+/>
+
+<Quiz
+  questionNumber={4}
+  question="이 편에서 목록 페이지는 정적에 가깝게, 상세 페이지는 동적으로 렌더링되는 이유는"
+  options={['페이지 이름이 다르기 때문에', '목록은 force-cache, 상세는 no-store fetch 옵션을 쓰기 때문에', 'Link 컴포넌트 사용 여부 때문에', '두 페이지의 레이아웃이 다르기 때문에']}
+  correctAnswer={2}
+  explanation="정적·동적 렌더링 여부는 export const dynamic으로 강제하지 않는 한, 그 라우트에서 쓰는 fetch의 캐시 옵션을 따라갑니다."
+  optionExplanations={['파일 이름과는 무관합니다', '정답입니다', 'Link 사용 여부와는 무관합니다', '레이아웃 구조와는 무관합니다']}
+/>
+
+## 참고 자료
+
+- [Next.js Docs — Fetching Data](https://nextjs.org/docs/app/getting-started/fetching-data)
+- [Next.js Docs — Caching and Revalidating(Previous Model)](https://nextjs.org/docs/app/guides/caching-without-cache-components)

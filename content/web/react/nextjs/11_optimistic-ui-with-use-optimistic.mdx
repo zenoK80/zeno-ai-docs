@@ -1,0 +1,229 @@
+---
+title: '11. useOptimistic으로 낙관적 업데이트'
+description: '삭제 버튼을 누르는 즉시 목록에서 항목을 지우고, 실패하면 자동으로 원래 상태로 되돌리는 낙관적 UI를 만듭니다'
+---
+
+<Callout type="info">
+  **이번 편의 결과물:** 삭제 버튼을 누르면 서버 응답 전에 즉시 목록에서 사라지고, 실패를 재현하면 원래대로 되돌아갑니다. · **다루는 개념:** useOptimistic 훅, Server Action과 결합한 즉시 반영, 실패 시 원상 복귀
+</Callout>
+
+09편에서 만든 삭제 폼은 deleteBookAction이 끝나고 revalidatePath로 캐시를 갱신해야 목록에서 항목이 사라집니다. 네트워크가 느리면 버튼을 누른 뒤 항목이 실제로 사라지기까지 몇 초씩 걸릴 수 있습니다. react_3에서 TanStack Query의 뮤테이션에 낙관적 업데이트를 직접 구현했던 것처럼, 이번에는 React가 기본 제공하는 useOptimistic으로 같은 문제를 풉니다. 서버 컴포넌트만으로는 화면 상태를 미리 바꿀 수 없으므로, 목록을 렌더하는 부분을 클라이언트 컴포넌트로 옮깁니다.
+
+## 이 편에서 만드는 파일
+
+```
+bookshelf-next/
+└── app/
+    └── books/
+        ├── actions.js       ~ (deleteBookAction에서 redirect 제거)
+        ├── page.js          ~ (목록 렌더를 BookList 컴포넌트로 위임)
+        └── BookList.js      + (useOptimistic으로 삭제를 즉시 반영하는 클라이언트 컴포넌트)
+```
+
+## 개념 정리
+
+### useOptimistic 시그니처
+
+```js
+const [optimisticBooks, removeOptimisticBook] = useOptimistic(books, (currentBooks, id) => {
+  return currentBooks.filter((book) => book.id !== id)
+})
+```
+
+첫 번째 인자는 실제 상태(서버에서 내려온 books prop)이고, 두 번째 인자는 낙관적 갱신 함수입니다. 이 함수는 현재 낙관적 상태와, removeOptimisticBook을 호출할 때 넘긴 값을 받아 다음 낙관적 상태를 계산합니다. 액션이 아직 진행 중일 때는 optimisticBooks가 갱신된 값을 보여주고, 액션이 끝나 컴포넌트가 다시 렌더링되면 books prop이 최신 값으로 대체됩니다.
+
+### 반드시 트랜지션 안에서 호출한다
+
+removeOptimisticBook 같은 갱신 함수는 startTransition으로 감싼 코드 안에서만 호출할 수 있습니다. 폼 액션이나 useActionState의 액션 함수 내부는 이미 트랜지션 안이라 바로 호출할 수 있지만, 버튼의 클릭 이벤트 핸들러처럼 직접 만든 코드에서는 startTransition으로 명시적으로 감싸야 합니다.
+
+```js
+function handleDelete(id) {
+  startTransition(async () => {
+    removeOptimisticBook(id)
+    await deleteBookAction(id)
+  })
+}
+```
+
+### 실패하면 자동으로 되돌아간다
+
+낙관적 갱신은 트랜지션이 끝날 때 사라지는 임시 상태입니다. deleteBookAction이 실패해 revalidatePath가 실행되지 않으면, books prop은 원래 값 그대로이므로 트랜지션이 끝나는 순간 optimisticBooks도 원래 목록으로 돌아갑니다. 별도로 되돌리는 코드를 작성할 필요가 없습니다. 다만 액션에서 던진 에러를 잡지 않으면 06편에서 만든 error.js 화면으로 넘어가 목록 전체가 사라지므로, try/catch로 감싸 에러를 조용히 처리합니다.
+
+## 실습
+
+<Steps>
+
+### 1. deleteBookAction에서 redirect 제거
+
+09편의 deleteBookAction은 삭제 뒤 redirect('/books')를 호출했습니다. 09~10편까지는 폼의 action으로만 호출되어 문제없었지만, 이 편부터는 BookList가 이 함수를 폼이 아니라 자바스크립트 코드로 직접 호출하고 try/catch로 감쌉니다. redirect는 내부적으로 예외를 던지는 방식으로 동작하므로, 이렇게 직접 호출하는 자리를 try/catch로 감싸면 그 예외가 일반 에러로 붙잡혀 정상적으로 이동하지 않습니다. app/books/actions.js에서 deleteBookAction의 redirect 호출을 지웁니다.
+
+```js
+// bookshelf-next/app/books/actions.js (deleteBookAction만 변경, 나머지 함수는 그대로)
+export async function deleteBookAction(id) {
+  await deleteBook(id)
+  revalidatePath('/books')
+}
+```
+
+목록에서 삭제할 때는 이미 `/books`에 있으므로 이동이 필요 없었습니다. 09편부터 있던 상세 페이지의 삭제 버튼은 이 변경 이후에도 여전히 책을 지우지만, 더 이상 자동으로 목록으로 돌아가지 않습니다. 삭제된 책을 다시 조회하면 찾을 수 없으므로, 06편에서 만든 커스텀 404 화면(`not-found.js`)이 대신 나타나고 그 화면의 링크로 목록에 돌아갈 수 있습니다.
+
+### 2. 삭제를 즉시 반영하는 BookList 작성
+
+```js
+// bookshelf-next/app/books/BookList.js
+'use client'
+
+import { useOptimistic, useTransition } from 'react'
+import Link from 'next/link'
+import { deleteBookAction } from './actions'
+import { STATUS_LABELS } from '@/lib/book-status'
+
+export default function BookList({ books }) {
+  const [optimisticBooks, removeOptimisticBook] = useOptimistic(
+    books,
+    (currentBooks, id) => currentBooks.filter((book) => book.id !== id)
+  )
+  const [isPending, startTransition] = useTransition()
+
+  function handleDelete(id) {
+    startTransition(async () => {
+      removeOptimisticBook(id)
+      try {
+        await deleteBookAction(id)
+      } catch (error) {
+        console.error('삭제 실패:', error.message)
+      }
+    })
+  }
+
+  return (
+    <ul className="book-list">
+      {optimisticBooks.map((book) => (
+        <li key={book.id} className="book-card">
+          <Link href={`/books/${book.id}`}>{book.title}</Link>
+          <p>
+            {book.author} · {STATUS_LABELS[book.status]}
+          </p>
+          <button type="button" onClick={() => handleDelete(book.id)} disabled={isPending}>
+            삭제
+          </button>
+        </li>
+      ))}
+    </ul>
+  )
+}
+```
+
+key는 반드시 book.id처럼 각 항목을 고유하게 식별하는 값으로 둡니다. 배열 인덱스를 key로 쓰면 삭제 도중 다른 항목의 key가 밀려 화면이 엉뚱하게 깜빡입니다.
+
+### 3. 목록 페이지에서 BookList 사용
+
+```js
+// bookshelf-next/app/books/page.js
+import Link from 'next/link'
+import { getBooks } from '@/lib/db'
+import BookList from './BookList'
+
+export default async function BooksPage() {
+  const books = await getBooks()
+
+  return (
+    <section>
+      <p>
+        <Link href="/books/new">+ 새 책 등록</Link>
+      </p>
+      <BookList books={books} />
+    </section>
+  )
+}
+```
+
+BooksPage는 여전히 서버 컴포넌트로 남아 getBooks로 최신 목록을 읽습니다. 그 결과를 클라이언트 컴포넌트인 BookList에 prop으로 넘기기만 하고, 상호작용이 필요한 부분(삭제 버튼과 낙관적 상태)만 BookList 안에 둡니다. 08편에서 목록 페이지는 fetch(BASE_URL...)로 자기 자신의 API를 호출해 캐시 옵션을 체험했지만, 그 캐시 체험은 08편에서 이미 끝났고 목록은 어차피 삭제할 때마다 revalidatePath로 다시 렌더링되므로, 이 편부터는 07편의 getBooks를 다시 직접 호출하는 단순한 형태로 돌아갑니다.
+
+### 4. 실행
+
+```text
+npm run dev
+```
+
+</Steps>
+
+## 확인
+
+- `/books`에서 삭제 버튼을 누르면 네트워크 응답을 기다리지 않고 그 항목이 즉시 목록에서 사라집니다.
+- 삭제하는 동안 다른 삭제 버튼도 잠시 비활성화됩니다(isPending).
+- 페이지를 새로고침하면 실제로 삭제된 책만 남아 있어, 화면과 실제 데이터가 일치합니다.
+- 아래 실패 재현 절차를 따르면, 버튼을 누른 항목이 잠깐 사라졌다가 다시 나타납니다.
+
+## 직접 해보기
+
+deleteBookAction 맨 위에 아래 코드를 임시로 추가해 실패를 재현해 보세요.
+
+```js
+export async function deleteBookAction(id) {
+  throw new Error('삭제에 실패했습니다(테스트용 에러)')
+  await deleteBook(id)
+  revalidatePath('/books')
+}
+```
+
+삭제 버튼을 누르면 항목이 즉시 사라졌다가, 콘솔에 에러 로그가 찍히며 짧은 순간 뒤 다시 목록에 나타납니다. 확인했다면 방금 추가한 throw 문을 삭제해 원래 동작으로 되돌립니다.
+
+<details>
+<summary>정답 보기</summary>
+
+되돌아오는 이유는 handleDelete의 try/catch가 예외를 잡아 error.js로 넘어가는 것을 막고, deleteBook과 revalidatePath가 실행되지 않아 books prop이 그대로 유지되기 때문입니다. 트랜지션이 끝나면 optimisticBooks는 이 변하지 않은 books prop을 기준으로 다시 계산되어 삭제 이전 상태로 돌아갑니다.
+
+</details>
+
+## 자주 하는 실수
+
+| 증상 | 원인 | 고치는 법 |
+|------|------|-----------|
+| removeOptimisticBook 호출 시 경고가 뜨고 잠깐 반짝이다 사라짐 | startTransition 밖에서 갱신 함수를 호출 | 갱신 함수 호출과 서버 액션 호출을 모두 startTransition 콜백 안에 둔다 |
+| 실패를 재현했더니 목록 전체가 사라지고 에러 화면이 뜸 | deleteBookAction 호출을 try/catch 없이 그대로 await | handleDelete 안에서 try/catch로 감싸 에러를 직접 처리한다 |
+| 삭제 도중 다른 항목이 깜빡이거나 순서가 뒤섞임 | key로 배열 인덱스를 사용 | key를 book.id처럼 각 항목 고유의 값으로 바꾼다 |
+| BookList에서 상태 훅을 쓰는데 에러가 남 | 파일 맨 위에 use client 선언을 빠뜨림 | 파일 최상단에 use client를 추가한다 |
+
+## 확인 문제
+
+<Quiz
+  questionNumber={1}
+  question="useOptimistic이 반환하는 두 값의 역할은"
+  options={['현재 낙관적 상태와 그 상태를 갱신하는 함수', '서버 상태와 클라이언트 상태', '로딩 여부와 에러 객체', '이전 값과 다음 값']}
+  correctAnswer={1}
+  explanation="useOptimistic은 배열의 첫 번째로 현재 보여줄 낙관적 상태를, 두 번째로 그 상태를 갱신할 때 호출하는 함수를 반환합니다."
+  optionExplanations={['정답입니다', '서버 상태를 직접 반환하지 않습니다', '로딩·에러는 useOptimistic의 역할이 아닙니다', '이전·다음 값 쌍을 직접 반환하지 않습니다']}
+/>
+
+<Quiz
+  questionNumber={2}
+  question="버튼 클릭 이벤트 핸들러 안에서 useOptimistic의 갱신 함수를 호출하려면 반드시 필요한 것은"
+  options={['useEffect로 감싸기', 'startTransition으로 감싸기', 'useState로 감싸기', '아무 처리 없이 바로 호출']}
+  correctAnswer={2}
+  explanation="낙관적 상태 갱신은 트랜지션 안에서만 이뤄져야 하므로, 이벤트 핸들러에서는 startTransition으로 감싸 호출합니다."
+  optionExplanations={['useEffect는 이 목적에 맞지 않습니다', '정답입니다', 'useState로 감싼다는 개념 자체가 성립하지 않습니다', '트랜지션 없이 호출하면 경고가 발생합니다']}
+/>
+
+<Quiz
+  questionNumber={3}
+  question="deleteBookAction이 실패했을 때 optimisticBooks가 원래 목록으로 돌아가는 이유는"
+  options={['React가 실패를 감지해 직접 되돌리는 코드를 실행하기 때문에', '트랜지션이 끝나면 변하지 않은 books prop을 기준으로 낙관적 상태가 다시 계산되기 때문에', 'deleteBookAction이 이전 목록을 반환하기 때문에', '브라우저가 자동으로 새로고침하기 때문에']}
+  correctAnswer={2}
+  explanation="낙관적 상태는 트랜지션이 끝나면 사라지는 임시 값이라, revalidatePath가 실행되지 않아 그대로인 books prop을 기준으로 다시 계산되면서 원래 목록으로 돌아갑니다."
+  optionExplanations={['별도로 되돌리는 코드를 작성하지 않습니다', '정답입니다', 'deleteBookAction은 목록을 반환하지 않습니다', '자동 새로고침이 일어나지 않습니다']}
+/>
+
+<Quiz
+  questionNumber={4}
+  question="책 목록 렌더링을 BooksPage 대신 BookList라는 별도 클라이언트 컴포넌트로 분리한 이유는"
+  options={['서버 컴포넌트에서는 useOptimistic 같은 상태 훅을 쓸 수 없어서', 'BooksPage의 코드가 너무 길어져서', 'getBooks를 두 번 호출하기 위해서', 'Link 컴포넌트를 쓰려면 클라이언트 컴포넌트여야 해서']}
+  correctAnswer={1}
+  explanation="useOptimistic은 리액트 상태 훅이라 클라이언트 컴포넌트에서만 쓸 수 있으므로, 상호작용이 필요한 목록 부분만 별도 클라이언트 컴포넌트로 분리했습니다."
+  optionExplanations={['정답입니다', '코드 길이가 분리의 핵심 이유는 아닙니다', 'getBooks는 한 번만 호출됩니다', 'Link는 서버 컴포넌트에서도 쓸 수 있습니다']}
+/>
+
+## 참고 자료
+
+- [React Docs — useOptimistic](https://react.dev/reference/react/useOptimistic)
+- [Next.js Docs — Mutating Data(Server Functions)](https://nextjs.org/docs/app/getting-started/mutating-data)

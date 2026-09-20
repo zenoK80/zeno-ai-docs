@@ -11,6 +11,10 @@ const meta = {
     title: 'React 실무',
     type: 'page',
   },
+  nextjs: {
+    title: 'Next.js',
+    type: 'page',
+  },
 }
 
 export default meta

@@ -1,0 +1,302 @@
+---
+title: '06. 로딩·에러 화면과 스트리밍'
+description: 'loading.js, error.js, not-found.js 컨벤션과 Suspense로 화면 일부만 먼저 보여주는 스트리밍을 다룹니다'
+---
+
+<Callout type="info">
+  **이번 편의 결과물:** 목록을 불러오는 동안 스켈레톤이 보이고, 강제로 에러를 일으키면 직접 만든 에러 화면으로 전환됩니다. · **다루는 개념:** `loading.js`/`error.js`/`not-found.js` 컨벤션, 인위적 지연으로 로딩 확인, Suspense 부분 스트리밍
+</Callout>
+
+지금까지 `bookshelf-next`는 데이터를 읽는 즉시 화면 전체가 나타났습니다. 실제 서비스는 데이터를 가져오는 동안 대기 화면이 필요하고, 요청이 실패하면 에러 화면도 필요합니다. 이 편에서는 Next.js가 파일 이름만으로 이 두 상황을 처리하는 방법과, 화면 일부만 먼저 보여주는 스트리밍을 다룹니다.
+
+## 이 편에서 만드는 파일
+
+```
+bookshelf-next/
+├── app/
+│   ├── not-found.js            + (커스텀 404 화면)
+│   └── books/
+│       ├── page.js             ~ (인위적 지연 추가)
+│       ├── loading.js          + (목록 로딩 스켈레톤)
+│       ├── error.js            + (목록 에러 화면)
+│       └── [bookId]/
+│           └── page.js         ~ (Suspense로 감싼 읽기 팁 섹션 추가)
+└── lib/
+    └── wait.js                 + (인위적 지연 유틸리티)
+```
+
+## 개념 정리
+
+### loading.js — 라우트 전체를 감싸는 대기 화면
+
+같은 폴더에 `loading.js`를 두면 Next.js가 `page.js` 전체를 자동으로 Suspense 경계로 감쌉니다. `page.js`가 데이터를 기다리는 동안 `loading.js`가 대신 화면에 보이고, 준비가 끝나면 실제 내용으로 바뀝니다. 별도로 Suspense를 직접 쓸 필요가 없습니다.
+
+### error.js — 라우트 단위 에러 경계
+
+같은 폴더의 `page.js`나 그 하위에서 렌더링 중 에러가 발생하면 `error.js`가 대신 나타납니다. 에러 경계는 반드시 클라이언트 컴포넌트여야 하므로 파일 맨 위에 `'use client'`를 씁니다.
+
+| 속성 | 역할 |
+|------|------|
+| `error` | 발생한 에러 객체(`message` 포함) |
+| `retry` | 실패한 구간을 다시 불러오고 다시 렌더링을 시도하는 함수 |
+
+Next.js 16.3부터 `retry` 속성이 정식 기능이 되었습니다. 버튼 클릭 시 `retry()`를 호출하면 데이터 조회부터 다시 실행되므로, 일시적인 오류라면 사용자가 새로고침 없이 복구할 수 있습니다.
+
+### not-found.js — notFound() 전용 화면
+
+05편에서 `notFound()`를 호출하면 Next.js 기본 404 화면이 떴습니다. 같은 세그먼트나 그 상위에 `not-found.js`를 두면 그 화면 대신 직접 만든 화면이 나타납니다. 지금은 `app/books/[bookId]` 아래에 별도 파일을 두지 않고 `app` 루트에 하나만 두어, 앱 전체의 기본 404 화면으로 씁니다.
+
+### Suspense로 화면 일부만 스트리밍
+
+`loading.js`는 라우트 전체를 기다리게 합니다. 화면 일부만 느리고 나머지는 바로 보여주고 싶다면 그 부분만 `Suspense`로 감쌉니다. `Suspense`로 감싼 컴포넌트가 데이터를 기다리는 동안 나머지 화면은 이미 사용자에게 전달되고, 감싼 부분만 `fallback`으로 지정한 내용이 보이다가 나중에 실제 내용으로 바뀝니다.
+
+## 실습
+
+<Steps>
+
+### 1. 인위적 지연 유틸리티와 로딩 스켈레톤 만들기
+
+실제 데이터 계층은 07편에서 만들므로, 지금은 `setTimeout`으로 지연을 흉내 냅니다.
+
+```js
+// bookshelf-next/lib/wait.js
+export function wait(ms) {
+  return new Promise((resolve) => setTimeout(resolve, ms))
+}
+```
+
+```js
+// bookshelf-next/app/books/loading.js
+export default function BooksLoading() {
+  return (
+    <section aria-busy="true">
+      <h1>책 목록</h1>
+      <ul className="book-list">
+        {Array.from({ length: 6 }).map((_, index) => (
+          <li key={index} className="book-skeleton">
+            불러오는 중입니다...
+          </li>
+        ))}
+      </ul>
+    </section>
+  )
+}
+```
+
+`app/books/page.js`에 지연을 추가해 `loading.js`가 실제로 보이게 만듭니다.
+
+```js
+// bookshelf-next/app/books/page.js
+import Link from 'next/link'
+import books from '@/data/books.seed.json'
+import { wait } from '@/lib/wait.js'
+
+export default async function BooksPage() {
+  await wait(1200)
+
+  return (
+    <section>
+      <h1>책 목록</h1>
+      <ul className="book-list">
+        {books.map((book) => (
+          <li key={book.id}>
+            <Link href={`/books/${book.id}`}>{book.title}</Link>
+            <p>{book.author}</p>
+          </li>
+        ))}
+      </ul>
+    </section>
+  )
+}
+```
+
+### 2. 에러 화면 만들고 강제로 확인하기
+
+```js
+// bookshelf-next/app/books/error.js
+'use client'
+
+export default function BooksError({ error, retry }) {
+  return (
+    <section role="alert">
+      <h2>문제가 발생했습니다</h2>
+      <p>{error.message}</p>
+      <button type="button" onClick={() => retry()}>
+        다시 시도
+      </button>
+    </section>
+  )
+}
+```
+
+`app/books/page.js`의 `await wait(1200)` 바로 다음 줄에 아래 코드를 임시로 추가해 에러를 일부러 일으킵니다.
+
+```js
+if (true) {
+  throw new Error('강제로 발생시킨 테스트 에러입니다')
+}
+```
+
+`/books`에 접속하면 방금 만든 에러 화면이 보입니다. "다시 시도" 버튼을 눌러도 `throw`가 그대로 남아 있으므로 같은 에러가 다시 뜹니다. 동작을 확인했으면 방금 추가한 `if (true) { ... }` 블록을 삭제합니다.
+
+### 3. 커스텀 404 화면 만들기
+
+```js
+// bookshelf-next/app/not-found.js
+import Link from 'next/link'
+
+export default function NotFound() {
+  return (
+    <section>
+      <h1>페이지를 찾을 수 없습니다</h1>
+      <p>요청한 책이나 페이지가 존재하지 않습니다.</p>
+      <Link href="/books">책 목록으로 돌아가기</Link>
+    </section>
+  )
+}
+```
+
+### 4. 상세 페이지에 부분 스트리밍 추가
+
+책 제목·저자 같은 기본 정보는 바로 보여주고, 계산이 필요한 "읽기 팁"만 `Suspense`로 감싸 따로 늦게 보여줍니다.
+
+```js
+// bookshelf-next/app/books/[bookId]/page.js
+import { Suspense } from 'react'
+import { notFound } from 'next/navigation'
+import Link from 'next/link'
+import books from '@/data/books.seed.json'
+import { wait } from '@/lib/wait.js'
+
+export default async function BookDetailPage({ params }) {
+  const { bookId } = await params
+  const book = books.find((item) => item.id === Number(bookId))
+
+  if (!book) {
+    notFound()
+  }
+
+  return (
+    <article>
+      <p>
+        <Link href="/books">목록으로</Link>
+      </p>
+      <h1>{book.title}</h1>
+      <p>{book.author}</p>
+      <dl>
+        <dt>쪽수</dt>
+        <dd>{book.pages}쪽</dd>
+        <dt>상태</dt>
+        <dd>{book.status}</dd>
+        <dt>메모</dt>
+        <dd>{book.memo || '메모 없음'}</dd>
+      </dl>
+      <Suspense fallback={<p>추천 정보를 불러오는 중입니다...</p>}>
+        <ReadingTip pages={book.pages} />
+      </Suspense>
+    </article>
+  )
+}
+
+async function ReadingTip({ pages }) {
+  await wait(1500)
+  const days = Math.ceil(pages / 40)
+  return <p>하루 40쪽씩 읽으면 약 {days}일 만에 완독할 수 있습니다.</p>
+}
+```
+
+`ReadingTip`은 `book`을 찾은 뒤에 실행되는 별도의 비동기 컴포넌트입니다. 제목·저자·쪽수는 지연 없이 바로 보이고, `ReadingTip`이 1.5초를 기다리는 동안에는 `fallback` 문구만 그 자리에 보입니다.
+
+### 5. 실행과 확인
+
+```text
+npm run dev
+```
+
+- `/books`에 접속하면 약 1.2초 동안 스켈레톤 목록이 보이다가 실제 책 목록으로 바뀝니다.
+- 존재하지 않는 `/books/999`에 접속하면 04편에서 보던 기본 404 화면 대신 방금 만든 커스텀 404 화면이 보입니다.
+- `/books/1`에 접속하면 제목·저자·쪽수·상태·메모는 바로 보이고, 그 아래 "추천 정보를 불러오는 중입니다..."가 약 1.5초 동안 보인 뒤 읽기 팁 문장으로 바뀝니다.
+- 개발자 도구의 네트워크 탭에서 상세 페이지 HTML이 한 번에 오지 않고 나뉘어 도착하는 것을 확인할 수 있습니다.
+
+</Steps>
+
+## 직접 해보기
+
+1. `app/books/[bookId]/error.js`를 새로 만들어 상세 페이지 전용 에러 화면을 추가해 보세요. `app/books/error.js`와 문구를 다르게 하면 어느 화면이 뜨는지 비교할 수 있습니다.
+2. `ReadingTip`의 지연 시간을 5초로 늘리고, `fallback` 문구를 더 자세하게 바꿔 사용자 경험이 어떻게 달라지는지 관찰해 보세요.
+
+<details>
+<summary>정답 보기</summary>
+
+```js
+// bookshelf-next/app/books/[bookId]/error.js
+'use client'
+
+export default function BookDetailError({ error, retry }) {
+  return (
+    <section role="alert">
+      <h2>책 정보를 불러오지 못했습니다</h2>
+      <p>{error.message}</p>
+      <button type="button" onClick={() => retry()}>
+        다시 시도
+      </button>
+    </section>
+  )
+}
+```
+
+더 가까운 세그먼트의 `error.js`가 우선 적용되므로, 상세 페이지에서 에러가 나면 `app/books/[bookId]/error.js`가 뜨고 목록 페이지에서 에러가 나면 `app/books/error.js`가 뜹니다.
+
+</details>
+
+## 자주 하는 실수
+
+| 증상 | 원인 | 고치는 법 |
+|------|------|-----------|
+| error.js를 만들었는데 화면이 그대로 하얗게 깨짐 | 파일 맨 위에 `'use client'`를 빠뜨림 | 에러 경계는 반드시 클라이언트 컴포넌트여야 하므로 최상단에 `'use client'`를 추가한다 |
+| loading.js를 만들었는데 스켈레톤이 안 보임 | page.js에 실제로 기다릴 비동기 작업이 없음 | page.js를 async 함수로 만들고 데이터를 기다리는 await 코드가 있는지 확인한다 |
+| Suspense로 감쌌는데도 전체 화면이 함께 멈춤 | 지연 코드를 컴포넌트 밖(page 최상단)에 둠 | 지연이 필요한 부분만 별도 컴포넌트로 분리해 그 컴포넌트 안에서 await 한다 |
+
+## 확인 문제
+
+<Quiz
+  questionNumber={1}
+  question="loading.js와 Suspense의 차이를 가장 정확히 설명한 것은"
+  options={['둘은 완전히 같은 기능이라 아무거나 써도 된다', 'loading.js는 라우트 전체를, Suspense는 지정한 일부만 대기 화면으로 감싼다', 'loading.js는 클라이언트에서만, Suspense는 서버에서만 동작한다', 'Suspense는 에러 처리 전용이다']}
+  correctAnswer={2}
+  explanation="loading.js는 같은 세그먼트의 page.js 전체를 자동으로 감싸지만, Suspense는 원하는 컴포넌트 범위만 골라서 감쌀 수 있습니다."
+  optionExplanations={['적용 범위가 다릅니다', '정답입니다', '둘 다 서버 컴포넌트 트리에서 동작합니다', '에러 처리는 error.js의 역할입니다']}
+/>
+
+<Quiz
+  questionNumber={2}
+  question="error.js 파일이 반드시 지켜야 하는 규칙은"
+  options={['파일 이름을 Error.js로 대문자로 시작해야 한다', '파일 최상단에 use client를 선언한 클라이언트 컴포넌트여야 한다', 'export default를 쓰면 안 된다', '반드시 loading.js와 같은 내용을 담아야 한다']}
+  correctAnswer={2}
+  explanation="에러 경계는 React 클라이언트 컴포넌트로만 만들 수 있으므로 파일 최상단에 use client 지시어가 필요합니다."
+  optionExplanations={['파일 이름 대소문자는 규칙과 무관합니다', '정답입니다', 'export default로 컴포넌트를 내보내야 합니다', '서로 다른 역할을 하는 파일입니다']}
+/>
+
+<Quiz
+  questionNumber={3}
+  question="app 루트에 not-found.js를 하나만 두었을 때 일어나는 일은"
+  options={['하위 라우트에서는 notFound()가 동작하지 않는다', '더 가까운 not-found.js가 없으면 이 파일이 앱 전체의 기본 404 화면으로 쓰인다', '루트 페이지에서만 404가 발생할 수 있다', 'not-found.js는 layout.js 없이는 동작하지 않는다']}
+  correctAnswer={2}
+  explanation="notFound()는 호출된 위치에서 가장 가까운 not-found.js를 찾고, 더 가까운 파일이 없으면 상위(루트)의 not-found.js가 대신 렌더링됩니다."
+  optionExplanations={['하위 라우트에서도 정상 동작합니다', '정답입니다', '어느 세그먼트에서든 발생할 수 있습니다', 'layout.js와 별개로 동작합니다']}
+/>
+
+<Quiz
+  questionNumber={4}
+  question="상세 페이지에서 ReadingTip만 Suspense로 감싼 이유는"
+  options={['ReadingTip에서만 에러가 나기 때문에', '제목·저자 같은 빠른 정보는 즉시 보여주고 느린 계산만 따로 늦게 보여주기 위해서', 'Suspense 없이는 async 컴포넌트를 만들 수 없기 때문에', 'ReadingTip이 클라이언트 컴포넌트이기 때문에']}
+  correctAnswer={2}
+  explanation="Suspense로 느린 부분만 감싸면 나머지 화면은 즉시 전달되고, 감싼 부분만 별도로 스트리밍되어 체감 속도가 빨라집니다."
+  optionExplanations={['에러 처리는 error.js의 역할입니다', '정답입니다', '서버 컴포넌트도 비동기로 만들 수 있습니다', 'ReadingTip은 서버 컴포넌트입니다']}
+/>
+
+## 참고 자료
+
+- [Next.js Docs — Fetching Data(Streaming 섹션)](https://nextjs.org/docs/app/getting-started/fetching-data)
+- [Next.js Docs — error.js 파일 컨벤션](https://nextjs.org/docs/app/api-reference/file-conventions/error)
+- [Next.js Docs — not-found.js 파일 컨벤션](https://nextjs.org/docs/app/api-reference/file-conventions/not-found)

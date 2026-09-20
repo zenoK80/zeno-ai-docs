@@ -1,0 +1,389 @@
+---
+title: '07. 파일 기반 mock DB와 Route Handler'
+description: 'db.json을 fs로 읽고 쓰는 lib/db.js와 REST 엔드포인트가 되는 Route Handler를 만듭니다'
+---
+
+<Callout type="info">
+  **이번 편의 결과물:** `/api/books`를 직접 호출하면 JSON 응답이 오고, 서버 컴포넌트도 같은 모듈로 목록을 읽어 렌더합니다. · **다루는 개념:** `lib/db.js`로 `db.json` 읽기/쓰기(Node `fs`), `app/api/books/route.js`(GET/POST), `app/api/books/[id]/route.js`(GET/PATCH/DELETE)
+</Callout>
+
+06편까지 `bookshelf-next`는 `data/books.seed.json`을 `import`해 화면에 그렸습니다. `import`는 빌드 시점에 값이 고정되므로 실행 중에 책을 추가·삭제할 수 없습니다. 이 편에서는 실제로 읽고 쓰는 `data/db.json`과 이를 다루는 `lib/db.js`, 외부에서 호출 가능한 REST 엔드포인트인 Route Handler를 만듭니다.
+
+## 이 편에서 만드는 파일
+
+```
+bookshelf-next/
+├── data/
+│   └── db.json                      + (실제로 읽고 쓰는 책·사용자 데이터)
+├── lib/
+│   └── db.js                        + (db.json을 읽고 쓰는 fs 기반 함수)
+└── app/
+    ├── books/
+    │   ├── page.js                  ~ (db.js의 getBooks 사용)
+    │   └── [bookId]/
+    │       └── page.js              ~ (db.js의 getBookById 사용)
+    └── api/
+        └── books/
+            ├── route.js             + (GET 목록 / POST 등록)
+            └── [id]/
+                └── route.js         + (GET 단건 / PATCH 수정 / DELETE 삭제)
+```
+
+## 개념 정리
+
+### import 대신 fs로 읽는 이유
+
+`books.seed.json`은 앞으로도 초기 데이터의 기준값으로 남겨둡니다. 반면 `db.json`은 실행 중에 실제로 바뀌는 데이터입니다. 서버 컴포넌트와 Route Handler는 모두 서버에서 실행되므로, 브라우저에서는 쓸 수 없는 Node의 `fs` 모듈로 파일을 직접 읽고 쓸 수 있습니다.
+
+### Route Handler 컨벤션
+
+`app` 디렉터리 안에 `route.js` 파일을 두면 그 경로가 REST 엔드포인트가 됩니다. `page.js`처럼 폴더 구조가 곧 경로이고, 대괄호 폴더(`[id]`)로 동적 경로도 그대로 씁니다.
+
+| 규칙 | 내용 |
+|---|---|
+| 파일명 | 반드시 `route.js`(또는 `route.ts`) |
+| 지원 메서드 | `GET`, `POST`, `PUT`, `PATCH`, `DELETE`, `HEAD`, `OPTIONS`를 함수 이름으로 export |
+| page.js와 공존 | 같은 세그먼트에 `page.js`와 `route.js`를 동시에 둘 수 없다 |
+| 기본 캐싱 | Route Handler는 기본적으로 캐시되지 않는다 |
+
+`app/books`에는 이미 `page.js`가 있으므로, API는 `app/api/books` 아래에 별도로 둡니다.
+
+### Route Handler의 params도 Promise
+
+05편에서 `page.js`가 받는 `params`가 Promise였던 것처럼, Route Handler의 두 번째 인자로 오는 `context.params`도 Promise입니다. 마찬가지로 `await`로 값을 꺼낸 뒤 사용합니다.
+
+```js
+export async function GET(request, { params }) {
+  const { id } = await params
+}
+```
+
+### 캐싱은 아직 다루지 않는다
+
+지금 방식대로 서버 컴포넌트가 `lib/db.js`를 직접 호출하는 것은 `fetch`가 아니므로 Next.js의 데이터 캐시 대상이 아닙니다. 개발 서버(`npm run dev`)에서는 요청마다 파일을 새로 읽으므로 항상 최신 값이 보입니다. `fetch`로 호출할 때의 캐싱 옵션은 08편에서 다룹니다.
+
+## 실습
+
+<Steps>
+
+### 1. db.json 내려받기
+
+`books.seed.json`과 같은 방식으로, 실제로 읽고 쓸 데이터 파일을 받습니다.
+
+```text
+curl -o data/db.json https://zeno.it.kr/practice/bookshelf/db.json
+```
+
+이 파일에는 `books` 배열(시드 데이터와 동일한 6권)과 `users` 배열(로그인용 계정 1명, 15편에서 사용)이 들어 있습니다.
+
+### 2. lib/db.js 작성
+
+```js
+// bookshelf-next/lib/db.js
+import fs from 'node:fs/promises'
+import path from 'node:path'
+
+const dbPath = path.join(process.cwd(), 'data', 'db.json')
+
+async function readDb() {
+  const raw = await fs.readFile(dbPath, 'utf-8')
+  return JSON.parse(raw)
+}
+
+async function writeDb(data) {
+  await fs.writeFile(dbPath, JSON.stringify(data, null, 2), 'utf-8')
+}
+
+export async function getBooks() {
+  const db = await readDb()
+  return db.books
+}
+
+export async function getBookById(id) {
+  const db = await readDb()
+  return db.books.find((book) => book.id === id)
+}
+
+export async function createBook(input) {
+  const db = await readDb()
+  const nextId = db.books.length > 0 ? Math.max(...db.books.map((book) => book.id)) + 1 : 1
+
+  const newBook = {
+    id: nextId,
+    title: input.title,
+    author: input.author,
+    status: input.status ?? 'wish',
+    rating: input.rating ?? 0,
+    pages: input.pages ?? 0,
+    coverColor: input.coverColor ?? '#94a3b8',
+    startedAt: input.startedAt ?? null,
+    finishedAt: input.finishedAt ?? null,
+    memo: input.memo ?? '',
+  }
+
+  db.books.push(newBook)
+  await writeDb(db)
+  return newBook
+}
+
+export async function updateBook(id, patch) {
+  const db = await readDb()
+  const index = db.books.findIndex((book) => book.id === id)
+
+  if (index === -1) {
+    return null
+  }
+
+  db.books[index] = { ...db.books[index], ...patch }
+  await writeDb(db)
+  return db.books[index]
+}
+
+export async function deleteBook(id) {
+  const db = await readDb()
+  const index = db.books.findIndex((book) => book.id === id)
+
+  if (index === -1) {
+    return false
+  }
+
+  db.books.splice(index, 1)
+  await writeDb(db)
+  return true
+}
+```
+
+`readDb`와 `writeDb`는 파일 밖으로 export하지 않습니다. 다른 파일은 반드시 `getBooks`, `createBook` 같은 함수를 통해서만 데이터에 접근합니다.
+
+### 3. 목록·상세 페이지가 db.js를 쓰도록 수정
+
+```js
+// bookshelf-next/app/books/page.js
+import Link from 'next/link'
+import { getBooks } from '@/lib/db.js'
+
+export default async function BooksPage() {
+  const books = await getBooks()
+
+  return (
+    <ul className="book-list">
+      {books.map((book) => (
+        <li key={book.id}>
+          <Link href={`/books/${book.id}`}>{book.title}</Link>
+          <p>{book.author}</p>
+        </li>
+      ))}
+    </ul>
+  )
+}
+```
+
+06편에서 넣었던 인위적 지연(`wait(1200)`)은 지웠습니다. `fs.readFile`은 로컬 파일이라 매우 빨라서 `loading.js` 스켈레톤이 거의 안 보일 수 있습니다. 로딩 화면을 다시 확인하고 싶다면 `lib/wait.js`의 `wait` 함수를 임시로 다시 넣어보면 됩니다.
+
+```js
+// bookshelf-next/app/books/[bookId]/page.js
+import { Suspense } from 'react'
+import { notFound } from 'next/navigation'
+import Link from 'next/link'
+import { getBookById } from '@/lib/db.js'
+import { wait } from '@/lib/wait.js'
+
+export default async function BookDetailPage({ params }) {
+  const { bookId } = await params
+  const book = await getBookById(Number(bookId))
+
+  if (!book) {
+    notFound()
+  }
+
+  return (
+    <article>
+      <p>
+        <Link href="/books">목록으로</Link>
+      </p>
+      <h1>{book.title}</h1>
+      <p>{book.author}</p>
+      <dl>
+        <dt>쪽수</dt>
+        <dd>{book.pages}쪽</dd>
+        <dt>상태</dt>
+        <dd>{book.status}</dd>
+        <dt>메모</dt>
+        <dd>{book.memo || '메모 없음'}</dd>
+      </dl>
+      <Suspense fallback={<p>추천 정보를 불러오는 중입니다...</p>}>
+        <ReadingTip pages={book.pages} />
+      </Suspense>
+    </article>
+  )
+}
+
+async function ReadingTip({ pages }) {
+  await wait(1500)
+  const days = Math.ceil(pages / 40)
+  return <p>하루 40쪽씩 읽으면 약 {days}일 만에 완독할 수 있습니다.</p>
+}
+```
+
+`book.id`와 `db.json`의 `id`는 모두 숫자이므로, 이전과 같이 `Number(bookId)`로 변환한 뒤 비교합니다.
+
+### 4. 책 목록 REST 엔드포인트 작성
+
+```js
+// bookshelf-next/app/api/books/route.js
+import { getBooks, createBook } from '@/lib/db.js'
+
+export async function GET() {
+  const books = await getBooks()
+  return Response.json(books)
+}
+
+export async function POST(request) {
+  const input = await request.json()
+
+  if (!input.title || !input.author) {
+    return Response.json({ error: 'title과 author는 필수입니다' }, { status: 400 })
+  }
+
+  const book = await createBook(input)
+  return Response.json(book, { status: 201 })
+}
+```
+
+`Response.json`은 브라우저와 Node.js가 함께 지원하는 표준 웹 API입니다. Next.js가 확장한 `NextResponse`를 쓰지 않아도 JSON 응답을 만들 수 있습니다.
+
+### 5. 책 한 권 REST 엔드포인트 작성
+
+```js
+// bookshelf-next/app/api/books/[id]/route.js
+import { getBookById, updateBook, deleteBook } from '@/lib/db.js'
+
+export async function GET(request, { params }) {
+  const { id } = await params
+  const book = await getBookById(Number(id))
+
+  if (!book) {
+    return Response.json({ error: '책을 찾을 수 없습니다' }, { status: 404 })
+  }
+
+  return Response.json(book)
+}
+
+export async function PATCH(request, { params }) {
+  const { id } = await params
+  const patch = await request.json()
+  const updated = await updateBook(Number(id), patch)
+
+  if (!updated) {
+    return Response.json({ error: '책을 찾을 수 없습니다' }, { status: 404 })
+  }
+
+  return Response.json(updated)
+}
+
+export async function DELETE(request, { params }) {
+  const { id } = await params
+  const deleted = await deleteBook(Number(id))
+
+  if (!deleted) {
+    return Response.json({ error: '책을 찾을 수 없습니다' }, { status: 404 })
+  }
+
+  return new Response(null, { status: 204 })
+}
+```
+
+### 6. 실행과 확인
+
+```text
+npm run dev
+```
+
+브라우저 주소창에 `http://localhost:3000/api/books`를 입력해 GET 응답을 확인합니다. 새 책을 등록하려면 개발자 도구 콘솔에서 아래 코드를 실행합니다.
+
+```js
+await fetch('/api/books', {
+  method: 'POST',
+  headers: { 'Content-Type': 'application/json' },
+  body: JSON.stringify({ title: '이펙티브 자바', author: '조슈아 블로크' }),
+}).then((res) => res.json())
+```
+
+</Steps>
+
+## 확인
+
+- `http://localhost:3000/api/books`를 열면 책 6권이 담긴 JSON 배열이 보입니다.
+- `http://localhost:3000/api/books/999`처럼 없는 id를 열면 상태 코드 404와 함께 에러 메시지가 보입니다.
+- 콘솔에서 POST 요청을 실행하면 `id`가 7인 새 책 객체가 응답으로 돌아옵니다.
+- `/books`를 새로고침하면 방금 추가한 책이 목록 맨 아래에 보입니다.
+- `data/db.json` 파일을 직접 열어보면 방금 추가한 책이 실제로 저장되어 있습니다.
+
+## 직접 해보기
+
+1. 개발자 도구 콘솔에서 `DELETE` 메서드로 방금 추가한 7번 책을 지워보세요.
+2. `books.seed.json`과 `db.json`을 각각 어떤 방식으로 읽는지(`import` vs `fs`) 비교해 설명해보세요.
+
+<details>
+<summary>정답 보기</summary>
+
+```js
+await fetch('/api/books/7', { method: 'DELETE' })
+```
+
+상태 코드 204와 함께 빈 응답이 오고, `data/db.json`을 다시 열어보면 7번 책이 사라져 있습니다.
+
+`books.seed.json`은 `app/page.js` 같은 파일에서 `import`로 가져오므로 값이 빌드 시점에 고정됩니다. `db.json`은 `lib/db.js`가 `fs.readFile`로 매 요청마다 다시 읽으므로, 파일 내용이 바뀌면 다음 요청부터 바로 반영됩니다.
+
+</details>
+
+## 자주 하는 실수
+
+| 증상 | 원인 | 고치는 법 |
+|------|------|-----------|
+| `/api/books`가 404 | 파일명이 `route.js`가 아니라 다른 이름 | `app/api/books/route.js`로 정확한 파일명을 확인한다 |
+| POST 요청에서 request.json() 에러 | `Content-Type: application/json` 헤더를 안 보냄 | fetch 옵션에 헤더를 추가하고 body는 `JSON.stringify`로 문자열화한다 |
+| 책을 추가해도 db.json이 그대로임 | `writeDb`를 호출하지 않고 배열만 조작함 | `db.books.push` 뒤에 반드시 `await writeDb(db)`를 호출한다 |
+| `/api/books/abc` 호출 시 500 에러 | `Number('abc')`가 `NaN`이 되는 것을 고려하지 않음 | `getBookById`가 못 찾으면 404를 반환하도록 이미 처리되어 있는지 확인한다 |
+
+## 확인 문제
+
+<Quiz
+  questionNumber={1}
+  question="이 편에서 db.json을 다루는 방식으로 books.seed.json의 import 대신 fs를 쓰는 이유는"
+  options={['fs가 import보다 문법이 짧아서', '실행 중에 파일 내용을 다시 읽고 쓸 수 있어야 해서', 'JSON 파일은 fs로만 읽을 수 있어서', '브라우저가 fs를 지원하지 않기 때문에']}
+  correctAnswer={2}
+  explanation="import는 빌드 시점에 값이 고정되지만, fs로 읽으면 매 요청마다 최신 파일 내용을 읽어 실행 중 변경을 반영할 수 있습니다."
+  optionExplanations={['문법 길이가 이유는 아닙니다', '정답입니다', 'import로도 JSON을 읽을 수 있습니다', '이 코드는 서버에서만 실행되므로 브라우저 지원 여부와 무관합니다']}
+/>
+
+<Quiz
+  questionNumber={2}
+  question="app 디렉터리에서 REST 엔드포인트를 만들 때 파일명 규칙은"
+  options={['handler.js', 'route.js', 'api.js', 'endpoint.js']}
+  correctAnswer={2}
+  explanation="App Router에서 Route Handler는 반드시 route.js(또는 route.ts) 파일명을 써야 인식됩니다."
+  optionExplanations={['정해진 컨벤션이 아닙니다', '정답입니다', 'App Router의 파일 컨벤션이 아닙니다', 'App Router의 파일 컨벤션이 아닙니다']}
+/>
+
+<Quiz
+  questionNumber={3}
+  question="app/api/books/[id]/route.js에서 GET 함수의 두 번째 인자로 받는 params를 다루는 방법은"
+  options={['params.id로 바로 접근한다', 'params는 Promise이므로 await로 꺼낸 뒤 사용한다', 'params는 항상 문자열 하나뿐이다', 'Route Handler에는 params가 전달되지 않는다']}
+  correctAnswer={2}
+  explanation="동적 세그먼트의 params는 page.js와 마찬가지로 Route Handler에서도 Promise이므로 await params로 값을 꺼내야 합니다."
+  optionExplanations={['바로 접근하면 타입 오류가 납니다', '정답입니다', '여러 필드를 담은 객체입니다', '동적 세그먼트라면 params가 전달됩니다']}
+/>
+
+<Quiz
+  questionNumber={4}
+  question="같은 books 세그먼트 아래 page.js와 route.js를 함께 둘 수 있는가"
+  options={['같은 세그먼트에는 둘 수 없다', '항상 함께 두어야 한다', '이름만 다르면 몇 개든 둘 수 있다', '레이아웃 파일이 있으면 함께 둘 수 있다']}
+  correctAnswer={1}
+  explanation="page.js와 route.js는 같은 라우트 세그먼트를 동시에 차지할 수 없으므로, 이 과목은 API를 app/api 아래 별도 경로에 둡니다."
+  optionExplanations={['정답입니다', '함께 둘 필요는 없습니다', '같은 세그먼트에서는 충돌합니다', '레이아웃 유무와 무관하게 충돌합니다']}
+/>
+
+## 참고 자료
+
+- [Next.js Docs — Route Handlers](https://nextjs.org/docs/app/getting-started/route-handlers)

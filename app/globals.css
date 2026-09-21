@@ -50,6 +50,23 @@ article table {
   max-width: 100%;
 }
 
+/* 긴 수식 블록은 페이지를 밀지 않고 자기 영역 안에서만 가로 스크롤 */
+article .katex-display {
+  overflow-x: auto;
+  overflow-y: hidden;
+  max-width: 100%;
+  padding: 0.25rem 0;
+}
+
+article .katex-display > .katex {
+  white-space: nowrap;
+}
+
+/* 본문 컨테이너가 자식 때문에 화면보다 넓어지지 않게 */
+article {
+  min-width: 0;
+}
+
 /* 표 셀은 단어 중간에서 끊지 않는다 */
 article table th,
 article table td {

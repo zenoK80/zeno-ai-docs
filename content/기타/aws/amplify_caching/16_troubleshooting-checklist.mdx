@@ -1,0 +1,136 @@
+---
+title: '16. 캐시 트러블슈팅 체크리스트 (마무리)'
+description: '캐시가 안 먹거나, 인스턴스마다 다르거나, 갱신이 안 되거나, 재배포해도 옛 값이 보일 때 원인과 해결 편을 정리합니다'
+---
+
+<Callout type="info">
+  **이번 편의 결과물:** 지금까지 만든 `notice-board`의 캐시 계층별 설정을 체크리스트로 점검해, 남은 미해결 항목이 없는지 최종 확인합니다. · **다루는 개념:** 증상별(캐시 미적용, 인스턴스 간 불일치, 재검증 실패, 재배포 후 옛 값) 원인·확인 헤더·해결 편 정리
+</Callout>
+
+01편부터 15편까지 CDN 캐시, Next.js 캐시 4층, 인스턴스 간 공유 문제, DynamoDB `cacheHandler`, 빌드 캐시, 관측 절차를 순서대로 만들었습니다. 이 편은 새 기능을 추가하지 않고, 지금까지 겪을 수 있는 문제를 증상별로 정리해 실제로 문제가 생겼을 때 바로 찾아볼 수 있는 표로 만듭니다.
+
+## 이 편에서 만드는 파일
+
+새로 만드는 파일은 없습니다. 지금까지 만든 아래 파일들을 점검 대상으로 다시 훑습니다.
+
+```
+notice-board/
+├── next.config.mjs                       (커스텀 헤더, cacheHandler 설정)
+├── cache-handler.js                       (DynamoDB 기반 캐시 저장소)
+├── amplify.yml                            (빌드 캐시 경로)
+├── lib/
+│   ├── notices-store.js                   (공지사항 인메모리 저장소)
+│   └── view-counts.js                     (DynamoDB 기반 조회수 저장소)
+├── app/page.js                            (홈, ISR 대상)
+├── app/notices/[id]/page.js               (상세 페이지)
+├── app/api/notices/route.js               (목록 API, fetch 데이터 캐시 대상)
+├── app/api/notices/[id]/route.js          (단건 API)
+├── app/api/notices/[id]/views/route.js    (조회수 증가 API)
+└── scripts/inspect-cache.mjs              (헤더 점검 스크립트)
+```
+
+## 개념 정리
+
+이 과목에서 다룬 캐시 계층은 다섯 가지입니다. CDN(05, 11편), Next.js 데이터 캐시(06편), 전체 라우트 캐시·ISR(07편), 클라이언트 라우터 캐시·요청 메모이제이션(08편), 그리고 인스턴스 간 공유를 위한 DynamoDB `cacheHandler`(13편)입니다. 문제가 생기면 이 다섯 중 어디서 어긋났는지부터 좁혀야 하므로, 아래 체크리스트는 증상을 계층별 원인으로 연결하는 순서로 구성했습니다.
+
+## 실습
+
+<Steps>
+
+### 1. 증상별 체크리스트 확인
+
+아래 표에서 겪고 있는 증상과 가장 가까운 행을 찾아, 확인할 헤더·로그와 원인, 그리고 자세한 내용을 다시 볼 편을 확인합니다.
+
+| 증상 | 확인할 헤더/로그 | 원인 | 해결 편 |
+|------|--------------------|------|---------|
+| 페이지가 매번 새로 렌더링되고 전혀 캐시되지 않음 | `cache-control`이 `private, no-cache`인지 | 페이지 안에서 `cookies`/`headers` 같은 동적 API를 써서 자동으로 동적 렌더링으로 판정됨 | 07편 |
+| `fetch` 결과가 캐시되지 않고 매번 새로 요청됨 | 서버 콘솔 로그(요청 도달 여부), `fetch` 옵션 | `fetch`에 `no-store`를 주거나 옵션을 아예 안 줘서 기본값이 의도와 다름 | 06편 |
+| 로컬에서는 캐시가 잘 되는데 배포 환경에서는 안 되는 것처럼 보임 | `x-cache`, `age` | 개발 모드(`next dev`)는 항상 매번 새로 렌더링하므로 로컬 확인만으로는 판단할 수 없음 | 07편 |
+| 반복 요청마다 응답 값(조회수 등)이 순서 없이 들쭉날쭉함 | 응답 바디의 `views`·`instanceId` 값 변화 패턴 | 인스턴스별로 격리된 로컬 상태(`Map`)나 Next.js 로컬 캐시를 컴퓨트 인스턴스마다 따로 가짐 | 09, 13편 |
+| DynamoDB로 옮긴 뒤에도 값이 여전히 인스턴스마다 다름 | CloudWatch 로그의 에러 여부 | Compute Role 연결을 저장하지 않았거나 신뢰 정책이 틀려 DynamoDB 호출이 조용히 실패함 | 13편 |
+| 공지사항을 등록해도 목록에 바로 반영되지 않음 | 등록 직후 목록 페이지의 `age`/`x-cache` | `revalidatePath`/`revalidateTag`(온디맨드 재검증)를 Amplify Hosting compute가 지원하지 않음 | 10편 |
+| 재검증 주기를 줄였는데도 갱신이 여전히 느림 | `cache-control`의 `s-maxage` 값 | 시간 기반 `revalidate` 값 자체가 여전히 크게 설정돼 있음 | 07, 10편 |
+| 재배포해서 내용을 수정했는데도 옛 값이 계속 보임 | 재배포 전후 `age`(0으로 리셋되는지) | CloudFront 무효화가 아직 전파되지 않았거나 브라우저 자체 캐시를 보고 있음 | 11편 |
+| 재배포 직후 잠깐 옛 값과 새 값이 섞여 보임 | 여러 차례 새로고침한 타임라인 | 무효화가 전파되는 동안 엣지 위치마다 갱신 시점이 다름(정상 범위의 지연) | 11편 |
+| 빌드할 때마다 시간이 오래 걸림 | 콘솔 빌드 로그의 단계별 소요 시간 | `amplify.yml`에 `cache.paths`가 없거나 캐시 경로가 잘못됨 | 14편 |
+
+### 2. notice-board 라우트별 최종 점검
+
+GET 라우트는 15편에서 만든 `scripts/inspect-cache.mjs`로, 조회수 API처럼 POST로만 호출하는 라우트는 09·13편에서 쓴 반복 요청 스크립트로 확인합니다. 아래 표에 각 라우트가 기대한 계층에서 응답을 받는지 통과·실패로 표시합니다.
+
+| 라우트 | 기대하는 계층 | 통과 여부 |
+|--------|-----------------|-----------|
+| `/`(60초 ISR) | CDN 히트 또는 `s-maxage=60` | (기록) |
+| `/notices/1`(상세) | 라우터 캐시(같은 세션 재방문 시) | (기록) |
+| `/api/notices`(목록 API) | 데이터 캐시(`force-cache`) | (기록) |
+| `/api/notices/1/views`(조회수 API, POST 반복 호출) | DynamoDB로 인스턴스 간 `views` 값 일치 | (기록) |
+
+### 3. 실패 항목 재확인
+
+통과하지 못한 라우트가 있다면, 1단계 표에서 증상이 가장 비슷한 행을 찾아 해당 편으로 돌아가 설정을 다시 확인합니다.
+
+</Steps>
+
+## 직접 해보기
+
+1. `lib/view-counts.js`를 13편 이전의 `Map` 버전으로 잠시 되돌려 재배포한 뒤, 조회수 API를 반복 호출해 09편의 현상(값이 들쭉날쭉함)이 다시 나타나는지 확인하고 13편의 DynamoDB 버전으로 되돌려 보세요.
+2. 1단계 표에 없는 새로운 증상을 하나 만들어(예: 특정 브라우저에서만 옛 값이 보임) 원인과 해결 편을 스스로 추가해 보세요.
+
+<details>
+<summary>정답 보기</summary>
+
+`view-counts.js`를 `Map` 버전으로 되돌리면 조회수 저장소가 다시 컴퓨트 인스턴스 로컬 메모리에만 존재하게 되어, 09편에서 본 것처럼 인스턴스마다 다른 값이 나타납니다. 이는 `cacheHandler`(Next.js 내부 캐시)와 무관하게, 애플리케이션이 직접 관리하는 상태를 어디에 두느냐의 문제임을 다시 확인시켜 줍니다. 특정 브라우저에서만 옛 값이 보이는 경우는 대개 그 브라우저의 디스크 캐시나 서비스 워커가 원인이며, 해결은 서버 쪽 편이 아니라 브라우저 캐시를 지우거나 `Cache-Control`에 `no-cache` 검증 옵션을 추가하는 방향이 됩니다.
+
+</details>
+
+## 자주 하는 실수
+
+| 증상 | 원인 | 고치는 법 |
+|------|------|-----------|
+| 헤더 하나만 보고 바로 원인을 확정함 | `x-cache`만 확인하고 `cache-control`이나 로그는 안 봄 | 15편의 판별 순서대로 최소 두 가지 이상 근거를 함께 확인한다 |
+| 로컬 환경에서 인스턴스 간 불일치를 재현하려 함 | 로컬은 인스턴스가 하나뿐이라 애초에 재현되지 않음 | 인스턴스 간 문제는 반드시 배포 환경에서 확인한다 |
+| 재배포 직후 1–2분 안의 결과만 보고 무효화 실패로 단정함 | CDN 무효화 전파에는 어느 정도 시간이 걸림 | 몇 분 간격으로 다시 확인한 뒤 계속 옛 값이면 그때 원인을 좁힌다 |
+
+## 확인 문제
+
+<Quiz
+  questionNumber={1}
+  question="반복 요청마다 인스턴스 식별자와 함께 조회수 값도 요청마다 들쭉날쭉할 때 가장 먼저 의심할 것은"
+  options={['CDN 헤더 설정 오류', '인스턴스별로 격리된 로컬 상태(Map)나 로컬 캐시를 컴퓨트 인스턴스마다 따로 가짐', 'DynamoDB 요금제 문제', 'amplify.yml의 baseDirectory 설정']}
+  correctAnswer={2}
+  explanation="09편에서 재현한 대로, 값 불일치는 로컬 상태나 로컬 캐시가 인스턴스마다 격리돼 있기 때문이며 13편에서 DynamoDB 공유 저장소로 옮겨 해소합니다."
+  optionExplanations={['CDN 헤더는 이 증상의 직접 원인이 아닙니다', '정답입니다', '요금제 문제는 다른 증상으로 나타납니다', 'baseDirectory는 배포 위치 문제입니다']}
+/>
+
+<Quiz
+  questionNumber={2}
+  question="공지사항을 등록한 직후 목록에 바로 반영되지 않는 근본 원인은"
+  options={['DynamoDB 테이블이 가득 차서', 'Amplify Hosting compute가 온디맨드 ISR(revalidatePath/revalidateTag)을 지원하지 않아서', 'CloudFront가 요청을 거부해서', 'amplify.yml에 cache.paths가 없어서']}
+  correctAnswer={2}
+  explanation="10편에서 확인했듯 Amplify Hosting compute는 온디맨드 재검증을 공식적으로 지원하지 않아, 시간 기반 재검증으로 우회해야 합니다."
+  optionExplanations={['테이블 용량과는 무관합니다', '정답입니다', 'CloudFront 거부와는 다른 문제입니다', 'cache.paths는 빌드 캐시로 별개입니다']}
+/>
+
+<Quiz
+  questionNumber={3}
+  question="DynamoDB cacheHandler를 붙였는데도 인스턴스마다 값이 다르다면 가장 먼저 확인할 것은"
+  options={['CloudFront TTL 값', 'Compute Role이 실제로 연결됐는지와 CloudWatch 로그의 DynamoDB 호출 에러 여부', '브라우저 쿠키 설정', 'package.json의 버전 번호']}
+  correctAnswer={2}
+  explanation="Compute Role 연결 누락이나 신뢰 정책 오류로 DynamoDB 호출이 조용히 실패하면 Next.js가 기본 로컬 캐시로 되돌아갈 수 있으므로 로그부터 확인합니다."
+  optionExplanations={['CDN TTL은 이 증상과 무관합니다', '정답입니다', '쿠키 설정과는 무관합니다', '버전 번호는 직접적 원인이 아닙니다']}
+/>
+
+<Quiz
+  questionNumber={4}
+  question="재배포 직후 잠깐 옛 값과 새 값이 섞여 보이는 것을 곧바로 장애로 판단하면 안 되는 이유는"
+  options={['항상 정상이므로 아예 확인할 필요가 없다', 'CDN 무효화가 여러 엣지 위치에 전파되는 동안 생기는 정상 범위의 지연일 수 있어서', 'DynamoDB가 원래 느리기 때문에', 'Next.js 캐시는 재배포와 무관하게 항상 섞여 보이기 때문에']}
+  correctAnswer={2}
+  explanation="11편에서 다뤘듯 무효화 전파에는 시간차가 있으므로, 몇 분 뒤에도 계속 섞여 보이는지 먼저 확인한 뒤 장애 여부를 판단합니다."
+  optionExplanations={['짧은 지연은 있을 수 있어 확인은 필요합니다', '정답입니다', 'DynamoDB 속도와는 무관합니다', '재배포와 무관하게 항상 섞이는 것은 아닙니다']}
+/>
+
+## 참고 자료
+
+- [AWS Amplify Docs — Amplify support for Next.js(지원·미지원 기능 목록)](https://docs.aws.amazon.com/amplify/latest/userguide/ssr-amplify-support.html)
+- [Amazon CloudFront Developer Guide — Manage how long content stays in the cache(expiration)](https://docs.aws.amazon.com/AmazonCloudFront/latest/DeveloperGuide/Expiration.html)
+- [Next.js Docs — How to self-host your Next.js application(Multi-Instance Cache Coordination)](https://nextjs.org/docs/app/guides/self-hosting)

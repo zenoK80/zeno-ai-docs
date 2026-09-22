@@ -32,6 +32,7 @@ import {
   TbChartHistogram,
   TbChartPie,
   TbCircuitDiode,
+  TbCloud,
   TbCode,
   TbCodeDots,
   TbCpu,
@@ -104,6 +105,7 @@ function groupLogo(title: string): { Icon: typeof SiHtml5; color: string } {
   if (title.includes('TypeScript')) return { Icon: SiTypescript, color: '#3178c6' }
   if (title.includes('React')) return { Icon: SiReact, color: '#149eca' }
   if (title.includes('독학사')) return { Icon: TbSchool, color: '#0b5fb2' }
+  if (title.includes('AWS')) return { Icon: TbCloud, color: '#ff9900' }
   if (title.includes('피아노') || title.includes('기타')) return { Icon: TbPiano, color: '#7c3aed' }
   return { Icon: TbCertificate, color: '#1b7f5f' }
 }
@@ -154,6 +156,7 @@ const seriesLogos: Record<string, { Icon: typeof SiHtml5; color: string }> = {
   재즈피아노_기초: { Icon: TbPiano, color: '#7c3aed' },
   재즈피아노_중급: { Icon: TbPiano, color: '#7c3aed' },
   재즈피아노_고급: { Icon: TbPiano, color: '#7c3aed' },
+  amplify_caching: { Icon: TbCloud, color: '#ff9900' },
   typescript_fundamentals: { Icon: SiTypescript, color: '#3178c6' },
   nextjs: { Icon: SiNextdotjs, color: '#151515' },
   coding_test: { Icon: TbCode, color: '#d4a900' },

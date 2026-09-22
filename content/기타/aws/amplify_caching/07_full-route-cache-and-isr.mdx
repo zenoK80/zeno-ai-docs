@@ -1,0 +1,192 @@
+---
+title: '07. 전체 라우트 캐시와 시간 기반 ISR'
+description: '홈 화면을 fetch 기반으로 바꾸고 revalidate를 적용해, 60초마다 다시 생성되는 것을 응답 헤더로 확인합니다'
+---
+
+<Callout type="info">
+  **이번 편의 결과물:** 공지사항 목록 페이지(`/`)가 정적 import 대신 mock API를 fetch해 렌더되고, 60초마다 다시 생성됩니다. 재검증 시점 전후로 age 헤더가 0으로 리셋되는 것을 확인합니다. · **다루는 개념:** 정적/동적 렌더링 판정 기준, `next.revalidate` 옵션으로 ISR 설정, 재검증 전후 cache-control·age 비교
+</Callout>
+
+03편의 홈 화면은 `notices.seed.json`을 직접 import해서 렌더링했습니다. 배포 시점에 딱 한 번 만들어진 그대로라, 공지사항이 추가돼도 재배포 전까지는 절대 바뀌지 않습니다. 이 편에서는 06편에서 만든 mock API를 fetch로 불러오도록 바꾸고, revalidate로 "60초에 한 번은 다시 확인"하는 규칙을 추가합니다.
+
+## 이 편에서 만드는 파일
+
+```
+notice-board/
+├── customHttp.yml    (~, / 오버라이드를 제거해 Next.js가 실제로 보내는 헤더를 관찰)
+└── app/
+    └── page.js        (~, notices.seed.json 직접 import 대신 fetch + revalidate로 전환)
+```
+
+## 개념 정리
+
+### 정적/동적을 가르는 기준
+
+Next.js는 페이지 안에서 Request-time API(`cookies()`, `headers()`, 검색 파라미터 등)를 쓰는지로 정적/동적을 가릅니다.
+
+| 조건 | 렌더링 방식 | 캐시 여부 |
+|------|-------------|-----------|
+| Request-time API를 쓰지 않음 | 정적(빌드 또는 첫 요청 시점에 한 번 렌더) | 전체 라우트 캐시(Full Route Cache) 대상 |
+| Request-time API를 씀 | 동적(요청마다 새로 렌더) | 캐시되지 않음(private, no-store) |
+
+지금 만드는 홈 화면은 fetch만 쓰고 Request-time API를 쓰지 않으므로 정적으로 분류됩니다.
+
+### revalidate로 정적 페이지에 유효기간 걸기
+
+정적 페이지는 원래 무기한 캐시됩니다(재배포 전까지 그대로). fetch의 `next.revalidate` 옵션에 초 단위 숫자를 주면, 그 시간이 지난 뒤 들어오는 요청이 백그라운드에서 페이지를 다시 만들고 그 결과를 CDN까지 전달합니다. 이 방식이 시간 기반 ISR(Incremental Static Regeneration)입니다.
+
+```js
+fetch(url, { next: { revalidate: 60 } })
+```
+
+같은 라우트에 여러 fetch가 있고 서로 다른 revalidate 값을 주면, 가장 짧은 값이 라우트 전체의 재검증 주기가 됩니다.
+
+### ISR 페이지가 자동으로 갖는 Cache-Control
+
+Next.js는 ISR 페이지의 응답에 `s-maxage=<revalidate 값>, stale-while-revalidate` 형태의 Cache-Control을 자동으로 붙입니다. revalidate를 지정하지 않은 완전 정적 페이지는 사실상 1년에 가까운 값이 붙습니다.
+
+### 05편의 오버라이드가 이 값을 가린다
+
+05편에서 홈 화면(`/`)에 `s-maxage=30` 커스텀 헤더를 걸어뒀습니다. Amplify는 origin이 보낸 값을 커스텀 헤더로 대체하므로, 지금 홈 화면에 revalidate를 추가해도 curl로 보이는 값은 여전히 30입니다. Next.js가 실제로 무엇을 계산해서 보내는지 확인하려면, 먼저 이 오버라이드를 없애야 합니다.
+
+## 실습
+
+<Steps>
+
+### 1. 05편 오버라이드 제거
+
+```yaml
+# customHttp.yml
+customHeaders: []
+```
+
+빈 배열로 바꿔 적용 중인 커스텀 헤더가 없게 합니다. 파일 자체를 삭제해도 됩니다.
+
+### 2. 홈 화면을 fetch 기반으로 전환
+
+```js
+// app/page.js
+import Link from 'next/link';
+
+async function getNotices() {
+  const baseUrl = process.env.NEXT_PUBLIC_BASE_URL ?? 'http://localhost:3000';
+  const response = await fetch(`${baseUrl}/api/notices`, {
+    next: { revalidate: 60 },
+  });
+
+  if (!response.ok) {
+    throw new Error('공지사항 목록을 가져오지 못했습니다');
+  }
+  return response.json();
+}
+
+export default async function HomePage() {
+  const notices = await getNotices();
+
+  return (
+    <section>
+      <h1>공지사항</h1>
+      <ul>
+        {notices.map((notice) => (
+          <li key={notice.id}>
+            <Link href={`/notices/${notice.id}`}>{notice.title}</Link>
+            <span className="notice-date">{notice.publishedAt}</span>
+          </li>
+        ))}
+      </ul>
+    </section>
+  );
+}
+```
+
+`notices.seed.json`을 직접 import하던 자리를 06편에서 만든 `/api/notices`를 fetch하는 코드로 바꿨습니다. 06편의 mock API는 시드 데이터의 필드 이름을 그대로 응답에 내보내므로, 여기서도 `notice.publishedAt`을 그대로 씁니다. `revalidate: 60`을 지정해 이 라우트의 캐시 유효기간을 60초로 설정합니다. 상세 페이지(`/notices/[id]`)는 아직 없으므로 이 `Link`는 08편에서 실제로 연결됩니다.
+
+### 3. 배포
+
+```bash
+git add customHttp.yml app/page.js
+git commit -m "홈 화면을 fetch + 60초 ISR로 전환하고 05편 오버라이드 정리"
+git push
+```
+
+### 4. 재배포 후 헤더로 재검증 주기 확인
+
+```bash
+curl -I https://main.d1234567890abc.amplifyapp.com/
+```
+
+```text
+HTTP/2 200
+content-type: text/html; charset=utf-8
+cache-control: s-maxage=60, stale-while-revalidate
+x-cache: Miss from cloudfront
+age: 0
+```
+
+오버라이드를 걷어내니 `cache-control`이 Next.js가 실제로 계산한 `s-maxage=60`으로 보입니다. 30초 뒤 다시 요청하면 `x-cache: Hit from cloudfront`와 함께 `age`가 `30` 안팎으로 나오고, 60초를 넘긴 뒤 요청하면 `age`가 다시 `0`으로 리셋됩니다.
+
+</Steps>
+
+## 직접 해보기
+
+1. `revalidate` 값을 `10`으로 낮춰 재배포하고, 10초 간격으로 `curl -I`를 반복해 `age`가 얼마나 자주 리셋되는지 확인해보세요.
+2. `data/notices.seed.json`에 새 공지사항을 추가하고 재배포한 뒤, 홈 화면에 반영되기까지 걸리는 시간을 재검증 주기와 비교해보세요.
+
+<details>
+<summary>정답 보기</summary>
+
+`revalidate: 10`으로 바꾸면 10초마다 `age`가 `0`으로 리셋됩니다. `notices.seed.json`을 바꾼 뒤 재배포하면 Amplify가 완전히 새 빌드를 배포하므로, ISR의 60초(또는 10초) 주기와 무관하게 재배포 직후 바로 새 내용이 보입니다. ISR의 재검증 주기는 코드는 그대로인데 데이터만 바뀌는 상황(예: 외부 API 데이터 변경)에 의미가 있습니다.
+
+</details>
+
+## 자주 하는 실수
+
+| 증상 | 원인 | 고치는 법 |
+|------|------|-----------|
+| cache-control이 여전히 30으로 보임 | 05편의 customHttp.yml 오버라이드를 지우지 않음 | customHeaders를 빈 배열로 바꾸거나 파일을 삭제하고 재배포한다 |
+| age가 60초가 지나도 계속 커짐 | 재검증 시점에 트래픽이 없어 아무도 재생성을 트리거하지 않음 | ISR은 유효기간이 지난 뒤 요청이 와야 재생성된다. 직접 요청을 보내본다 |
+| 로컬(npm run dev)에서는 캐시 동작이 안 보임 | 개발 모드는 페이지를 매번 새로 렌더해 캐시를 확인할 수 없음 | 프로덕션 빌드로 실행하거나 배포 환경에서 확인한다 |
+
+## 확인 문제
+
+<Quiz
+  questionNumber={1}
+  question="Next.js가 페이지를 정적/동적으로 가르는 기준은"
+  options={['페이지 파일 크기', 'Request-time API(cookies, headers 등) 사용 여부', '컴포넌트 이름이 대문자로 시작하는지', 'CSS 파일을 쓰는지 여부']}
+  correctAnswer={2}
+  explanation="쿠키·헤더처럼 요청 시점에만 알 수 있는 정보를 쓰는지가 정적/동적 렌더링을 가르는 기준입니다."
+  optionExplanations={['파일 크기는 렌더링 방식과 무관합니다', '정답입니다', '이름 규칙은 React 컴포넌트 문법일 뿐입니다', 'CSS 사용 여부와는 무관합니다']}
+/>
+
+<Quiz
+  questionNumber={2}
+  question="fetch에 next 옵션으로 revalidate를 60으로 주면 어떤 뜻인가"
+  options={['60번 요청할 때까지 캐시한다', '60초가 지난 뒤 들어오는 요청이 백그라운드에서 데이터를 다시 가져오게 한다', '60ms 안에 응답이 없으면 요청을 취소한다', '캐시를 아예 쓰지 않는다']}
+  correctAnswer={2}
+  explanation="revalidate는 초 단위 유효기간으로, 그 시간이 지난 뒤의 요청이 백그라운드에서 데이터를 다시 가져오도록 만듭니다."
+  optionExplanations={['횟수가 아니라 시간 기준입니다', '정답입니다', '타임아웃 설정이 아닙니다', 'no-store와 혼동한 설명입니다']}
+/>
+
+<Quiz
+  questionNumber={3}
+  question="05편의 customHttp.yml 오버라이드를 지우지 않은 채 revalidate를 추가하면 curl 결과에서 cache-control이 어떻게 보이는가"
+  options={['Next.js가 계산한 s-maxage=60이 바로 보인다', '05편에서 설정한 s-maxage=30이 그대로 보인다', 'cache-control 헤더 자체가 사라진다', '항상 no-store로 바뀐다']}
+  correctAnswer={2}
+  explanation="Amplify 커스텀 헤더는 origin의 값을 대신하므로, 오버라이드를 지우기 전까지는 Next.js가 새로 계산한 값이 아니라 05편에서 설정한 값이 그대로 보입니다."
+  optionExplanations={['오버라이드가 남아있으면 가려집니다', '정답입니다', '헤더가 사라지지 않고 오버라이드 값으로 대체됩니다', 'no-store로 바뀌는 것이 아니라 지정한 값이 유지됩니다']}
+/>
+
+<Quiz
+  questionNumber={4}
+  question="notices.seed.json 시드 데이터를 고쳐 재배포했을 때 홈 화면에 즉시 반영되는 이유는"
+  options={['revalidate 값이 0이기 때문에', '재배포는 완전히 새 빌드를 배포하는 것이라 ISR의 재검증 주기와 무관하게 새 콘텐츠가 바로 나가기 때문에', 'ISR이 재배포 시 자동으로 비활성화되기 때문에', '캐시가 손상되어 항상 새로 렌더되기 때문에']}
+  correctAnswer={2}
+  explanation="재배포는 새로운 빌드를 통째로 내보내는 과정이라, 이전 ISR 캐시와 무관하게 새 콘텐츠가 즉시 반영됩니다."
+  optionExplanations={['revalidate 값과는 무관합니다', '정답입니다', 'ISR이 꺼지는 것이 아니라 새 빌드로 대체되는 것입니다', '캐시 손상이 아니라 정상적인 재배포 동작입니다']}
+/>
+
+## 참고 자료
+
+- [Next.js Docs — Caching and Revalidating (Previous Model)](https://nextjs.org/docs/app/guides/caching-without-cache-components)
+- [Next.js Docs — fetch API Reference](https://nextjs.org/docs/app/api-reference/functions/fetch)
+- [Next.js Docs — How to self-host your Next.js application (Caching and ISR)](https://nextjs.org/docs/app/guides/self-hosting)

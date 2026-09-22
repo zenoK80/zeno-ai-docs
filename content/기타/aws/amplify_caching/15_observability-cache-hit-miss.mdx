@@ -1,0 +1,182 @@
+---
+title: '15. 관측: CloudWatch 로그와 헤더 종합 판독'
+description: 'x-cache, age, cache-control 헤더와 CloudWatch 로그를 조합해 어느 캐시 계층이 응답을 만들었는지 판별합니다'
+---
+
+<Callout type="info">
+  **이번 편의 결과물:** 임의의 페이지 요청 하나를 두고 어느 캐시 계층(CDN, 데이터 캐시, 라우트 캐시, 캐시 없음)이 응답을 만들었는지 헤더만으로 판정하는 절차를, `notice-board`의 모든 라우트에 적용해 봅니다. · **다루는 개념:** `x-cache` 값별 의미, CloudWatch Hosting compute logs 확인 절차, 캐시 계층 판별 우선순위
+</Callout>
+
+05~13편에서 각 캐시 계층을 하나씩 다뤘습니다. 이 편은 그 지식을 합쳐, 응답 하나를 보고 "이건 어느 계층이 만든 응답인가"를 순서대로 판단하는 절차를 만듭니다.
+
+## 이 편에서 만드는 파일
+
+```
+notice-board/
+└── scripts/
+    └── inspect-cache.mjs    + (여러 라우트에 요청을 보내 헤더를 표로 출력)
+```
+
+## 개념 정리
+
+### 헤더 세 개의 역할
+
+| 헤더 | 누가 붙이는가 | 의미 |
+|------|----------------|------|
+| `x-cache` | CloudFront | 이 요청을 CDN 캐시에서 바로 줬는지, 오리진(컴퓨트)까지 다녀왔는지 |
+| `age` | CloudFront | 지금 응답이 캐시에 저장된 뒤 몇 초가 지났는지 |
+| `cache-control` | Next.js/컴퓨트 | 이 응답을 얼마나 오래, 어떤 조건으로 캐시해도 되는지에 대한 원본의 지시 |
+
+### x-cache 값 읽는 법
+
+| 값 | 의미 |
+|----|------|
+| `Hit from cloudfront` | 유효한 캐시 사본을 엣지에서 바로 반환. 컴퓨트는 실행되지 않음 |
+| `RefreshHit from cloudfront` | 캐시가 오래됐지만 오리진에 재검증해 그대로 써도 된다고 확인받은 뒤 반환 |
+| `Miss from cloudfront` | 엣지에 캐시가 없어 오리진(컴퓨트)까지 요청이 도달함 |
+| `Error from cloudfront` | 오리진 또는 CloudFront 자체에서 오류가 발생함 |
+
+### 판별 순서
+
+1. `x-cache`가 `Hit`/`RefreshHit`이면 컴퓨트는 이번 요청에서 실행되지 않았다고 볼 수 있습니다. CloudWatch에도 이 요청에 대응하는 실행 로그가 없어야 정상입니다.
+2. `x-cache`가 `Miss`면 컴퓨트가 실행됐다는 뜻이므로, `cache-control` 값으로 그 안에서 어떤 Next.js 캐시 정책이 적용됐는지 봅니다. `s-maxage`가 있으면 ISR(07편), `private, no-cache`면 동적 렌더링입니다.
+3. 페이지 안에서 여러 `fetch`를 부르는 경우, CDN·컴퓨트 캐시와는 별개로 요청 메모이제이션(08편)이 있으므로 서버 콘솔 로그로 같은 렌더 패스 안에서 `fetch` 호출 횟수를 따로 확인합니다.
+4. `Miss`인데도 응답이 빠르다면 데이터 캐시(06편)나 DynamoDB `cacheHandler`(13편)가 저장해 둔 값을 읽었을 가능성이 큽니다. CloudWatch 로그의 실행 시간으로 실제 렌더링이 일어났는지 구분합니다.
+
+### CloudWatch 로그 확인 절차
+
+Amplify 콘솔 → 앱 선택 → 왼쪽 탐색 창 **Monitoring** → **Hosting compute logs**로 이동해, 확인하려는 브랜치의 CloudWatch 로그 그룹을 선택합니다. 이 화면에서 방금 요청이 컴퓨트까지 도달했는지, 실행 중 오류가 있었는지를 확인합니다.
+
+## 실습
+
+<Steps>
+
+### 1. 헤더 점검 스크립트 작성
+
+매번 `curl -I`로 여러 경로를 확인하는 대신, 한 번에 표로 보여주는 스크립트를 만듭니다.
+
+```js
+// notice-board/scripts/inspect-cache.mjs
+const baseUrl = process.argv[2]
+const paths = ['/', '/notices/1', '/api/notices', '/api/notices/1']
+
+if (!baseUrl) {
+  console.error('사용법: node scripts/inspect-cache.mjs https://배포주소')
+  process.exit(1)
+}
+
+async function inspectPath(path) {
+  const response = await fetch(`${baseUrl}${path}`, { cache: 'no-store' })
+  return {
+    path,
+    status: response.status,
+    xCache: response.headers.get('x-cache') ?? '(없음)',
+    age: response.headers.get('age') ?? '(없음)',
+    cacheControl: response.headers.get('cache-control') ?? '(없음)',
+  }
+}
+
+const results = await Promise.all(paths.map(inspectPath))
+console.table(results)
+```
+
+`fetch`에 `cache: 'no-store'`를 준 것은 스크립트를 실행하는 Node.js 쪽에서 결과를 캐시하지 않기 위해서입니다. 실제 응답에 담긴 CDN 캐시 상태는 헤더로 그대로 확인할 수 있습니다.
+
+### 2. 배포된 주소로 실행
+
+```text
+node scripts/inspect-cache.mjs https://main.xxxxxxxxxxxx.amplifyapp.com
+```
+
+```text
+┌─────────┬────────────────┬────────┬─────────────────────────┬─────┬───────────────────────────┐
+│ (index) │ path           │ status │ xCache                  │ age │ cacheControl               │
+├─────────┼────────────────┼────────┼─────────────────────────┼─────┼───────────────────────────┤
+│ 0       │ '/'            │ 200    │ 'Hit from cloudfront'    │ '12'│ 'public, s-maxage=60'      │
+│ 1       │ '/notices/1'   │ 200    │ 'Miss from cloudfront'   │ '0' │ 'private, no-cache'        │
+└─────────┴────────────────┴────────┴─────────────────────────┴─────┴───────────────────────────┘
+```
+
+표의 숫자는 실습 환경마다 다르게 나옵니다. 중요한 건 각 라우트의 `xCache`와 `cacheControl` 조합이 개념 정리의 판별 순서와 맞는지 직접 대조하는 것입니다.
+
+### 3. CloudWatch 로그와 대조
+
+같은 시각에 `x-cache`가 `Miss`였던 라우트에 한해, Amplify 콘솔의 **Hosting compute logs**를 열어 해당 요청 로그가 실제로 남아있는지 확인합니다. `Hit`였던 라우트는 로그가 남지 않아야 정상입니다.
+
+### 4. notice-board 전체 라우트에 적용
+
+`inspect-cache.mjs`의 `paths` 배열에 있는 네 라우트 각각에 대해, 아래 표를 채워 어느 계층이 응답을 만들었는지 결론을 적어 봅니다.
+
+| 라우트 | x-cache | cache-control | 결론 |
+|--------|---------|----------------|------|
+| `/` | (기록) | (기록) | (CDN 히트 / ISR 재생성 / 동적) |
+| `/notices/1` | (기록) | (기록) | (기록) |
+| `/api/notices` | (기록) | (기록) | (기록) |
+| `/api/notices/1` | (기록) | (기록) | (기록) |
+
+</Steps>
+
+## 직접 해보기
+
+1. 요청 경로 끝에 의미 없는 쿼리스트링(`?debug=1`)을 붙여 다시 요청해 보고, `x-cache`가 `Miss`로 바뀌는지 확인해 보세요. CloudFront는 쿼리스트링을 포함한 URL 전체를 캐시 키로 쓰기 때문입니다.
+2. 브라우저 개발자 도구 Network 탭에서 같은 요청을 두 번 보내고, 두 번째 요청이 브라우저 자체 캐시(디스크 캐시)에서 온 것인지 CDN에서 온 것인지 `x-cache` 유무로 구분해 보세요.
+
+<details>
+<summary>정답 보기</summary>
+
+CloudFront 기본 설정에서는 쿼리스트링이 다르면 다른 캐시 키로 취급되므로 `?debug=1`을 붙이면 처음 보는 요청이 되어 `Miss from cloudfront`가 나옵니다. 브라우저 디스크 캐시로 응답이 온 경우 요청 자체가 서버로 나가지 않으므로 응답 헤더 목록에 `x-cache`가 아예 잡히지 않고, Network 탭에 `(disk cache)` 같은 표시가 붙습니다.
+
+</details>
+
+## 자주 하는 실수
+
+| 증상 | 원인 | 고치는 법 |
+|------|------|-----------|
+| 브라우저에서 항상 캐시된 것처럼 보임 | 개발자 도구의 `Disable cache` 옵션을 꺼둠 | Network 탭에서 `Disable cache`를 체크한 뒤 다시 확인한다 |
+| `age`가 항상 `(없음)`으로 나옴 | 애초에 캐시되지 않는 응답(동적 라우트)을 확인 중 | `cache-control`이 `private`인 라우트는 `age`가 없는 것이 정상이다 |
+| CloudWatch에 로그 그룹이 안 보임 | 서비스 역할에 CloudWatch Logs 권한이 없음 | Amplify가 자동 생성한 역할을 쓰고 있는지 확인하거나 필요한 `logs:*` 권한을 추가한다 |
+| 매번 `x-cache`가 `Miss`만 나옴 | 매 요청에 쿼리스트링이나 캐시 방지 헤더가 섞여 들어감 | 스크립트의 요청 경로와 옵션에 불필요한 값이 없는지 확인한다 |
+
+## 확인 문제
+
+<Quiz
+  questionNumber={1}
+  question="x-cache 값이 RefreshHit from cloudfront일 때 실제로 일어난 일은"
+  options={['캐시가 완전히 비어 오리진에서 새로 렌더링했다', '캐시가 오래됐지만 오리진에 재검증한 뒤 기존 값을 그대로 반환했다', '요청이 CloudFront에 도달하지 못했다', '브라우저 디스크 캐시에서 바로 응답했다']}
+  correctAnswer={2}
+  explanation="RefreshHit은 캐시가 만료됐지만 오리진과의 재검증 결과 내용이 바뀌지 않아 기존 캐시를 그대로 다시 쓴 경우입니다."
+  optionExplanations={['완전히 새로 렌더링했다면 Miss입니다', '정답입니다', 'CloudFront에 도달하지 못하면 이 헤더 자체가 없습니다', '브라우저 캐시와는 다른 계층입니다']}
+/>
+
+<Quiz
+  questionNumber={2}
+  question="x-cache가 Miss from cloudfront인 요청에서 응답이 유독 빠를 때 의심할 수 있는 것은"
+  options={['CloudFront가 거짓 값을 보낸 것이다', '컴퓨트까지는 갔지만 데이터 캐시나 DynamoDB cacheHandler에 저장된 값을 재사용했을 가능성', '항상 네트워크 지연이 없어서 빠른 것이다', 'age 헤더 값이 잘못 계산된 것이다']}
+  correctAnswer={2}
+  explanation="Miss는 CDN 엣지 캐시를 못 썼다는 뜻일 뿐, 컴퓨트 내부에서 데이터 캐시나 외부 cacheHandler를 통해 빠르게 응답했을 수 있습니다."
+  optionExplanations={['CloudFront가 거짓 값을 보내지는 않습니다', '정답입니다', '네트워크 지연은 항상 존재합니다', 'age는 이 상황과 직접 관련이 없습니다']}
+/>
+
+<Quiz
+  questionNumber={3}
+  question="CloudWatch에서 Amplify SSR 로그를 확인하는 콘솔 경로는"
+  options={['App settings → Domain management', 'Monitoring → Hosting compute logs', 'App settings → Build settings', 'Monitoring → Metrics']}
+  correctAnswer={2}
+  explanation="SSR 컴퓨트 로그는 Monitoring 메뉴의 Hosting compute logs 화면에서 브랜치별 CloudWatch 로그 그룹을 선택해 확인합니다."
+  optionExplanations={['도메인 설정과는 무관합니다', '정답입니다', '빌드 설정 화면에는 로그가 없습니다', 'Metrics는 요청 수·지연시간 등 집계 지표입니다']}
+/>
+
+<Quiz
+  questionNumber={4}
+  question="같은 페이지 안에서 fetch가 여러 번 호출되는지 확인하려면 어떤 방법이 알맞은가"
+  options={['x-cache 헤더 값만 본다', '서버 콘솔 로그로 한 렌더 패스 안의 fetch 호출 횟수를 센다', 'CloudFront 요청 수 지표만 본다', 'DynamoDB 테이블 항목 수를 본다']}
+  correctAnswer={2}
+  explanation="요청 메모이제이션은 CDN·데이터 캐시와 별개의 서버 내부 동작이라, 서버 콘솔 로그로 fetch 호출 횟수를 직접 세어 확인해야 합니다."
+  optionExplanations={['x-cache는 CDN 계층 정보만 알려줍니다', '정답입니다', 'CloudFront 지표는 요청 메모이제이션을 구분하지 못합니다', 'DynamoDB 항목 수는 무관한 지표입니다']}
+/>
+
+## 참고 자료
+
+- [Amazon CloudFront Developer Guide — Manage how long content stays in the cache(expiration)](https://docs.aws.amazon.com/AmazonCloudFront/latest/DeveloperGuide/Expiration.html)
+- [AWS Amplify Docs — Monitoring an Amplify application with Amazon CloudWatch](https://docs.aws.amazon.com/amplify/latest/userguide/monitoring-with-cloudwatch.html)
+- [AWS Amplify Docs — SSR supported features(Amazon CloudWatch Logs for SSR apps)](https://docs.aws.amazon.com/amplify/latest/userguide/ssr-supported-features.html)

@@ -1,0 +1,325 @@
+---
+title: '08. 라우터 캐시와 요청 메모이제이션 구분하기'
+description: '상세 페이지를 fetch 기반으로 전환해 Link 프리페치가 채우는 라우터 캐시와, 한 렌더 패스 안의 요청 메모이제이션을 각각 확인합니다'
+---
+
+<Callout type="info">
+  **이번 편의 결과물:** 상세 페이지로 이동할 때 Link 프리페치 덕분에 새 요청 없이 즉시 화면이 뜨고, layout과 page가 같은 데이터를 각자 fetch해도 서버 로그에는 요청이 한 번만 찍힙니다. · **다루는 개념:** Link 프리페치와 라우터 캐시(클라이언트), 요청 메모이제이션(서버), 서버 캐시와 헷갈리지 않는 기준
+</Callout>
+
+07편까지는 서버 쪽 캐시(Data Cache, Full Route Cache)만 봤습니다. 이 편에서는 브라우저에 남는 라우터 캐시와, 한 번의 렌더 안에서만 유효한 요청 메모이제이션을 구분합니다. 두 개념 모두 "왜 fetch가 다시 안 나가지?"라는 같은 질문에서 출발하지만, 저장되는 위치와 지속 시간이 다릅니다. 이 편에서 처음으로 상세 페이지(`/notices/[id]`)를 만듭니다.
+
+## 이 편에서 만드는 파일
+
+```
+notice-board/
+└── app/
+    ├── page.js                    (~, Link에 prefetch={true} 추가)
+    ├── api/
+    │   └── notices/
+    │       └── [id]/
+    │           └── route.js       (+, 공지사항 단건 mock API. 없으면 404)
+    └── notices/
+        └── [id]/
+            ├── page.js            (+, 상세 페이지)
+            └── layout.js          (+, 공지사항 제목을 보여주는 브레드크럼)
+```
+
+## 개념 정리
+
+### 라우터 캐시(클라이언트)
+
+Link가 화면(뷰포트)에 들어오면 Next.js는 그 링크가 가리키는 라우트를 미리 가져옵니다(프리페치). 이 결과는 브라우저 메모리의 라우터 캐시에 저장되고, 실제로 클릭하면 새 요청 없이 바로 화면을 그립니다.
+
+| prefetch 값 | 정적 라우트 | 동적 라우트(Request-time API 사용) |
+|-------------|-------------|-------------------------------------|
+| 생략(기본값) | 전체 프리페치 | loading.js 경계까지만 프리페치 |
+| true | 전체 프리페치 | 전체 프리페치(데이터까지 포함) |
+| false | 프리페치 안 함 | 프리페치 안 함 |
+
+프리페치는 프로덕션 빌드에서만 동작합니다. 개발 서버(npm run dev)에서는 관찰할 수 없습니다.
+
+라우터 캐시의 기본 유지 시간(staleTimes)도 라우트 종류에 따라 다릅니다.
+
+| 종류 | 기본 유지 시간 |
+|------|----------------|
+| 동적 라우트 | 0초(캐시 안 함) — Next.js 15부터 30초에서 변경됨 |
+| 정적 라우트 | 5분 |
+
+지금 만드는 상세 페이지는 fetch만 쓰고 Request-time API를 쓰지 않아 정적으로 분류되므로, 기본 프리페치만으로도 전체가 미리 채워집니다.
+
+### 요청 메모이제이션(서버)
+
+같은 렌더 패스 안에서 URL과 옵션이 완전히 같은 fetch 호출은 몇 번을 부르든 실제로는 한 번만 실행되고 결과를 공유합니다. layout, page처럼 서로 다른 파일이 부르더라도 마찬가지입니다. 이 메모이제이션은 그 렌더 패스가 끝나면 사라집니다(다음 요청에는 다시 처음부터 계산).
+
+| 구분 | 요청 메모이제이션 | Data Cache(06편) |
+|------|--------------------|-------------------|
+| 지속 시간 | 렌더 패스 하나 | 여러 요청에 걸쳐 지속(revalidate 전까지) |
+| 저장 위치 | 메모리(요청 처리 중에만) | 서버 디스크 |
+| 적용 범위 | Server Component, layout, page 등 | force-cache를 준 모든 fetch |
+
+지금 상세 페이지의 fetch는 `revalidate: 60`도 함께 쓰므로, 첫 방문에는 요청 메모이제이션 덕분에 한 번만 실행되고, 이후 60초 안의 재방문에는 Data Cache 덕분에 아예 실행되지 않습니다.
+
+## 실습
+
+<Steps>
+
+### 1. 공지사항 단건 mock API 작성
+
+```js
+// app/api/notices/[id]/route.js
+import { NextResponse } from 'next/server';
+import notices from '../../../../data/notices.seed.json';
+
+export async function GET(request, { params }) {
+  const { id } = await params;
+  console.log(`[API] GET /api/notices/${id} 처리 - ${new Date().toISOString()}`);
+
+  const notice = notices.find((item) => String(item.id) === id);
+
+  if (!notice) {
+    return NextResponse.json({ error: '공지사항을 찾을 수 없습니다' }, { status: 404 });
+  }
+
+  return NextResponse.json(notice);
+}
+```
+
+06편의 목록 API와 마찬가지로, 시드 데이터의 필드 이름(`publishedAt`, `content` 포함)을 그대로 응답에 내보냅니다.
+
+### 2. 상세 페이지 작성
+
+```js
+// app/notices/[id]/page.js
+import { notFound } from 'next/navigation';
+
+async function getNotice(id) {
+  const baseUrl = process.env.NEXT_PUBLIC_BASE_URL ?? 'http://localhost:3000';
+  const response = await fetch(`${baseUrl}/api/notices/${id}`, {
+    next: { revalidate: 60 },
+  });
+
+  if (response.status === 404) {
+    return null;
+  }
+  if (!response.ok) {
+    throw new Error('공지사항을 불러오지 못했습니다');
+  }
+  return response.json();
+}
+
+export default async function NoticeDetailPage({ params }) {
+  const { id } = await params;
+  const notice = await getNotice(id);
+
+  if (!notice) {
+    notFound();
+  }
+
+  return (
+    <article>
+      <h1>{notice.title}</h1>
+      <p className="notice-date">{notice.publishedAt}</p>
+      <div className="notice-body">{notice.content}</div>
+    </article>
+  );
+}
+```
+
+### 3. 브레드크럼 layout 추가
+
+```js
+// app/notices/[id]/layout.js
+import Link from 'next/link';
+
+async function getNotice(id) {
+  const baseUrl = process.env.NEXT_PUBLIC_BASE_URL ?? 'http://localhost:3000';
+  const response = await fetch(`${baseUrl}/api/notices/${id}`, {
+    next: { revalidate: 60 },
+  });
+
+  if (response.status === 404) {
+    return null;
+  }
+  if (!response.ok) {
+    throw new Error('공지사항을 불러오지 못했습니다');
+  }
+  return response.json();
+}
+
+export default async function NoticeLayout({ children, params }) {
+  const { id } = await params;
+  const notice = await getNotice(id);
+
+  return (
+    <div>
+      <nav className="breadcrumb">
+        <Link href="/">공지사항</Link>
+        <span> / {notice ? notice.title : '알 수 없음'}</span>
+      </nav>
+      {children}
+    </div>
+  );
+}
+```
+
+layout.js와 page.js가 각자 getNotice를 정의해 완전히 똑같은 fetch(같은 URL, 같은 revalidate 옵션)를 호출합니다. 보통은 공용 함수로 뽑아 재사용하지만, 지금은 파일이 달라도 요청 메모이제이션이 정말 동작하는지 직접 확인하려고 일부러 각자 작성합니다.
+
+### 4. 홈 화면 Link에 prefetch 명시
+
+```js
+// app/page.js
+import Link from 'next/link';
+
+async function getNotices() {
+  const baseUrl = process.env.NEXT_PUBLIC_BASE_URL ?? 'http://localhost:3000';
+  const response = await fetch(`${baseUrl}/api/notices`, {
+    next: { revalidate: 60 },
+  });
+
+  if (!response.ok) {
+    throw new Error('공지사항 목록을 가져오지 못했습니다');
+  }
+  return response.json();
+}
+
+export default async function HomePage() {
+  const notices = await getNotices();
+
+  return (
+    <section>
+      <h1>공지사항</h1>
+      <ul>
+        {notices.map((notice) => (
+          <li key={notice.id}>
+            <Link href={`/notices/${notice.id}`} prefetch={true}>
+              {notice.title}
+            </Link>
+            <span className="notice-date">{notice.publishedAt}</span>
+          </li>
+        ))}
+      </ul>
+    </section>
+  );
+}
+```
+
+상세 페이지가 이미 정적으로 분류되어 기본값으로도 전체 프리페치가 되지만, 나중에 이 라우트가 동적으로 바뀌어도 프리페치 동작이 흔들리지 않도록 `prefetch={true}`를 명시적으로 남겨둡니다.
+
+### 5. 배포하고 라우터 캐시 확인
+
+```bash
+git add app/page.js app/notices app/api/notices
+git commit -m "상세 페이지 추가하고 라우터 캐시 확인 준비"
+git push
+```
+
+배포가 끝나면 실제 Amplify URL을 프로덕션 모드로 브라우저에서 엽니다. 프리페치는 로컬 개발 서버에서는 확인할 수 없습니다.
+
+1. 개발자 도구 Network 탭을 열고 홈 화면을 새로고침합니다.
+2. 상세 페이지로 가는 Link가 화면에 보이는 순간, `_rsc` 쿼리 파라미터가 붙은 백그라운드 요청이 Network 탭에 나타납니다(프리페치).
+3. 그 링크를 클릭합니다. Network 탭에 새로운 문서 요청이 뜨지 않고, 화면만 즉시 상세 페이지로 바뀝니다.
+
+### 6. 요청 메모이제이션 확인(로컬)
+
+```text
+npm run dev
+```
+
+`http://localhost:3000/notices/1`을 새 탭에서 엽니다(브라우저 캐시 영향을 피하려면 시크릿 창을 씁니다). 터미널을 확인합니다.
+
+```text
+[API] GET /api/notices/1 처리 - 2026-09-22T09:00:00.000Z
+```
+
+layout.js와 page.js 양쪽이 getNotice('1')을 호출했는데도 로그는 한 줄만 찍힙니다. 같은 URL·옵션의 fetch가 한 렌더 패스 안에서 한 번만 실행됐다는 뜻입니다.
+
+### 7. 참고: 배포된 상세 페이지의 응답 헤더
+
+```bash
+curl -I https://main.d1234567890abc.amplifyapp.com/notices/1
+```
+
+```text
+HTTP/2 200
+content-type: text/html; charset=utf-8
+cache-control: s-maxage=60, stale-while-revalidate
+x-cache: Miss from cloudfront
+age: 0
+```
+
+상세 페이지도 홈 화면과 똑같이 `revalidate: 60`을 쓰므로, Next.js가 붙이는 `cache-control`도 07편의 홈 화면과 같은 형태입니다.
+
+</Steps>
+
+## 직접 해보기
+
+1. `app/notices/[id]/page.js` 맨 위에 `import { cookies } from 'next/headers';`를 추가하고 getNotice 시작 부분에 `await cookies();`를 넣어 이 라우트를 동적으로 강제해보세요. 다시 배포한 뒤 Network 탭에서 프리페치 요청이 어떻게 달라지는지 관찰하고, 실습이 끝나면 되돌립니다.
+
+<details>
+<summary>확인 방법</summary>
+
+`cookies()`는 Request-time API라 이 라우트를 동적 렌더링으로 바꿉니다. 기본 프리페치(prefetch 생략)였다면 loading.js 경계까지만 프리페치되어 클릭 시 데이터를 새로 받아야 하지만, 4단계에서 이미 `prefetch={true}`를 명시해뒀기 때문에 동적으로 바뀌어도 전체 프리페치가 유지됩니다. 이 차이가 `prefetch={true}`를 명시적으로 남겨두는 이유입니다.
+
+</details>
+
+2. layout.js의 getNotice에만 `next: { revalidate: 30 }`처럼 다른 값을 줘서 page.js와 옵션을 다르게 만들어보세요. 로그가 다시 두 줄로 찍히는지 확인합니다.
+
+<details>
+<summary>확인 방법</summary>
+
+요청 메모이제이션은 URL뿐 아니라 옵션까지 완전히 같아야 적용됩니다. revalidate 값이 다르면 서로 다른 fetch 호출로 취급돼 각각 실행되고, [API] 로그도 두 줄이 찍힙니다.
+
+</details>
+
+## 자주 하는 실수
+
+| 증상 | 원인 | 고치는 법 |
+|------|------|-----------|
+| 클릭해도 여전히 화면이 잠깐 하얗게 깜빡임 | 개발 서버에서 확인함 | 프리페치는 프로덕션 빌드에서만 동작하므로 배포 환경에서 확인한다 |
+| layout과 page의 fetch가 매번 둘 다 로그를 남김 | 두 fetch의 URL이나 옵션이 미묘하게 다름(트레일링 슬래시, revalidate 값 차이 등) | 두 호출의 URL 문자열과 옵션 객체를 정확히 동일하게 맞춘다 |
+| 라우터 캐시와 Data Cache를 같은 것으로 착각 | 둘 다 다시 요청이 안 나간다는 점만 보고 혼동함 | 라우터 캐시는 브라우저(클라이언트), Data Cache는 서버 디스크라는 위치 차이로 구분한다 |
+
+## 확인 문제
+
+<Quiz
+  questionNumber={1}
+  question="Link 컴포넌트의 prefetch 값을 생략했을 때(기본값), 정적 라우트와 동적 라우트의 차이는"
+  options={['둘 다 전체 프리페치된다', '정적 라우트는 전체 프리페치되고, 동적 라우트는 loading.js 경계까지만 프리페치된다', '둘 다 프리페치되지 않는다', '동적 라우트만 전체 프리페치된다']}
+  correctAnswer={2}
+  explanation="기본값은 정적 라우트를 전체 프리페치하고, 동적 라우트는 loading.js 경계까지만 미리 가져옵니다."
+  optionExplanations={['동적 라우트는 부분만 프리페치됩니다', '정답입니다', '정적 라우트는 기본으로 프리페치됩니다', '반대로 설명되어 있습니다']}
+/>
+
+<Quiz
+  questionNumber={2}
+  question="요청 메모이제이션이 적용되는 조건은"
+  options={['같은 컴포넌트 안에서만 호출해야 한다', '같은 렌더 패스 안에서 URL과 옵션이 완전히 같은 fetch 호출이어야 한다', '같은 페이지 안에서 호출 순서가 같아야 한다', 'force-cache 옵션을 줘야만 적용된다']}
+  correctAnswer={2}
+  explanation="요청 메모이제이션은 파일이 달라도, 같은 렌더 패스 안에서 URL과 옵션이 완전히 같은 fetch 호출에 적용됩니다."
+  optionExplanations={['layout과 page처럼 다른 파일이어도 적용됩니다', '정답입니다', '호출 순서는 조건이 아닙니다', 'force-cache 여부와 무관하게 렌더 패스 안에서 적용됩니다']}
+/>
+
+<Quiz
+  questionNumber={3}
+  question="라우터 캐시와 Data Cache의 가장 큰 차이는"
+  options={['라우터 캐시는 서버 디스크에, Data Cache는 브라우저 메모리에 저장된다', '라우터 캐시는 브라우저(클라이언트)에, Data Cache는 서버 인스턴스 디스크에 저장된다', '둘은 완전히 같은 저장소를 공유한다', '라우터 캐시는 프로덕션에서만, Data Cache는 개발 모드에서만 동작한다']}
+  correctAnswer={2}
+  explanation="라우터 캐시는 브라우저에 남는 클라이언트 캐시이고, Data Cache는 서버 인스턴스의 디스크에 저장되는 서버 캐시입니다."
+  optionExplanations={['위치가 반대로 설명되어 있습니다', '정답입니다', '서로 다른 계층의 별개 저장소입니다', '개발/프로덕션 구분은 프리페치에만 해당됩니다']}
+/>
+
+<Quiz
+  questionNumber={4}
+  question="layout.js와 page.js가 각자 getNotice 함수를 따로 정의했는데도, 같은 공지사항을 렌더링할 때 서버 콘솔에 [API] 로그가 한 줄만 찍히는 이유는"
+  options={['layout.js의 fetch가 실패해서 page.js만 실행됐기 때문에', '두 fetch 호출의 URL과 옵션이 완전히 같아 요청 메모이제이션이 적용되기 때문에', 'Next.js가 layout.js의 fetch를 무시하기 때문에', 'force-cache 옵션을 명시했기 때문에']}
+  correctAnswer={2}
+  explanation="파일이 달라도 같은 렌더 패스 안에서 URL과 옵션이 완전히 같은 fetch 호출은 요청 메모이제이션으로 한 번만 실행됩니다."
+  optionExplanations={['layout.js의 fetch도 정상적으로 실행됩니다', '정답입니다', 'Next.js는 layout.js의 fetch도 그대로 실행합니다', '이 예제는 revalidate 옵션만 지정했습니다']}
+/>
+
+## 참고 자료
+
+- [Next.js Docs — Link Component](https://nextjs.org/docs/app/api-reference/components/link)
+- [Next.js Docs — staleTimes](https://nextjs.org/docs/app/api-reference/config/next-config-js/staleTimes)
+- [Next.js Docs — fetch API Reference (Memoization)](https://nextjs.org/docs/app/api-reference/functions/fetch)

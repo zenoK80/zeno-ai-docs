@@ -1,0 +1,195 @@
+---
+title: '12. 왜 외부 공유 캐시가 필요한가'
+description: 'Amplify Hosting compute의 VPC 미지원을 근거로 ElastiCache 대신 DynamoDB를 선택하고, 13편에서 구현할 캐시 테이블 구조와 IAM 권한을 설계 메모로 정리합니다'
+---
+
+<Callout type="info">
+  **이번 편의 결과물:** `notice-board`에 어떤 외부 저장소를 공유 캐시로 쓸지 결정하고, 필요한 IAM 권한·테이블 구조를 설계 메모로 정리합니다. · **다루는 개념:** 인스턴스 간 캐시가 공유되지 않는 근본 원인 재확인, Amplify Hosting compute의 VPC 미지원, DynamoDB 같은 퍼블릭 엔드포인트 대안 비교
+</Callout>
+
+09편에서 조회수 값이 인스턴스마다 따로 노는 것을, 11편에서 재배포할 때마다 그 값이 아예 초기화되는 것을 확인했습니다. 두 문제 모두 원인은 하나입니다. 캐시 데이터가 컴퓨트 인스턴스의 메모리에만 있고, 인스턴스 바깥 어디에도 저장되지 않는다는 것입니다. 이번 편은 코드를 작성하지 않습니다. 대신 13편에서 만들 외부 공유 캐시가 **왜** 필요하고 **무엇으로** 만들지를 결정합니다.
+
+## 이 편에서 만드는 파일
+
+```
+notice-board/
+└── docs/
+    └── shared-cache-design.md      (+, 설계 메모)
+```
+
+## 개념 정리
+
+### 인스턴스 간 캐시가 공유되지 않는 근본 원인(재확인)
+
+09·11편에서 확인한 두 현상은 같은 원인에서 나옵니다. 모듈 스코프 변수는 그 코드를 실행하는 프로세스(컴퓨트 인스턴스)의 메모리 안에만 존재합니다. 인스턴스가 여러 개면 값이 갈리고(09편), 인스턴스가 새로 뜨면 값이 사라집니다(11편). 이 문제를 근본적으로 없애려면 캐시 값을 **인스턴스 바깥의 저장소**에 두고, 모든 인스턴스가 같은 저장소를 읽고 써야 합니다.
+
+### Amplify Hosting compute가 접근할 수 있는 범위
+
+컴퓨트가 다른 AWS 서비스에 접근하는 방법은 두 가지로 나뉩니다.
+
+| 접근 방식 | 예시 | Amplify Hosting compute 지원 여부 |
+|-----------|------|-------------------------------------|
+| IAM 자격 증명으로 퍼블릭 API 엔드포인트 호출 | DynamoDB, S3, Bedrock (AWS SDK로 `https://dynamodb.<region>.amazonaws.com` 호출) | 지원(IAM SSR Compute Role, 2025년 2월 발표) |
+| VPC 사설 서브넷 안의 네트워크 자원에 직접 연결 | ElastiCache(Redis), 프라이빗 서브넷의 RDS | 별도 지원 기능 없음 |
+
+AWS 공식 문서(Adding an SSR Compute role to allow access to AWS resources)는 IAM 역할을 컴퓨트에 연결해 "다른 AWS 서비스나 리소스에 안전하게 접근"하도록 하는 절차를 설명합니다. 이 문서 어디에도 컴퓨트를 VPC 서브넷에 연결하는 절차는 없습니다. 실제로 aws-amplify/amplify-hosting GitHub 저장소의 "VPC Access for SSR Compute Runtime"(이슈 #3362)은 2023년에 열린 뒤 이 글을 쓰는 시점까지도 "기능 요청" 상태로 남아 있어, VPC 안쪽 자원에 대한 직접 연결은 정식 지원되지 않는 것으로 확인됩니다.
+
+### ElastiCache 대신 DynamoDB인 이유
+
+| 기준 | ElastiCache(Redis) | DynamoDB |
+|------|---------------------|----------|
+| 접근 경로 | VPC 사설 서브넷(기본 구성) | 퍼블릭 리전 엔드포인트 |
+| Amplify Hosting compute에서 연결 | 직접 연결 경로 없음 | IAM SSR Compute Role로 접근 가능 |
+| 서버 관리 | 클러스터 노드 직접 관리 | 완전 관리형(용량·패치 불필요) |
+| 항목 만료 | 자체 TTL 명령 | TTL 속성으로 자동 만료 |
+
+`notice-board`처럼 VPC를 별도로 구성하지 않은 프로젝트에서는 ElastiCache를 선택하면 컴퓨트에서 접근할 방법이 없어 처음부터 막힙니다. DynamoDB는 이 제약 없이 바로 연결할 수 있어 이번 과목의 공유 캐시로 선택합니다.
+
+## 실습(설계)
+
+<Steps>
+
+### 1. 두 후보를 비교표로 정리하기
+
+앞의 "ElastiCache 대신 DynamoDB인 이유" 표를 그대로 설계 메모의 근거로 사용합니다. 핵심은 "성능"이 아니라 "Amplify Hosting compute에서 애초에 연결할 수 있는가"입니다.
+
+### 2. 캐시 테이블 구조 설계하기
+
+Next.js의 `cacheHandler`는 캐시 키(문자열)와 캐시 값(직렬화된 데이터)을 저장·조회하고, 태그로 무효화 대상을 찾는 동작이 필요합니다. DynamoDB 테이블 하나로 충분합니다. 테이블 이름은 `notice-board-cache`로 정합니다.
+
+| 속성 이름 | 타입 | 역할 |
+|-----------|------|------|
+| `cacheKey` | 문자열(파티션 키) | 캐시 항목 식별자 |
+| `value` | 문자열 | 직렬화된 캐시 데이터(JSON) |
+| `lastModified` | 숫자 | 저장 시각(epoch ms) |
+| `tags` | 문자열 목록 | `revalidateTag`가 무효화 대상을 찾을 때 쓰는 태그 |
+
+### 3. 필요한 IAM 권한 정리하기
+
+13편에서 SSR Compute Role에 연결할 정책의 범위를 미리 정합니다. 최소 권한 원칙에 따라 이 테이블(`notice-board-cache`)의 ARN 하나로만 제한합니다.
+
+- `dynamodb:GetItem`(캐시 조회)
+- `dynamodb:PutItem`(캐시 저장·무효화 처리 시 덮어쓰기)
+- `dynamodb:Scan`(태그로 무효화 대상을 찾기 위한 전체 조회)
+
+### 4. 설계 메모 파일 작성하기
+
+```md
+// docs/shared-cache-design.md
+# 공유 캐시 설계 메모
+
+## 배경
+- 09편: 인스턴스별 조회수 값이 요청마다 다르게 나옴을 확인
+- 11편: 재배포 시 인메모리 저장소가 시드 데이터로 초기화됨을 확인
+- 두 문제 모두 캐시 데이터가 인스턴스 메모리에만 있어서 발생
+
+## 후보 비교
+| 기준 | ElastiCache(Redis) | DynamoDB |
+|------|---------------------|----------|
+| 접근 경로 | VPC 사설 서브넷 | 퍼블릭 리전 엔드포인트 |
+| Amplify Hosting compute 연결 | 직접 연결 경로 없음(2026-09 기준, GitHub aws-amplify/amplify-hosting#3362 기능 요청 상태) | IAM SSR Compute Role로 접근 가능 |
+
+## 결정
+DynamoDB를 공유 캐시 저장소로 채택한다. 테이블 이름은 notice-board-cache로 한다.
+
+## 테이블 구조
+- 파티션 키: cacheKey(문자열)
+- value(문자열, JSON 직렬화)
+- lastModified(숫자, epoch ms)
+- tags(문자열 목록, revalidateTag 무효화 대상 조회용)
+
+## 필요 IAM 권한(SSR Compute Role에 부여, 리소스는 notice-board-cache 테이블 ARN으로 제한)
+- dynamodb:GetItem
+- dynamodb:PutItem
+- dynamodb:Scan
+
+## 13편에서 할 일
+- DynamoDB 테이블(notice-board-cache) 생성
+- next.config의 cacheHandler를 이 테이블 기반으로 구현
+- 09편과 같은 반복 요청 테스트로 인스턴스 간 값 일치 검증
+```
+
+### 확인
+
+메모 파일에 다음 네 가지가 모두 채워져 있는지 점검합니다.
+
+- [ ] ElastiCache를 배제한 이유가 VPC 접근 여부로 명확히 적혀 있다
+- [ ] 테이블의 파티션 키와 속성이 정해져 있다
+- [ ] 필요한 IAM 권한이 리소스 범위(테이블 ARN)와 함께 나열되어 있다
+- [ ] 13편에서 구현할 작업 목록이 적혀 있다
+
+</Steps>
+
+## 직접 해보기
+
+1. Upstash Redis, Momento 같은 서버리스 캐시 서비스도 퍼블릭 엔드포인트로 접근할 수 있습니다. 이런 서비스를 비교표에 후보로 추가해 DynamoDB와 비교해 봅니다.
+
+<details>
+<summary>확인 방법</summary>
+
+서드파티 서비스는 AWS IAM이 아닌 자체 API 키로 인증합니다. `notice-board`는 AWS 리소스만으로 구성하는 것이 목표이므로, 이번 과목에서는 AWS 서비스인 DynamoDB를 선택합니다. 다만 VPC 없이 접근 가능하다는 조건 자체는 같은 이유로 충족합니다.
+
+</details>
+
+2. `lastModified`만으로는 오래된 캐시 항목이 테이블에 계속 쌓입니다. `expiresAt` 속성을 추가해 DynamoDB TTL로 자동 삭제되게 하는 설계를 메모에 추가해 봅니다.
+
+<details>
+<summary>확인 방법</summary>
+
+캐시 항목을 저장할 때 `expiresAt`(초 단위 유닉스 타임스탬프)을 함께 기록하고, DynamoDB 테이블의 TTL 설정에 이 속성을 연결하면 만료된 항목을 DynamoDB가 백그라운드에서 자동으로 지웁니다. 이 확장은 13편의 "직접 해보기"에서 실제로 구현합니다.
+
+</details>
+
+## 자주 하는 실수
+
+| 증상 | 원인 | 고치는 법 |
+|------|------|-----------|
+| ElastiCache가 더 빠르다는 이유로 다시 선택하려 함 | 선택 기준을 성능으로 착각 | 이번 결정의 기준은 성능이 아니라 "Amplify Hosting compute에서 연결 가능한가"이다 |
+| IAM 권한을 전체 DynamoDB 서비스(`*`)에 부여하려 함 | 최소 권한 원칙을 놓침 | 리소스 범위를 이 테이블 하나의 ARN으로 제한한다 |
+| 설계 메모 없이 바로 13편 코드를 작성하려 함 | 설계 단계를 생략 | 테이블 구조와 권한 목록을 먼저 문서로 확정해야 13편에서 코드와 설계가 어긋나지 않는다 |
+| VPC 미지원을 "언젠가 지원될 기능"으로 여기고 대안을 마련하지 않음 | 기능 요청 상태와 확정 지원을 혼동 | 현재 시점 기준으로 지원되지 않는 제약이므로, 지금 당장은 VPC가 필요 없는 대안으로 설계한다 |
+
+## 확인 문제
+
+<Quiz
+  questionNumber={1}
+  question="notice-board가 ElastiCache 대신 DynamoDB를 공유 캐시로 선택한 가장 핵심적인 이유는?"
+  options={['DynamoDB가 항상 더 빠르기 때문에', 'Amplify Hosting compute가 VPC 사설 서브넷에 직접 연결하는 기능을 지원하지 않기 때문에', 'ElastiCache는 TTL 기능이 없기 때문에', 'DynamoDB만 IAM 인증을 지원하기 때문에']}
+  correctAnswer={2}
+  explanation="ElastiCache는 기본적으로 VPC 사설 서브넷 안에서만 접근하도록 구성되는데, Amplify Hosting compute는 VPC에 연결하는 기능을 지원하지 않습니다. DynamoDB는 퍼블릭 엔드포인트로 서비스되어 이 제약이 없습니다."
+  optionExplanations={['속도 비교가 이번 결정의 기준이 아닙니다', '정답입니다', 'ElastiCache도 TTL과 유사한 만료 기능을 제공합니다', 'IAM 인증 자체는 이번 결정의 직접적 기준이 아닙니다']}
+/>
+
+<Quiz
+  questionNumber={2}
+  question="IAM SSR Compute Role이 제공하는 접근 방식에 대한 설명으로 옳은 것은?"
+  options={['컴퓨트를 VPC 사설 서브넷에 연결해준다', 'IAM 권한을 통해 DynamoDB 같은 AWS 서비스의 퍼블릭 엔드포인트를 안전하게 호출하게 해준다', 'ElastiCache 클러스터를 자동으로 생성해준다', 'CloudFront 캐시를 무효화하는 권한을 부여한다']}
+  correctAnswer={2}
+  explanation="공식 문서(Adding an SSR Compute role to allow access to AWS resources)는 IAM 역할을 통해 다른 AWS 서비스나 리소스에 안전하게 접근하는 절차만 설명하며, VPC 연결 기능은 포함하지 않습니다."
+  optionExplanations={['VPC 연결 기능은 이 역할이 제공하지 않습니다', '정답입니다', '클러스터 생성과는 무관한 기능입니다', 'CloudFront 무효화는 별도 메커니즘입니다']}
+/>
+
+<Quiz
+  questionNumber={3}
+  question="설계 메모에서 IAM 권한의 리소스 범위를 이 테이블의 ARN 하나로 제한하는 이유는?"
+  options={['DynamoDB는 여러 테이블에 동시에 권한을 줄 수 없기 때문에', '최소 권한 원칙에 따라 필요한 리소스에만 접근을 허용하기 위해', 'ARN을 지정하지 않으면 테이블이 생성되지 않기 때문에', '비용을 줄이기 위해']}
+  correctAnswer={2}
+  explanation="보안 모범 사례인 최소 권한 원칙에 따라, 역할이 실제로 필요한 리소스에만 접근하도록 범위를 제한합니다."
+  optionExplanations={['DynamoDB는 여러 테이블에 권한을 줄 수 있습니다', '정답입니다', 'ARN 지정과 테이블 생성 여부는 관계가 없습니다', '권한 범위와 비용은 직접적인 관계가 없습니다']}
+/>
+
+<Quiz
+  questionNumber={4}
+  question="이번 편에서 실제로 DynamoDB 테이블을 생성하거나 cacheHandler 코드를 작성하지 않은 이유는?"
+  options={['DynamoDB는 콘솔에서 생성할 수 없기 때문에', '테이블 구조와 권한 범위를 먼저 설계로 확정한 뒤 13편에서 구현하기 위해', 'cacheHandler는 Next.js가 지원하지 않는 기능이기 때문에', '비용 문제로 이번 편에서는 생성이 금지되어서']}
+  correctAnswer={2}
+  explanation="12편은 설계 편으로, 09~11편에서 확인한 문제를 근거로 테이블 구조와 IAM 권한을 먼저 문서로 정리합니다. 실제 생성과 구현은 13편에서 진행합니다."
+  optionExplanations={['DynamoDB는 콘솔에서 생성할 수 있습니다', '정답입니다', 'cacheHandler는 Next.js가 공식 지원하는 커스터마이즈 지점입니다', '비용 문제로 금지된 것이 아니라 순서상 13편으로 미룬 것입니다']}
+/>
+
+## 참고 자료
+
+- [AWS Amplify Docs — Adding an SSR Compute role to allow access to AWS resources](https://docs.aws.amazon.com/amplify/latest/userguide/amplify-SSR-compute-role.html)
+- [AWS Amplify Hosting announces support for IAM roles for server-side rendered (SSR) applications](https://aws.amazon.com/about-aws/whats-new/2025/02/amplify-hosting-iam-roles-ssr-applications/)
+- [GitHub — aws-amplify/amplify-hosting Issue #3362: VPC Access for SSR Compute Runtime](https://github.com/aws-amplify/amplify-hosting/issues/3362)
+- [Amazon DynamoDB Developer Guide — Using time to live (TTL) in DynamoDB](https://docs.aws.amazon.com/amazondynamodb/latest/developerguide/TTL.html)

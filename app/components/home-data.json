@@ -1,7 +1,7 @@
 {
-  "generatedAt": "2026-09-20T23:32:21.699Z",
-  "groupCount": 11,
-  "seriesCount": 51,
+  "generatedAt": "2026-09-22T13:04:12.796Z",
+  "groupCount": 12,
+  "seriesCount": 52,
   "groups": [
     {
       "title": "Web · HTML",
@@ -485,6 +485,21 @@
           "documentCount": 26,
           "preview": "code",
           "accent": "amber"
+        }
+      ]
+    },
+    {
+      "title": "기타 · AWS",
+      "description": "1개 시리즈 · 문서 16편",
+      "order": "12",
+      "series": [
+        {
+          "title": "Amplify 캐싱",
+          "description": "CloudFront에서 컴퓨트, 원본으로 이어지는 Amplify Hosting 요청 경로와 Next.js 캐시 4층을 정리하고 notice-board의 최종 청사진을 확정합니다",
+          "href": "/기타/aws/amplify_caching/01_amplify-hosting-architecture-and-caching-map",
+          "documentCount": 16,
+          "preview": "code",
+          "accent": "red"
         }
       ]
     }

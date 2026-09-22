@@ -1,0 +1,197 @@
+---
+title: '11. 재배포와 CDN 무효화 전파 순서'
+description: '재배포할 때 CloudFront 캐시가 자동으로 무효화되는 과정을 헤더 타임라인으로 추적하고, 커스텀 헤더가 체감 시간에 주는 영향을 확인합니다'
+---
+
+<Callout type="info">
+  **이번 편의 결과물:** 콘텐츠를 수정해 재배포한 직후, 새 값이 보이기까지 걸리는 시간과 순서를 헤더로 추적합니다. · **다루는 개념:** 재배포 시 CloudFront 자동 무효화, 무효화가 전파되는 순서(빌드 → 배포 → CloudFront invalidation → 컴퓨트 캐시 초기화), 커스텀 헤더가 무효화 체감 시간에 주는 영향
+</Callout>
+
+09편에서 인스턴스마다 메모리가 격리된다는 것을, 10편에서 온디맨드 재검증이 Amplify에서 막혀 있다는 것을 확인했습니다. 두 편 모두 "이미 떠 있는 인스턴스"를 대상으로 한 실습이었습니다. 이번 편은 다른 축입니다. **재배포 자체가 캐시에 어떤 영향을 주는지** 시간 순서대로 추적합니다.
+
+## 이 편에서 만드는 파일
+
+```
+notice-board/
+├── data/
+│   └── notices.seed.json         (~, 공지 1건 추가)
+└── scripts/
+    └── track-invalidation.sh     (+)
+```
+
+## 개념 정리
+
+### 재배포는 캐시를 지운다(공식 문서 기준)
+
+AWS 공식 문서(Managing the cache configuration for an app)는 캐싱 동작을 정리한 표에서 다음 항목을 지원 여부와 함께 명시합니다.
+
+> "Each new CI/CD app deployment clears the cache." — Yes(과거)/Yes(현재 모두 지원)
+
+즉 Amplify Hosting은 Git 연동 배포로 새 빌드가 올라갈 때마다 CDN 캐시를 지우는 것을 표준 동작으로 보장합니다. 수동으로 무효화 요청을 보낼 필요가 없습니다.
+
+### 무효화가 전파되는 순서
+
+재배포 버튼을 누른 시점과 브라우저에 새 콘텐츠가 보이는 시점 사이에는 네 단계가 순서대로 일어납니다.
+
+| 순서 | 단계 | 이 단계에서 일어나는 일 |
+|------|------|--------------------------|
+| 1 | 빌드 | Amplify 빌드 컨테이너가 `amplify.yml`의 명령대로 `npm ci`, `npm run build`를 실행 |
+| 2 | 배포 | 빌드 산출물(`.next`)을 컴퓨트 실행 환경과 정적 자산 스토리지에 반영 |
+| 3 | CloudFront invalidation | Amplify가 CDN 엣지에 캐시된 이전 응답을 무효화 |
+| 4 | 컴퓨트 캐시 초기화 | 새 컴퓨트 인스턴스가 콜드 스타트되며, 이전 인스턴스의 인메모리 상태(09편에서 만든 조회수 저장소·10편에서 만든 공지 저장소)는 사라지고 초깃값으로 되돌아감 |
+
+4단계는 이번 실습에서 직접 확인할 수 있는 부수 효과입니다. 10편에서 등록했던 공지는 재배포 후 사라지고, 09편에서 늘려뒀던 조회수도 0으로 돌아갑니다. 두 인메모리 저장소 모두 새 인스턴스에서 다시 시작되기 때문입니다(공지는 `data/notices.seed.json` 시드로, 조회수는 빈 `Map`으로). 이 문제는 13편에서 외부 공유 캐시로 해결합니다.
+
+### 커스텀 헤더가 체감 시간에 주는 영향
+
+05편에서 특정 경로에 `Cache-Control: s-maxage=...` 커스텀 헤더를 설정했다면, 그 값이 CDN 엣지에 남아있는 최대 시간을 늘립니다. 공식 문서는 재배포마다 캐시를 지운다고 명시하지만, 커스텀 헤더로 캐시 기간을 길게 설정한 SSR 경로에서 재배포 직후에도 잠시 이전 응답이 보였다는 사례가 커뮤니티에 다수 보고되어 있습니다(aws-amplify/amplify-hosting GitHub 이슈 #3186). 실습에서는 이 가능성을 염두에 두고, "즉시 안 바뀌면 실패"로 단정하지 말고 몇 차례 더 새로고침하며 타임라인을 기록합니다.
+
+## 실습
+
+<Steps>
+
+### 1. 재배포 전 상태 기록
+
+```bash
+curl -sI "https://main.d1234567890abc.amplifyapp.com/"
+curl -s -X POST "https://main.d1234567890abc.amplifyapp.com/api/notices/1/views"
+```
+
+`cache-control`, `age`, `x-cache` 값과 09편에서 만든 조회수 API가 지금 돌려주는 `views` 값을 적어 둡니다. 홈 화면에서 10편에서 등록한 공지가 아직 목록에 남아 있는지도 확인합니다.
+
+### 2. 눈에 보이는 콘텐츠 변경 만들기
+
+`data/notices.seed.json`에 새 공지 하나를 추가합니다. 시드 파일을 바꾸는 것은 빌드 시점에 반영되는 변경이라, 4단계 순서 중 1단계(빌드)부터 확인하기 좋습니다.
+
+```json
+// data/notices.seed.json (배열 끝에 추가)
+{
+  "id": 8,
+  "title": "10월 프로모션 사전 안내",
+  "category": "공지",
+  "author": "마케팅팀",
+  "publishedAt": "2026-09-22",
+  "content": "10월 프로모션 사전 신청을 시작합니다."
+}
+```
+
+```bash
+#!/usr/bin/env bash
+# scripts/track-invalidation.sh
+# 배포 직후 10초 간격으로 12번(약 2분) 응답을 확인합니다.
+URL="https://main.d1234567890abc.amplifyapp.com/"
+
+for i in $(seq 1 12); do
+  timestamp=$(date +%H:%M:%S)
+  headers=$(curl -sI "$URL")
+  age=$(echo "$headers" | grep -i '^age:' | tr -d '\r')
+  xcache=$(echo "$headers" | grep -i '^x-cache:' | tr -d '\r')
+  hasNewNotice=$(curl -s "$URL" | grep -c '10월 프로모션')
+  echo "$timestamp | $age | $xcache | 새 공지 노출: $hasNewNotice"
+  sleep 10
+done
+```
+
+### 3. 커밋·푸시로 재배포 트리거
+
+변경 사항을 GitHub에 푸시합니다. Amplify 콘솔 → 앱 선택 → 배포 이력에서 빌드가 시작되는 시각을 확인합니다.
+
+### 4. 배포 완료 직후 타임라인 수집
+
+Amplify 콘솔에서 배포 상태가 "Deployed"로 바뀌는 즉시 스크립트를 실행합니다.
+
+```bash
+bash scripts/track-invalidation.sh
+```
+
+### 5. 확인
+
+결과를 아래와 같은 표로 정리합니다.
+
+| 시각 | age | x-cache | 새 공지 노출 |
+|------|-----|---------|--------------|
+| 10:00:00 | age: 0 | x-cache: Miss from cloudfront | 1 |
+| 10:00:10 | age: 10 | x-cache: Hit from cloudfront | 1 |
+| 10:00:20 | age: 20 | x-cache: Hit from cloudfront | 1 |
+
+(실제 값은 배포 시각과 캐시 설정에 따라 달라집니다. 배포 직후 첫 요청의 `age`가 0으로 리셋되고 `x-cache`가 `Miss`로 바뀌는지, "새 공지 노출" 값이 0에서 1로 바뀌는 시점이 언제인지가 핵심 확인 지점입니다.)
+
+- 재배포 직후 첫 요청에서 `age`가 0으로 리셋됩니다.
+- "10월 프로모션" 공지가 목록에 나타납니다.
+- 홈 화면 목록에서 10편에서 등록했던 공지는 사라지고, `data/notices.seed.json` 시드 데이터(새로 추가한 8번 포함)만 남습니다(4단계, 컴퓨트 캐시 초기화의 결과).
+- 재배포 후 같은 공지(`id=1`)의 조회수 API를 다시 호출하면 값이 `1`부터 다시 시작합니다. 컴퓨트 캐시 초기화로 09편의 인메모리 조회수 저장소도 함께 리셋됐다는 뜻입니다.
+
+</Steps>
+
+## 직접 해보기
+
+1. 05편에서 설정한 `s-maxage` 값을 크게(예: 3600) 바꾼 뒤 같은 재배포 실습을 반복해 봅니다. 무효화 체감 시간이 달라지는지 관찰합니다.
+
+<details>
+<summary>확인 방법</summary>
+
+`s-maxage`를 늘려도 공식 문서 기준으로는 재배포 시 캐시가 지워집니다. 다만 값이 클수록 무효화 이전에 여러 엣지 위치에 퍼져 있던 캐시 항목이 많아질 수 있어, 체감상 새 콘텐츠가 보이기까지 걸리는 시간이 값이 작을 때보다 들쭉날쭉하게 느껴질 수 있습니다.
+
+</details>
+
+2. `track-invalidation.sh`의 간격을 10초에서 2초로 줄여 더 촘촘한 타임라인을 기록해 봅니다.
+
+<details>
+<summary>확인 방법</summary>
+
+간격을 줄이면 `age`가 0에서 리셋되는 정확한 시점을 더 좁은 범위로 좁힐 수 있습니다. 다만 요청 수가 늘어나므로 무료 티어의 SSR 요청 건수를 소모한다는 점을 감안합니다.
+
+</details>
+
+## 자주 하는 실수
+
+| 증상 | 원인 | 고치는 법 |
+|------|------|-----------|
+| 재배포 직후에도 옛 콘텐츠가 계속 보임 | 브라우저 자체 캐시(로컬 캐시)를 보고 있음 | `curl -sI`처럼 브라우저 캐시를 거치지 않는 방법으로 재확인하거나 강력 새로고침을 사용한다 |
+| age가 0으로 리셋되지 않고 계속 증가함 | 재배포가 실제로 완료되지 않았거나, 커스텀 헤더의 긴 TTL이 아직 반영 중 | Amplify 콘솔에서 배포 상태가 "Deployed"인지 먼저 확인한 뒤 몇 차례 더 새로고침한다 |
+| 10편에서 등록한 공지가 재배포 후 사라져서 버그로 오해함 | 인메모리 저장소가 컴퓨트 캐시 초기화(4단계)로 시드 데이터로 되돌아간 것 | 정상 동작이다. 데이터를 재배포 후에도 유지하려면 12·13편의 외부 공유 캐시가 필요하다 |
+| 타임라인 스크립트 실행 중 curl 명령이 자꾸 실패함 | Amplify 앱 URL 오타 또는 네트워크 문제 | Amplify 콘솔에서 정확한 배포 URL을 다시 복사해 스크립트에 반영한다 |
+
+## 확인 문제
+
+<Quiz
+  questionNumber={1}
+  question="AWS 공식 문서가 명시한 재배포와 캐시의 관계로 옳은 것은?"
+  options={['재배포해도 CDN 캐시는 수동으로 지워야 한다', '새 CI/CD 배포마다 캐시가 자동으로 지워진다', '재배포는 캐시와 무관하며 컴퓨트 인스턴스만 바꾼다', '재배포 시 캐시는 다음 날 자정에만 지워진다']}
+  correctAnswer={2}
+  explanation="Managing the cache configuration for an app 문서는 Each new CI/CD app deployment clears the cache 항목을 지원 기능으로 명시합니다."
+  optionExplanations={['수동 무효화 요청이 필요 없다는 것이 공식 동작입니다', '정답입니다', '재배포는 캐시 상태에도 영향을 줍니다', '자정과는 무관하게 배포 시점에 일어납니다']}
+/>
+
+<Quiz
+  questionNumber={2}
+  question="재배포 후 10편에서 등록했던 공지가 목록에서 사라지는 이유로 가장 알맞은 것은?"
+  options={['notices.seed.json 파일이 손상되어서', '새 컴퓨트 인스턴스가 콜드 스타트되며 인메모리 저장소가 시드 데이터로 초기화되어서', 'CloudFront가 공지 데이터를 삭제해서', 'Server Action이 재배포 시 자동으로 롤백되어서']}
+  correctAnswer={2}
+  explanation="인메모리 저장소는 컴퓨트 인스턴스의 메모리에만 존재합니다. 재배포로 인스턴스가 새로 뜨면 그 메모리는 초기화되고, 코드에 있는 시드 데이터만 남습니다."
+  optionExplanations={['파일 자체는 손상되지 않았습니다', '정답입니다', 'CloudFront는 응답을 캐시할 뿐 데이터를 소유하지 않습니다', 'Server Action과 롤백은 관계가 없습니다']}
+/>
+
+<Quiz
+  questionNumber={3}
+  question="빌드 → 배포 → CloudFront invalidation → 컴퓨트 캐시 초기화 순서에서, 이전 편에서 등록한 데이터가 사라지는 단계는 어디인가"
+  options={['빌드 단계', '배포 단계', 'CloudFront invalidation 단계', '컴퓨트 캐시 초기화 단계']}
+  correctAnswer={4}
+  explanation="컴퓨트 캐시 초기화 단계에서 새 인스턴스가 콜드 스타트되며 이전 인스턴스의 인메모리 상태가 사라집니다."
+  optionExplanations={['빌드는 코드를 컴파일하는 단계일 뿐입니다', '배포는 산출물을 반영하는 단계입니다', 'CloudFront invalidation은 CDN 엣지 캐시에 관한 단계입니다', '정답입니다']}
+/>
+
+<Quiz
+  questionNumber={4}
+  question="05편에서 설정한 커스텀 Cache-Control 헤더의 s-maxage 값이 재배포 후 체감 무효화 시간에 미치는 영향으로 가장 알맞은 설명은?"
+  options={['s-maxage 값은 재배포와 전혀 관계가 없다', '값이 커도 공식적으로는 재배포 시 캐시가 지워지지만, 값이 클수록 엣지에 퍼진 캐시가 많아 체감 시간이 들쭉날쭉할 수 있다', 's-maxage가 설정되어 있으면 재배포 자체가 실패한다', 's-maxage 값이 크면 재배포 시 캐시가 절대 지워지지 않는다']}
+  correctAnswer={2}
+  explanation="공식 동작은 재배포 시 캐시를 지우는 것이지만, 커스텀 헤더로 캐시 기간을 길게 설정한 경로는 실제 체감 시간이 더 다르게 느껴질 수 있다는 사례가 보고되어 있습니다."
+  optionExplanations={['s-maxage는 캐시가 얼마나 오래 유지될지에 영향을 줍니다', '정답입니다', '재배포 자체는 헤더 설정과 무관하게 진행됩니다', '공식 문서는 재배포 시 캐시를 지운다고 명시합니다']}
+/>
+
+## 참고 자료
+
+- [AWS Amplify Docs — Managing the cache configuration for an app](https://docs.aws.amazon.com/amplify/latest/userguide/caching.html)
+- [AWS Amplify Docs — Using the Cache-Control header to increase app performance](https://docs.aws.amazon.com/amplify/latest/userguide/ttl.html)
+- [Amazon CloudFront Developer Guide — Manage how long content stays in the cache (expiration)](https://docs.aws.amazon.com/AmazonCloudFront/latest/DeveloperGuide/Expiration.html)

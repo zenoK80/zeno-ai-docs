@@ -1,0 +1,170 @@
+---
+title: '14. amplify.yml 빌드 캐시 설정'
+description: 'amplify.yml에 캐시 경로를 추가해 연속 배포의 빌드 시간을 줄이고, 캐시가 깨지는 흔한 원인을 확인합니다'
+---
+
+<Callout type="info">
+  **이번 편의 결과물:** `amplify.yml`에 캐시 경로를 추가한 뒤 연속 배포 두 번의 빌드 소요 시간을 비교해 단축을 확인합니다. · **다루는 개념:** `amplify.yml`의 `cache.paths`, 콘솔 자동 감지 설정을 저장소 파일로 옮기기, 빌드 캐시가 깨지는 흔한 원인
+</Callout>
+
+지금까지는 04편에서 Amplify 콘솔이 자동으로 만든 빌드 설정을 그대로 썼습니다. 이 편에서는 그 설정을 저장소의 `amplify.yml` 파일로 옮기고, 캐시 경로를 직접 관리합니다. 이 편에서 다루는 캐시는 런타임 응답 캐시(05~13편)와는 다른, **빌드 단계에서만 쓰는 캐시**입니다.
+
+## 이 편에서 만드는 파일
+
+```
+notice-board/
+└── amplify.yml    + (저장소에 커밋하는 빌드 설정 파일, cache.paths 포함)
+```
+
+## 개념 정리
+
+### amplify.yml 구조
+
+| 키 | 역할 |
+|----|------|
+| `version` | 빌드 설정 스키마 버전(현재 `1`) |
+| `frontend.phases.preBuild.commands` | 빌드 시작 전 실행(의존성 설치 등) |
+| `frontend.phases.build.commands` | 실제 빌드 명령(`next build`) |
+| `frontend.artifacts.baseDirectory` | 배포할 산출물이 있는 폴더(Next.js는 `.next`) |
+| `frontend.artifacts.files` | 그 폴더에서 배포에 포함할 파일 패턴 |
+| `frontend.cache.paths` | 빌드가 끝난 뒤 보관했다가 다음 빌드 시작 시 복원할 경로 |
+
+### 캐시가 실제로 하는 일
+
+AWS 공식 문서는 캐시 동작을 이렇게 설명합니다. 첫 빌드에서 `cache.paths`에 적은 경로를 저장해 두고, 다음 빌드부터는 명령을 실행하기 전에 그 경로를 그대로 복원합니다. 즉 캐시는 내용을 검사해서 다시 쓸지 판단하는 것이 아니라, **이전 빌드가 남긴 폴더를 통째로 되돌려 놓는 방식**입니다. `node_modules`를 캐시하면 `npm ci`가 이미 받아 놓은 패키지를 다시 내려받지 않고 검증만 하고, `.next/cache`를 캐시하면 `next build`가 이전 컴파일 결과를 재사용해 바뀌지 않은 부분을 다시 컴파일하지 않습니다.
+
+경로는 프로젝트 루트 기준 상대 경로만 허용됩니다. 절대 경로를 적어도 빌드는 에러 없이 성공하지만, 그 경로는 캐시되지 않습니다.
+
+### 캐시가 깨지는 흔한 원인
+
+캐시는 내용을 비교하지 않고 폴더를 그대로 복원하므로, `package-lock.json`이 바뀌어도 Amplify가 자동으로 `node_modules` 캐시를 비우지 않습니다. 보통은 `npm ci`가 락 파일과 `node_modules`의 불일치를 감지해 알아서 다시 설치하므로 문제가 되지 않지만, 이상하게 오래된 의존성이 남아있는 것 같다면 `cache.paths`에서 해당 경로를 잠시 지우고 한 번 빌드해 캐시를 새로 채운 뒤 다시 넣는 방법으로 해결합니다.
+
+## 실습
+
+<Steps>
+
+### 1. 콘솔의 자동 설정을 파일로 내려받기
+
+Amplify 콘솔 → 앱 선택 → **App settings** → **Build settings**로 이동합니다. 지금까지는 이 화면의 자동 생성 설정을 그대로 썼습니다. **Edit**를 눌러 현재 내용을 복사합니다.
+
+### 2. amplify.yml 작성
+
+저장소 루트에 `amplify.yml`을 만들고, 복사한 내용을 바탕으로 `cache.paths`를 추가합니다.
+
+```yaml
+# notice-board/amplify.yml
+version: 1
+frontend:
+  phases:
+    preBuild:
+      commands:
+        - npm ci
+    build:
+      commands:
+        - npm run build
+  artifacts:
+    baseDirectory: .next
+    files:
+      - '**/*'
+  cache:
+    paths:
+      - node_modules/**/*
+      - .next/cache/**/*
+```
+
+`baseDirectory`를 `.next`로 유지해야 합니다. 이 값이 바뀌면 배포 후 접속했을 때 404가 발생합니다.
+
+### 3. 커밋하고 첫 배포(캐시 생성)
+
+```text
+git add amplify.yml
+git commit -m "add amplify.yml with build cache paths"
+git push
+```
+
+저장소에 `amplify.yml`이 있으면 Amplify는 콘솔 자동 감지 대신 이 파일을 사용합니다. 이번 배포는 캐시가 비어 있으므로 이전과 비슷한 시간이 걸립니다. 빌드가 끝나면 콘솔의 빌드 로그에서 각 단계(Provision, Build, Deploy, Verify)의 소요 시간을 기록해 둡니다.
+
+### 4. 빈 커밋으로 두 번째 배포(캐시 사용)
+
+코드를 바꾸지 않고 다시 배포해 캐시가 실제로 복원되는지 확인합니다.
+
+```text
+git commit --allow-empty -m "trigger second deploy to compare cache"
+git push
+```
+
+빌드 로그의 **preBuild** 단계(`npm ci`)와 **build** 단계(`next build`) 소요 시간을 1차 배포와 비교합니다.
+
+### 5. 결과 기록
+
+| 배포 | preBuild 소요 시간 | build 소요 시간 |
+|------|---------------------|-------------------|
+| 1차(캐시 없음) | (기록) | (기록) |
+| 2차(캐시 있음) | (기록) | (기록) |
+
+</Steps>
+
+## 직접 해보기
+
+1. `cache.paths`에서 `.next/cache/**/*`만 지우고 다시 배포해, `node_modules`만 캐시했을 때와 두 캐시를 함께 뒀을 때 `build` 단계 시간 차이를 비교해 보세요.
+2. `package.json`에 의존성을 하나 추가해 재배포하고, `npm ci`가 캐시된 `node_modules`를 그대로 쓰지 않고 새 패키지를 반영하는지 확인해 보세요.
+
+<details>
+<summary>정답 보기</summary>
+
+`.next/cache`를 빼면 `next build`가 이전 컴파일 산출물을 재사용하지 못해 build 단계 시간이 다시 늘어납니다. 의존성을 추가하면 `npm ci`는 캐시된 `node_modules`가 있어도 `package-lock.json`과 맞지 않는 부분을 감지해 새 패키지를 추가로 설치합니다. 즉 `node_modules` 캐시는 "다시 받지 않아도 되는 부분을 건너뛰는 것"이지 "설치 자체를 생략하는 것"은 아닙니다.
+
+</details>
+
+## 자주 하는 실수
+
+| 증상 | 원인 | 고치는 법 |
+|------|------|-----------|
+| 빌드가 `Out of memory` 에러로 실패 | `.next/cache`를 캐시하면서 빌드 컨테이너 메모리를 초과 | `cache.paths`에서 `.next/cache/**/*`를 빼고, `NODE_OPTIONS`는 콘솔 환경 변수로 따로 설정한다 |
+| 캐시 경로를 적었는데 효과가 없음 | 절대 경로(`/home/...` 등)로 적음 | 프로젝트 루트 기준 상대 경로(`node_modules/**/*`)로 적는다 |
+| 저장소에 `amplify.yml`을 추가했는데 콘솔 설정이 그대로 적용됨 | 캐시된 콘솔 화면을 보고 있거나 파일 경로가 저장소 루트가 아님 | 재배포 후 빌드 로그 상단에 어떤 설정이 쓰였는지 다시 확인한다 |
+| 배포 후 홈 화면이 404 | `artifacts.baseDirectory`를 `.next`가 아닌 값으로 바꿈 | `baseDirectory: .next`를 유지한다 |
+
+## 확인 문제
+
+<Quiz
+  questionNumber={1}
+  question="amplify.yml의 cache.paths가 실제로 하는 일은"
+  options={['빌드 로그를 CloudWatch에 저장한다', '이전 빌드가 끝난 뒤 지정한 경로를 보관했다가 다음 빌드 시작 전에 그대로 복원한다', 'CDN 캐시 TTL을 설정한다', 'DynamoDB 캐시 테이블을 자동으로 만든다']}
+  correctAnswer={2}
+  explanation="cache.paths는 런타임 CDN 캐시와 무관하게, 빌드 컨테이너의 특정 폴더를 다음 빌드 전에 그대로 되돌려 놓는 빌드 전용 기능입니다."
+  optionExplanations={['로그 저장과는 무관합니다', '정답입니다', 'CDN TTL은 05편의 커스텀 헤더로 다룹니다', 'DynamoDB 테이블 생성과는 무관합니다']}
+/>
+
+<Quiz
+  questionNumber={2}
+  question="package-lock.json이 바뀌었는데도 캐시된 node_modules가 남아있을 때 보통 문제가 되지 않는 이유는"
+  options={['Amplify가 매 빌드마다 캐시를 자동으로 비우기 때문에', 'npm ci가 락 파일과 node_modules 상태가 어긋나면 필요한 만큼 다시 설치하기 때문에', 'node_modules는 애초에 캐시되지 않기 때문에', 'Next.js가 캐시된 의존성을 무시하고 항상 새로 받기 때문에']}
+  correctAnswer={2}
+  explanation="Amplify는 캐시를 자동으로 무효화하지 않지만, npm ci 자체가 락 파일 기준으로 필요한 패키지를 다시 설치하므로 실제로는 대부분 문제없이 동작합니다."
+  optionExplanations={['자동 무효화 기능은 없습니다', '정답입니다', 'node_modules는 캐시 대상입니다', 'Next.js가 아니라 npm ci의 동작입니다']}
+/>
+
+<Quiz
+  questionNumber={3}
+  question="cache.paths에 절대 경로를 적었을 때 벌어지는 일은"
+  options={['빌드가 즉시 실패한다', '빌드는 성공하지만 그 경로는 캐시되지 않는다', 'Amplify가 자동으로 상대 경로로 바꿔준다', '프로젝트 루트 밖의 시스템 파일까지 캐시된다']}
+  correctAnswer={2}
+  explanation="AWS 공식 문서에 따르면 절대 경로는 에러 없이 빌드가 성공하지만 해당 경로는 캐시 대상에서 제외됩니다."
+  optionExplanations={['에러로 실패하지 않습니다', '정답입니다', '자동 변환 기능은 없습니다', '루트 밖 경로는 애초에 허용되지 않습니다']}
+/>
+
+<Quiz
+  questionNumber={4}
+  question="artifacts.baseDirectory를 .next가 아닌 값으로 바꾸면 생기는 문제는"
+  options={['빌드 시간이 조금 늘어난다', '배포 후 사이트에 접속하면 404 오류가 발생한다', 'CloudWatch 로그가 비활성화된다', 'DynamoDB 캐시가 초기화된다']}
+  correctAnswer={2}
+  explanation="Next.js의 실제 산출물은 .next 폴더에 있으므로, baseDirectory가 이를 가리키지 않으면 Amplify가 잘못된 위치를 배포해 404가 발생합니다."
+  optionExplanations={['시간 문제가 아니라 배포 위치 문제입니다', '정답입니다', '로그 설정과는 무관합니다', 'DynamoDB와는 무관합니다']}
+/>
+
+## 참고 자료
+
+- [AWS Amplify Docs — Build specification reference(cache.paths 동작 방식)](https://docs.aws.amazon.com/amplify/latest/userguide/yml-specification-syntax.html)
+- [AWS Amplify Docs — Configuring the build settings for an Amplify application](https://docs.aws.amazon.com/amplify/latest/userguide/build-settings.html)
+- [Next.js Docs — How to configure CI build caching(AWS CodeBuild 캐시 경로 예시)](https://nextjs.org/docs/app/guides/ci-build-caching)

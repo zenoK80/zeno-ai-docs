@@ -1,0 +1,357 @@
+---
+title: '03. 프로젝트 생성과 공지사항 시드 데이터'
+description: 'Amplify가 지원하는 Next.js 15로 notice-board를 만들고 시드 데이터를 옮겨 홈 화면에 공지사항 목록을 정적으로 렌더합니다'
+---
+
+<Callout type="info">
+  **이번 편의 결과물:** `notice-board`가 로컬에서 실행되고, 홈 화면에 공지사항 7건이 목록으로 보입니다. · **다루는 개념:** Amplify 지원 범위에 맞춘 `create-next-app`(Next.js 15) 스캐폴드, `notices.seed.json` 시드 데이터, `app/page.js`에서 정적 목록 렌더
+</Callout>
+
+## 이 편에서 만드는 파일
+
+```
+notice-board/                       (+)
+├── package.json                    (+)
+├── next.config.mjs                 (+)
+├── jsconfig.json                   (+)
+├── eslint.config.mjs               (+)
+├── data/
+│   └── notices.seed.json           (+, 시드 데이터)
+└── app/
+    ├── layout.js                   (+, 기본 레이아웃 정리)
+    ├── page.js                     (~, 기본 안내 화면을 지우고 목록 렌더)
+    └── globals.css                 (~, 기본 스타일 정리)
+```
+
+## 개념 정리
+
+### 왜 Next.js 버전을 15로 못 박는가
+
+01편에서 확인했듯 Amplify Hosting compute는 Next.js 12부터 15까지만 지원합니다. `create-next-app`을 버전 지정 없이 실행하면 그 시점의 최신 메이저 버전이 설치되는데, 이 과목을 작성하는 시점에는 이미 16 계열이 최신입니다. 그대로 두면 04편에서 배포할 앱이 Amplify의 지원 범위를 벗어납니다. 그래서 이 과목은 `create-next-app`을 실행할 때 메이저 버전을 명시적으로 15로 지정합니다.
+
+### 이 과목이 선택한 create-next-app 옵션
+
+Next.js 기본기(App Router, 파일 기반 라우팅)는 이미 안다고 전제하므로, 옵션 하나하나의 의미보다 **이 과목이 왜 이 값을 골랐는지**에 집중합니다.
+
+| 옵션 | 선택 | 이유 |
+|---|---|---|
+| 버전 | 15 (메이저 고정) | Amplify Hosting compute 지원 범위(12–15) 안에 있어야 한다 |
+| TypeScript | 아니오 | 이 과목은 캐싱 동작 관찰에 집중하고, JavaScript로 코드량을 줄인다 |
+| Tailwind CSS | 아니오 | 스타일은 최소한만 필요하므로 일반 CSS 파일로 충분하다 |
+| ESLint | 예 | 기본 린트 규칙을 그대로 사용한다 |
+| Turbopack | 아니오 | 배포 환경(Amplify)의 빌드 동작과 최대한 가깝게, 표준 빌드 경로를 사용한다 |
+| `src/` 디렉터리 | 아니오 | `app`을 프로젝트 최상위에 두어 공식 문서 예제와 같은 형태를 유지한다 |
+| App Router | 예 | 이 과목의 전제 |
+
+### notice-board 데이터 모델
+
+이 과목 전체가 다루는 데이터는 공지사항 하나당 아래 필드를 갖습니다. 이 구성은 16편까지 그대로 유지됩니다.
+
+| 필드 | 타입 | 의미 |
+|---|---|---|
+| `id` | 숫자 | 목록·상세를 연결하는 식별자 |
+| `title` | 문자열 | 공지 제목 |
+| `category` | 문자열 | `공지` \| `점검` \| `이벤트` 중 하나 |
+| `author` | 문자열 | 작성 부서 |
+| `publishedAt` | 문자열(`YYYY-MM-DD`) | 게시일 |
+| `content` | 문자열 | 본문 |
+
+### 정적 데이터는 fetch 없이 import한다
+
+`app/page.js`는 서버 컴포넌트이므로, 브라우저의 `fetch`나 `useEffect` 없이 서버가 파일을 읽는 시점에 시드 데이터를 그대로 `import`할 수 있습니다.
+
+```js
+import notices from '../data/notices.seed.json'
+```
+
+이 방식은 데이터가 파일에 고정되어 있을 때만 씁니다. 실행 중에 공지를 추가·삭제하려면 Route Handler로 만든 mock API가 필요합니다. 그 부분은 06편에서 다룹니다. 지금은 화면에 목록을 띄우는 것까지만 합니다.
+
+## 실습
+
+<Steps>
+
+### 1. Node 버전 확인
+
+```text
+node -v
+```
+
+`v20.9.0` 이상이면 됩니다. Amplify Hosting compute가 지원하는 Node.js 런타임은 20·22·24뿐이므로, 이 과목은 Node 22를 기준으로 진행합니다.
+
+### 2. 프로젝트 생성
+
+원하는 작업 폴더에서 실행합니다.
+
+```text
+npx create-next-app@15 notice-board --js --eslint --no-tailwind --app --no-src-dir --import-alias "@/*" --no-agents-md --use-npm --no-turbopack
+```
+
+각 플래그의 의미는 위 표와 같습니다. `@15`가 핵심입니다. 이 편 작성 시점 기준 설치되는 버전은 Next.js 15.5.25, React 19.1.0입니다. 명령을 실행한 시점에 15 계열 안에서 더 새 패치 버전이 설치되면 그 버전을 그대로 씁니다. 만약 설치된 `next` 버전이 16 이상이라면 Amplify 지원 범위를 벗어나므로, `package.json`을 확인하고 `create-next-app@15`로 다시 생성합니다.
+
+### 3. 실행 확인
+
+```text
+cd notice-board
+npm run dev
+```
+
+터미널에 뜬 주소(기본값 `http://localhost:3000`)를 브라우저에서 엽니다. Next.js 기본 시작 화면이 보이면 정상입니다.
+
+### 4. 시드 데이터 작성
+
+프로젝트 루트에 `data` 폴더를 만들고 `notices.seed.json`을 작성합니다.
+
+```json
+// data/notices.seed.json
+[
+  {
+    "id": 1,
+    "title": "9월 정기 서버 점검 안내",
+    "category": "점검",
+    "author": "운영팀",
+    "publishedAt": "2026-09-01",
+    "content": "9월 5일 오전 2시부터 4시까지 정기 점검이 진행됩니다. 점검 시간에는 접속이 일시적으로 제한됩니다."
+  },
+  {
+    "id": 2,
+    "title": "커뮤니티 이용 규칙 개정 안내",
+    "category": "공지",
+    "author": "운영팀",
+    "publishedAt": "2026-09-03",
+    "content": "게시판 이용 규칙 3조와 5조가 개정되었습니다. 변경된 내용은 이용약관 페이지에서 확인할 수 있습니다."
+  },
+  {
+    "id": 3,
+    "title": "가을맞이 사용자 이벤트 오픈",
+    "category": "이벤트",
+    "author": "마케팅팀",
+    "publishedAt": "2026-09-05",
+    "content": "9월 한 달간 출석 체크 이벤트가 진행됩니다. 매일 접속하면 추첨을 통해 상품을 드립니다."
+  },
+  {
+    "id": 4,
+    "title": "모바일 앱 1.4.0 업데이트",
+    "category": "공지",
+    "author": "개발팀",
+    "publishedAt": "2026-09-08",
+    "content": "다크 모드와 알림 설정 화면이 추가되었습니다. 스토어에서 최신 버전으로 업데이트해 주세요."
+  },
+  {
+    "id": 5,
+    "title": "추석 연휴 고객센터 운영 안내",
+    "category": "공지",
+    "author": "고객지원팀",
+    "publishedAt": "2026-09-10",
+    "content": "추석 연휴 기간 고객센터는 휴무이며, 문의 게시판은 정상적으로 접수됩니다."
+  },
+  {
+    "id": 6,
+    "title": "네트워크 회선 교체 작업 안내",
+    "category": "점검",
+    "author": "운영팀",
+    "publishedAt": "2026-09-14",
+    "content": "회선 교체 작업으로 9월 16일 새벽 시간대에 짧은 접속 지연이 발생할 수 있습니다."
+  },
+  {
+    "id": 7,
+    "title": "베타 기능 체험단 모집",
+    "category": "이벤트",
+    "author": "마케팅팀",
+    "publishedAt": "2026-09-18",
+    "content": "새로 준비 중인 검색 기능을 미리 체험할 사용자 30명을 모집합니다. 신청은 이벤트 페이지에서 가능합니다."
+  }
+]
+```
+
+### 5. 기본 레이아웃 정리
+
+`create-next-app`이 만든 `app/layout.js`에는 폰트 설정과 예시 메타데이터가 들어 있습니다. 이 과목에서 당장 쓰지 않는 부분을 지우고 최소한만 남깁니다.
+
+```js
+// app/layout.js
+import './globals.css'
+
+export const metadata = {
+  title: 'notice-board',
+  description: 'Amplify Hosting 캐싱 학습용 공지사항 게시판입니다.',
+}
+
+export default function RootLayout({ children }) {
+  return (
+    <html lang="ko">
+      <body>{children}</body>
+    </html>
+  )
+}
+```
+
+### 6. 전역 스타일 정리
+
+`app/globals.css`도 기본 템플릿 내용을 지우고 목록 화면에 필요한 최소 스타일만 남깁니다.
+
+```css
+/* app/globals.css */
+* {
+  box-sizing: border-box;
+}
+
+body {
+  margin: 0;
+  font-family: system-ui, -apple-system, 'Malgun Gothic', sans-serif;
+  color: #1f2937;
+  background-color: #f9fafb;
+}
+
+.notice-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: grid;
+  gap: 12px;
+  max-width: 640px;
+}
+
+.notice-card {
+  border: 1px solid #e5e7eb;
+  border-radius: 8px;
+  padding: 16px;
+  background-color: #ffffff;
+}
+
+.notice-card__title {
+  margin: 0 0 6px;
+}
+
+.notice-card__meta {
+  margin: 0;
+  color: #6b7280;
+  font-size: 0.9rem;
+}
+
+.notice-card__category {
+  display: inline-block;
+  margin-right: 8px;
+  padding: 2px 8px;
+  border-radius: 999px;
+  background-color: #e0e7ff;
+  color: #3730a3;
+  font-size: 0.8rem;
+}
+```
+
+### 7. 홈 화면에 목록 렌더
+
+`app/page.js`를 아래 내용으로 바꿉니다.
+
+```js
+// app/page.js
+import notices from '../data/notices.seed.json'
+
+export default function Page() {
+  return (
+    <main>
+      <h1>notice-board</h1>
+      <ul className="notice-list">
+        {notices.map((notice) => (
+          <li key={notice.id} className="notice-card">
+            <h2 className="notice-card__title">{notice.title}</h2>
+            <p className="notice-card__meta">
+              <span className="notice-card__category">{notice.category}</span>
+              {notice.author} · {notice.publishedAt}
+            </p>
+          </li>
+        ))}
+      </ul>
+    </main>
+  )
+}
+```
+
+`notices.map`으로 배열을 그대로 순회합니다. 서버 컴포넌트라서 `useState`나 `useEffect` 없이도, 파일을 읽어 만든 배열을 바로 화면에 그릴 수 있습니다.
+
+### 8. 다시 실행
+
+```text
+npm run dev
+```
+
+</Steps>
+
+## 확인
+
+- 터미널에 `Local: http://localhost:3000` 형태의 주소가 출력됩니다.
+- 브라우저에서 그 주소를 열면 "notice-board" 제목과 공지사항 7건 카드 목록이 보입니다.
+- 각 카드에 분류 배지(점검·공지·이벤트)와 작성 부서, 게시일이 함께 보입니다.
+- 브라우저 탭 제목이 "notice-board"로 표시됩니다(`app/layout.js`의 `metadata` 효과).
+- `package.json`을 열어 `next` 버전이 `15.`로 시작하는지 확인합니다.
+
+## 직접 해보기
+
+1. `data/notices.seed.json`에서 `category`가 `점검`인 공지만 세어보고, 몇 건인지 확인해보세요.
+2. `package.json`의 `dependencies`에서 `next`, `react`, `react-dom` 버전을 확인하고, 01편에서 정리한 지원 범위(Next.js 12~15) 안에 있는지 판단해보세요.
+
+<details>
+<summary>정답 보기</summary>
+
+```js
+// app/page.js (확인용, 실제로 반영하지 않아도 됨)
+const maintenanceNotices = notices.filter((notice) => notice.category === '점검')
+```
+
+시드 데이터에는 `점검` 분류가 2건(9월 정기 서버 점검, 네트워크 회선 교체 작업) 들어 있습니다.
+
+`package.json`의 `next` 값이 `15.x.x` 형태라면 지원 범위 안입니다. `16.x.x`로 시작한다면 `create-next-app@15`로 프로젝트를 다시 만들어야 합니다.
+
+</details>
+
+## 자주 하는 실수
+
+| 증상 | 원인 | 고치는 법 |
+|---|---|---|
+| `package.json`의 `next` 버전이 `16.`으로 시작함 | `create-next-app` 실행 시 메이저 버전을 지정하지 않음 | `npx create-next-app@15 ...`처럼 버전을 명시해 다시 생성한다 |
+| `npm run dev` 실행 시 `Missing script: "dev"` | `notice-board` 폴더 밖에서 명령 실행 | `cd notice-board` 후 다시 실행한다 |
+| 화면에 아무것도 안 보임 | `data/notices.seed.json` 경로가 `app/page.js`의 import 경로와 다름 | `import notices from '../data/notices.seed.json'`의 상대 경로를 실제 폴더 구조와 맞춘다 |
+| `notices.seed.json` 저장 시 JSON 문법 오류 | 마지막 항목 뒤에 쉼표를 남기거나 따옴표를 빠뜨림 | 저장 후 `npm run dev`가 에러 없이 뜨는지로 문법을 확인한다 |
+
+## 확인 문제
+
+<Quiz
+  questionNumber={1}
+  question="이 과목이 create-next-app 실행 시 메이저 버전을 15로 고정하는 이유는"
+  options={['15가 가장 최신 버전이라서', 'Amplify Hosting compute가 Next.js 12부터 15까지만 공식 지원해서', 'Next.js 16에는 App Router가 없어서', 'TypeScript를 쓰지 않기 위해서']}
+  correctAnswer={2}
+  explanation="01편에서 확인했듯 Amplify Hosting compute의 공식 지원 범위가 12~15이므로, 그 범위 밖의 버전으로 만들면 04편의 배포가 지원되지 않습니다."
+  optionExplanations={['최신 여부가 기준이 아니라 Amplify 지원 범위가 기준입니다', '정답입니다', 'App Router 지원 여부와는 무관합니다', 'TypeScript 선택과는 별개의 이유입니다']}
+/>
+
+<Quiz
+  questionNumber={2}
+  question="Amplify Hosting compute가 지원하는 Node.js 런타임으로 옳은 것은"
+  options={['16, 18, 20', '18, 20, 22', '20, 22, 24', '14, 16, 18']}
+  correctAnswer={3}
+  explanation="Amplify Hosting은 Node.js 14·16·18 지원을 중단했고 현재는 20·22·24만 지원합니다."
+  optionExplanations={['16과 18은 지원이 끝났습니다', '18은 지원이 끝났습니다', '정답입니다', '셋 다 지원이 끝난 버전입니다']}
+/>
+
+<Quiz
+  questionNumber={3}
+  question="app/page.js에서 notices.seed.json을 fetch 대신 import로 가져올 수 있는 이유는"
+  options={['app/page.js가 클라이언트 컴포넌트라서', 'app/page.js가 서버 컴포넌트라서 파일을 직접 읽을 수 있어서', 'JSON 파일은 항상 import만 가능해서', 'Next.js가 fetch를 지원하지 않아서']}
+  correctAnswer={2}
+  explanation="서버 컴포넌트는 서버에서 실행되므로 파일 시스템의 데이터를 fetch 없이 바로 import해 쓸 수 있습니다."
+  optionExplanations={['클라이언트 컴포넌트였다면 이 방식이 불가능합니다', '정답입니다', 'JSON도 fetch로 받아올 수 있습니다', 'Next.js는 fetch를 지원합니다']}
+/>
+
+<Quiz
+  questionNumber={4}
+  question="notice-board 데이터 모델에서 category 필드에 들어갈 수 없는 값은"
+  options={['공지', '점검', '이벤트', '광고']}
+  correctAnswer={4}
+  explanation="이 과목의 시드 데이터는 공지, 점검, 이벤트 세 가지 분류만 사용합니다."
+  optionExplanations={['사용하는 분류입니다', '사용하는 분류입니다', '사용하는 분류입니다', '정답입니다']}
+/>
+
+## 참고 자료
+
+- [AWS Amplify Docs — Amplify support for Next.js](https://docs.aws.amazon.com/amplify/latest/userguide/ssr-amplify-support.html)
+- [Next.js Docs — Getting Started](https://nextjs.org/docs/app/getting-started)

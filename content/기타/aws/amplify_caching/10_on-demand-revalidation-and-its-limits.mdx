@@ -1,0 +1,265 @@
+---
+title: '10. 온디맨드 재검증과 Amplify의 제약'
+description: 'revalidatePath를 호출하는 Server Action을 만들고, Amplify Hosting compute가 On-Demand ISR을 지원하지 않는다는 사실을 직접 확인한 뒤 시간 기반 재검증으로 우회합니다'
+---
+
+<Callout type="info">
+  **이번 편의 결과물:** 공지사항을 등록한 뒤 `revalidatePath`를 호출해도, 로컬과 달리 배포 환경에서는 목록이 즉시 갱신되지 않는 현상을 확인하고 짧은 시간 기반 `revalidate`로 우회합니다. · **다루는 개념:** `revalidatePath`를 호출하는 Server Action, Amplify Hosting compute의 On-Demand ISR 미지원, 시간 기반 재검증으로 대체하는 전략
+</Callout>
+
+07편에서 공지사항 목록 페이지는 60초마다 다시 만들어지는 시간 기반 ISR로 동작하게 했습니다. 새 공지를 등록했을 때 60초씩 기다리지 않고 그 자리에서 목록에 반영하고 싶다면, Next.js는 `revalidatePath`·`revalidateTag`로 특정 경로의 캐시를 즉시 무효화하는 온디맨드 재검증을 제공합니다. 이번 편에서는 이 기능을 실제로 붙여 보고, AWS 공식 문서가 명시한 제약과 실제 배포 환경에서의 동작을 나란히 확인합니다.
+
+<Callout type="warning">
+  AWS Amplify Docs — Amplify support for Next.js는 "*On-Demand* Incremental Static Regeneration (ISR)"을 **Unsupported features**(미지원 기능) 목록에 명시하고 있습니다. 이 편의 재현 실습은 이 공식 제약을 직접 눈으로 확인하는 것이 목적입니다.
+</Callout>
+
+## 이 편에서 만드는 파일
+
+```
+notice-board/
+├── lib/
+│   └── notices-store.js          (+, addNotice 함수 포함 저장소)
+└── app/
+    ├── api/
+    │   └── notices/
+    │       └── route.js          (~, GET은 getAllNotices() 기반으로 전환, POST 추가)
+    └── notices/
+        └── new/
+            ├── page.js           (+, 등록 폼)
+            └── actions.js        (+, Server Action)
+```
+
+## 개념 정리
+
+### revalidatePath와 revalidateTag
+
+`next/cache`가 제공하는 두 함수는 표준 Next.js 서버(Vercel, `next start` 등)에서 호출 즉시 지정한 경로 또는 태그의 캐시된 데이터를 무효화합니다. 다음 요청이 오면 캐시를 건너뛰고 새로 렌더링합니다.
+
+| 함수 | 무효화 대상 |
+|------|-------------|
+| `revalidatePath('/')` | 지정한 경로 하나의 라우트 캐시 |
+| `revalidateTag('notices')` | 해당 태그를 붙인 모든 `fetch` 데이터 캐시 |
+
+### Amplify Hosting compute의 공식 제약
+
+AWS 공식 문서(Amplify support for Next.js)는 지원 기능과 미지원 기능을 명확히 나눠 나열합니다. 미지원 목록에는 다음이 포함됩니다.
+
+- **On-Demand Incremental Static Regeneration (ISR)**
+- Edge API Routes(Edge 미들웨어)
+- Next.js 스트리밍
+- 정적 자산·최적화된 이미지에서 미들웨어 실행
+
+시간 기반 ISR(07편에서 쓴 `revalidate: 60` 같은 옵션)은 **지원 기능** 목록의 "Incremental Static Regeneration (ISR)"에 해당해 정상 동작합니다. 반면 `revalidatePath`/`revalidateTag`처럼 임의 시점에 호출해 즉시 무효화하는 온디맨드 방식은 별도 항목으로 미지원 처리되어 있습니다. 두 기능은 이름은 비슷하지만 Amplify에서의 지원 여부가 다릅니다.
+
+### 로컬과 배포 환경이 다르게 동작하는 이유
+
+로컬 개발 서버(`npm run dev`)는 매 요청을 즉시 렌더링하는 개발 전용 모드라 `revalidatePath`의 효과가 바로 보입니다. 프로덕션 빌드를 표준 Node.js 서버로 띄워도 `revalidatePath`는 정상 동작합니다. 문제는 **Amplify Hosting compute 위에서 실행할 때만** 발생합니다. 함수 호출 자체는 에러 없이 끝나지만, 실제로 목록 페이지를 다시 요청했을 때 새 공지가 반영된다는 보장이 없습니다.
+
+## 실습
+
+<Steps>
+
+### 1. 등록 기능을 가진 저장소 만들기
+
+06편에서 `/api/notices`가 읽던 시드 데이터를 이제 메모리 위에 올려두고, 등록 함수를 추가합니다.
+
+```js
+// lib/notices-store.js
+import seedNotices from '../data/notices.seed.json';
+
+let notices = [...seedNotices];
+
+export function getAllNotices() {
+  return notices;
+}
+
+export function addNotice({ title }) {
+  const nextId = notices.length > 0 ? Math.max(...notices.map((notice) => Number(notice.id))) + 1 : 1;
+
+  const newNotice = {
+    id: nextId,
+    title,
+    category: '공지',
+    author: '운영팀',
+    publishedAt: new Date().toISOString().slice(0, 10),
+    content: '',
+  };
+
+  notices = [newNotice, ...notices];
+  return newNotice;
+}
+```
+
+06편의 `app/api/notices/route.js`는 `data/notices.seed.json`을 직접 import해서 반환했습니다. 이제 그 자리를 `getAllNotices()` 호출로 바꿔, 등록된 공지가 API 응답에도 보이게 합니다. `addNotice`가 만드는 새 공지도 03편 시드 데이터와 같은 필드 이름(`publishedAt` 등)을 그대로 씁니다. 1초 지연과 로그는 06편 그대로 두고, GET은 그대로 둔 채 새 공지를 추가하는 POST만 더합니다.
+
+```js
+// app/api/notices/route.js
+import { NextResponse } from 'next/server';
+import { getAllNotices, addNotice } from '../../../lib/notices-store.js';
+
+function wait(ms) {
+  return new Promise((resolve) => setTimeout(resolve, ms));
+}
+
+export async function GET() {
+  console.log(`[API] GET /api/notices 처리 시작 - ${new Date().toISOString()}`);
+  await wait(1000);
+  console.log(`[API] GET /api/notices 처리 끝 - ${new Date().toISOString()}`);
+  return NextResponse.json(getAllNotices());
+}
+
+export async function POST(request) {
+  const body = await request.json();
+
+  if (!body.title) {
+    return NextResponse.json({ error: '제목을 입력하세요' }, { status: 400 });
+  }
+
+  const newNotice = addNotice({ title: body.title });
+  return NextResponse.json(newNotice, { status: 201 });
+}
+```
+
+06편의 GET 구현은 그대로 유지했습니다(1초 지연, 로그, 시드 필드 이름 그대로). POST는 이번 편에서 새로 추가하는 부분으로, 아래 Server Action이 아니라 API를 직접 호출하는 다른 클라이언트(예: 관리자 도구)가 공지를 등록할 때 쓸 수 있는 경로입니다. 이번 편의 등록 폼은 Server Action에서 `addNotice`를 직접 불러 쓰므로, 화면 동작은 POST 라우트를 거치지 않아도 그대로 동작합니다.
+
+### 2. 등록 폼과 Server Action 작성
+
+```js
+// app/notices/new/actions.js
+'use server';
+
+import { revalidatePath } from 'next/cache';
+import { redirect } from 'next/navigation';
+import { addNotice } from '../../../lib/notices-store.js';
+
+export async function createNotice(formData) {
+  const title = formData.get('title');
+
+  if (!title) {
+    throw new Error('제목을 입력하세요');
+  }
+
+  addNotice({ title });
+  revalidatePath('/');
+  redirect('/');
+}
+```
+
+```jsx
+// app/notices/new/page.js
+import { createNotice } from './actions.js';
+
+export default function NewNoticePage() {
+  return (
+    <section>
+      <h1>새 공지 등록</h1>
+      <form action={createNotice}>
+        <label>
+          제목
+          <input type="text" name="title" required />
+        </label>
+        <button type="submit">등록</button>
+      </form>
+    </section>
+  );
+}
+```
+
+### 3. 로컬에서 먼저 확인
+
+`npm run dev`로 로컬 서버를 켜고 `/notices/new`에서 공지를 하나 등록합니다. 등록 직후 홈으로 이동하면 새 공지가 목록 맨 위에 바로 보입니다. `revalidatePath('/')` 호출이 로컬 표준 Next.js 서버에서는 그대로 동작한다는 뜻입니다.
+
+### 4. 배포 후 재현
+
+코드를 GitHub에 푸시해 재배포합니다. 배포된 Amplify URL의 `/notices/new`에서 공지를 하나 등록합니다.
+
+- 등록 직후 자동으로 홈(`/`)으로 이동합니다. 방금 등록한 제목이 목록 맨 위에 바로 보이지 않을 수 있습니다.
+- 브라우저 새로고침을 몇 차례 반복해도 새 공지가 보이지 않는다면, `revalidatePath('/')`는 호출됐지만 Amplify Hosting compute에서는 그 즉시 라우트 캐시를 무효화하지 못했다는 뜻입니다.
+- 60초(설정한 `revalidate` 값)가 지난 뒤 다시 새로고침하면 그제야 새 공지가 목록에 나타납니다. 즉 반영 시점은 `revalidatePath` 호출과 무관하게, 시간 기반 재검증 주기에 맞춰서만 결정됩니다.
+
+### 5. 시간 기반 재검증으로 우회
+
+온디맨드 방식이 막혀 있으므로, 재검증 주기 자체를 좁혀 체감 지연을 줄입니다.
+
+```js
+// app/page.js (일부)
+const response = await fetch(`${baseUrl}/api/notices`, {
+  next: { revalidate: 15 }, // 60 → 15로 단축
+});
+```
+
+재배포 후 같은 방법으로 공지를 등록하면, 최대 15초 안에 목록이 갱신됩니다. 완전한 즉시 반영은 아니지만 대기 시간을 줄이는 절충안입니다.
+
+</Steps>
+
+## 직접 해보기
+
+1. `revalidate` 값을 5초로 더 줄이고, 등록 후 반영되기까지 걸리는 시간을 초 단위로 재 봅니다.
+
+<details>
+<summary>확인 방법</summary>
+
+주기를 줄일수록 체감 지연은 짧아지지만, 그만큼 캐시가 자주 만료되어 원본(컴퓨트 인스턴스)에 요청이 더 자주 도달합니다. 트래픽이 많은 서비스에서는 이 트레이드오프 때문에 무작정 주기를 줄이기 어렵습니다.
+
+</details>
+
+2. `revalidatePath('/')`를 `revalidateTag('notices')`로 바꾸고, `app/page.js`의 `fetch`에 `next: { tags: ['notices'] }`를 추가해 동작을 비교해 봅니다.
+
+<details>
+<summary>확인 방법</summary>
+
+태그 기반이든 경로 기반이든, Amplify Hosting compute에서는 둘 다 On-Demand ISR 범주에 속하므로 같은 제약을 받습니다. 배포 환경에서의 결과(즉시 반영되지 않음)는 동일하게 나타납니다.
+
+</details>
+
+## 자주 하는 실수
+
+| 증상 | 원인 | 고치는 법 |
+|------|------|-----------|
+| 로컬에서는 되는데 배포하면 안 됨 | Amplify Hosting compute가 On-Demand ISR을 지원하지 않음(공식 문서 명시) | 문제로 여기지 말고, 시간 기반 `revalidate` 주기를 좁히는 방식으로 설계를 바꾼다 |
+| `revalidatePath` 호출에서 에러가 안 나서 정상 동작한다고 착각함 | 미지원 기능이어도 함수 호출 자체는 에러를 던지지 않음 | 에러 여부가 아니라 실제 목록에 새 공지가 보이는지로 갱신 여부를 확인한다 |
+| `revalidate` 주기를 0으로 설정해 버림 | "즉시 갱신"을 캐시 없음과 혼동 | 0은 매 요청마다 원본을 다시 호출하는 것과 같아 캐시 이점이 사라진다. 필요한 최소 지연으로 좁히는 것이 목적이다 |
+| Server Action에서 `redirect` 호출 위치를 `try/catch` 안에 둠 | `redirect`는 내부적으로 예외를 던져 흐름을 제어함 | `redirect`는 `try/catch` 블록 밖, 함수의 마지막 문장으로 둔다 |
+
+## 확인 문제
+
+<Quiz
+  questionNumber={1}
+  question="AWS Amplify Docs가 미지원 기능으로 명시한 것은 다음 중 무엇인가"
+  options={['시간 기반 Incremental Static Regeneration', 'On-Demand Incremental Static Regeneration', '정적 페이지(SSG)', 'API 라우트']}
+  correctAnswer={2}
+  explanation="공식 문서의 Unsupported features 목록에는 On-Demand ISR이 명시되어 있습니다. 시간 기반 ISR, SSG, API 라우트는 모두 Supported features 목록에 있습니다."
+  optionExplanations={['시간 기반 ISR은 지원 기능 목록에 있습니다', '정답입니다', 'SSG는 지원 기능입니다', 'API 라우트는 지원 기능입니다']}
+/>
+
+<Quiz
+  questionNumber={2}
+  question="배포 환경에서 revalidatePath를 호출했지만 목록이 갱신되지 않을 때 나타나는 특징으로 옳은 것은?"
+  options={['함수 호출 시 즉시 에러가 발생한다', '함수 호출은 에러 없이 끝나지만 목록에는 새 공지가 반영되지 않는다', '서버 전체가 재시작된다', 'notices.seed.json 파일이 삭제된다']}
+  correctAnswer={2}
+  explanation="On-Demand ISR 미지원은 함수 실행 자체를 막는 것이 아니라, 실제 캐시 무효화가 반영되지 않는 형태로 나타납니다. 에러 대신 화면에 새 공지가 보이는지로 확인해야 합니다."
+  optionExplanations={['에러 없이 조용히 무효화만 반영되지 않습니다', '정답입니다', '서버 재시작과는 무관합니다', '시드 데이터 파일은 그대로 유지됩니다']}
+/>
+
+<Quiz
+  questionNumber={3}
+  question="시간 기반 재검증 주기를 60초에서 15초로 줄이는 우회 전략의 트레이드오프로 가장 알맞은 것은?"
+  options={['완전한 즉시 반영이 보장된다', '체감 지연은 줄지만 원본에 대한 요청 빈도가 늘어난다', 'CDN 캐시가 완전히 비활성화된다', 'Server Action이 더 이상 필요 없어진다']}
+  correctAnswer={2}
+  explanation="주기를 줄이면 최대 대기 시간은 짧아지지만, 그만큼 캐시가 자주 만료되어 컴퓨트 인스턴스가 더 자주 새로 렌더링하게 됩니다. 완전한 즉시성은 아닙니다."
+  optionExplanations={['최대 15초까지는 여전히 지연될 수 있습니다', '정답입니다', 'CDN 캐시 자체는 여전히 동작합니다', 'Server Action은 여전히 등록 처리에 필요합니다']}
+/>
+
+<Quiz
+  questionNumber={4}
+  question="revalidatePath와 revalidateTag를 각각 Amplify Hosting compute에 배포했을 때의 공통점은 무엇인가"
+  options={['둘 다 정상적으로 즉시 무효화된다', '둘 다 On-Demand ISR 범주에 속해 같은 제약을 받는다', 'revalidatePath만 지원되고 revalidateTag는 지원되지 않는다', 'revalidateTag만 지원되고 revalidatePath는 지원되지 않는다']}
+  correctAnswer={2}
+  explanation="경로 기준이든 태그 기준이든, 임의 시점에 호출해 즉시 캐시를 무효화한다는 점에서 둘 다 On-Demand ISR에 해당합니다. Amplify 공식 문서는 이 범주 전체를 미지원으로 명시합니다."
+  optionExplanations={['둘 다 배포 환경에서는 즉시 반영을 보장하지 않습니다', '정답입니다', '둘 다 같은 제약을 받습니다', '둘 다 같은 제약을 받습니다']}
+/>
+
+## 참고 자료
+
+- [AWS Amplify Docs — Amplify support for Next.js](https://docs.aws.amazon.com/amplify/latest/userguide/ssr-amplify-support.html)
+- [Next.js Docs — Caching and Revalidating (Previous Model)](https://nextjs.org/docs/app/guides/caching-without-cache-components)

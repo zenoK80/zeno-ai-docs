@@ -1,0 +1,180 @@
+---
+title: '18. 최종 점검과 다음 과목 예고'
+description: 'npm run verify로 타입 테스트를 포함해 전체를 검증하고, 완성된 expense-tracker를 시연합니다'
+---
+
+<Callout type="info">
+  **이번 편의 결과물:** `npm run verify`가 타입 테스트를 포함해 전부 통과하고, API 클라이언트·폼 스키마·유틸 타입 라이브러리가 갖춰진 `expense-tracker` 최종본을 브라우저에서 시연합니다. · **다루는 개념:** `npm run verify` 전체 실행, 기능 체크리스트, 다음 과목 예고
+</Callout>
+
+01편에서 점검했던 `typescript_fundamentals` 종료 상태의 `expense-tracker`에, 17편까지 조건부 타입부터 zod 통합 API 클라이언트까지 쌓아 올렸습니다. 이 편에서는 새 코드를 추가하지 않고, 지금까지 만든 것이 하나의 명령으로 전부 검증되는지 확인한 뒤 결과물을 시연합니다.
+
+## 이 편에서 만드는 파일
+
+```
+expense-tracker/
+└── package.json   ~ (verify 스크립트에 test:types 단계 추가)
+```
+
+## 개념 정리
+
+### verify에 타입 테스트 추가하기
+
+`typescript_fundamentals` 18편에서 만든 `verify` 스크립트는 `typecheck`·`test`·`build` 세 단계였습니다. 16편에서 추가한 `test:types`(`vitest --typecheck`)는 지금까지 `verify`에 포함되지 않아, 유틸 타입이 깨져도 `verify`가 통과할 수 있는 빈틈이 있었습니다. 이 편에서 그 빈틈을 막습니다.
+
+```json
+// package.json (발췌)
+{
+  "scripts": {
+    "typecheck": "tsc --noEmit",
+    "test:types": "vitest --typecheck --run",
+    "test": "vitest run",
+    "build": "vite build",
+    "verify": "npm run typecheck && npm run test:types && npm run test && npm run build"
+  }
+}
+```
+
+`typecheck`(전체 프로젝트 타입 검사) 다음에 `test:types`(유틸 타입 회귀 검사)를 두어, 가장 가벼운 검사부터 순서대로 실패를 드러냅니다. `test`(런타임 동작 검사)와 `build`(번들 생성)는 그 뒤를 잇습니다.
+
+## 실습
+
+<Steps>
+
+### 1. verify 스크립트 갱신
+
+package.json을 위 내용대로 고칩니다.
+
+### 2. 전체 검증 실행
+
+```text
+npm run verify
+```
+
+```text
+> tsc --noEmit
+(오류 없음)
+
+> vitest --typecheck --run
+✓ src/lib/types/utility.test-d.ts (6)
+✓ src/lib/types/brand.test-d.ts (5)
+✓ src/lib/types/pipe.test-d.ts (2)
+Type Test Files  3 passed (3)
+
+> vitest run
+✓ tests/createTransaction.test.ts (1)
+✓ tests/storage.test.ts (2)
+✓ tests/stats.test.ts (3)
+✓ tests/apiClient.test.ts (4)
+✓ tests/transactionForm.test.ts (3)
+
+> vite build
+✓ built in 431ms
+```
+
+### 3. 기능 체크리스트로 브라우저 시연
+
+```text
+npm run preview
+```
+
+아래 항목을 브라우저에서 하나씩 확인합니다.
+
+- 거래 추가 폼에 잘못된 금액(음수)이나 빈 메모를 입력하면, `TransactionFormSchema`(14편)가 만든 에러 메시지가 필드 옆에 표시된다.
+- 거래를 추가·수정·삭제하면 네트워크 탭에 MSW가 가로챈 `/api/transactions` 요청과 응답이 찍힌다(15편).
+- 응답 데이터의 `id`는 `TransactionId` 브랜디드 타입(07편)이라, 이 값을 카테고리 자리에 잘못 넣는 코드는 편집기에서 바로 오류로 표시된다.
+- 예산 규칙 설정 화면에서 기본값은 `DeepReadonly`(06편)로 고정되어 있고, 부분 수정 폼은 `DeepPartial`(06편)로 일부 필드만 받는다.
+- 통계 패널의 `groupBy` 결과 타입이 `UnwrapPromise`·`ElementOf`(03편)로 정확히 좁혀져, 존재하지 않는 프로퍼티에 접근하면 컴파일 오류가 난다.
+- 개발자 도구 콘솔에서 `apiClient.request('GET', '/transactions')`와 `apiClient.request('POST', '/transactions', body)`(09편 오버로드)를 각각 호출하면 반환 타입이 서로 다르게 추론된다.
+
+### 4. lib/types 최종 트리와 유틸 요약
+
+`lib/types/`에 실제로 남는 파일은 다음 네 개입니다. 각 파일의 완전한 코드는 이미 03·05·06·07·11·17편에서 작성했으므로 여기서는 다시 싣지 않습니다.
+
+```
+expense-tracker/src/lib/types/
+├── index.ts               (17, 배럴)
+├── utility.ts              (03, 05, 06, 17)
+├── brand.ts                (07, 17)
+├── pipe.ts                 (11, 17)
+├── utility.test-d.ts       (16)
+├── brand.test-d.ts         (16)
+└── pipe.test-d.ts          (16)
+```
+
+| 유틸 | 소속 파일 | 한 줄 설명 |
+|------|-----------|-----------|
+| `UnwrapPromise<T>` | `utility.ts` | 중첩된 `Promise`를 재귀적으로 벗겨 내부 값 타입을 반환 |
+| `ElementOf<T>` | `utility.ts` | 배열·읽기 전용 배열 타입에서 요소 타입을 추출 |
+| `FormErrors<T>` | `utility.ts` | 각 필드 키에 `Error` 접미사를 붙인 선택적 에러 메시지 맵으로 리매핑 |
+| `JsonValue` | `utility.ts` | 문자열·숫자·불리언·`null`과 중첩 배열·객체를 포괄하는 JSON 재귀 유니온 |
+| `DeepPartial<T>` | `utility.ts` | 중첩 객체의 모든 단계를 선택적 프로퍼티로 전환 |
+| `DeepReadonly<T>` | `utility.ts` | 중첩 객체의 모든 단계를 `readonly`로 전환 |
+| `Brand<T, B>` | `brand.ts` | 원시 타입에 문자열 태그를 붙여 구조가 같아도 섞이지 않게 하는 브랜드 헬퍼 |
+| `TransactionId` | `brand.ts` | 거래 식별자 전용 브랜디드 문자열 타입 |
+| `CategoryId` | `brand.ts` | 카테고리 식별자 전용 브랜디드 문자열 타입 |
+| `pipe(value, ...fns)` | `pipe.ts` | 가변 튜플로 단계별 입출력 타입을 이어 맞추는 함수 합성 유틸 |
+
+</Steps>
+
+## 직접 해보기
+
+1. `package.json`의 `verify` 순서를 `build`가 `test:types`보다 앞에 오도록 바꾼 뒤, `lib/types/utility.ts`의 `UnwrapPromise` 정의를 의도적으로 깨뜨려 `verify`가 어디서 멈추는지 비교해 보세요.
+2. 위 기능 체크리스트 중 하나를 골라, 어떤 편에서 그 동작이 만들어졌는지 목차를 보지 않고 코드만 보고 추적해 보세요.
+
+<details>
+<summary>정답 보기</summary>
+
+순서를 바꾸면 `UnwrapPromise`가 깨진 상태에서도 `build`(번들링)는 타입을 검사하지 않으므로 먼저 성공하고, 그 다음 `test:types` 단계에서야 실패가 드러납니다. 실패를 가장 빠르게 알고 싶다면 가벼운 검사(`typecheck`, `test:types`)를 무거운 검사(`build`)보다 앞에 두는 편이 낫습니다.
+
+</details>
+
+## 자주 하는 실수
+
+| 증상 | 원인 | 고치는 법 |
+|------|------|-----------|
+| `verify`는 통과했는데 배포 후 유틸 타입 관련 버그 발견 | `test:types` 단계를 `verify`에 포함하지 않음 | `verify` 스크립트에 `test:types`를 반드시 넣는다 |
+| MSW 네트워크 로그가 안 보임 | `npm run preview`는 프로덕션 번들을 서빙할 뿐, MSW 서비스 워커 등록 코드가 프로덕션 빌드에서 빠져 있음 | 브라우저 시연은 `npm run dev`(MSW 활성화)에서 하고, `preview`는 번들 결과 확인용으로 구분한다 |
+| 체크리스트 항목이 어떤 편 코드인지 못 찾음 | 배럴·리팩터링(17편) 이후 파일 위치가 바뀜 | `lib/types/index.ts`에서 시작해 각 export의 선언부까지 따라간다 |
+
+## 확인 문제
+
+<Quiz
+  questionNumber={1}
+  question="이번 편에서 verify 스크립트에 test:types 단계를 추가한 이유는"
+  options={['빌드 속도를 높이기 위해서', '유틸 타입 회귀를 잡는 16편 타입 테스트가 지금까지 verify에서 빠져 있었기 때문에', 'test:types가 없으면 npm run dev가 동작하지 않기 때문에', 'MSW 서버를 실행하기 위해서']}
+  correctAnswer={2}
+  explanation="16편에서 만든 test:types는 지금까지 verify에 포함되지 않아, 유틸 타입이 깨져도 verify가 통과할 수 있는 빈틈이 있었습니다."
+  optionExplanations={['속도 향상이 목적이 아닙니다', '정답입니다', 'npm run dev와는 무관합니다', 'MSW 실행과는 관련이 없습니다']}
+/>
+
+<Quiz
+  questionNumber={2}
+  question="verify에서 typecheck·test:types를 build보다 앞에 두는 이유는"
+  options={['알파벳 순서를 지키기 위해서', '상대적으로 가벼운 검사를 먼저 실행해 실패를 빨리 드러내기 위해서', 'build가 typecheck 없이는 실행되지 않기 때문에', 'vite가 그 순서를 강제하기 때문에']}
+  correctAnswer={2}
+  explanation="타입 검사류는 비교적 가볍게 빠른 실패를 알려주므로, 시간이 오래 걸리는 build보다 앞에 두는 것이 효율적입니다."
+  optionExplanations={['순서 자체는 선택입니다', '정답입니다', 'build는 독립적으로 실행 가능합니다', 'vite가 강제하지 않습니다']}
+/>
+
+<Quiz
+  questionNumber={3}
+  question="TransactionId 브랜디드 타입이 이번 과목 전체에서 실질적으로 막아주는 문제는"
+  options={['네트워크 요청 속도 저하', '구조가 같은 문자열(카테고리 이름 등)을 거래 ID 자리에 실수로 넣는 것', '폼 검증 메시지 다국어 처리', 'MSW 목업 서버의 지연 시간']}
+  correctAnswer={2}
+  explanation="TransactionId는 07편에서 도입된 브랜디드 타입으로, 구조적으로 같은 문자열이라도 다른 브랜드는 서로 대입할 수 없게 막습니다."
+  optionExplanations={['속도와는 무관합니다', '정답입니다', '다국어 처리와는 관련이 없습니다', '지연 시간과는 무관합니다']}
+/>
+
+<Quiz
+  questionNumber={4}
+  question="다음 과목 typescript_3에서 다루는 내용으로 예고된 것은"
+  options={['zod 런타임 검증 재입문', 'React 19와 TypeScript를 결합한 bookshelf 모노레포', 'CSS 컨테이너 쿼리', 'HTML 시맨틱 마크업']}
+  correctAnswer={2}
+  explanation="typescript_3는 React 19 + TypeScript로 bookshelf 앱을 모노레포 구조로 다루는 다음 과목으로 예고되어 있습니다."
+  optionExplanations={['이 과목에서 이미 다뤘습니다', '정답입니다', 'CSS 과목의 영역입니다', 'HTML 과목의 영역입니다']}
+/>
+
+## 참고 자료
+
+- [Vitest — Typecheck 설정 레퍼런스](https://vitest.dev/config/typecheck)

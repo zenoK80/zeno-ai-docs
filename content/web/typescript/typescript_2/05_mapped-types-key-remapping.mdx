@@ -1,0 +1,301 @@
+---
+title: '05. 매핑된 타입 심화: 키 리매핑'
+description: 'as 절로 키 이름을 바꾸는 매핑된 타입을 익히고, FormErrors 타입을 만들어 거래 입력 폼에 인라인 에러 메시지를 표시합니다.'
+---
+
+<Callout type="info">
+  **이번 편의 결과물:** `lib/types/utility.ts`에 키 리매핑으로 만든 `FormErrors` 타입을 추가하고, 거래 입력 폼에 적용해 필드별 에러 메시지를 화면에 표시합니다. · **다루는 개념:** `as` 절을 이용한 키 리매핑, `Exclude`와 결합한 키 거르기, 접두사·접미사 붙은 키 생성
+</Callout>
+
+03편에서 `lib/types/utility.ts`에 조건부 타입 `UnwrapPromise`, `ElementOf`를 작성했습니다. 이 편에서는 같은 파일에 매핑된 타입 하나를 더 추가합니다. 지금까지 거래 입력 폼은 값이 잘못돼도 `alert` 한 번 띄우고 끝이었습니다. 필드마다 다른 에러 메시지를 붙이려면 "어떤 필드에 어떤 에러가 있는가"를 나타내는 타입이 먼저 필요합니다.
+
+## 이 편에서 만드는 파일
+
+```
+expense-tracker/src/
+├── lib/
+│   └── types/
+│       └── utility.ts        ~ (FormErrors 추가)
+└── ui/
+    └── transactionForm.ts    ~ (FormErrors 적용, 필드별 에러 렌더링)
+```
+
+## 개념 정리
+
+### as 절로 키 이름 바꾸기
+
+매핑된 타입은 원래 `keyof T`가 만든 키 이름을 그대로 씁니다. `as` 절을 뒤에 붙이면 그 키 이름을 다른 문자열로 바꿔서 새 타입을 만들 수 있습니다.
+
+```ts
+type Prefixed<T> = {
+  [K in keyof T as `input${Capitalize<string & K>}`]: T[K]
+}
+```
+
+`{ date: string; amount: number }` 모양을 이 타입에 넣으면 `inputDate`, `inputAmount`라는 새 키를 가진 타입이 됩니다. `string & K`는 "`K`이면서 동시에 `string`인 타입"이라는 뜻으로, 템플릿 리터럴 자리에는 문자열만 올 수 있다는 제약을 만족시키기 위한 관용구입니다.
+
+### Exclude와 결합해 키 거르기
+
+`as` 절의 결과로 `never`를 주면 그 키는 결과 타입에서 사라집니다. 이 성질과 `Exclude`를 결합하면 특정 키만 제외한 매핑된 타입을 만들 수 있습니다.
+
+```ts
+type WithoutId<T> = {
+  [K in Exclude<keyof T, 'id'>]: T[K]
+}
+```
+
+`Exclude<keyof T, 'id'>`가 먼저 `'id'`를 뺀 키 목록을 계산하고, 매핑된 타입은 그 목록만 순회합니다.
+
+### FormErrors 설계
+
+거래 입력 폼에서 실제로 값을 검증할 칸은 `date`, `amount`, `memo` 세 개뿐입니다. `type`, `category`는 `select` 요소라 사용자가 목록에 없는 값을 고를 수 없어 에러 메시지가 필요 없습니다. 이 두 키를 `Exclude`로 걸러내고, 남은 키 이름 끝에 `Error`를 붙인 선택적 문자열 프로퍼티로 리매핑하면 `FormErrors` 타입이 됩니다. 이렇게 만든 에러 객체는 존재하지 않는 필드 이름으로 실수를 저지르면 그 자리에서 컴파일 에러가 나서 알려줍니다.
+
+## 실습
+
+<Steps>
+
+### 1. utility.ts에 FormErrors 추가
+
+```ts
+// expense-tracker/src/lib/types/utility.ts
+export type ElementOf<T> = T extends readonly (infer U)[] ? U : never
+
+export type UnwrapPromise<T> = T extends Promise<infer U> ? U : T
+
+/**
+ * date, amount, memo 키만 남기고 이름 끝에 Error를 붙인
+ * 선택적 문자열 프로퍼티로 바꿉니다.
+ * type, category는 select 입력이라 에러 메시지가 필요 없어 제외합니다.
+ */
+export type FormErrors<T> = {
+  [K in Exclude<keyof T, 'type' | 'category'> as `${string & K}Error`]?: string
+}
+```
+
+### 2. transactionForm.ts에 검증 로직과 에러 표시 추가
+
+```ts
+// expense-tracker/src/ui/transactionForm.ts
+import type { Transaction, ExpenseCategory, IncomeCategory } from '../models'
+import { getRequiredElement } from '../lib/dom.ts'
+import type { FormErrors } from '../lib/types/utility.ts'
+
+export type NewTransactionDraft = Omit<Transaction, 'id'>
+export type EditableFields = Pick<Transaction, 'date' | 'amount' | 'memo'>
+
+export interface TransactionFormHandlers {
+  onCreate: (draft: NewTransactionDraft) => void
+  onUpdate: (id: string, changes: Partial<EditableFields>) => void
+}
+
+const EXPENSE_CATEGORIES: ExpenseCategory[] = ['food', 'transport', 'housing', 'shopping', 'etc-expense']
+const INCOME_CATEGORIES: IncomeCategory[] = ['salary', 'bonus', 'interest', 'etc-income']
+
+function categoryOptionsHtml(type: Transaction['type']): string {
+  const categories = type === 'expense' ? EXPENSE_CATEGORIES : INCOME_CATEGORIES
+  return categories.map((category) => `<option value="${category}">${category}</option>`).join('')
+}
+
+function validateDraft(draft: NewTransactionDraft): FormErrors<NewTransactionDraft> {
+  const errors: FormErrors<NewTransactionDraft> = {}
+  if (draft.date === '') {
+    errors.dateError = '날짜를 입력하세요.'
+  }
+  if (!Number.isFinite(draft.amount) || draft.amount <= 0) {
+    errors.amountError = '금액은 0보다 큰 숫자여야 합니다.'
+  }
+  if (draft.memo.length > 50) {
+    errors.memoError = '메모는 50자 이내로 입력하세요.'
+  }
+  return errors
+}
+
+export function mountTransactionForm(root: HTMLElement, handlers: TransactionFormHandlers) {
+  root.innerHTML = `
+    <form id="transaction-form">
+      <select name="type" id="type-select">
+        <option value="expense">지출</option>
+        <option value="income">수입</option>
+      </select>
+      <select name="category" id="category-select"></select>
+      <input name="date" type="date" required />
+      <span id="date-error" class="field-error"></span>
+      <input name="amount" type="number" required />
+      <span id="amount-error" class="field-error"></span>
+      <input name="memo" type="text" placeholder="메모" />
+      <span id="memo-error" class="field-error"></span>
+      <button type="submit">추가</button>
+    </form>
+    <form id="edit-form" hidden>
+      <p>거래 수정</p>
+      <input name="date" type="date" required />
+      <input name="amount" type="number" required />
+      <input name="memo" type="text" placeholder="메모" />
+      <button type="submit">저장</button>
+      <button type="button" id="edit-cancel">취소</button>
+    </form>
+  `
+
+  const form = getRequiredElement<HTMLFormElement>(root, '#transaction-form')
+  const typeSelect = getRequiredElement<HTMLSelectElement>(root, '#type-select')
+  const categorySelect = getRequiredElement<HTMLSelectElement>(root, '#category-select')
+  const dateErrorEl = getRequiredElement<HTMLSpanElement>(root, '#date-error')
+  const amountErrorEl = getRequiredElement<HTMLSpanElement>(root, '#amount-error')
+  const memoErrorEl = getRequiredElement<HTMLSpanElement>(root, '#memo-error')
+  const editForm = getRequiredElement<HTMLFormElement>(root, '#edit-form')
+  const editCancelButton = getRequiredElement<HTMLButtonElement>(root, '#edit-cancel')
+  let editingId: string | null = null
+
+  function refreshCategoryOptions(): void {
+    categorySelect.innerHTML = categoryOptionsHtml(typeSelect.value as Transaction['type'])
+  }
+
+  function renderErrors(errors: FormErrors<NewTransactionDraft>): void {
+    dateErrorEl.textContent = errors.dateError ?? ''
+    amountErrorEl.textContent = errors.amountError ?? ''
+    memoErrorEl.textContent = errors.memoError ?? ''
+  }
+
+  function handleCreateSubmit(event: SubmitEvent): void {
+    event.preventDefault()
+    const formData = new FormData(form)
+    const type = formData.get('type') as Transaction['type']
+    const date = String(formData.get('date'))
+    const amount = Number(formData.get('amount'))
+    const memo = String(formData.get('memo'))
+    const draft: NewTransactionDraft =
+      type === 'expense'
+        ? { type: 'expense', date, amount, memo, category: formData.get('category') as ExpenseCategory }
+        : { type: 'income', date, amount, memo, category: formData.get('category') as IncomeCategory }
+
+    const errors = validateDraft(draft)
+    if (Object.keys(errors).length > 0) {
+      renderErrors(errors)
+      return
+    }
+    renderErrors({})
+    handlers.onCreate(draft)
+    form.reset()
+    refreshCategoryOptions()
+  }
+
+  function openEdit(transaction: Transaction): void {
+    editingId = transaction.id
+    const dateInput = editForm.elements.namedItem('date') as HTMLInputElement
+    const amountInput = editForm.elements.namedItem('amount') as HTMLInputElement
+    const memoInput = editForm.elements.namedItem('memo') as HTMLInputElement
+    dateInput.value = transaction.date
+    amountInput.value = String(transaction.amount)
+    memoInput.value = transaction.memo
+    editForm.hidden = false
+  }
+
+  function closeEdit(): void {
+    editingId = null
+    editForm.hidden = true
+    editForm.reset()
+  }
+
+  function handleEditSubmit(event: SubmitEvent): void {
+    event.preventDefault()
+    if (editingId === null) {
+      return
+    }
+    const formData = new FormData(editForm)
+    handlers.onUpdate(editingId, {
+      date: String(formData.get('date')),
+      amount: Number(formData.get('amount')),
+      memo: String(formData.get('memo')),
+    })
+    closeEdit()
+  }
+
+  form.addEventListener('submit', handleCreateSubmit)
+  typeSelect.addEventListener('change', refreshCategoryOptions)
+  editForm.addEventListener('submit', handleEditSubmit)
+  editCancelButton.addEventListener('click', closeEdit)
+  refreshCategoryOptions()
+
+  return { openEdit }
+}
+```
+
+`validateDraft`가 반환하는 타입은 `FormErrors`이므로, `errors.dateError`처럼 실제로 존재하는 필드만 안전하게 읽고 쓸 수 있습니다. `errors.categoryError`처럼 없는 이름을 쓰면 그 줄에서 바로 컴파일 에러가 납니다.
+
+### 3. 실행
+
+```text
+npm run dev
+```
+
+### 4. 확인
+
+- 날짜를 비우거나 금액에 0 이하 값을 넣고 "추가"를 누르면 해당 입력 아래에 빨간 글자 없이도(스타일은 다음 편에서) 에러 문구가 나타난다.
+- 값을 올바르게 고치고 다시 제출하면 에러 문구가 지워지고 거래가 목록에 추가된다.
+- `npx tsc --noEmit`이 오류 없이 끝난다.
+
+</Steps>
+
+## 직접 해보기
+
+1. `validateDraft` 안에 `errors.categoryError = '아무 값'`처럼 존재하지 않는 키를 대입하는 줄을 추가해보고, 편집기가 어떤 오류를 보여주는지 확인한 뒤 지웁니다.
+2. `FormErrors`의 제외 목록에서 `'category'`를 빼고(`Exclude<keyof T, 'type'>`만 남기고) `categoryError`가 실제로 타입에 생기는지 확인한 뒤 원래대로 되돌립니다.
+
+<details>
+<summary>정답 보기</summary>
+
+1번은 `Object literal may only specify known properties`류의 오류가 납니다. `FormErrors`가 만든 타입에는 `categoryError`라는 키 자체가 없기 때문입니다.
+
+2번처럼 제외 목록을 줄이면 `FormErrors` 결과 타입에 `categoryError`가 선택적 문자열 프로퍼티로 추가됩니다. 다만 `validateDraft`가 이 필드를 채우는 코드는 없으므로, 타입에는 있지만 실제로 쓰이지 않는 필드가 됩니다.
+
+</details>
+
+## 자주 하는 실수
+
+| 증상 | 원인 | 고치는 법 |
+|------|------|-----------|
+| 템플릿 리터럴 키 타입 선언에서 오류 | `` `${K}Error` ``처럼 `K`를 그대로 씀 | `` `${string & K}Error` ``처럼 `string`과 교차시켜 문자열임을 명시한다 |
+| 존재하지 않는 에러 필드에 값을 대입해 컴파일 에러 | `FormErrors`가 만든 타입에 없는 키 이름을 사용 | 실제로 검증하는 필드만 골라 이름을 맞춘다 |
+| 에러 메시지 칸에 항상 undefined라는 글자가 보임 | 옵셔널 필드를 그대로 `textContent`에 대입 | `errors.dateError ?? ''`처럼 값이 없을 때 빈 문자열로 바꾼다 |
+
+## 확인 문제
+
+<Quiz
+  questionNumber={1}
+  question="매핑된 타입에서 as 절이 하는 역할은"
+  options={['프로퍼티의 값 타입을 바꾼다', '결과 타입의 키 이름 자체를 새 이름으로 바꾼다', '타입 매개변수의 기본값을 지정한다', '인터페이스를 클래스로 변환한다']}
+  correctAnswer={2}
+  explanation="as 절은 매핑된 타입이 순회하는 각 키의 이름을 다른 문자열로 바꿔 새로운 키를 만듭니다."
+  optionExplanations={['값 타입 변경은 콜론 뒤쪽에서 이루어집니다', '정답입니다', '기본값 지정과는 다른 문법입니다', '클래스 변환과는 무관합니다']}
+/>
+
+<Quiz
+  questionNumber={2}
+  question="매핑된 타입의 as 절 결과로 never를 주면 생기는 일은"
+  options={['그 키가 문자열 타입으로 바뀐다', '그 키가 결과 타입에서 사라진다', '컴파일이 항상 실패한다', '그 키가 옵셔널로 바뀐다']}
+  correctAnswer={2}
+  explanation="as 절이 never로 계산되는 키는 결과 타입에 포함되지 않고 제거됩니다."
+  optionExplanations={['문자열 변환이 아닙니다', '정답입니다', '컴파일 실패가 아니라 정상적인 필터링 기법입니다', '옵셔널 처리와는 다른 결과입니다']}
+/>
+
+<Quiz
+  questionNumber={3}
+  question="FormErrors 타입에서 type, category 키를 제외한 이유는"
+  options={['이름이 너무 길어서', '두 필드는 select 요소라 목록에 없는 값을 넣을 수 없어 에러 메시지가 필요 없어서', '두 필드는 항상 비어있어서', '제외하지 않으면 컴파일이 느려져서']}
+  correctAnswer={2}
+  explanation="select 요소는 사용자가 정의된 값만 고를 수 있어 형식 오류가 날 여지가 없으므로 에러 메시지 필드를 만들 필요가 없습니다."
+  optionExplanations={['이름 길이와는 무관합니다', '정답입니다', '항상 값이 채워지는 필드입니다', '컴파일 속도와는 무관합니다']}
+/>
+
+<Quiz
+  questionNumber={4}
+  question="존재하지 않는 에러 필드 이름에 값을 대입하면 FormErrors 타입에서 어떤 일이 생기는가"
+  options={['런타임에만 오류가 발생한다', '컴파일 타임에 알 수 없는 프로퍼티라는 오류가 발생한다', '자동으로 무시되고 아무 일도 일어나지 않는다', '해당 필드가 자동으로 새로 추가된다']}
+  correctAnswer={2}
+  explanation="FormErrors가 만든 타입에 없는 키를 대입하려 하면 편집기와 컴파일러가 즉시 알 수 없는 프로퍼티 오류를 표시합니다."
+  optionExplanations={['런타임이 아니라 컴파일 타임에 잡힙니다', '정답입니다', '무시되지 않고 오류로 걸러집니다', '자동 추가는 일어나지 않습니다']}
+/>
+
+## 참고 자료
+
+- [TypeScript Handbook — Mapped Types](https://www.typescriptlang.org/docs/handbook/2/mapped-types.html)

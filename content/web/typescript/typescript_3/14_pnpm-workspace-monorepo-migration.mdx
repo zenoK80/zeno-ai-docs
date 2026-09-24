@@ -1,0 +1,250 @@
+---
+title: '14. pnpm 워크스페이스로 모노레포 전환'
+description: 'bookshelf-ts를 apps/web과 빈 packages/로 재구성하고 pnpm 워크스페이스로 묶습니다'
+---
+
+<Callout type="info">
+  **이번 편의 결과물:** `pnpm install` 후 `apps/web`이 그대로 정상 동작하고, `packages/`는 아직 비어 있는 모노레포 구조가 갖춰집니다. · **다루는 개념:** `pnpm-workspace.yaml`, 루트 `package.json`의 워크스페이스 스크립트, 단일 프로젝트를 `apps/web` + `packages/`로 재구성하는 절차
+</Callout>
+
+03편에서 패키지 경계를 나누는 이유(공유 타입, 재사용 UI, 독립 배포 단위)를 미리 살펴봤습니다. 13편까지 `bookshelf-ts`는 여전히 `npm create vite`로 만든 단일 프로젝트입니다. 이 편에서 실제로 폴더를 쪼개, 앱 코드는 `apps/web`으로 옮기고 공용 패키지가 들어갈 빈 `packages/`를 만듭니다. 타입 공유(15편)·빌드 순서(16편)·UI 패키지 분리(17편)는 모두 이 구조 위에서 진행됩니다.
+
+## 이 편에서 만드는 파일
+
+```
+bookshelf-ts/
+├── pnpm-workspace.yaml       (+, 워크스페이스 범위 지정)
+├── package.json              (~, 루트 워크스페이스 스크립트로 교체)
+├── package-lock.json         (-, npm 잠금 파일 삭제)
+├── apps/
+│   └── web/                  (+, 기존 프로젝트 전체 이동)
+│       ├── package.json      (~, name을 @bookshelf/web으로 변경)
+│       ├── vite.config.ts
+│       ├── tsconfig.json
+│       ├── tsconfig.app.json
+│       ├── tsconfig.node.json
+│       ├── index.html
+│       └── src/               (기존 내용 그대로 이동)
+└── packages/                  (+, 빈 폴더. 15·17편에서 채워짐)
+```
+
+## 개념 정리
+
+### 모노레포 루트와 워크스페이스 패키지의 관계
+
+루트 `bookshelf-ts/`는 그 자체로 배포되는 패키지가 아니라, 여러 실제 패키지(`apps/web`, 앞으로 만들 `packages/shared-types`, `packages/ui`)를 묶는 컨테이너입니다. 루트 `package.json`에는 `private: true`를 반드시 넣어 실수로 루트가 npm에 배포되는 것을 막습니다.
+
+### pnpm-workspace.yaml
+
+pnpm은 어떤 폴더들을 워크스페이스 패키지로 볼지 `pnpm-workspace.yaml`의 `packages` 목록으로 정합니다. 글롭 패턴을 쓸 수 있고, 앞에 느낌표를 붙이면 제외됩니다.
+
+```yaml
+packages:
+  - 'apps/*'
+  - 'packages/*'
+```
+
+`apps/*`는 `apps` 바로 아래 폴더 각각(`apps/web` 등)을 패키지로 인식합니다. 지금은 `packages/*`에 맞는 폴더가 하나도 없어도 오류가 아니라 빈 목록으로 처리됩니다.
+
+### 루트에서 개별 패키지 스크립트 실행하기
+
+| 명령 | 동작 |
+|------|------|
+| `pnpm --filter @bookshelf/web dev` | `@bookshelf/web` 패키지 하나만 지정해 `dev` 스크립트 실행 |
+| `pnpm -r build` | 워크스페이스의 모든 패키지에서 `build` 스크립트 실행 |
+| `pnpm --workspace-root <script>` | 루트 `package.json`에 정의된 스크립트만 실행 |
+
+`-r`(재귀)과 `--filter`(패키지 지정)는 이후 편에서 계속 쓰이므로 이 편에서 먼저 손에 익힙니다.
+
+## 실습
+
+<Steps>
+
+### 1. 기존 프로젝트를 apps/web으로 이동
+
+`bookshelf-ts/` 루트에서 실행합니다.
+
+```bash
+mkdir -p apps/web packages
+git mv src apps/web/src
+git mv public apps/web/public
+git mv index.html apps/web/index.html
+git mv vite.config.ts apps/web/vite.config.ts
+git mv tsconfig.json apps/web/tsconfig.json
+git mv tsconfig.app.json apps/web/tsconfig.app.json
+git mv tsconfig.node.json apps/web/tsconfig.node.json
+git mv package.json apps/web/package.json
+git mv package-lock.json apps/web/package-lock.json 2>/dev/null || true
+```
+
+마지막 줄은 `package-lock.json`이 없어도 오류로 멈추지 않게 하는 안전장치입니다. 이후 npm 잠금 파일은 pnpm 잠금 파일로 대체하므로 이동한 뒤 바로 지웁니다.
+
+```bash
+rm -f apps/web/package-lock.json
+```
+
+### 2. apps/web/package.json 정리
+
+```json
+{
+  "name": "@bookshelf/web",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "dev": "vite",
+    "build": "tsc -b && vite build",
+    "preview": "vite preview",
+    "test": "vitest run",
+    "lint": "eslint .",
+    "typecheck": "tsc -b --noEmit"
+  },
+  "dependencies": {
+    "@hookform/resolvers": "5.9.1",
+    "@tanstack/react-query": "5.103.2",
+    "i18next": "26.4.2",
+    "react": "19.3.0",
+    "react-dom": "19.3.0",
+    "react-hook-form": "7.88.0",
+    "react-i18next": "17.0.15",
+    "react-router": "8.4.0",
+    "zod": "4.6.5",
+    "zustand": "5.0.15"
+  },
+  "devDependencies": {
+    "@playwright/test": "1.63.0",
+    "@testing-library/react": "16.3.3",
+    "@types/node": "26.6.2",
+    "@types/react": "19.3.0",
+    "@types/react-dom": "19.3.0",
+    "@vitejs/plugin-react": "6.1.1",
+    "eslint": "10.11.0",
+    "msw": "2.15.0",
+    "typescript": "7.0.2",
+    "vite": "8.3.0",
+    "vitest": "5.0.1"
+  }
+}
+```
+
+`name`을 `@bookshelf/web`으로 바꿨습니다. 스코프(`@bookshelf/`)는 15편에서 만들 `@bookshelf/shared-types`, 17편의 `@bookshelf/ui`와 같은 이름 공간을 씁니다. `build` 스크립트에 `tsc -b`를 넣어뒀지만 아직 `references`가 없어 지금은 일반 `tsc`와 동일하게 동작합니다. 실제 프로젝트 참조 설정은 16편에서 채웁니다.
+
+### 3. 루트 package.json과 pnpm-workspace.yaml 작성
+
+```json
+{
+  "name": "bookshelf-ts",
+  "private": true,
+  "packageManager": "pnpm@12.5.1",
+  "engines": {
+    "node": ">=22"
+  },
+  "scripts": {
+    "dev": "pnpm --filter @bookshelf/web dev",
+    "build": "pnpm -r build",
+    "test": "pnpm -r test",
+    "lint": "pnpm -r lint",
+    "typecheck": "pnpm -r typecheck"
+  }
+}
+```
+
+```yaml
+# pnpm-workspace.yaml
+packages:
+  - 'apps/*'
+  - 'packages/*'
+```
+
+`packageManager` 필드는 Corepack이 이 저장소를 열 때 정확히 `pnpm@12.5.1`을 쓰도록 고정합니다. 팀원마다 pnpm 버전이 달라 잠금 파일이 흔들리는 것을 막아줍니다.
+
+### 4. 설치와 실행
+
+```bash
+corepack enable
+pnpm install
+pnpm dev
+```
+
+`pnpm install`은 루트에 `pnpm-lock.yaml`을 하나 생성하고, `apps/web/node_modules`를 채웁니다. `pnpm dev`는 루트 스크립트를 거쳐 `apps/web`의 `dev` 스크립트를 실행합니다.
+
+</Steps>
+
+## 확인
+
+- 루트에 `pnpm-lock.yaml`이 생기고 `apps/web`에는 더 이상 `package-lock.json`이 없습니다.
+- 브라우저에서 기존과 똑같은 화면(책 목록·상세·폼·로그인)이 그대로 보입니다.
+- `pnpm --filter @bookshelf/web lint`처럼 패키지를 직접 지정해도 같은 결과가 나옵니다.
+- `packages/` 폴더는 존재하지만 비어 있고, `pnpm install`이 이 폴더 때문에 오류를 내지 않습니다.
+
+## 직접 해보기
+
+1. 루트 `package.json` 스크립트에 `"clean": "pnpm -r exec rm -rf node_modules dist"`를 추가하고 실행해, 워크스페이스 전체에서 명령이 어떻게 퍼지는지 관찰해보세요.
+2. `pnpm --filter @bookshelf/web why react`를 실행해, 특정 패키지 하나만 대상으로 의존성 정보를 조회하는 `--filter`의 다른 쓰임을 확인해보세요.
+
+<details>
+<summary>정답 보기</summary>
+
+```json
+{
+  "scripts": {
+    "clean": "pnpm -r exec rm -rf node_modules dist"
+  }
+}
+```
+
+`pnpm -r exec <명령>`은 각 워크스페이스 패키지 폴더 안에서 그 명령을 그대로 실행합니다. `-r build`처럼 정해진 스크립트 이름을 실행하는 것과 달리, 임의의 셸 명령을 패키지마다 반복할 때 씁니다.
+
+</details>
+
+## 자주 하는 실수
+
+| 증상 | 원인 | 고치는 법 |
+|------|------|-----------|
+| `pnpm install`이 `apps/web`을 워크스페이스 패키지로 인식하지 못함 | `pnpm-workspace.yaml`을 만들지 않거나 패턴을 잘못 씀 | 루트에 `pnpm-workspace.yaml`을 두고 `apps/*` 패턴을 정확히 넣는다 |
+| `pnpm dev`를 루트에서 실행하면 아무 것도 안 됨 | 루트 `package.json`에 `dev` 스크립트를 안 만듦 | 루트 스크립트에서 `pnpm --filter @bookshelf/web dev`로 위임한다 |
+| `apps/web` 안에 `package-lock.json`이 남아 있어 설치 도구가 섞임 | npm으로 만든 잠금 파일을 지우지 않고 이동만 함 | 이동 직후 `package-lock.json`을 삭제하고 pnpm으로만 설치한다 |
+
+## 확인 문제
+
+<Quiz
+  questionNumber={1}
+  question="루트 package.json에 private true를 넣는 이유는"
+  options={['빌드 속도를 높이기 위해서', '루트 자체가 실수로 npm에 배포되는 것을 막기 위해서', 'TypeScript 타입 검사를 건너뛰기 위해서', 'React 컴포넌트를 숨기기 위해서']}
+  correctAnswer={2}
+  explanation="루트는 배포 단위가 아니라 여러 패키지를 묶는 컨테이너이므로, private으로 표시해 실수로 배포되지 않게 막습니다."
+  optionExplanations={['빌드 속도와는 무관합니다', '정답입니다', '타입 검사와는 무관합니다', '컴포넌트 숨김과는 무관합니다']}
+/>
+
+<Quiz
+  questionNumber={2}
+  question="pnpm-workspace.yaml의 packages 목록에 apps/*를 쓰면"
+  options={['apps 폴더 자체 하나만 패키지로 인식된다', 'apps 바로 아래에 있는 폴더 각각을 패키지로 인식한다', 'apps 폴더를 워크스페이스에서 제외한다', '모든 하위 폴더를 재귀적으로 검색한다']}
+  correctAnswer={2}
+  explanation="apps/*는 apps 바로 아래의 각 폴더(예: apps/web)를 패키지 경로로 매칭합니다."
+  optionExplanations={['폴더 자체가 아니라 그 하위 폴더들이 매칭됩니다', '정답입니다', '느낌표 없이는 제외 패턴이 아닙니다', 'apps/**와는 다른 매칭 범위입니다']}
+/>
+
+<Quiz
+  questionNumber={3}
+  question="pnpm --filter @bookshelf/web dev와 pnpm -r dev의 차이는"
+  options={['둘 다 완전히 같은 동작을 한다', '--filter는 지정한 패키지 하나만, -r은 워크스페이스의 모든 패키지에서 실행한다', '--filter는 항상 더 빠르게 동작한다', '-r은 루트 스크립트만 실행한다']}
+  correctAnswer={2}
+  explanation="--filter는 대상 패키지를 좁혀 지정하고, -r(재귀)은 워크스페이스에 속한 모든 패키지에서 같은 스크립트를 실행합니다."
+  optionExplanations={['대상 범위가 다릅니다', '정답입니다', '속도 차이가 핵심이 아닙니다', '-r은 루트가 아니라 각 패키지에서 실행됩니다']}
+/>
+
+<Quiz
+  questionNumber={4}
+  question="루트 package.json의 packageManager 필드(pnpm@12.5.1)가 하는 역할은"
+  options={['pnpm을 자동으로 설치한다', 'Corepack이 이 저장소에서 정확히 그 버전의 pnpm을 쓰도록 고정한다', 'React 버전을 고정한다', 'TypeScript strict 옵션을 켠다']}
+  correctAnswer={2}
+  explanation="packageManager 필드는 Corepack이 지정된 패키지 매니저와 버전을 그대로 사용하게 해, 팀원 간 버전 차이로 인한 잠금 파일 흔들림을 막습니다."
+  optionExplanations={['설치 자체를 자동으로 해주지는 않습니다', '정답입니다', 'React 버전과는 무관합니다', 'TypeScript 옵션과는 무관합니다']}
+/>
+
+## 참고 자료
+
+- [pnpm — Workspace](https://pnpm.io/workspaces)
+- [pnpm — pnpm-workspace.yaml](https://pnpm.io/pnpm-workspace_yaml)
+- [pnpm — Filtering](https://pnpm.io/filtering)

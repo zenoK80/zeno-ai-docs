@@ -1,0 +1,231 @@
+---
+title: '20. typescript-eslint로 모노레포 린트 설정'
+description: '루트 하나의 플랫 컨피그로 apps/web·packages/shared-types·packages/ui를 모두 검사하는 typescript-eslint 설정을 만듭니다.'
+---
+
+<Callout type="info">
+  **이번 편의 결과물:** 루트에서 `pnpm -r lint`를 실행하면 `apps/web`·`packages/shared-types`·`packages/ui` 세 패키지가 모두 검사되어 통과합니다. 앱 타입 체크는 TypeScript 7을 유지하고, 린터에는 TypeScript 6 Compiler API 호환 패키지를 제공합니다. · **다루는 개념:** 루트 `eslint.config.mjs` 공용 설정, TS 7과 typescript-eslint 호환 계층, 패키지별 규칙 오버라이드, 워크스페이스 전체 lint 스크립트
+</Callout>
+
+19편까지 `bookshelf-ts`는 세 패키지(`apps/web`, `packages/shared-types`, `packages/ui`)로 나뉘고, `tsconfig` project references로 빌드 순서까지 관리되는 상태가 됐습니다. 하지만 지금까지 이 저장소에는 코드 스타일이나 흔한 실수를 잡아주는 린터가 없습니다. 이 편에서는 typescript-eslint로 세 패키지를 한 번에 검사하는 설정을 루트에 하나만 두고, React 코드에만 필요한 규칙은 해당 패키지에만 적용되도록 범위를 나눕니다.
+
+## 이 편에서 만드는 파일
+
+```
+bookshelf-ts/
+├ package.json                         (~, TS 6 API 호환 패키지·devDependencies·lint 스크립트 추가)
+├ eslint.config.mjs                    (+, 워크스페이스 공용 플랫 컨피그)
+├ apps/web/package.json                (~, lint 스크립트 추가)
+├ packages/shared-types/package.json   (~, lint 스크립트 추가)
+└ packages/ui/package.json             (~, lint 스크립트 추가)
+```
+
+## 개념 정리
+
+### 워크스페이스를 하나의 설정으로 묶는 이유
+
+패키지마다 별도의 `eslint.config.mjs`를 두면 규칙이 조금씩 어긋나고, 새 패키지를 추가할 때마다 설정을 복사해야 합니다. ESLint 플랫 컨피그는 실행 위치에서 상위 디렉터리로 올라가며 `eslint.config.*` 파일을 찾으므로, `apps/web`에서 `eslint .`를 실행해도 루트의 설정 파일을 그대로 찾아 씁니다. `files`·`ignores` 패턴은 그 설정 파일이 있는 위치(루트) 기준 상대 경로로 해석되므로, `apps/web/**/*.tsx`처럼 패키지 경로를 포함한 패턴을 그대로 쓸 수 있습니다.
+
+### 플랫 컨피그와 defineConfig
+
+`typescript-eslint` 8계열은 `eslint/config`가 제공하는 `defineConfig` 헬퍼로 설정 배열을 감싸는 방식을 권장합니다. 전역으로 무시할 경로는 `ignores`를 단독으로 쓰는 대신 `globalIgnores`로 감싸 의도를 명확히 합니다.
+
+| 함수 | 역할 |
+|------|------|
+| `defineConfig(configs)` | 설정 객체 배열에 타입 힌트를 붙여 반환한다 |
+| `globalIgnores(patterns)` | 모든 설정 객체에 공통으로 적용되는 무시 패턴을 만든다 |
+| `tseslint.configs.recommendedTypeChecked` | 타입 정보를 사용하는 typescript-eslint 권장 규칙 묶음 |
+
+### TypeScript 7 컴파일러와 TypeScript 6 API 호환 계층
+
+TypeScript 7.0의 `typescript` 패키지는 `tsc` 명령을 제공하지만 기존 JavaScript Compiler API는 제공하지 않습니다. 반면 typescript-eslint 8계열은 현재 TypeScript 6.0까지의 Compiler API를 사용합니다. 그래서 `apps/web`에는 `typescript@7.0.2`를 그대로 두어 앱을 TS 7로 검사하고, 워크스페이스 루트에는 공식 호환 패키지인 `@typescript/typescript6`를 `typescript`라는 이름으로 설치해 린터가 사용할 API를 제공합니다.
+
+루트 `typecheck` 스크립트는 `apps/web`에 설치된 TS 7의 `tsc`를 실행한 뒤 루트 project references를 빌드합니다. 같은 저장소에서 두 버전의 역할을 명확히 분리하는 구조입니다.
+
+### projectService — 모노레포에 별도 설정이 필요 없는 이유
+
+타입 정보를 활용하는 규칙(`recommendedTypeChecked`)을 켜려면 각 파일이 속한 `tsconfig.json`을 ESLint가 알아야 합니다. 예전 방식인 `parserOptions.project`는 모노레포에서 패키지별 경로를 직접 나열해야 했지만, `parserOptions.projectService: true`는 검사 대상 파일마다 가장 가까운 `tsconfig.json`을 TypeScript 서비스가 알아서 찾아줘 **모노레포용 추가 설정이 필요 없습니다**. 15~16편에서 각 패키지에 이미 `composite: true`인 `tsconfig.json`을 갖춰 뒀으므로 바로 활용할 수 있습니다. `tsconfigRootDir`는 상대 경로 해석 기준을 명시하는 값으로, 설정 파일 자신의 위치를 가리키는 `import.meta.dirname`을 넣습니다.
+
+### 패키지별 규칙 오버라이드
+
+`packages/shared-types`는 순수 타입·zod 스키마만 있어 React 관련 규칙이 필요 없습니다. React 훅 규칙(`eslint-plugin-react-hooks`)과 Vite HMR 규칙(`eslint-plugin-react-refresh`)은 컴포넌트가 있는 `apps/web`, `packages/ui`에만 `files` 패턴으로 범위를 좁혀 적용합니다.
+
+## 실습
+
+<Steps>
+
+### 1. 필요한 패키지를 루트에 설치하기
+
+워크스페이스 루트의 `package.json`에 직접 의존성을 추가하려면 `-w` 플래그가 필요합니다. 플래그 없이 실행하면 pnpm이 루트 설치를 거부합니다.
+
+```bash
+pnpm add -w -D eslint @eslint/js typescript-eslint eslint-plugin-react-hooks eslint-plugin-react-refresh "typescript@npm:@typescript/typescript6@6.0.3"
+```
+
+루트 `package.json`의 관련 항목도 함께 바꿉니다.
+
+```json
+{
+  "scripts": {
+    "typecheck": "pnpm --filter @bookshelf/web exec tsc -b ../..",
+    "lint": "pnpm -r lint"
+  },
+  "devDependencies": {
+    "typescript": "npm:@typescript/typescript6@6.0.3"
+  }
+}
+```
+
+`apps/web/package.json`의 `"typescript": "7.0.2"`는 그대로 둡니다. 루트의 `typescript`는 린터 API용이고, `typecheck`는 `apps/web`의 TS 7 실행 파일로 루트 `tsconfig.json`을 검사합니다.
+
+### 2. 루트 eslint.config.mjs 작성하기
+
+```js
+// eslint.config.mjs
+// @ts-check
+import js from '@eslint/js'
+import { defineConfig, globalIgnores } from 'eslint/config'
+import tseslint from 'typescript-eslint'
+import reactHooks from 'eslint-plugin-react-hooks'
+import { reactRefresh } from 'eslint-plugin-react-refresh'
+
+export default defineConfig([
+  globalIgnores(['**/dist/**']),
+  {
+    files: ['**/*.{ts,tsx}'],
+    extends: [js.configs.recommended, tseslint.configs.recommendedTypeChecked],
+    languageOptions: {
+      parserOptions: {
+        projectService: true,
+        tsconfigRootDir: import.meta.dirname,
+      },
+    },
+    rules: {
+      '@typescript-eslint/no-unused-vars': 'error',
+    },
+  },
+  {
+    files: ['apps/web/**/*.tsx', 'packages/ui/**/*.tsx'],
+    plugins: { 'react-hooks': reactHooks },
+    extends: [reactHooks.configs.flat.recommended, reactRefresh.configs.vite()],
+  },
+])
+```
+
+첫 번째 설정 블록은 `ts`·`tsx` 확장자 전체(세 패키지 모두)에 적용됩니다. 두 번째 블록은 `files`로 `apps/web`과 `packages/ui`의 `.tsx` 파일만 골라, 그 파일에만 React 훅 규칙과 Vite Fast Refresh 규칙을 얹습니다. `packages/shared-types`는 두 번째 블록의 `files` 패턴에 걸리지 않아 첫 번째 블록의 순수 TypeScript 규칙만 적용받습니다.
+
+### 3. 각 패키지에 lint 스크립트 추가하기
+
+`apps/web`, `packages/shared-types`, `packages/ui` 세 곳의 `package.json`에 같은 형태로 스크립트를 추가합니다.
+
+```json
+// packages/shared-types/package.json (scripts 발췌)
+{
+  "scripts": {
+    "build": "tsdown",
+    "lint": "eslint ."
+  }
+}
+```
+
+세 `package.json` 모두 이 형태를 따르되, `build` 스크립트 값만 각 패키지의 것(17~18편에서 이미 정한 `vite build` 또는 `tsdown`)을 유지합니다. `eslint .`는 실행된 디렉터리(예: `packages/shared-types`)를 대상으로 검사하지만, 설정 파일은 상위로 올라가 루트의 `eslint.config.mjs`를 찾아 씁니다.
+
+### 4. 워크스페이스 전체 검사 실행하기
+
+```bash
+pnpm -r lint
+```
+
+</Steps>
+
+## 확인
+
+- 터미널에 `apps/web`, `packages/shared-types`, `packages/ui` 세 패키지의 lint 결과가 차례로 출력되고, 모두 오류 없이 끝납니다.
+- 루트의 `pnpm exec tsc --version`은 6.0.3을, `pnpm --filter @bookshelf/web exec tsc --version`은 7.0.2를 출력합니다.
+- `pnpm run typecheck`는 앱에 설치된 TypeScript 7로 루트 project references를 검사해 통과합니다.
+- `packages/shared-types` 안의 `.ts` 파일에서 사용하지 않는 변수를 하나 추가하면 `@typescript-eslint/no-unused-vars` 오류가 그 파일 위치에 나타납니다. 확인 후 되돌립니다.
+- `apps/web`의 컴포넌트 파일에서 훅을 조건문 안에 넣어 보면 `react-hooks` 규칙이 오류를 냅니다. 확인 후 되돌립니다.
+
+## 직접 해보기
+
+1. 루트 설정의 `tseslint.configs.recommendedTypeChecked`를 `tseslint.configs.strictTypeChecked`로 올려 `pnpm -r lint`를 다시 실행해 보세요. 새로 걸리는 규칙이 있는지 확인합니다.
+2. `packages/shared-types`에만 적용되는 규칙 블록을 추가해, `react`로 시작하는 패키지를 import하면 오류가 나도록 `no-restricted-imports` 규칙을 설정해 보세요. 타입 전용 패키지가 React에 의존하지 않는다는 경계를 린터로도 강제할 수 있습니다.
+
+<details>
+<summary>2번 정답 보기</summary>
+
+```js
+// eslint.config.mjs에 추가할 블록
+{
+  files: ['packages/shared-types/**/*.ts'],
+  rules: {
+    'no-restricted-imports': ['error', { patterns: ['react', 'react-*'] }],
+  },
+},
+```
+
+</details>
+
+## 자주 하는 실수
+
+| 증상 | 원인 | 고치는 법 |
+|------|------|-----------|
+| 타입 정보가 필요한 규칙이 항상 통과만 한다 | `parserOptions`에 `projectService`를 켜지 않음 | `languageOptions.parserOptions.projectService: true` 추가 |
+| TypeScript 7에서 typescript-eslint가 지원 범위 경고나 API 오류를 낸다 | 루트 `typescript`를 7.0으로 올려 린터가 사용할 Compiler API가 없음 | 루트에는 `typescript@npm:@typescript/typescript6@6.0.3`을 두고 앱 타입체크는 앱 로컬 TS 7로 실행 |
+| `packages/shared-types`에서 React 훅 규칙 오류가 뜬다 | React 전용 블록의 `files` 패턴이 너무 넓음 | `files`를 `apps/web`·`packages/ui` 경로로 좁힌다 |
+| `pnpm -r lint`가 특정 패키지에서만 설정을 못 찾는다는 오류 | 해당 패키지에 `lint` 스크립트를 안 넣음 | 세 패키지 `package.json` 모두에 `"lint": "eslint ."` 추가 |
+
+## 확인 문제
+
+<Quiz
+  questionNumber={1}
+  question="parserOptions.projectService를 켜면 모노레포에서 얻는 이점은"
+  options={['각 파일이 속한 tsconfig.json을 자동으로 찾아줘 패키지별 경로를 직접 나열할 필요가 없다', 'ESLint 실행 속도가 항상 두 배로 빨라진다', 'JavaScript 파일도 타입 검사 없이 통과시켜 준다', '패키지마다 별도의 eslint.config.mjs가 강제로 필요해진다']}
+  correctAnswer={1}
+  explanation="projectService는 검사 대상 파일마다 가장 가까운 tsconfig.json을 TypeScript 서비스가 찾아주므로, parserOptions.project처럼 경로를 나열하는 모노레포 전용 설정이 필요 없습니다."
+  optionExplanations={['정답입니다', '속도 보장에 대한 근거가 아닙니다', '타입 검사 여부와는 무관합니다', '오히려 반대로 설정 파일 하나로 통합할 수 있습니다']}
+/>
+
+<Quiz
+  questionNumber={2}
+  question="apps/web 하위 디렉터리에서 eslint .을 실행해도 루트 eslint.config.mjs가 적용되는 이유는"
+  options={['ESLint가 현재 디렉터리에 설정이 없으면 상위 디렉터리로 올라가며 eslint.config 파일을 찾기 때문', 'package.json의 lint 스크립트가 설정 내용을 복사해 두기 때문', 'pnpm이 자동으로 설정 파일을 각 패키지에 복사하기 때문', 'apps/web에는 항상 별도의 설정이 있어야 하기 때문']}
+  correctAnswer={1}
+  explanation="ESLint는 대상 파일이 있는 디렉터리부터 시작해 상위 조상 디렉터리로 올라가며 eslint.config 파일을 찾으므로, 하위 패키지에서 실행해도 루트 설정을 찾아 씁니다."
+  optionExplanations={['정답입니다', '스크립트는 명령만 담을 뿐 설정 내용을 복사하지 않습니다', 'pnpm은 설정 파일 복사와 무관합니다', '오히려 하위 설정이 없어도 루트 설정이 적용됩니다']}
+/>
+
+<Quiz
+  questionNumber={3}
+  question="eslint.config.mjs의 files 패턴이 어떤 위치를 기준으로 해석됩니까"
+  options={['그 규칙이 적용되는 각 패키지의 루트', '현재 명령을 실행한 셸의 작업 디렉터리', 'eslint.config 파일 자신이 위치한 디렉터리', 'package.json의 workspaces 필드에 적힌 첫 번째 경로']}
+  correctAnswer={3}
+  explanation="files와 ignores 패턴은 그 설정을 담은 eslint.config 파일의 위치를 기준으로 해석되므로, 루트 설정에서 apps/web/**/*.tsx처럼 패키지 경로를 포함해 지정할 수 있습니다."
+  optionExplanations={['패키지별 기준이 아니라 설정 파일 기준입니다', '작업 디렉터리가 아니라 설정 파일 위치가 기준입니다', '정답입니다', 'workspaces 필드와는 무관합니다']}
+/>
+
+<Quiz
+  questionNumber={4}
+  question="packages/shared-types에는 react-hooks 규칙을 적용하지 않는 이유로 가장 알맞은 것은"
+  options={['react-hooks 플러그인이 아직 typescript-eslint를 지원하지 않아서', 'shared-types에는 React 컴포넌트나 훅이 없어 해당 규칙이 필요하지 않아서', 'shared-types는 자바스크립트로만 작성돼야 해서', 'react-hooks 규칙은 packages 디렉터리 전체에 적용할 수 없어서']}
+  correctAnswer={2}
+  explanation="packages/shared-types는 도메인 타입과 zod 스키마만 담은 순수 TypeScript 패키지라 React 훅 규칙을 적용할 대상 자체가 없습니다. files 패턴으로 apps/web·packages/ui에만 범위를 좁힌 이유입니다."
+  optionExplanations={['지원 여부 문제가 아닙니다', '정답입니다', 'shared-types는 TypeScript로 작성됩니다', 'files 패턴으로 얼마든지 범위를 지정할 수 있습니다']}
+/>
+
+<Quiz
+  questionNumber={5}
+  question="워크스페이스 루트에는 TypeScript 6 호환 패키지를 두고 apps/web에는 TypeScript 7을 유지하는 이유는"
+  options={['모든 앱 코드를 TypeScript 6으로 낮추기 위해서', 'typescript-eslint에는 TypeScript 6 Compiler API를 제공하면서 앱 타입체크는 TypeScript 7로 계속 실행하기 위해서', 'pnpm이 같은 저장소에서 한 버전만 설치할 수 있어서', 'React 19가 TypeScript 7을 지원하지 않아서']}
+  correctAnswer={2}
+  explanation="TypeScript 7 컴파일러는 앱 타입체크에 사용하고, 기존 Compiler API가 필요한 typescript-eslint에는 루트의 TypeScript 6 호환 패키지를 제공합니다. 두 패키지는 서로 다른 역할을 맡습니다."
+  optionExplanations={['앱은 계속 TypeScript 7로 검사합니다', '정답입니다', 'pnpm은 패키지별로 서로 다른 버전을 설치할 수 있습니다', 'React 19 지원 여부 때문이 아닙니다']}
+/>
+
+## 참고 자료
+
+- [typescript-eslint — Getting Started](https://typescript-eslint.io/getting-started/)
+- [typescript-eslint — Linting with Type Information](https://typescript-eslint.io/getting-started/typed-linting/)
+- [typescript-eslint — Monorepos (Troubleshooting)](https://typescript-eslint.io/troubleshooting/typed-linting/monorepos/)
+- [typescript-eslint — Dependency Versions](https://typescript-eslint.io/users/dependency-versions/)
+- [TypeScript — Announcing TypeScript 7.0](https://devblogs.microsoft.com/typescript/announcing-typescript-7-0/)

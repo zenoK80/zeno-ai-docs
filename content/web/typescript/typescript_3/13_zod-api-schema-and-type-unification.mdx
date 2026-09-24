@@ -1,0 +1,350 @@
+---
+title: '13. zod로 API 스키마와 타입 단일화'
+description: 'zod 스키마 하나로 책 도메인 타입을 정의해 폼 검증 타입과 API 응답 타입을 통일합니다'
+---
+
+<Callout type="info">
+  **이번 편의 결과물:** 책 스키마가 `zod` 하나로 정의되고, 폼 검증 타입과 API 응답 타입이 같은 스키마에서 파생됩니다. · **다루는 개념:** `z.infer`로 도출한 타입을 폼·API 타입에 그대로 사용, 스키마 하나로 검증과 타입을 통일
+</Callout>
+
+05편의 `BookFormPage.tsx`는 `zodResolver`로 입력값을 검증했고, 12편의 `services/books.ts`는 `useQuery`·`useMutation`으로 책을 조회했습니다. 문제는 두 편의 타입이 따로 정의됐다는 것입니다. 폼 쪽은 `zod` 스키마에서 뽑은 타입을, API 쪽은 직접 쓴 `interface Book`을 써서 필드가 어긋나도 컴파일러가 못 잡습니다. 이 편에서 `zod` 스키마 하나로 합칩니다.
+
+## 이 편에서 만드는 파일
+
+```
+bookshelf-ts/src/
+├── schemas/
+│   └── book.ts              (~, bookInputSchema·bookSchema로 재작성, 타입도 함께 export)
+├── services/
+│   └── books.ts              (~, 수동 Book interface 제거, schemas/book의 타입과 파싱 재사용)
+└── routes/
+    └── BookFormPage.tsx      (~, 폼 타입을 BookInput으로 교체)
+```
+
+## 개념 정리
+
+### 지금까지의 문제
+
+지금 `services/books.ts`에는 이런 식의 수동 타입이 있었습니다.
+
+```ts
+// (수정 전) services/books.ts 일부
+interface Book {
+  id: string
+  title: string
+  author: string
+  pages: number
+}
+```
+
+`schemas/book.ts`의 폼 검증용 `zod` 스키마에서 뽑은 타입은 이 `interface Book`과 이름은 비슷해도 서로 다른 선언입니다. 서버가 필드를 빼먹거나 이름을 바꿔도 `interface`는 값을 검사하지 않으므로 런타임에야 드러납니다.
+
+### z.infer로 타입 도출
+
+`zod` 스키마를 만들면 그 스키마가 통과시키는 값의 타입을 `z.infer`로 그대로 뽑아낼 수 있습니다. 스키마와 타입이 항상 같은 소스에서 나오므로 둘이 어긋날 수 없습니다.
+
+```ts
+const bookInputSchema = z.object({ title: z.string().min(1) })
+type BookInput = z.infer<typeof bookInputSchema>
+```
+
+### extend로 관련 스키마 파생
+
+폼에서 받는 값(`BookInput`, id 없음)과 서버 응답(`Book`, id 있음)은 필드가 거의 같습니다. `extend`로 필드를 더한 새 스키마를 만들면 중복 선언 없이 관계를 표현합니다.
+
+```ts
+const bookSchema = bookInputSchema.extend({ id: z.string() })
+```
+
+### parse로 API 응답을 실제로 검증
+
+`fetch` 응답은 타입 단언 없이는 `unknown`입니다. `schema.parse(data)`를 쓰면 컴파일 타임 타입뿐 아니라 런타임에도 실제 응답이 스키마와 맞는지 확인하고, 어긋나면 그 자리에서 오류를 던집니다.
+
+## 실습
+
+<Steps>
+
+### 1. 스키마 재작성
+
+```ts
+// bookshelf-ts/src/schemas/book.ts
+import { z } from 'zod'
+
+export const bookStatusValues = ['wish', 'reading', 'done'] as const
+
+export const bookInputSchema = z.object({
+  title: z.string().min(1, '제목을 입력하세요'),
+  author: z.string().min(1, '저자를 입력하세요'),
+  pages: z.coerce.number().int().positive('쪽수는 1 이상이어야 합니다'),
+  status: z.enum(bookStatusValues),
+  memo: z.string().optional().default(''),
+  coverUrl: z.string().optional(),
+})
+
+export const bookSchema = bookInputSchema.extend({
+  id: z.string(),
+})
+
+export const bookListSchema = z.array(bookSchema)
+
+export type BookStatus = (typeof bookStatusValues)[number]
+export type BookInput = z.infer<typeof bookInputSchema>
+export type Book = z.infer<typeof bookSchema>
+```
+
+`pages`에 `z.coerce.number()`를 쓴 이유는 `input[type=number]` 값도 문자열로 들어올 수 있어서입니다. 파싱 단계에서 숫자로 바꾸면 폼과 API 타입이 항상 일치합니다.
+
+### 2. 서비스 계층을 스키마 기반으로 재작성
+
+```ts
+// bookshelf-ts/src/services/books.ts
+import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
+import { bookListSchema, bookSchema, type Book, type BookInput } from '../schemas/book'
+
+const API_BASE = '/api/books'
+
+export const bookKeys = {
+  all: ['books'] as const,
+  detail: (id: string) => ['books', id] as const,
+}
+
+async function requestBook(url: string, init?: RequestInit): Promise<Book> {
+  const response = await fetch(url, init)
+  if (!response.ok) throw new Error('요청이 실패했습니다')
+  return bookSchema.parse(await response.json())
+}
+
+async function fetchBooks(): Promise<Book[]> {
+  const response = await fetch(API_BASE)
+  if (!response.ok) throw new Error('책 목록을 불러오지 못했습니다')
+  return bookListSchema.parse(await response.json())
+}
+
+async function fetchBook(id: string): Promise<Book> {
+  return requestBook(`${API_BASE}/${id}`)
+}
+
+async function createBook(input: BookInput): Promise<Book> {
+  return requestBook(API_BASE, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(input),
+  })
+}
+
+async function updateBook(id: string, input: BookInput): Promise<Book> {
+  return requestBook(`${API_BASE}/${id}`, {
+    method: 'PUT',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(input),
+  })
+}
+
+async function deleteBook(id: string): Promise<void> {
+  await fetch(`${API_BASE}/${id}`, { method: 'DELETE' })
+}
+
+export function useBooksQuery() {
+  return useQuery({ queryKey: bookKeys.all, queryFn: fetchBooks })
+}
+
+export function useBookQuery(id: string) {
+  return useQuery({ queryKey: bookKeys.detail(id), queryFn: () => fetchBook(id) })
+}
+
+export function useCreateBookMutation() {
+  const queryClient = useQueryClient()
+  return useMutation({
+    mutationFn: createBook,
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: bookKeys.all })
+    },
+  })
+}
+
+export function useUpdateBookMutation(id: string) {
+  const queryClient = useQueryClient()
+  return useMutation({
+    mutationFn: (input: BookInput) => updateBook(id, input),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: bookKeys.all })
+      queryClient.invalidateQueries({ queryKey: bookKeys.detail(id) })
+    },
+  })
+}
+
+export function useDeleteBookMutation() {
+  const queryClient = useQueryClient()
+  return useMutation({
+    mutationFn: deleteBook,
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: bookKeys.all })
+    },
+  })
+}
+```
+
+`interface Book`이 사라지고 `schemas/book.ts`의 `Book`, `BookInput`만 남았습니다. `useQuery`·`useMutation`의 타입은 `fetchBooks`·`createBook` 등의 반환 타입에서 흘러와, 제네릭을 직접 쓴 곳이 없습니다.
+
+### 3. 폼 페이지에서 같은 타입 재사용
+
+```tsx
+// bookshelf-ts/src/routes/BookFormPage.tsx
+import { useNavigate, useParams } from 'react-router'
+import { useForm } from 'react-hook-form'
+import { zodResolver } from '@hookform/resolvers/zod'
+import { bookInputSchema, bookStatusValues, type BookInput } from '../schemas/book'
+import { useBookQuery, useCreateBookMutation, useUpdateBookMutation } from '../services/books'
+
+export default function BookFormPage() {
+  const { bookId } = useParams()
+  const navigate = useNavigate()
+  const isEditMode = bookId !== undefined
+  const bookQuery = useBookQuery(bookId ?? '')
+  const createMutation = useCreateBookMutation()
+  const updateMutation = useUpdateBookMutation(bookId ?? '')
+
+  const {
+    register,
+    handleSubmit,
+    formState: { errors, isSubmitting },
+  } = useForm<BookInput>({
+    resolver: zodResolver(bookInputSchema),
+    values: isEditMode && bookQuery.data ? bookQuery.data : undefined,
+  })
+
+  async function onSubmit(values: BookInput) {
+    if (isEditMode) {
+      await updateMutation.mutateAsync(values)
+    } else {
+      await createMutation.mutateAsync(values)
+    }
+    navigate('/books')
+  }
+
+  if (isEditMode && bookQuery.isLoading) {
+    return <p>불러오는 중입니다...</p>
+  }
+
+  return (
+    <form onSubmit={handleSubmit(onSubmit)}>
+      <label htmlFor="title">제목</label>
+      <input id="title" {...register('title')} />
+      {errors.title && <p role="alert">{errors.title.message}</p>}
+
+      <label htmlFor="author">저자</label>
+      <input id="author" {...register('author')} />
+      {errors.author && <p role="alert">{errors.author.message}</p>}
+
+      <label htmlFor="pages">쪽수</label>
+      <input id="pages" type="number" {...register('pages')} />
+      {errors.pages && <p role="alert">{errors.pages.message}</p>}
+
+      <label htmlFor="status">상태</label>
+      <select id="status" {...register('status')}>
+        {bookStatusValues.map((status) => (
+          <option key={status} value={status}>
+            {status}
+          </option>
+        ))}
+      </select>
+
+      <label htmlFor="memo">메모</label>
+      <textarea id="memo" {...register('memo')} />
+
+      <button type="submit" disabled={isSubmitting}>
+        {isEditMode ? '수정 저장' : '등록'}
+      </button>
+    </form>
+  )
+}
+```
+
+`useForm<BookInput>`의 `BookInput`과 `zodResolver(bookInputSchema)`의 검증 대상이 같은 스키마에서 나와, 스키마 하나만 고치면 폼 타입과 검증 규칙이 함께 바뀝니다.
+
+### 4. 실행
+
+```text
+npm run dev
+```
+
+</Steps>
+
+## 확인
+
+- 책 등록 폼에서 쪽수에 문자를 섞어 입력하면 `pages` 필드에 오류 메시지가 뜹니다.
+- 정상 값으로 등록하면 목록에 새 책이 나타나고, 상세 페이지에서 필드 값이 폼에 그대로 채워집니다.
+- 세 파일 어디에도 `interface Book`이 남아 있지 않고, `bookInputSchema`에 없는 필드 이름으로 `register`를 호출하면 타입 오류가 바로 표시됩니다.
+
+## 직접 해보기
+
+1. `bookSchema`에 평점 필드 `rating: z.number().min(0).max(5).optional()`을 추가하고, `BookFormPage.tsx`에 입력 필드를 하나 더 붙여보세요.
+2. `bookInputSchema.partial()`로 `updateBookInputSchema`를 만들어, 상태만 바꾸는 수정처럼 일부 필드만 보내는 요청에 적용해보세요.
+
+<details>
+<summary>정답 보기</summary>
+
+```ts
+// schemas/book.ts (일부 변경)
+export const bookInputSchema = z.object({
+  // ...title, author, pages, status, memo, coverUrl은 그대로
+  rating: z.number().min(0).max(5).optional(),
+})
+
+export const updateBookInputSchema = bookInputSchema.partial()
+export type UpdateBookInput = z.infer<typeof updateBookInputSchema>
+```
+
+`partial()`은 모든 필드를 선택적으로 만든 새 스키마를 반환합니다. 원본은 그대로 두고 별도 타입으로 파생시켜, 등록 폼과 부분 수정 요청이 각자 맞는 검증 강도를 가집니다.
+
+</details>
+
+## 자주 하는 실수
+
+| 증상 | 원인 | 고치는 법 |
+|------|------|-----------|
+| 응답 필드가 바뀌었는데 빌드가 통과함 | `interface`만 선언하고 실제 파싱은 안 함 | `schema.parse(data)`로 응답을 검증한다 |
+| `pages`에 문자열을 넣으면 오류가 남 | `z.number()`만 쓰고 `coerce`를 빼먹음 | 문자열로 들어올 수 있는 값은 `z.coerce.number()`를 쓴다 |
+| 두 스키마의 필드가 슬금슬금 어긋남 | 각각 처음부터 따로 작성함 | `bookSchema`를 `bookInputSchema.extend(...)`로 파생시킨다 |
+
+## 확인 문제
+
+<Quiz
+  questionNumber={1}
+  question="이 편 이전 상태(interface Book과 별도 zod 스키마)의 문제점은"
+  options={['타입스크립트 컴파일 속도가 느려진다', '두 선언이 서로 다른 소스라 필드가 어긋나도 컴파일러가 잡지 못한다', 'React 컴포넌트가 렌더링되지 않는다', 'zod 패키지 용량이 너무 커진다']}
+  correctAnswer={2}
+  explanation="interface는 값을 검사하지 않는 컴파일 타임 선언이라, zod 스키마와 필드가 어긋나도 타입 검사만으로는 잡히지 않습니다."
+  optionExplanations={['컴파일 속도와는 무관합니다', '정답입니다', '렌더링 여부와는 무관한 문제입니다', '패키지 용량 문제가 아닙니다']}
+/>
+
+<Quiz
+  questionNumber={2}
+  question="z.infer의 역할은"
+  options={['zod 스키마를 JSON으로 직렬화한다', 'zod 스키마가 통과시키는 값의 타입스크립트 타입을 뽑아낸다', '스키마 검증 속도를 높인다', '컴포넌트 props를 자동으로 생성한다']}
+  correctAnswer={2}
+  explanation="z.infer&lt;typeof schema&gt;는 스키마 정의로부터 대응하는 타입스크립트 타입을 도출합니다."
+  optionExplanations={['직렬화 기능이 아닙니다', '정답입니다', '속도와는 무관합니다', 'props 생성과는 무관합니다']}
+/>
+
+<Quiz
+  questionNumber={3}
+  question="bookInputSchema.extend로 bookSchema를 만드는 이유는"
+  options={['두 스키마를 완전히 독립적으로 유지하기 위해서', '공통 필드를 중복 선언하지 않고 id처럼 추가되는 필드만 얹기 위해서', '검증을 건너뛰기 위해서', 'React 렌더링 순서를 정하기 위해서']}
+  correctAnswer={2}
+  explanation="extend는 기존 스키마의 필드를 그대로 물려받은 채 새 필드만 더한 스키마를 만들어, 공통 필드가 두 곳에서 따로 관리되는 것을 막습니다."
+  optionExplanations={['오히려 관계를 명시적으로 연결합니다', '정답입니다', '검증은 그대로 적용됩니다', '렌더링 순서와는 무관합니다']}
+/>
+
+<Quiz
+  questionNumber={4}
+  question="fetchBooks에서 bookListSchema.parse(data)를 호출하는 이유는"
+  options={['네트워크 요청 속도를 높이기 위해서', '실제 서버 응답이 스키마와 일치하는지 런타임에 검증하기 위해서', 'JSON.stringify를 대신하기 위해서', 'React Query 캐시를 비우기 위해서']}
+  correctAnswer={2}
+  explanation="parse는 컴파일 타임 타입만으로 알 수 없는 실제 런타임 응답을 검증하고, 어긋나면 오류를 던집니다."
+  optionExplanations={['속도 개선과는 무관합니다', '정답입니다', '직렬화 대체가 아닙니다', '캐시 무효화와는 무관합니다']}
+/>
+
+## 참고 자료
+
+- [Zod 공식 문서 — Basic usage](https://zod.dev/basics)

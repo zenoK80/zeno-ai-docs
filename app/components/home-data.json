@@ -1,7 +1,7 @@
 {
-  "generatedAt": "2026-09-23T05:22:53.680Z",
+  "generatedAt": "2026-09-24T12:20:26.920Z",
   "groupCount": 12,
-  "seriesCount": 52,
+  "seriesCount": 54,
   "groups": [
     {
       "title": "Web · HTML",
@@ -82,16 +82,32 @@
     },
     {
       "title": "Web · TypeScript",
-      "description": "1개 시리즈 · 문서 18편",
+      "description": "3개 시리즈 · 문서 58편",
       "order": "04",
       "series": [
         {
-          "title": "TypeScript",
+          "title": "TypeScript 기초",
           "description": "같은 버그가 있는 JS 코드와 TypeScript 코드를 나란히 실행해, 타입 오류가 언제 드러나는지 비교합니다.",
           "href": "/web/typescript/typescript_fundamentals/01_what-typescript-solves",
           "documentCount": 18,
           "preview": "code",
           "accent": "red"
+        },
+        {
+          "title": "TypeScript 중급",
+          "description": "typescript_fundamentals가 완성한 expense-tracker 상태를 점검하고, 이번 과목에서 다룰 타입 레벨 프로그래밍을 미리 봅니다.",
+          "href": "/web/typescript/typescript_2/01_intermediate-typescript-preview",
+          "documentCount": 18,
+          "preview": "code",
+          "accent": "blue"
+        },
+        {
+          "title": "TypeScript 실무",
+          "description": "bookshelf(JS)에서 타입이 못 잡아주는 지점을 확인하고, 빅뱅 전환 대신 allowJs 기반 점진 전환을 택하는 이유와 이 과목의 최종 목표를 정리합니다",
+          "href": "/web/typescript/typescript_3/01_migration-strategy-and-react19-typescript-overview",
+          "documentCount": 22,
+          "preview": "code",
+          "accent": "green"
         }
       ]
     },

@@ -1,0 +1,324 @@
+---
+title: '12. TanStack Query 타이핑'
+description: 'api/books.js와 남은 훅을 services/books.ts로 통합해 queryFn 반환 타입만으로 데이터 타입이 흐르게 만든다'
+---
+
+<Callout type="info">
+  **이번 편의 결과물:** `api/books.js`, `hooks/useBooks.ts`, `hooks/useBookMutations.js`가 `services/books.ts` 하나로 통합되고, `useBooksQuery`·`useBookQuery`·`useDeleteBookMutation`이 명시적 제네릭 없이도 `data` 타입을 정확히 추론합니다. · **다루는 개념:** `queryKey` 팩토리 타입, `useQuery`/`useMutation`의 자동 타입 추론, `queryOptions` 헬퍼로 타입 유지하며 재사용하기
+</Callout>
+
+## 이 편에서 만드는 파일
+
+```
+bookshelf-ts/src/
+├── services/
+│   └── books.ts                + 신규 (api/books.js + useBooks.ts + useBookMutations.js를 통합)
+├── api/
+│   └── books.js                 − 삭제
+├── hooks/
+│   ├── useBooks.ts              − 삭제
+│   └── useBookMutations.js      − 삭제
+└── pages/
+    ├── BookListPage.tsx         ~ 수정 (useBooks → useBooksQuery)
+    └── BookDetailPage.tsx       ~ 수정 (getBook 직접 호출 → useBookQuery, 삭제 버튼 추가)
+```
+
+## 개념 정리
+
+06편은 `getBooks`가 아직 `.js`라 `useBooks.ts`의 `queryFn` 안에서 `as Promise<BookListResult>`로 캐스팅했습니다. `api/books.js` 자체가 TypeScript로 바뀌면 이 캐스팅이 필요 없어집니다. TanStack Query는 대부분의 데이터 조회 라이브러리와 달리 `useQuery`의 `data` 타입을 **`queryFn`의 반환 타입에서 그대로 가져옵니다.** `queryFn`이 반환하는 값의 타입이 명확하면, `useQuery` 쪽에 타입 인자를 따로 쓸 필요가 없습니다.
+
+| 상황 | 결과 |
+|---|---|
+| `queryFn`의 반환 타입을 명시하지 않은 함수를 넘김 | `data`가 `any`에 가깝게 추론되기 쉬움 |
+| 반환 타입을 명시한 함수(`(): Promise<BookListResult>`)를 넘김 | `data`가 정확히 `BookListResult \| undefined`로 추론됨 |
+| `useQuery<BookListResult>({...})`처럼 제네릭을 직접 지정 | 대부분 불필요함. `queryFn` 반환 타입이 이미 흐르기 때문 |
+
+`useMutation`도 같은 원리입니다. `mutationFn`의 매개변수 타입이 `mutate` 함수 호출 인자의 타입이 되고, `mutationFn`의 반환 타입이 `onSuccess`의 `data` 매개변수 타입이 됩니다.
+
+옵션 객체를 다른 곳에서도 재사용하려면 `queryOptions` 헬퍼로 감싸는 것이 권장 패턴입니다. `queryOptions`로 감싸면 `queryClient.getQueryData(...)`처럼 다른 API에 넘길 때도 타입 인자 없이 같은 타입 추론을 그대로 받을 수 있습니다.
+
+## 실습
+
+<Steps>
+
+### 1. services/books.ts 작성
+
+```ts
+// src/services/books.ts
+import { queryOptions, useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
+import type { Book, BookStatus } from '../types/book.ts'
+
+const API_BASE = 'http://localhost:3001'
+
+export interface BookListParams {
+  status?: BookStatus | 'all'
+  sortBy?: keyof Book
+  sortOrder?: 'asc' | 'desc'
+  search?: string
+  page?: number
+  pageSize?: number
+}
+
+export interface BookListResult {
+  items: Book[]
+  total: number
+  page: number
+  pageSize: number
+}
+
+export const bookKeys = {
+  all: ['books'] as const,
+  list: (params: BookListParams) => ['books', params] as const,
+  detail: (id: number) => ['books', id] as const,
+}
+
+export async function getBooks(params: BookListParams): Promise<BookListResult> {
+  const { status = 'all', sortBy = 'title', sortOrder = 'asc', search = '', page = 1, pageSize = 5 } = params
+  const query = new URLSearchParams({
+    _sort: sortBy,
+    _order: sortOrder,
+    _page: String(page),
+    _limit: String(pageSize),
+  })
+  if (status !== 'all') query.set('status', status)
+  if (search) query.set('q', search)
+
+  const response = await fetch(`${API_BASE}/books?${query.toString()}`)
+  if (!response.ok) {
+    throw new Error('책 목록을 불러오지 못했습니다')
+  }
+  const total = Number(response.headers.get('X-Total-Count') ?? 0)
+  const items = (await response.json()) as Book[]
+  return { items, total, page, pageSize }
+}
+
+export async function getBook(id: number): Promise<Book> {
+  const response = await fetch(`${API_BASE}/books/${id}`)
+  if (!response.ok) {
+    throw new Error('책 정보를 불러오지 못했습니다')
+  }
+  return (await response.json()) as Book
+}
+
+export async function deleteBook(id: number): Promise<{ id: number }> {
+  const response = await fetch(`${API_BASE}/books/${id}`, { method: 'DELETE' })
+  if (!response.ok) {
+    throw new Error('책을 삭제하지 못했습니다')
+  }
+  return { id }
+}
+
+export function booksQueryOptions(params: BookListParams) {
+  return queryOptions({
+    queryKey: bookKeys.list(params),
+    queryFn: () => getBooks(params),
+  })
+}
+
+export function useBooksQuery(params: BookListParams) {
+  return useQuery(booksQueryOptions(params))
+}
+
+export function useBookQuery(id: number) {
+  return useQuery({
+    queryKey: bookKeys.detail(id),
+    queryFn: () => getBook(id),
+    enabled: Number.isFinite(id),
+  })
+}
+
+export function useDeleteBookMutation() {
+  const queryClient = useQueryClient()
+
+  return useMutation({
+    mutationFn: deleteBook,
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: bookKeys.all })
+    },
+  })
+}
+```
+
+`bookKeys`의 세 함수 모두 반환값에 `as const`를 붙여, `queryKey`가 정확한 길이의 읽기 전용 튜플로 고정되게 했습니다. `getBooks`, `getBook`, `deleteBook`은 반환 타입을 명시적으로 적어, 이 함수들을 `queryFn`·`mutationFn`으로 넘겼을 때 그 타입이 그대로 전해지게 합니다. `useBookQuery`의 `enabled: Number.isFinite(id)`는 08편에서 `enabled: Boolean(id)`로 `id`가 `undefined`일 때 요청을 막던 가드를, 문자열이 아닌 숫자 `id` 기준으로 옮긴 것입니다.
+
+### 2. BookListPage에서 useBooksQuery로 교체
+
+```tsx
+// src/pages/BookListPage.tsx (import와 훅 호출부만 수정 — 나머지는 10~11편 코드 유지)
+import { useBooksQuery } from '../services/books.ts'
+
+// ...컴포넌트 안에서
+const { data, isPending, isError } = useBooksQuery({
+  status: statusFilter,
+  sortBy,
+  sortOrder,
+  search: searchQuery,
+  page,
+})
+```
+
+`hooks/useBooks.ts`가 하던 일을 `services/books.ts`의 `useBooksQuery`가 그대로 이어받습니다. `data`, `isPending`, `isError`를 쓰는 나머지 코드는 한 글자도 바뀌지 않습니다.
+
+### 3. BookDetailPage에서 useBookQuery·삭제 기능 적용
+
+```tsx
+// src/pages/BookDetailPage.tsx
+import { useParams, useNavigate, Link } from 'react-router'
+import { useBookQuery, useDeleteBookMutation } from '../services/books.ts'
+
+function BookDetailPage() {
+  const { id } = useParams<{ id: string }>()
+  const navigate = useNavigate()
+  const bookId = Number(id)
+
+  const { data: book, isPending, isError } = useBookQuery(bookId)
+  const deleteBookMutation = useDeleteBookMutation()
+
+  if (isPending) return <p role="status">책 정보를 불러오는 중입니다...</p>
+  if (isError || !book) return <p role="alert">책 정보를 찾을 수 없습니다.</p>
+
+  function handleDelete() {
+    deleteBookMutation.mutate(bookId, {
+      onSuccess: () => navigate('/'),
+    })
+  }
+
+  return (
+    <article>
+      <h1>{book.title}</h1>
+      <p>{book.author}</p>
+      <p>{book.pages}쪽</p>
+      <p>상태: {book.status}</p>
+      {book.memo && <p>{book.memo}</p>}
+      <button type="button" onClick={handleDelete} disabled={deleteBookMutation.isPending}>
+        삭제
+      </button>
+      <Link to="/">목록으로 돌아가기</Link>
+    </article>
+  )
+}
+
+export default BookDetailPage
+```
+
+`useBookQuery`, `useDeleteBookMutation` 모두 `services/books.ts`에서 가져온 함수라 캐스팅이 없습니다. `book`에 마우스를 올리면 `Book`(널 가드 이후)으로 뜨고, `deleteBookMutation.mutate(bookId, ...)`에서 `bookId` 대신 `book.title`(문자열)을 넘기면 그 자리에서 오류가 납니다.
+
+### 4. 남은 파일 삭제
+
+```text
+rm src/api/books.js
+rm src/hooks/useBooks.ts
+rm src/hooks/useBookMutations.js
+```
+
+### 5. 실행
+
+```text
+npm run dev
+```
+
+### 6. 확인
+
+- 책 목록 조회·필터·정렬·검색·페이지 이동이 지금까지와 동일하게 동작합니다.
+- 책 상세 페이지에서 "삭제"를 누르면 목록 페이지로 돌아가고, 삭제한 책이 목록에서 사라집니다.
+- VS Code에서 `useBooksQuery(...)`가 반환하는 `data`에 마우스를 올려 `BookListResult | undefined`로 추론되는지 확인합니다.
+- `deleteBookMutation.mutate('abc')`처럼 문자열을 넘겨보고 컴파일 오류가 나는지 확인한 뒤 원래 코드로 되돌립니다.
+
+</Steps>
+
+## 직접 해보기
+
+1. `services/books.ts`에 `createBook(payload: Omit<Book, 'id'>): Promise<Book>` 함수를 추가하고, `useCreateBookMutation`을 만들어 보세요. `mutate` 호출 시 넘기는 값의 타입이 `Omit<Book, 'id'>`으로 강제되는지 확인합니다.
+2. `booksQueryOptions`를 `queryClient.getQueryData(booksQueryOptions(params).queryKey)` 형태로 다른 곳에서 호출해 보고, 타입 인자 없이도 `BookListResult | undefined`가 추론되는 것을 확인해 보세요.
+
+<details>
+<summary>정답 보기</summary>
+
+```ts
+// src/services/books.ts (추가분)
+export async function createBook(payload: Omit<Book, 'id'>): Promise<Book> {
+  const response = await fetch(`${API_BASE}/books`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(payload),
+  })
+  if (!response.ok) {
+    throw new Error('책을 추가하지 못했습니다')
+  }
+  return (await response.json()) as Book
+}
+
+export function useCreateBookMutation() {
+  const queryClient = useQueryClient()
+  return useMutation({
+    mutationFn: createBook,
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: bookKeys.all })
+    },
+  })
+}
+```
+
+`mutationFn: createBook`의 매개변수 타입이 `Omit<Book, 'id'>`이므로, `useCreateBookMutation()`이 반환하는 `mutate`도 그 타입만 받습니다. `id`를 포함해서 넘기면 초과 프로퍼티로 오류가 납니다.
+
+</details>
+
+## 자주 하는 실수
+
+| 증상 | 원인 | 고치는 법 |
+|---|---|---|
+| `useQuery`의 `data`가 `any`로 추론됨 | `queryFn`으로 넘긴 함수에 반환 타입을 명시하지 않음 | `getBooks(params: BookListParams): Promise<BookListResult>`처럼 반환 타입을 명시한다 |
+| 굳이 `useQuery<BookListResult>({...})`처럼 제네릭을 매번 적음 | `queryFn` 반환 타입 추론을 활용하지 않고 습관적으로 제네릭을 씀 | `queryFn`의 반환 타입만 정확하면 대부분 제네릭이 필요 없다 |
+| `bookKeys.list(params)`의 결과를 다른 곳에서 배열로 다루다 타입이 어긋남 | `as const`를 빠뜨려 `queryKey`가 넓은 배열 타입으로 추론됨 | 반환값에 `as const`를 붙여 튜플 형태를 고정한다 |
+| `mutate` 호출 인자 타입이 예상과 다름 | `mutationFn`의 매개변수 타입을 잘못 선언함 | `mutationFn`의 매개변수 타입이 곧 `mutate` 인자 타입이라는 점을 기준으로 시그니처를 맞춘다 |
+
+## 확인 문제
+
+<Quiz
+  questionNumber={1}
+  question="useQuery의 data 타입이 결정되는 가장 근본적인 기준은"
+  options={['컴포넌트 이름', 'queryFn으로 넘긴 함수의 반환 타입', 'queryKey 배열의 길이', 'React 버전']}
+  correctAnswer={2}
+  explanation="TanStack Query는 queryFn의 반환 타입으로부터 data의 타입을 그대로 가져옵니다. 반환 타입이 명확한 함수를 넘기는 것이 정확한 타입 추론의 출발점입니다."
+  optionExplanations={['컴포넌트 이름과는 무관합니다', '정답입니다', 'queryKey 길이는 캐시 식별에만 관여합니다', 'React 버전과는 무관합니다']}
+/>
+
+<Quiz
+  questionNumber={2}
+  question="queryOptions 헬퍼로 옵션 객체를 감싸서 얻는 이점으로 가장 알맞은 것은"
+  options={['런타임 성능이 항상 빨라진다', '다른 곳(예: queryClient의 캐시 조회)에서 재사용할 때도 타입 인자 없이 같은 타입 추론을 유지할 수 있다', 'queryFn 없이도 데이터를 가져올 수 있게 된다', 'staleTime을 자동으로 설정해준다']}
+  correctAnswer={2}
+  explanation="queryOptions로 감싸면 옵션 객체를 useQuery뿐 아니라 queryClient의 다른 메서드에 넘길 때도 명시적 제네릭 없이 동일한 타입 추론을 유지할 수 있습니다."
+  optionExplanations={['성능과는 직접 관련이 없습니다', '정답입니다', 'queryFn은 여전히 필요합니다', 'staleTime을 자동으로 설정해주지 않습니다']}
+/>
+
+<Quiz
+  questionNumber={3}
+  question="bookKeys.list가 반환하는 배열에 as const를 붙이는 이유는"
+  options={['배열을 정렬하기 위해서', '배열을 넓은 타입이 아니라 정확한 길이의 튜플로 고정하기 위해서', 'JSON으로 직렬화할 수 없게 만들기 위해서', 'params 값을 읽기 전용으로 만들어 API 호출을 막기 위해서']}
+  correctAnswer={2}
+  explanation="as const 없이는 배열 원소 타입이 넓게 합쳐져 튜플의 정확한 구조가 사라집니다. as const를 붙이면 첫 원소가 books라는 것, 두 번째 원소가 params라는 것이 정확한 튜플로 고정됩니다."
+  optionExplanations={['정렬과는 무관합니다', '정답입니다', '직렬화 가능 여부와는 무관합니다', 'API 호출 자체를 막는 것이 목적이 아닙니다']}
+/>
+
+<Quiz
+  questionNumber={4}
+  question="useDeleteBookMutation이 반환하는 mutate 함수가 number 타입 인자만 받게 되는 이유는"
+  options={['useMutation이 항상 number만 허용하기 때문에', 'mutationFn으로 넘긴 deleteBook의 매개변수 타입이 number이기 때문에', 'onSuccess 콜백이 number를 요구하기 때문에', 'queryClient.invalidateQueries가 number를 반환하기 때문에']}
+  correctAnswer={2}
+  explanation="mutate 함수의 인자 타입은 mutationFn으로 넘긴 함수의 매개변수 타입을 그대로 따릅니다. deleteBook(id: number)이므로 mutate도 number만 받습니다."
+  optionExplanations={['useMutation 자체가 특정 타입을 강제하지 않습니다', '정답입니다', 'onSuccess는 mutationFn의 반환 타입을 받을 뿐 인자 타입과는 무관합니다', 'invalidateQueries의 반환값과는 무관합니다']}
+/>
+
+<Quiz
+  questionNumber={5}
+  question="getBooks 함수에 반환 타입(Promise 형태)을 명시하지 않으면 생기는 문제로 가장 알맞은 것은"
+  options={['함수가 아예 실행되지 않는다', 'useQuery의 data 타입이 정확히 추론되지 않아 as 단언이나 별도 타입 지정이 필요해질 수 있다', 'fetch 호출 자체가 컴파일 에러가 된다', 'json-server가 요청을 거부한다']}
+  correctAnswer={2}
+  explanation="queryFn의 반환 타입이 명확하지 않으면 useQuery의 data 타입도 정확히 흐르지 않아, 결국 어딘가에서 타입 단언이나 명시적 제네릭으로 보완해야 하는 상황이 생깁니다."
+  optionExplanations={['타입 명시 여부는 실행 자체와는 무관합니다', '정답입니다', 'fetch 호출은 타입 표기와 무관하게 컴파일됩니다', '서버 응답 여부와는 무관합니다']}
+/>
+
+## 참고 자료
+
+- [TanStack Query — TypeScript](https://tanstack.com/query/latest/docs/framework/react/typescript)

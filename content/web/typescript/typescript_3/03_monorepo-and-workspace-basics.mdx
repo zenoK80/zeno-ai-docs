@@ -1,0 +1,149 @@
+---
+title: '03. 모노레포란 무엇이고 왜 나누는가'
+description: 'bookshelf-ts를 apps/web과 packages/로 나눌 이유를 정리하고, pnpm workspace와 tsconfig project references를 실제 전환(14편) 전에 미리 살펴봅니다'
+---
+
+<Callout type="info">
+  **이번 편의 결과물:** 14~19편에서 만들 `bookshelf-ts` 모노레포의 목표 구조를 미리 그려봅니다. 코드는 바꾸지 않습니다. · **다루는 개념:** 패키지 경계를 나누는 이유(공유 타입, 재사용 UI, 독립 배포 단위), `pnpm` workspace 개념 미리보기, `tsconfig` project references 개념 미리보기
+</Callout>
+
+## 이 편에서 만드는 파일
+
+이 편은 개념 편입니다. 새로 만들거나 고치는 파일이 없습니다. 02편에서 만든 `bookshelf-ts/` 단일 프로젝트 구조를 기준으로, 14편부터 이 구조가 왜 어떻게 바뀔지를 먼저 그려봅니다.
+
+## 개념 정리
+
+### 지금 bookshelf-ts는 패키지가 하나뿐이다
+
+02편이 끝난 `bookshelf-ts/`는 `src/` 하나에 컴포넌트·훅·API 클라이언트·타입이 전부 모여 있는 단일 패키지입니다. 04~13편에서 이 파일들을 하나씩 `.tsx`/`.ts`로 바꾸는 동안에는 이 구조로 충분합니다. 문제는 그 이후, 이 과목의 학습 목표에 있는 두 가지를 하려고 할 때 생깁니다.
+
+- 컴포넌트 하나(`BookCard` 등)를 다른 프로젝트에서도 쓰고 싶다.
+- API 타입(`Book` 등)을 프런트엔드뿐 아니라 나중에 만들 다른 앱과도 공유하고 싶다.
+
+단일 패키지 안에서는 "다른 프로젝트에서도 쓴다"는 개념 자체가 없습니다. `src/components/BookCard.tsx`를 다른 저장소가 가져다 쓰려면 파일을 복사하거나, `npm publish`로 패키지 전체를 통째로 배포해야 합니다. 둘 다 원본과 사본이 어긋나기 시작하면 관리가 어려워집니다.
+
+### 패키지 경계를 나누는 세 가지 이유
+
+| 이유 | 지금 겪는 문제 | 패키지로 나누면 |
+|------|----------------|-----------------|
+| 타입 공유 | `Book` 타입이 `src/` 안에만 있어 다른 프로젝트가 재사용 불가 | `packages/shared-types`를 `workspace:` 프로토콜로 어디서든 참조 |
+| UI 재사용 | `BookCard`를 다른 앱에 쓰려면 파일을 복사해야 함 | `packages/ui`를 독립 패키지로 배포(17–19편) |
+| 독립 배포 단위 | 앱 코드를 고쳐야 라이브러리도 같이 빌드됨 | `packages/ui`만 따로 버전을 올리고 `npm publish` 가능 |
+
+이 세 가지를 만족하는 방법이 **모노레포**(monorepo)입니다. 여러 패키지를 각자 독립된 `package.json`으로 관리하면서도, 한 저장소 안에 두고 서로를 로컬 경로로 즉시 참조하게 하는 구조입니다.
+
+### 목표 구조 미리보기
+
+14~19편을 거치면 `bookshelf-ts/`는 다음 모양이 됩니다.
+
+```
+bookshelf-ts/
+├── pnpm-workspace.yaml
+├── package.json                 ← 루트: 워크스페이스 스크립트만
+├── apps/
+│   └── web/                     ← 지금의 bookshelf-ts 전체(04~13편 결과물)가 이 자리로 이동
+│       └── package.json         ← @bookshelf/shared-types, @bookshelf/ui를 workspace:*로 참조
+├── packages/
+│   ├── shared-types/            ← Book 등 도메인 타입, zod 스키마(15편)
+│   │   ├── src/index.ts
+│   │   └── package.json
+│   └── ui/                       ← BookCard 등 재사용 컴포넌트(17편), tsdown 빌드(18편)
+│       ├── src/index.ts
+│       └── package.json
+└── tsconfig.base.json            ← 세 패키지가 공유하는 공통 컴파일러 옵션
+```
+
+`apps/`는 실행되는 앱, `packages/`는 앱이 가져다 쓰는 라이브러리라는 역할 구분입니다. 이 구분은 pnpm이나 TypeScript가 강제하는 규칙이 아니라, 모노레포에서 널리 쓰이는 관례입니다.
+
+### pnpm workspace 미리보기
+
+`pnpm-workspace.yaml`은 어떤 폴더들을 워크스페이스의 패키지로 볼지 선언하는 파일입니다.
+
+```yaml
+# bookshelf-ts/pnpm-workspace.yaml (14편에서 실제로 작성)
+packages:
+  - 'apps/*'
+  - 'packages/*'
+```
+
+이 선언이 있으면 `apps/web`, `packages/shared-types`, `packages/ui`가 각각 하나의 패키지로 인식됩니다. `apps/web`의 `package.json`은 다른 패키지를 `workspace:` 프로토콜로 참조합니다.
+
+```json
+"dependencies": {
+  "@bookshelf/shared-types": "workspace:*",
+  "@bookshelf/ui": "workspace:*"
+}
+```
+
+`workspace:*`는 "레지스트리에서 내려받지 말고, 같은 워크스페이스 안의 이 패키지를 그대로 링크하라"는 뜻입니다. 패키지를 실제로 배포할 때(19편)는 이 표기가 그 시점의 실제 버전 번호로 자동 치환됩니다.
+
+### tsconfig project references 미리보기
+
+패키지가 셋으로 나뉘면 빌드 순서 문제가 생깁니다. `apps/web`이 `packages/shared-types`의 타입을 쓰려면, `shared-types`가 먼저 빌드되어 있어야 합니다. TypeScript의 **project references**는 이 순서를 `tsconfig.json`에 명시하는 기능입니다.
+
+| 개념 | 뜻 |
+|------|-----|
+| `composite: true` | 이 패키지가 다른 패키지에서 참조될 수 있도록 선언 정보를 함께 생성 |
+| `references` 배열 | 이 패키지가 의존하는 다른 패키지의 `tsconfig.json` 경로 목록 |
+| `tsc -b` | `references`를 따라가며 의존 패키지부터 순서대로 빌드 |
+
+지금은 개념만 알아둡니다. 실제로 `composite`를 켜고 `references`를 연결하는 작업은 16편에서 진행합니다.
+
+## 직접 해보기
+
+<details>
+<summary>지금 bookshelf-ts의 src/components/BookCard.jsx와 src/hooks/useBooks.js 중 어느 쪽이 packages/ui로, 어느 쪽이 apps/web에 남을지 생각해 보세요.</summary>
+
+`BookCard`는 순수하게 데이터를 받아 화면을 그리는 UI 컴포넌트라 `packages/ui`로 옮기기 좋습니다. `useBooks`는 `TanStack Query`와 이 앱의 API 계층에 묶여 있어 재사용 범위가 좁으므로 `apps/web`에 남습니다. 17편에서 정확히 이 기준으로 컴포넌트를 옮깁니다.
+</details>
+
+## 자주 하는 실수
+
+| 증상 | 원인 | 고치는 법 |
+|------|------|-----------|
+| 아직 하나뿐인 프로젝트를 지금 당장 패키지 여러 개로 쪼개려 한다 | 모노레포 전환을 마이그레이션(04–13편)과 동시에 진행 | 전환이 끝난 뒤(14편부터) 구조를 나눈다. 두 작업을 섞으면 오류 원인 파악이 어려워짐 |
+| `workspace:*`를 일반 버전처럼 npm 레지스트리에서 찾으려 함 | `workspace:` 프로토콜의 의미를 모름 | 같은 저장소 안의 로컬 패키지를 가리키는 표기임을 이해 |
+| `packages/`와 `apps/`를 아무 기준 없이 나눔 | 역할 구분 없이 폴더만 생성 | 실행 단위는 `apps/`, 여러 곳에서 재사용할 코드는 `packages/` |
+
+## 확인 문제
+
+<Quiz
+  questionNumber={1}
+  question="이 과목이 모노레포로 전환하는 가장 근본적인 이유는 무엇입니까"
+  options={['빌드 속도를 무조건 빠르게 하기 위해', '타입 공유·UI 재사용·독립 배포 단위라는, 단일 패키지로는 어려운 요구를 해결하기 위해', 'pnpm이 단일 패키지 구조를 지원하지 않아서', 'React 19가 모노레포를 요구해서']}
+  correctAnswer={2}
+  explanation="단일 패키지 구조에서는 타입 공유나 UI 재사용을 위해 파일 복사나 전체 배포가 필요해 관리가 어려워지는데, 모노레포는 이를 독립된 패키지 경계로 해결합니다."
+  optionExplanations={['속도가 유일한 목적은 아닙니다', '정답입니다', 'pnpm은 단일 패키지도 문제없이 지원합니다', 'React 버전과는 무관합니다']}
+/>
+
+<Quiz
+  questionNumber={2}
+  question="workspace:* 프로토콜의 의미로 옳은 것은 무엇입니까"
+  options={['npm 레지스트리에서 항상 최신 버전을 받아온다', '같은 워크스페이스 안의 로컬 패키지를 그대로 링크한다', '해당 패키지를 설치하지 않고 무시한다', '패키지를 자동으로 삭제한다']}
+  correctAnswer={2}
+  explanation="workspace: 프로토콜은 레지스트리 대신 같은 워크스페이스 안에 있는 로컬 패키지를 직접 연결합니다."
+  optionExplanations={['레지스트리를 거치지 않습니다', '정답입니다', '무시하는 것이 아니라 링크하는 것입니다', '삭제 기능이 아닙니다']}
+/>
+
+<Quiz
+  questionNumber={3}
+  question="tsconfig의 composite 옵션이 하는 역할은 무엇입니까"
+  options={['테스트 커버리지를 계산한다', '이 패키지가 다른 패키지에서 참조될 수 있도록 선언 정보를 함께 생성한다', 'CSS를 자동으로 압축한다', 'ESLint 규칙을 대신 실행한다']}
+  correctAnswer={2}
+  explanation="composite를 켜면 다른 패키지가 project references로 이 패키지를 참조할 때 필요한 선언 정보가 함께 생성됩니다."
+  optionExplanations={['커버리지와는 무관합니다', '정답입니다', 'CSS 처리와는 무관합니다', 'ESLint와는 별개 도구입니다']}
+/>
+
+<Quiz
+  questionNumber={4}
+  question="이 편이 apps/web과 packages/를 구분하는 관례로 제시한 기준은 무엇입니까"
+  options={['파일 크기가 큰 것은 apps, 작은 것은 packages', '실행되는 앱은 apps, 여러 곳에서 재사용할 코드는 packages', '알파벳 순서', '작성한 날짜가 오래된 것은 packages']}
+  correctAnswer={2}
+  explanation="이 편은 실행 단위를 apps에, 재사용 가능한 라이브러리 코드를 packages에 두는 구분을 관례로 제시했습니다."
+  optionExplanations={['파일 크기는 기준이 아닙니다', '정답입니다', '알파벳 순서와는 무관합니다', '작성 날짜와는 무관합니다']}
+/>
+
+## 참고 자료
+
+- [pnpm — Workspace](https://pnpm.io/workspaces)
+- [TypeScript Handbook — Project References](https://www.typescriptlang.org/docs/handbook/project-references.html)

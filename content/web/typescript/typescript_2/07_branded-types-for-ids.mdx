@@ -1,0 +1,291 @@
+---
+title: '07. 브랜디드 타입으로 ID 오용 막기'
+description: '구조적 타이핑의 한계를 확인하고, 브랜디드 타입으로 TransactionId를 다른 문자열과 구분합니다.'
+---
+
+<Callout type="info">
+  **이번 편의 결과물:** `Expense`의 `id`가 `TransactionId` 브랜디드 타입으로 바뀌어, 카테고리 문자열처럼 구조는 같지만 의미가 다른 값을 ID 자리에 실수로 넣으면 컴파일 에러가 납니다. · **다루는 개념:** 브랜디드(명목) 타입 패턴, 브랜드 생성 헬퍼 함수, 구조적 타이핑의 한계
+</Callout>
+
+## 이 편에서 만드는 파일
+
+```
+expense-tracker/src/
+├── lib/
+│   └── types/
+│       └── brand.ts          + (Brand, TransactionId, CategoryId, toTransactionId, toCategoryId)
+├── models/
+│   └── expense.ts             ~ (id를 TransactionId로 변경, brand.ts 재노출)
+├── services/
+│   └── createTransaction.ts   ~ (toTransactionId로 id 생성)
+└── ui/
+    ├── transactionForm.ts      ~ (editingId, onUpdate 시그니처를 TransactionId로)
+    └── transactionList.ts      ~ (onRemove 시그니처를 TransactionId로)
+```
+
+## 개념 정리
+
+### 구조적 타이핑의 한계
+
+TypeScript는 구조가 같으면 같은 타입으로 취급합니다. `TransactionId`와 `ExpenseCategory`를 둘 다 그냥 `string`으로 선언했다면, 거래 `id`를 받는 자리에 카테고리 문자열 `'food'`를 넣어도 타입 오류가 나지 않습니다. 둘 다 문자열이라는 구조만 보기 때문입니다. 실제로는 전혀 다른 의미인데도 컴파일러가 구분하지 못하는 상황입니다.
+
+### 브랜디드(명목) 타입
+
+원래 타입에 실제로는 존재하지 않는 표시 프로퍼티를 교차 타입으로 붙여, 구조가 같아도 이름표가 다르면 서로 대입할 수 없게 만드는 패턴입니다.
+
+```ts
+declare const brandSymbol: unique symbol
+type Brand<T, B extends string> = T & { readonly [brandSymbol]: B }
+type TransactionId = Brand<string, 'TransactionId'>
+```
+
+`declare const`는 실제 값을 만들지 않고 이름과 타입만 컴파일러에 알립니다. `unique symbol`은 다른 어떤 값과도 같을 수 없는 전용 타입이라, 표시 키로 평범한 문자열(`'__brand'` 같은) 대신 이 심벌을 쓰면 우연히 같은 이름의 프로퍼티를 가진 객체가 브랜드 조건을 실수로 만족해버리는 상황까지 막을 수 있습니다. 이 표시는 컴파일 타임에만 존재하며, 컴파일된 자바스크립트에는 전혀 남지 않습니다. 실제 값은 여전히 평범한 문자열입니다.
+
+### 브랜드 생성 헬퍼 함수
+
+일반 문자열을 브랜디드 타입으로 바꾸려면 `as`로 단언해야 하는데, 여기저기서 직접 단언하면 실수로 아무 문자열이나 브랜딩하기 쉽습니다. 브랜드 이름마다 전용 변환 함수를 하나씩 만들어 두면, 어디서 브랜딩이 실제로 일어나는지 함수 이름만 보고 알 수 있습니다.
+
+```ts
+function toTransactionId(value: string): TransactionId {
+  return value as TransactionId
+}
+```
+
+## 실습
+
+<Steps>
+
+### 1. 브랜드 헬퍼 작성
+
+```ts
+// expense-tracker/src/lib/types/brand.ts
+declare const brandSymbol: unique symbol
+
+/** 원시 타입 T에 문자열 태그 B를 붙여 구조가 같아도 서로 섞이지 않게 만듭니다 */
+export type Brand<T, B extends string> = T & { readonly [brandSymbol]: B }
+
+export type TransactionId = Brand<string, 'TransactionId'>
+export type CategoryId = Brand<string, 'CategoryId'>
+
+export function toTransactionId(value: string): TransactionId {
+  return value as TransactionId
+}
+
+export function toCategoryId(value: string): CategoryId {
+  return value as CategoryId
+}
+```
+
+`CategoryId`는 이후 API 클라이언트 편에서 라우트 매개변수 타입으로 쓸 예정이라 미리 선언만 해둡니다. 지금 당장 어디에도 적용하지 않아도 됩니다.
+
+### 2. models/expense.ts에 TransactionId 적용
+
+```ts
+// expense-tracker/src/models/expense.ts
+import type { TransactionId } from '../lib/types/brand.ts'
+
+export type { TransactionId, CategoryId } from '../lib/types/brand.ts'
+
+export interface BaseRecord {
+  readonly id: TransactionId
+  date: string
+  amount: number
+  memo: string
+}
+
+export type ExpenseCategory = 'food' | 'transport' | 'housing' | 'shopping' | 'etc-expense'
+export type IncomeCategory = 'salary' | 'bonus' | 'interest' | 'etc-income'
+export type Category = ExpenseCategory | IncomeCategory
+
+export const EXPENSE_CATEGORIES: readonly ExpenseCategory[] = ['food', 'transport', 'housing', 'shopping', 'etc-expense']
+export const INCOME_CATEGORIES: readonly IncomeCategory[] = ['salary', 'bonus', 'interest', 'etc-income']
+export const ALL_CATEGORIES: readonly string[] = [...new Set([...INCOME_CATEGORIES, ...EXPENSE_CATEGORIES])]
+
+export interface ExpenseTransaction extends BaseRecord {
+  type: 'expense'
+  category: ExpenseCategory
+}
+
+export interface IncomeTransaction extends BaseRecord {
+  type: 'income'
+  category: IncomeCategory
+}
+
+export type Transaction = ExpenseTransaction | IncomeTransaction
+
+export type NewExpenseTransactionInput = {
+  type: 'expense'
+  date: string
+  category: ExpenseCategory
+  amount: number
+  memo: string
+}
+
+export type NewIncomeTransactionInput = {
+  type: 'income'
+  date: string
+  category: IncomeCategory
+  amount: number
+  memo: string
+}
+
+export type NewTransactionInput = NewExpenseTransactionInput | NewIncomeTransactionInput
+```
+
+`export type { TransactionId, CategoryId } from '../lib/types/brand.ts'`는 두 타입을 다시 내보내, `models/index.ts`의 `export type * from './expense.ts'`를 거쳐 다른 파일이 `'../models'` 한 곳에서 가져다 쓸 수 있게 합니다. `models/index.ts` 자체는 고칠 필요가 없습니다.
+
+### 3. id를 만들고 다루는 곳 갱신
+
+```ts
+// expense-tracker/src/services/createTransaction.ts
+import type { Transaction } from '../models'
+import { toTransactionId } from '../lib/types/brand.ts'
+import type { NewTransactionDraft } from '../ui/transactionForm.ts'
+
+export function createTransaction(draft: NewTransactionDraft): Transaction {
+  return { ...draft, id: toTransactionId(crypto.randomUUID()) } as Transaction
+}
+```
+
+```ts
+// expense-tracker/src/ui/transactionForm.ts (발췌 — 05편 이후 타입만 달라진 부분)
+import type { Transaction, ExpenseCategory, IncomeCategory, TransactionId } from '../models'
+import { getRequiredElement } from '../lib/dom.ts'
+import type { FormErrors } from '../lib/types/utility.ts'
+
+export type NewTransactionDraft = Omit<Transaction, 'id'>
+export type EditableFields = Pick<Transaction, 'date' | 'amount' | 'memo'>
+
+export interface TransactionFormHandlers {
+  onCreate: (draft: NewTransactionDraft) => void
+  onUpdate: (id: TransactionId, changes: Partial<EditableFields>) => void
+}
+```
+
+`mountTransactionForm` 함수 안 `editingId` 선언도 타입만 바꿉니다.
+
+```ts
+// mountTransactionForm 함수 내부 (발췌)
+let editingId: TransactionId | null = null
+```
+
+`openEdit`의 `editingId = transaction.id` 대입은 `transaction.id`가 이미 `TransactionId`라서 그대로 통과합니다. 나머지 로직(검증, 렌더링, 이벤트 연결)은 05편과 동일합니다.
+
+```ts
+// expense-tracker/src/ui/transactionList.ts (발췌 — 달라진 부분만, 나머지는 16편과 동일)
+import type { Transaction, TransactionId } from '../models'
+import { toTransactionId } from '../lib/types/brand.ts'
+import { sortBy, filterBy } from '../lib/arrayUtils.ts'
+import { getRequiredElement } from '../lib/dom.ts'
+
+export interface TransactionListHandlers {
+  onEdit: (transaction: Transaction) => void
+  onRemove: (id: TransactionId) => void
+}
+```
+
+```ts
+// listEl 클릭 핸들러 안 (발췌 — remove 분기만)
+const removeButton = target.closest<HTMLButtonElement>('[data-action="remove"]')
+if (removeButton !== null) {
+  handlers.onRemove(toTransactionId(removeButton.dataset.id!))
+  return
+}
+```
+
+`removeButton.dataset.id`는 DOM이 돌려주는 평범한 `string`입니다. `TransactionId`는 구조적으로 `string`과 다르므로, `toTransactionId`로 다시 감싸야만 `onRemove`에 넘길 수 있습니다.
+
+### 4. 구조적 타이핑의 한계를 직접 확인
+
+`transactionList.ts`의 remove 분기를 잠시 아래처럼 바꿔봅니다.
+
+```ts
+// 확인용 — 실제로 저장하지 않습니다
+handlers.onRemove(found.category)
+```
+
+```text
+npx tsc --noEmit
+
+error TS2345: Argument of type 'ExpenseCategory | IncomeCategory' is not assignable to parameter of type 'TransactionId'.
+```
+
+브랜딩 이전이었다면 `id`와 `category`가 둘 다 `string`이라 이 코드는 오류 없이 통과했을 것입니다. 확인했다면 원래 코드로 되돌립니다.
+
+### 5. 실행
+
+```text
+npm run dev
+```
+
+### 6. 확인
+
+- 거래 추가, 수정, 삭제가 이전과 동일하게 동작한다.
+- "삭제" 버튼을 누르면 해당 거래만 정확히 사라진다.
+- `npx tsc --noEmit`이 오류 없이 끝난다.
+
+</Steps>
+
+## 직접 해보기
+
+1. `main.ts`나 콘솔에서 `const fake = 'not-a-real-id' as TransactionId`처럼 아무 문자열이나 강제로 브랜딩해봅니다. 컴파일은 통과하지만 실제로는 존재하지 않는 id라는 점에서 어떤 위험이 있는지 생각해봅니다.
+2. `toCategoryId('food')`, `toTransactionId('t-1')`을 각각 호출한 결과를 서로 바꿔 다른 브랜드 자리에 넣어보고, 편집기가 어떤 오류를 보여주는지 확인해봅니다.
+
+<details>
+<summary>정답 보기</summary>
+
+1번처럼 `as`로 직접 단언하면 브랜딩 헬퍼를 거치지 않고도 얼마든지 가짜 `TransactionId`를 만들 수 있습니다. 브랜디드 타입은 컴파일 타임 안전장치일 뿐이라, 신뢰할 수 있는 생성 지점(이 프로젝트에서는 `createTransaction`)에서만 `toTransactionId`를 호출하도록 팀 안에서 규칙을 지키는 것이 중요합니다.
+
+2번은 `toCategoryId('food')`의 결과를 `TransactionId`를 받는 자리에 넘기면 "Type CategoryId is not assignable to type TransactionId" 류의 오류가 납니다. 둘 다 문자열이 바탕이지만 브랜드 이름이 달라 서로 대입할 수 없기 때문입니다.
+
+</details>
+
+## 자주 하는 실수
+
+| 증상 | 원인 | 고치는 법 |
+|------|------|-----------|
+| 아무 문자열이나 as TransactionId로 캐스팅해 사용 | 브랜딩 헬퍼를 거치지 않고 직접 단언 | 신뢰할 수 있는 생성 지점에서만 toTransactionId를 호출하도록 규칙을 지킨다 |
+| 브랜드 표시가 런타임에도 있다고 착각 | 표시용 심벌 키는 타입 전용이며 컴파일 후 사라짐 | 실제 값 검증이 필요하면 별도의 런타임 검사 로직을 둔다 |
+| DOM에서 꺼낸 문자열을 그대로 넘겨 컴파일 에러 | dataset 값은 항상 평범한 string이라 TransactionId와 다름 | toTransactionId로 다시 감싼 뒤 전달한다 |
+
+## 확인 문제
+
+<Quiz
+  questionNumber={1}
+  question="브랜디드 타입이 해결하려는 문제는"
+  options={['런타임 성능 저하', '구조가 같은 서로 다른 의미의 원시값을 컴파일러가 구분하지 못하는 문제', 'JSON 직렬화 실패', '비동기 함수의 타입 추론 실패']}
+  correctAnswer={2}
+  explanation="TypeScript는 구조가 같으면 같은 타입으로 보기 때문에, 의미가 다른 문자열들을 구분하려면 브랜드 같은 명목 표시가 필요합니다."
+  optionExplanations={['성능과는 무관합니다', '정답입니다', '직렬화 문제가 아닙니다', '비동기 추론과는 무관합니다']}
+/>
+
+<Quiz
+  questionNumber={2}
+  question="브랜드 표시 키에 평범한 문자열 대신 unique symbol을 쓰는 이유는"
+  options={['문자열보다 메모리를 적게 써서', '실제 객체에 같은 이름의 문자열 프로퍼티가 우연히 있어 브랜드 조건을 잘못 만족하는 상황까지 막기 위해서', 'symbol만 readonly로 선언할 수 있어서', 'TypeScript가 문자열 키를 지원하지 않아서']}
+  correctAnswer={2}
+  explanation="unique symbol은 다른 어떤 값과도 겹치지 않는 유일한 값이라, 우연히 같은 이름의 프로퍼티를 가진 객체가 브랜드로 오인되는 상황을 막습니다."
+  optionExplanations={['메모리 절약이 목적이 아닙니다', '정답입니다', 'readonly는 문자열 키에도 쓸 수 있습니다', '문자열 키도 지원됩니다']}
+/>
+
+<Quiz
+  questionNumber={3}
+  question="TransactionId 자리에 카테고리 문자열을 넣었을 때 브랜딩 전과 후의 차이는"
+  options={['브랜딩 전후 모두 컴파일 오류가 난다', '브랜딩 전에는 통과하고, 브랜딩 후에는 컴파일 오류가 난다', '브랜딩 전에는 오류가 나고, 브랜딩 후에는 통과한다', '브랜딩 여부와 상관없이 항상 통과한다']}
+  correctAnswer={2}
+  explanation="브랜딩 전에는 둘 다 구조적으로 string이라 통과했지만, 브랜딩 후에는 서로 다른 이름표가 붙어 대입이 막힙니다."
+  optionExplanations={['브랜딩 전에는 통과했습니다', '정답입니다', '반대로 설명되어 있습니다', '브랜딩이 정확히 이 차이를 만듭니다']}
+/>
+
+<Quiz
+  questionNumber={4}
+  question="DOM의 dataset에서 꺼낸 문자열을 곧바로 TransactionId 매개변수에 넘길 수 없는 이유는"
+  options={['dataset 값은 항상 숫자이기 때문에', 'dataset 값은 평범한 string이라 브랜드 표시가 없어 구조가 다르기 때문에', 'DOM 요소는 타입 검사 대상이 아니기 때문에', 'TransactionId는 함수 인자로 쓸 수 없기 때문에']}
+  correctAnswer={2}
+  explanation="dataset이 돌려주는 값은 브랜드가 없는 일반 string이므로, toTransactionId 헬퍼로 다시 감싸야 TransactionId로 인정됩니다."
+  optionExplanations={['숫자가 아니라 문자열입니다', '정답입니다', 'DOM 관련 타입도 검사 대상입니다', '함수 인자로 정상적으로 쓰입니다']}
+/>
+
+## 참고 자료
+
+- [TypeScript — Wiki FAQ: Can I make a type alias nominal?](https://github.com/microsoft/TypeScript/wiki/FAQ#can-i-make-a-type-alias-nominal)

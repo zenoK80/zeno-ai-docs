@@ -1,0 +1,26 @@
+const meta = {
+  '01_migration-strategy-and-react19-typescript-overview': '01. JS 앱을 왜, 어떻게 TypeScript로 옮기는가',
+  '02_project-setup-vite-react-ts-and-baseline-migration': '02. 프로젝트 준비: Vite react-ts로 시작하기',
+  '03_monorepo-and-workspace-basics': '03. 모노레포란 무엇이고 왜 나누는가',
+  '04_component-props-typing-basics': '04. 컴포넌트 Props 타이핑 첫걸음',
+  '05_events-and-forms-typing': '05. 이벤트와 폼 타이핑',
+  '06_custom-hooks-typing': '06. 커스텀 훅 타이핑',
+  '07_context-typing-with-generics': '07. Context 타이핑',
+  '08_routing-and-error-boundary-typing': '08. 라우팅과 에러 경계 타이핑',
+  '09_discriminated-union-props-with-as-const': '09. 판별 유니온과 as const로 Props 설계하기',
+  '10_generic-components': '10. 제네릭 컴포넌트 만들기',
+  '11_zustand-store-typing': '11. Zustand 스토어 타이핑',
+  '12_tanstack-query-typing': '12. TanStack Query 타이핑',
+  '13_zod-api-schema-and-type-unification': '13. zod로 API 스키마와 타입 단일화',
+  '14_pnpm-workspace-monorepo-migration': '14. pnpm 워크스페이스로 모노레포 전환',
+  '15_shared-types-package': '15. 공용 타입 패키지 만들기',
+  '16_tsconfig-project-references': '16. tsconfig project references 구성',
+  '17_ui-library-package-extraction': '17. UI 컴포넌트 라이브러리 패키지 추출',
+  '18_tsdown-build-and-declaration-files': '18. tsdown으로 라이브러리 빌드와 d.ts 생성',
+  '19_npm-publish-workflow': '19. npm 배포 절차',
+  '20_typescript-eslint-monorepo-setup': '20. typescript-eslint로 모노레포 린트 설정',
+  '21_ci-typecheck-build-test-with-github-actions': '21. GitHub Actions로 타입 체크·빌드·테스트 CI 구성',
+  '22_final-review-and-cleanup': '22. 최종 점검과 정리',
+}
+
+export default meta

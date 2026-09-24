@@ -1,0 +1,352 @@
+---
+title: '02. 프로젝트 준비: Vite react-ts로 시작하기'
+description: 'Vite의 react-ts 템플릿으로 bookshelf-ts 프로젝트를 만들고, react_3를 마친 bookshelf(JS) 소스를 allowJs로 그대로 이식해 렌더링을 확인합니다'
+---
+
+<Callout type="info">
+  **이번 편의 결과물:** `bookshelf-ts/` 폴더에서 `npm run dev`를 실행하면 `react_3`가 만든 `bookshelf`(JS) 화면이 확장자 변경 없이 그대로 렌더링됩니다. · **다루는 개념:** Node 22/Vite 8 확인, `npm create vite -- --template react-ts`, `bookshelf`(JS) 소스 이식, `allowJs: true`로 JS·TS 혼용 빌드 확인
+</Callout>
+
+## 이 편에서 만드는 파일
+
+```
+bookshelf-ts/                        + 새 프로젝트(Vite react-ts 템플릿)
+├── package.json                     ~ (react_3 의존성 병합)
+├── tsconfig.json                    + (템플릿 기본값)
+├── tsconfig.app.json                ~ (allowJs 추가)
+├── tsconfig.node.json               + (템플릿 기본값)
+├── vite.config.ts                   + (템플릿 기본값)
+├── index.html                       ~ (엔트리를 main.jsx로 지정)
+├── db.json                          + react_3에서 이식
+├── .env.development, .env.production + react_3에서 이식
+└── src/                             ← react_3 bookshelf/src 전체를 확장자 그대로 이식
+    ├── main.jsx, router.jsx, index.css
+    ├── pages/, components/, context/, hooks/
+    ├── store/, api/, schemas/, i18n/, mocks/, utils/
+    └── test/, e2e/
+```
+
+## 개념 정리
+
+### 실습 환경 버전 확인
+
+이 과목은 `01_학습방향.md`가 확정한 버전을 기준으로 삼습니다.
+
+| 도구 | 버전 | 확인 명령 |
+|------|------|-----------|
+| Node.js | 22 LTS | `node -v` |
+| npm | Node.js 포함 버전 | `npm -v` |
+| Vite | `8.3.0` | `npm create vite` 실행 후 `package.json` 확인 |
+| TypeScript | `7.0.2` | `npx tsc -v` |
+
+### react-ts 템플릿이 만드는 것
+
+`npm create vite`의 `react-ts` 템플릿은 `vanilla-ts`와 달리 `tsconfig.json` 하나가 아니라 세 파일로 나뉩니다.
+
+| 파일 | 역할 |
+|------|------|
+| `tsconfig.json` | 실제 옵션은 없고, `references`로 아래 두 파일을 가리키기만 함 |
+| `tsconfig.app.json` | 브라우저에서 실행되는 `src/` 코드용 설정(`jsx`, `DOM` 라이브러리 포함) |
+| `tsconfig.node.json` | `vite.config.ts`처럼 Node.js에서 실행되는 설정 파일용 |
+
+앱 코드와 빌드 설정 파일은 실행 환경(브라우저 대 Node.js)이 달라 필요한 타입 라이브러리(`lib`)도 다릅니다. 두 설정을 분리해 두면 편집기가 각 파일에 맞는 규칙만 적용해 더 빠르고 정확하게 검사합니다.
+
+### 이식 전략
+
+`react_3`가 완성한 `bookshelf`는 이미 `react-router`, `TanStack Query`, `Zustand`, `zod`, `react-i18next`까지 갖춘 완성형 앱입니다. 이 편은 그 소스를 **그대로**, 확장자도 바꾸지 않고 새 프로젝트에 옮기는 것이 목표입니다. 코드 한 줄도 `.ts`로 바꾸지 않습니다. `allowJs: true`만 켜면 `.jsx` 파일도 Vite와 TypeScript 둘 다 문제없이 처리합니다. 타입을 실제로 입히는 작업은 04편부터 파일 단위로 시작합니다.
+
+## 실습
+
+<Steps>
+
+### 1. 버전 확인
+
+```text
+node -v
+npm -v
+```
+
+### 2. 프로젝트 생성
+
+```text
+npm create vite@latest bookshelf-ts -- --template react-ts
+cd bookshelf-ts
+npm install
+```
+
+생성 직후 `tsconfig.json`은 다음과 같습니다.
+
+```json
+// bookshelf-ts/tsconfig.json
+{
+  "files": [],
+  "references": [
+    { "path": "./tsconfig.app.json" },
+    { "path": "./tsconfig.node.json" }
+  ]
+}
+```
+
+```json
+// bookshelf-ts/tsconfig.app.json (생성 직후)
+{
+  "compilerOptions": {
+    "target": "es2023",
+    "lib": ["ES2023", "DOM"],
+    "module": "esnext",
+    "types": ["vite/client"],
+    "allowArbitraryExtensions": true,
+    "skipLibCheck": true,
+
+    "moduleResolution": "bundler",
+    "allowImportingTsExtensions": true,
+    "verbatimModuleSyntax": true,
+    "moduleDetection": "force",
+    "noEmit": true,
+    "jsx": "react-jsx",
+
+    "noUnusedLocals": true,
+    "noUnusedParameters": true,
+    "erasableSyntaxOnly": true,
+    "noFallthroughCasesInSwitch": true
+  },
+  "include": ["src"]
+}
+```
+
+`jsx: react-jsx`는 이미 켜져 있어, `.tsx` 파일에서 `import React`문 없이 JSX를 바로 쓸 수 있습니다.
+
+### 3. TypeScript를 7.0.2로 고정
+
+템플릿은 `typescript`를 `~6.0.2`로 설치합니다. 이 과목의 기준 버전에 맞춥니다.
+
+```text
+npm install -D typescript@7.0.2
+npx tsc -v
+```
+
+### 4. 템플릿 데모 파일 정리
+
+`App.tsx`가 만든 카운터 예제와 기본 로고는 이 과목에서 쓰지 않습니다.
+
+```text
+rm src/App.tsx src/App.css src/assets/react.svg public/vite.svg
+```
+
+템플릿은 린트 도구로 `oxlint`를 기본 포함합니다. `bookshelf`는 `react_1`부터 자체 ESLint 설정(`npm run lint`)을 써 왔으므로, 도구를 하나로 유지하기 위해 템플릿의 `oxlint`는 제거합니다. ESLint를 TypeScript 기준으로 다시 맞추는 작업은 20편(`typescript-eslint`)에서 정식으로 다룹니다.
+
+```text
+npm uninstall oxlint
+```
+
+### 5. bookshelf(JS) 소스 이식
+
+이 과목은 `react_3`를 완주해 만든 `bookshelf/` 폴더를 출발점으로 삼습니다. `bookshelf/`와 `bookshelf-ts/`가 같은 상위 폴더에 있다고 가정하고, 새 프로젝트 안에서 아래 명령을 실행합니다.
+
+```bash
+rm -rf src
+cp -R ../bookshelf/src ./src
+cp ../bookshelf/db.json .
+cp ../bookshelf/.env.development .
+cp ../bookshelf/.env.production .
+```
+
+두 프로젝트의 위치가 다르면 `../bookshelf` 부분만 실제 경로로 바꿉니다. 이 네 항목을 복사하면 템플릿이 만든 `src/main.tsx`, `src/index.css`도 `react_3`에서 완성한 파일로 교체됩니다.
+
+```text
+bookshelf-ts/
+├── db.json                (덮어씀)
+├── .env.development       (덮어씀)
+├── .env.production        (덮어씀)
+└── src/                   (전체 덮어씀 — main.jsx, router.jsx, pages/, components/ 등)
+```
+
+### 6. 런타임 의존성 설치
+
+`bookshelf`가 실제로 쓰는 라이브러리를 설치합니다. 아직 타입을 입히지 않았으므로 `@types/*` 패키지는 필요한 시점(04편 이후)에 추가합니다.
+
+```text
+npm install react-router@8.4.0 @tanstack/react-query@5.103.2 zustand@5.0.15 react-hook-form@7.88.0 @hookform/resolvers@5.9.1 zod@4.6.5 react-i18next@17.0.15 i18next@26.4.2
+npm install -D msw@2.15.0 vitest@5.0.1 @testing-library/react@16.3.3 @testing-library/jest-dom @testing-library/user-event jsdom @playwright/test@1.63.0 json-server@1.0.0-beta.15
+```
+
+`package.json`은 최종적으로 다음과 같습니다.
+
+```json
+// bookshelf-ts/package.json
+{
+  "name": "bookshelf-ts",
+  "private": true,
+  "version": "0.0.0",
+  "type": "module",
+  "scripts": {
+    "dev": "vite",
+    "build": "tsc -b && vite build",
+    "preview": "vite preview",
+    "lint": "eslint . --max-warnings=0",
+    "test": "vitest run",
+    "test:e2e": "playwright test"
+  },
+  "dependencies": {
+    "react": "^19.3.0",
+    "react-dom": "^19.3.0",
+    "react-router": "^8.4.0",
+    "@tanstack/react-query": "^5.103.2",
+    "zustand": "^5.0.15",
+    "react-hook-form": "^7.88.0",
+    "@hookform/resolvers": "^5.9.1",
+    "zod": "^4.6.5",
+    "react-i18next": "^17.0.15",
+    "i18next": "^26.4.2"
+  },
+  "devDependencies": {
+    "@types/node": "^26.6.2",
+    "@types/react": "^19.3.0",
+    "@types/react-dom": "^19.3.0",
+    "@vitejs/plugin-react": "^6.1.1",
+    "eslint": "^9.0.0",
+    "typescript": "7.0.2",
+    "vite": "^8.3.0",
+    "vitest": "^5.0.1",
+    "@testing-library/react": "^16.3.3",
+    "@testing-library/jest-dom": "^6.0.0",
+    "@testing-library/user-event": "^14.0.0",
+    "jsdom": "^25.0.0",
+    "msw": "^2.15.0",
+    "@playwright/test": "^1.63.0",
+    "json-server": "^1.0.0-beta.15"
+  }
+}
+```
+
+### 7. tsconfig.app.json에 allowJs 추가
+
+```json
+// bookshelf-ts/tsconfig.app.json
+{
+  "compilerOptions": {
+    "target": "es2023",
+    "lib": ["ES2023", "DOM"],
+    "module": "esnext",
+    "types": ["vite/client"],
+    "allowArbitraryExtensions": true,
+    "skipLibCheck": true,
+
+    "moduleResolution": "bundler",
+    "allowImportingTsExtensions": true,
+    "verbatimModuleSyntax": true,
+    "moduleDetection": "force",
+    "noEmit": true,
+    "jsx": "react-jsx",
+
+    "allowJs": true,
+    "checkJs": false,
+
+    "noUnusedLocals": true,
+    "noUnusedParameters": true,
+    "erasableSyntaxOnly": true,
+    "noFallthroughCasesInSwitch": true
+  },
+  "include": ["src"]
+}
+```
+
+`checkJs`는 지금 `false`로 둡니다. `.jsx` 파일이 전부 컴파일에 포함되어 화면에는 나타나지만, 아직 타입 오류 검사 대상은 아닙니다. 06편에서 파일 단위로 타입을 입히기 시작하면 이 값을 어떻게 다룰지 다시 짚습니다.
+
+### 8. index.html 엔트리 확인
+
+템플릿의 `index.html`은 `/src/main.tsx`를 가리킵니다. 아직 `main.jsx`를 전환하지 않았으므로 확장자를 맞춥니다.
+
+```html
+<!-- bookshelf-ts/index.html -->
+<!doctype html>
+<html lang="ko">
+  <head>
+    <meta charset="UTF-8" />
+    <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>bookshelf-ts</title>
+  </head>
+  <body>
+    <div id="root"></div>
+    <script type="module" src="/src/main.jsx"></script>
+  </body>
+</html>
+```
+
+### 9. 실행
+
+```text
+npx json-server db.json --port 3001
+npm run dev
+```
+
+두 명령을 각각 다른 터미널에서 실행합니다.
+
+</Steps>
+
+## 확인
+
+- 브라우저에서 `npm run dev`가 알려준 주소(기본 `http://localhost:5173`)로 접속하면 `bookshelf`의 책 목록 화면이 그대로 보인다
+- 로그인·필터·언어 전환 등 `react_3`에서 만든 기능이 전부 이전과 동일하게 동작한다
+- 터미널에 TypeScript 컴파일 오류가 없다(`checkJs`가 꺼져 있어 `.jsx` 파일은 검사 대상이 아니다)
+- `npx tsc -v`가 `7.0.2`를 출력한다
+
+## 직접 해보기
+
+<details>
+<summary>src/components/BookCard.jsx의 확장자만 BookCard.tsx로 바꾸고 다시 npm run dev를 실행해 보세요. 무슨 일이 일어나는지 확인해 보세요.</summary>
+
+파일 안 코드는 순수한 JSX 문법만 쓰고 있어 그대로도 컴파일은 통과할 수 있습니다. 다만 `import`하는 다른 쪽(`BookListPage.jsx`)이 여전히 `BookCard.jsx`라는 경로로 가져오고 있다면 파일을 찾지 못해 오류가 납니다. 실습을 마쳤다면 다시 `.jsx`로 되돌려 04편에서 정식으로 전환합니다.
+</details>
+
+## 자주 하는 실수
+
+| 증상 | 원인 | 고치는 법 |
+|------|------|-----------|
+| `npm run dev`가 화면은 띄우는데 터미널에 모듈을 찾을 수 없다는 오류가 남 | 6단계의 런타임 의존성 설치를 건너뜀 | `package.json`의 `dependencies`를 보고 빠진 패키지를 설치 |
+| 화면이 하얗게 뜬다 | `index.html`이 여전히 `main.tsx`를 가리킴 | `main.jsx`로 경로를 맞춘다 |
+| `tsc -b`를 실행하면 `.jsx` 파일에서 갑자기 오류가 쏟아진다 | `checkJs`를 실수로 `true`로 켬 | 이 편에서는 `false`로 유지, 06편 이후 계획대로 전환 |
+
+## 확인 문제
+
+<Quiz
+  questionNumber={1}
+  question="react-ts 템플릿이 tsconfig.json 하나 대신 tsconfig.app.json과 tsconfig.node.json으로 나누는 이유는 무엇입니까"
+  options={['파일 개수를 늘려 프로젝트를 커 보이게 하려고', '브라우저에서 실행되는 코드와 Node.js에서 실행되는 설정 파일이 필요한 타입 라이브러리가 다르기 때문', 'Vite가 파일 하나만 읽으면 느려지기 때문', 'React 19의 필수 요구사항이라서']}
+  correctAnswer={2}
+  explanation="src 코드는 DOM 환경, vite.config.ts는 Node.js 환경에서 실행되어 서로 다른 lib 설정이 필요해 설정을 분리합니다."
+  optionExplanations={['파일 개수와는 무관합니다', '정답입니다', '읽는 파일 개수와 속도는 무관합니다', 'React 버전과는 무관합니다']}
+/>
+
+<Quiz
+  questionNumber={2}
+  question="이 편에서 checkJs를 true가 아니라 false로 둔 이유는 무엇입니까"
+  options={['false로 두면 jsx 파일이 아예 실행되지 않아서', '아직 타입을 입히지 않은 jsx 파일이 많아 지금 켜면 대량의 오류가 쏟아지기 때문', 'Vite가 checkJs 옵션을 지원하지 않아서', 'checkJs는 배포 시에만 필요한 옵션이라서']}
+  correctAnswer={2}
+  explanation="checkJs를 켜면 아직 타입이 없는 모든 jsx 파일이 한꺼번에 검사 대상이 되어, 파일 단위로 전환하려는 이 과목의 방식과 맞지 않습니다."
+  optionExplanations={['false여도 jsx는 정상 실행됩니다', '정답입니다', 'Vite와는 무관한 TypeScript 옵션입니다', '배포 여부와는 무관합니다']}
+/>
+
+<Quiz
+  questionNumber={3}
+  question="index.html의 script 태그가 여전히 main.tsx를 가리킨 채로 두면 생기는 문제는 무엇입니까"
+  options={['빌드 속도가 느려진다', '존재하지 않는 파일을 찾다가 화면이 뜨지 않는다', 'TypeScript 버전이 자동으로 낮아진다', 'ESLint 검사가 통과되지 않는다']}
+  correctAnswer={2}
+  explanation="이식한 엔트리 파일 이름은 main.jsx이므로, index.html이 main.tsx를 가리키면 해당 경로에 파일이 없어 화면이 뜨지 않습니다."
+  optionExplanations={['빌드 속도 문제가 아닙니다', '정답입니다', 'TypeScript 버전과는 무관합니다', 'ESLint와는 별개 문제입니다']}
+/>
+
+<Quiz
+  questionNumber={4}
+  question="이 편이 bookshelf(JS) 소스를 옮기면서 파일 확장자를 하나도 바꾸지 않은 이유는 무엇입니까"
+  options={['확장자를 바꾸는 기능이 아직 지원되지 않아서', 'allowJs만으로도 jsx 파일이 정상 컴파일·렌더링되어, 타입 전환은 이후 편에서 파일 단위로 진행하기 위해', 'jsx 확장자가 성능상 더 빠르기 때문에', 'React 19가 tsx 확장자를 금지해서']}
+  correctAnswer={2}
+  explanation="allowJs 덕분에 jsx 파일 그대로도 프로젝트가 동작하므로, 이 편은 이식만 마치고 타입 전환은 04편부터 계획적으로 진행합니다."
+  optionExplanations={['그런 제약은 없습니다', '정답입니다', '성능 차이가 이유가 아닙니다', 'React 19는 확장자를 금지하지 않습니다']}
+/>
+
+## 참고 자료
+
+- [Vite — Getting Started](https://vite.dev/guide/)
+- [TypeScript — tsconfig allowJs](https://www.typescriptlang.org/tsconfig/#allowJs)

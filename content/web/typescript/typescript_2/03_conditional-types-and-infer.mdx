@@ -1,0 +1,257 @@
+---
+title: '03. 조건부 타입과 infer로 타입 추출하기'
+description: 'ElementOf, UnwrapPromise 조건부 타입을 작성하고 카테고리별 그룹핑 유틸에 적용합니다.'
+---
+
+<Callout type="info">
+  **이번 편의 결과물:** `lib/types/utility.ts`에 `ElementOf`, `UnwrapPromise` 조건부 타입을 작성하고, 새로 만드는 `groupBy` 유틸과 카테고리별 그룹핑 기능에 적용합니다. · **다루는 개념:** 조건부 타입 문법(`T extends U ? X : Y`), `infer`로 타입 변수 추출, 분산 조건부 타입
+</Callout>
+
+## 이 편에서 만드는 파일
+
+```
+expense-tracker/src/
+├── lib/
+│   ├── types/
+│   │   └── utility.ts    + (ElementOf, UnwrapPromise)
+│   └── arrayUtils.ts      ~ (groupBy 추가)
+├── services/
+│   ├── stats.ts            ~ (categoryGroups, fetchCategoryGroups 추가)
+│   └── index.ts             ~ (fetchCategoryGroups, CategoryGroups 배럴 반영)
+└── ui/
+    └── statsPanel.ts         ~ (카테고리별 거래 건수 표시 추가)
+```
+
+## 개념 정리
+
+### 조건부 타입 기본 문법
+
+`T extends U ? X : Y`는 "`T`가 `U`에 대입 가능하면 `X`, 아니면 `Y`"라는 뜻의 타입 수준 조건문입니다. 값의 `if`문과 모양은 비슷하지만, 실행되는 것이 아니라 컴파일 타임에 계산되어 하나의 타입으로 결정됩니다.
+
+```ts
+type IsString<T> = T extends string ? true : false
+
+type A = IsString<'hello'> // true
+type B = IsString<42> // false
+```
+
+### infer로 타입 변수 추출하기
+
+`extends` 절 안에서 `infer 이름`을 쓰면, 그 자리에 오는 실제 타입을 새 타입 변수로 뽑아내 `?` 뒤에서 쓸 수 있습니다.
+
+```ts
+type UnwrapPromise<T> = T extends Promise<infer U> ? U : T
+
+type C = UnwrapPromise<Promise<number>> // number
+type D = UnwrapPromise<string> // string(Promise가 아니므로 그대로)
+```
+
+`Promise<infer U>`는 "이 타입이 `Promise<무언가>` 모양이라면, 그 무언가를 `U`라고 부르겠다"는 뜻입니다. 배열의 원소 타입을 뽑아낼 때도 같은 방식을 씁니다.
+
+```ts
+type ElementOf<T> = T extends readonly (infer U)[] ? U : never
+
+type E = ElementOf<string[]> // string
+type F = ElementOf<number> // never(배열이 아니므로)
+```
+
+### 분산 조건부 타입
+
+조건부 타입의 `T` 자리에 유니온 타입을 그대로 전달하면, 유니온 전체가 한 번에 검사되지 않고 각 멤버마다 따로 검사된 뒤 결과가 다시 유니온으로 합쳐집니다. 이 동작을 **분산 조건부 타입**(distributive conditional type)이라고 부릅니다.
+
+```ts
+type ToArray<T> = T extends unknown ? T[] : never
+
+type G = ToArray<string | number> // string[] | number[]
+```
+
+`T`가 조건절 왼쪽에 그대로(다른 타입으로 감싸이지 않고) 나타나는 타입 매개변수일 때만 분산이 일어납니다. `ElementOf<T>`의 `T`도 조건절 왼쪽에 직접 나오므로, `ElementOf<string[] | number[]>`처럼 유니온을 넘기면 `string | number`로 각 배열 타입을 따로 처리한 결과가 합쳐집니다.
+
+## 실습
+
+<Steps>
+
+### 1. 조건부 타입 유틸 작성
+
+```ts
+// expense-tracker/src/lib/types/utility.ts
+export type ElementOf<T> = T extends readonly (infer U)[] ? U : never
+
+export type UnwrapPromise<T> = T extends Promise<infer U> ? U : T
+```
+
+### 2. groupBy 유틸 추가
+
+```ts
+// expense-tracker/src/lib/arrayUtils.ts (파일 끝에 추가, sortBy·filterBy는 08편과 동일)
+export function groupBy<T, K extends string>(list: readonly T[], getKey: (item: T) => K): Record<K, T[]> {
+  const result = {} as Record<K, T[]>
+  for (const item of list) {
+    const key = getKey(item)
+    const bucket = result[key]
+    if (bucket) {
+      bucket.push(item)
+    } else {
+      result[key] = [item]
+    }
+  }
+  return result
+}
+```
+
+`groupBy`는 목록을 `getKey`가 돌려주는 값 기준으로 묶습니다. 카테고리별로 묶든, 월별로 묶든 같은 함수를 재사용할 수 있습니다.
+
+### 3. StatsCalculator에 categoryGroups 추가
+
+```ts
+// expense-tracker/src/services/stats.ts (발췌 — categoryTotals·monthlySummary·latestTransaction·clearCache는 11·14·16편과 동일)
+import type { Transaction, ExpenseCategory, Category } from '../models'
+import { groupBy } from '../lib/arrayUtils.ts'
+import type { ElementOf, UnwrapPromise } from '../lib/types/utility.ts'
+
+export class StatsCalculator implements StatsSource {
+  // #cache, categoryTotals, monthlySummary, latestTransaction, clearCache는 기존과 동일
+
+  categoryGroups(transactions: Transaction[]): Record<Category, Transaction[]> {
+    return groupBy(transactions, (transaction) => transaction.category)
+  }
+}
+
+export type CategoryGroups = ReturnType<StatsCalculator['categoryGroups']>
+export type GroupedTransaction = ElementOf<CategoryGroups[Category]>
+
+export async function fetchCategoryGroups(transactions: Transaction[]): Promise<CategoryGroups> {
+  return new StatsCalculator().categoryGroups(transactions)
+}
+
+export type FetchedCategoryGroups = UnwrapPromise<ReturnType<typeof fetchCategoryGroups>>
+```
+
+`CategoryGroups`는 `categoryGroups` 메서드가 실제로 반환하는 타입(`Record<Category, Transaction[]>`)을 `ReturnType`으로 그대로 가져온 것입니다. `GroupedTransaction`은 `ElementOf`로 그 결과값(`Transaction[]`)의 원소 타입을 다시 뽑아내, 결국 `Transaction`이 됩니다. `fetchCategoryGroups`는 15편에서 만들 실제 API 클라이언트를 미리 흉내 낸 함수로, 계산 결과를 `Promise`로 감싸 돌려줍니다. `FetchedCategoryGroups`는 `UnwrapPromise`로 그 `Promise`를 벗겨내, `CategoryGroups`와 똑같은 타입이 됩니다. 편집기에서 `FetchedCategoryGroups` 위에 마우스를 올리면 `Promise`가 아니라 `Record<Category, Transaction[]>`로 풀려있는 것을 확인할 수 있습니다.
+
+### 4. 배럴에 반영
+
+```ts
+// expense-tracker/src/services/index.ts
+export { Storage } from './storage.ts'
+export type { DataStore } from './storage.ts'
+export { StatsCalculator, logAndCompute, fetchCategoryGroups } from './stats.ts'
+export type { CategoryTotals, MonthlySummary, CategoryGroups } from './stats.ts'
+export { BudgetEvaluator, LimitExceededRule, ApproachingLimitRule } from './budgetRules.ts'
+export type { BudgetRule } from './budgetRules.ts'
+```
+
+### 5. statsPanel.ts에 카테고리별 거래 건수 표시
+
+```ts
+// expense-tracker/src/ui/statsPanel.ts (발췌 — 이 편에서 추가된 부분만, 나머지는 16편과 동일)
+import type { Transaction, ExpenseCategory, Category } from '../models'
+import { StatsCalculator, BudgetEvaluator, LimitExceededRule, ApproachingLimitRule } from '../services'
+import { getRequiredElement } from '../lib/dom.ts'
+
+// root.innerHTML 템플릿에 다음 section을 추가합니다
+// <section><h2>카테고리별 거래 건수</h2><ul id="category-counts"></ul></section>
+
+export function mountStatsPanel(root: HTMLElement) {
+  const countsEl = getRequiredElement<HTMLUListElement>(root, '#category-counts')
+  // totalsEl, summaryEl, warningsEl, latestEl 선언은 16편과 동일
+
+  return {
+    update(transactions: Transaction[]): void {
+      // 카테고리 합계, 이번 달 요약, 예산 경고, 최근 거래 렌더링은 15·16편과 동일
+
+      const groups = statsCalculator.categoryGroups(transactions)
+      countsEl.innerHTML = (Object.keys(groups) as Category[])
+        .map((category) => `<li>${category}: ${groups[category].length}건</li>`)
+        .join('')
+    },
+  }
+}
+```
+
+`Object.keys(groups)`는 실제로 거래가 있었던 카테고리 이름만 문자열 배열로 돌려줍니다. `groups[category]`는 `Category`가 리터럴 유니온으로 고정된 키라서 `noUncheckedIndexedAccess`의 영향을 받지 않고 곧바로 `Transaction[]`으로 취급됩니다.
+
+### 6. 실행
+
+```text
+npx tsc --noEmit
+npm run dev
+```
+
+</Steps>
+
+## 확인
+
+- `npx tsc --noEmit`이 오류 없이 통과한다.
+- 거래를 몇 건 추가하면 "카테고리별 거래 건수" 목록에 실제로 등장한 카테고리만 건수와 함께 나타난다.
+- 편집기에서 `GroupedTransaction`, `FetchedCategoryGroups` 타입 위에 마우스를 올리면 둘 다 `Transaction` 계열 타입으로 풀려있는 것이 보인다.
+
+## 직접 해보기
+
+1. `groupBy`를 이용해 거래를 월(`transaction.date.slice(0, 7)`) 기준으로 묶는 `groupByMonth` 함수를 `stats.ts`에 추가하고, `ElementOf`로 그 결과의 원소 타입이 여전히 `Transaction`인지 확인해보세요.
+2. `ElementOf<Transaction>`(배열이 아닌 타입을 넣은 경우)을 어딘가에 선언해보고, 결과 타입이 `never`가 되는 것을 편집기에서 확인해보세요.
+
+<details>
+<summary>정답 보기</summary>
+
+```ts
+groupByMonth(transactions: Transaction[]): Record<string, Transaction[]> {
+  return groupBy(transactions, (transaction) => transaction.date.slice(0, 7))
+}
+```
+
+`ElementOf<ReturnType<StatsCalculator['groupByMonth']>[string]>`는 `Transaction`이 됩니다. 그룹 기준이 카테고리든 월이든 배열의 원소 타입을 뽑아내는 방식은 동일합니다.
+
+`ElementOf<Transaction>`은 `Transaction`이 배열이 아니므로 조건이 거짓이 되어 `never`가 됩니다.
+
+</details>
+
+## 자주 하는 실수
+
+| 증상 | 원인 | 고치는 법 |
+|------|------|-----------|
+| infer로 뽑은 타입 변수를 조건 왼쪽에서 참조 | infer는 extends 절 오른쪽에서만 선언·사용 가능 | `T extends Promise<infer U> ? U : T`처럼 참 분기에서만 사용한다 |
+| ElementOf에 유니온을 넘겼는데 예상과 다른 결과 | 분산 조건부 타입 특성을 고려하지 않음 | 유니온 각 멤버가 따로 계산된 뒤 합쳐진다는 점을 감안해 예상 결과를 다시 계산한다 |
+| groups[category]가 undefined일까 봐 옵셔널 체이닝을 씀 | Record의 키가 리터럴 유니온으로 고정된 경우와 진짜 인덱스 시그니처를 헷갈림 | Category처럼 키가 고정된 Record는 noUncheckedIndexedAccess의 영향을 받지 않는다 |
+
+## 확인 문제
+
+<Quiz
+  questionNumber={1}
+  question="T extends Promise&lt;infer U&gt; ? U : T에서 infer U가 하는 역할은"
+  options={['U라는 이름의 새 변수를 런타임에 만든다', 'T가 Promise 모양일 때 그 안의 타입을 U라는 이름으로 뽑아 참 분기에서 쓸 수 있게 한다', 'Promise를 항상 U로 바꾼다', 'U를 배열 타입으로 강제한다']}
+  correctAnswer={2}
+  explanation="infer는 조건부 타입의 extends 절 안에서 대응하는 실제 타입을 타입 변수로 추출해, 그 결과를 조건이 참인 분기에서 사용할 수 있게 합니다."
+  optionExplanations={['런타임 변수가 아니라 타입 변수입니다', '정답입니다', '항상 U로 바뀌는 것이 아니라 조건이 맞을 때만입니다', '배열 강제와는 무관합니다']}
+/>
+
+<Quiz
+  questionNumber={2}
+  question="분산 조건부 타입이 일어나는 조건으로 가장 알맞은 것은"
+  options={['조건부 타입에 infer가 있을 때만', '조건절 왼쪽에 타입 매개변수가 다른 타입으로 감싸이지 않고 그대로 나타날 때', '유니온이 아닌 단일 타입을 넘길 때만', '항상 무조건 일어난다']}
+  correctAnswer={2}
+  explanation="타입 매개변수가 조건절 왼쪽에 감싸이지 않은 채로 등장할 때, 유니온을 넘기면 각 멤버마다 따로 계산된 뒤 합쳐집니다."
+  optionExplanations={['infer 여부와는 별개의 조건입니다', '정답입니다', '오히려 유니온을 넘길 때 관찰됩니다', '조건에 따라 달라집니다']}
+/>
+
+<Quiz
+  questionNumber={3}
+  question="이 편에서 fetchCategoryGroups를 Promise로 감싼 함수로 만든 이유는"
+  options={['실제로 더 빠르게 계산하기 위해서', '15편에서 만들 API 클라이언트의 비동기 응답 형태를 미리 흉내 내기 위해서', 'localStorage 접근을 비동기로 바꾸기 위해서', 'TypeScript 문법상 반드시 Promise를 반환해야 해서']}
+  correctAnswer={2}
+  explanation="아직 실제 네트워크 요청은 없지만, 앞으로 만들 API 클라이언트가 Promise를 반환하는 형태와 UnwrapPromise 적용 방식을 미리 연습하기 위한 함수입니다."
+  optionExplanations={['속도 향상이 목적이 아닙니다', '정답입니다', 'localStorage와는 무관합니다', '문법상 강제되는 것은 아닙니다']}
+/>
+
+<Quiz
+  questionNumber={4}
+  question="Category처럼 리터럴 유니온으로 키가 고정된 Record 타입에서 groups[category]에 노출되는 타입은"
+  options={['항상 undefined가 포함된다', '고정된 프로퍼티 목록으로 취급되어 undefined 없이 원래 값 타입 그대로다', '항상 any가 된다', 'never가 된다']}
+  correctAnswer={2}
+  explanation="16편에서 다뤘듯 리터럴 유니온을 키로 쓰는 Record는 진짜 인덱스 시그니처가 아니라 정해진 프로퍼티 목록으로 취급되어 noUncheckedIndexedAccess의 영향을 받지 않습니다."
+  optionExplanations={['undefined가 포함되지 않습니다', '정답입니다', 'any가 아닙니다', 'never가 아닙니다']}
+/>
+
+## 참고 자료
+
+- [TypeScript Handbook — Conditional Types](https://www.typescriptlang.org/docs/handbook/2/conditional-types.html)

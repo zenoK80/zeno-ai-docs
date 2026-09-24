@@ -1,0 +1,212 @@
+---
+title: '22. 최종 점검과 정리'
+description: '남은 JS 파일이 없는지, strict 옵션이 유지되는지 확인하고, 세 패키지의 타입 체크·린트·테스트·빌드가 모두 통과하는 bookshelf-ts 최종 상태를 점검합니다.'
+---
+
+<Callout type="info">
+  **이번 편의 결과물:** `bookshelf-ts`의 모든 소스가 `.ts`/`.tsx`로 전환 완료되고, 세 패키지의 빌드·린트·테스트가 전부 통과하는 최종 상태를 확인합니다. · **다루는 개념:** 남은 `.jsx`/`.js` 파일 유무 확인, `strict` 옵션 재확인, 모노레포 전체 동작 확인
+</Callout>
+
+01편에서 `allowJs`로 JS와 TS를 섞어 시작한 `bookshelf-ts`는 21편을 거치며 세 패키지(`apps/web`, `packages/shared-types`, `packages/ui`)로 나뉘고, 린트와 CI까지 갖췄습니다. 이 편은 새 기능을 추가하지 않습니다. 대신 지금까지의 전환이 실제로 끝났는지, 임시로 켜 뒀던 완화 옵션을 정리해도 되는지를 확인하고, 22편에 걸쳐 쌓은 결과물을 하나의 트리로 정리합니다.
+
+## 이 편에서 만드는 파일
+
+```
+bookshelf-ts/
+├ tsconfig.json               (~, allowJs·checkJs 옵션 제거)
+└ apps/web/tsconfig.json      (~, allowJs·checkJs 옵션 제거)
+```
+
+## 개념 정리
+
+### allowJs·checkJs는 이제 필요 없는 신호
+
+02편에서 `allowJs: true`, `checkJs: true`를 켠 이유는 `.jsx` 파일과 `.tsx` 파일이 같은 프로젝트 안에 함께 있어도 빌드가 깨지지 않게 하기 위해서였습니다. `.js`·`.jsx` 파일이 저장소에 하나도 남지 않았다면 이 옵션은 더 이상 할 일이 없습니다. 옵션을 켜 둔 채로 남겨 두면, 나중에 실수로 `.js` 파일을 추가했을 때 컴파일러가 조용히 받아 주게 되어 마이그레이션이 다시 흐트러질 수 있습니다. 옵션을 지우면 그 순간부터 `.js`·`.jsx` 파일이 프로젝트에 섞이는 것 자체가 타입 체크 대상 밖으로 밀려나거나 오류로 드러납니다.
+
+### strict 계열 옵션 재확인
+
+TypeScript 7 계열은 `strict`가 기본값이지만, 마이그레이션 도중 특정 파일의 오류를 미루려고 `// @ts-nocheck`나 `any` 캐스팅을 임시로 넣어 뒀을 수 있습니다. 최종 점검에서는 이런 임시 완화가 실제로 남아 있는지 찾아 정리합니다.
+
+| 점검 대상 | 확인 방법 |
+|-----------|-----------|
+| `@ts-nocheck`·`@ts-ignore` 잔존 | 저장소 전체에서 문자열 검색 |
+| 명시적 `any` 캐스팅 | `as any` 문자열 검색 |
+| `strict` 옵션 값 | 세 패키지 `tsconfig.json`에서 `false`로 낮춘 항목이 없는지 확인 |
+
+### 모노레포 전체 동작을 확인하는 순서
+
+21편에서 CI에 넣은 네 단계(`tsc -b` → lint → test → build)를 로컬에서도 같은 순서로 한 번 더 실행해, PR을 올리기 전에 미리 같은 결과를 봅니다. 순서를 CI와 똑같이 유지하는 이유는, 로컬과 CI에서 서로 다른 순서로 실행해 결과가 어긋나는 상황을 막기 위해서입니다.
+
+## 실습
+
+<Steps>
+
+### 1. 잔여 JS 파일 검색하기
+
+```bash
+git ls-files 'apps/web/src/**/*.js' 'apps/web/src/**/*.jsx' 'packages/*/src/**/*.js'
+```
+
+아무 파일도 출력되지 않아야 합니다. 파일이 나온다면 아직 전환되지 않은 코드가 남아 있다는 뜻이므로, 04~13편에서 다룬 절차(같은 이름의 `.tsx`/`.ts` 파일로 옮기고 타입을 붙이는 것)를 그 파일에 적용한 뒤 이 검색을 다시 실행합니다.
+
+### 2. allowJs·checkJs 옵션 제거하기
+
+```json
+// tsconfig.json (루트, 발췌)
+{
+  "compilerOptions": {
+    "strict": true
+  }
+}
+```
+
+```json
+// apps/web/tsconfig.json (발췌)
+{
+  "compilerOptions": {
+    "strict": true
+  }
+}
+```
+
+02편에서 넣었던 `"allowJs": true`, `"checkJs": true` 두 줄을 삭제합니다. `strict`는 그대로 유지합니다.
+
+### 3. 전체 타입 체크 다시 실행하기
+
+```bash
+pnpm run typecheck
+```
+
+`allowJs`를 지운 뒤에도 오류 없이 끝나야 합니다. 오류가 난다면 검색에서 놓친 `.js` 파일이 여전히 `include` 경로 안에 있다는 뜻이니 1단계로 돌아갑니다.
+
+### 4. 린트·테스트·빌드까지 순서대로 실행하기
+
+```bash
+pnpm run lint
+pnpm run test
+pnpm run build
+```
+
+세 명령 모두 세 패키지에 걸쳐 통과해야 합니다. 마지막으로 배포 절차가 여전히 유효한지 `packages/ui`에서 한 번 더 확인합니다.
+
+```bash
+pnpm --filter @bookshelf/ui publish --dry-run
+```
+
+</Steps>
+
+## 확인
+
+- `git ls-files`로 찾은 `.js`·`.jsx` 파일 목록이 비어 있습니다.
+- `pnpm run typecheck`, `pnpm run lint`, `pnpm run test`, `pnpm run build` 네 명령이 순서대로 모두 성공합니다.
+- `pnpm --filter @bookshelf/ui publish --dry-run` 결과에 포함된 파일 목록에 `dist/index.js`와 `dist/index.d.ts`가 들어 있습니다.
+- GitHub에 push하면 21편에서 만든 `CI` 워크플로도 같은 네 단계를 모두 통과합니다.
+
+## 직접 해보기
+
+1. 저장소 전체에서 `@ts-nocheck`, `as any` 문자열을 검색해, 남아 있다면 원래 타입을 살려 제거해 보세요.
+2. `packages/shared-types`의 `package.json` 버전을 patch 하나 올리고(`0.1.0` → `0.1.1`), `apps/web`의 `package.json`에서 `workspace:*` 프로토콜을 쓰고 있다면 별도 조치 없이 최신 타입을 바로 참조하는지 확인해 보세요.
+
+<details>
+<summary>2번 정답 보기</summary>
+
+`workspace:*`(또는 `workspace:^`)는 로컬 워크스페이스의 현재 코드를 그대로 링크하므로, `shared-types`의 버전 숫자를 올리는 것만으로는 `apps/web`이 참조하는 타입이 바뀌지 않습니다. `shared-types`의 `src/` 코드 자체를 고쳐야 `apps/web`에서 바로 반영된 타입을 볼 수 있습니다. 버전 번호는 `npm publish` 시점에만 의미가 있습니다.
+
+</details>
+
+## 자주 하는 실수
+
+| 증상 | 원인 | 고치는 법 |
+|------|------|-----------|
+| `allowJs` 제거 후 갑자기 타입 오류가 쏟아짐 | 검색에서 놓친 `.js` 파일이 `tsconfig`의 `include` 범위 안에 남아 있음 | `git ls-files`로 다시 검색해 남은 파일을 `.ts`/`.tsx`로 전환 |
+| `pnpm --filter @bookshelf/ui publish --dry-run`에 `dist`가 비어 있음 | `build` 스크립트를 먼저 실행하지 않음 | `pnpm run build` 이후에 `publish --dry-run` 실행 |
+| 로컬에서는 통과하는데 CI에서만 실패 | 로컬 `node_modules`에 캐시된 이전 빌드 산출물이 남아 있음 | `pnpm -r exec -- rm -rf dist`로 정리 후 재빌드 |
+
+## 확인 문제
+
+<Quiz
+  questionNumber={1}
+  question="allowJs·checkJs 옵션을 최종 점검 시점에 제거하는 이유로 가장 알맞은 것은"
+  options={['옵션을 켜 두면 빌드 속도가 항상 느려지기 때문에', '전환이 끝난 뒤에도 옵션을 남겨 두면 실수로 추가된 js 파일을 조용히 받아줘 마이그레이션이 다시 흐트러질 수 있기 때문에', 'React 19가 이 옵션과 호환되지 않기 때문에', 'pnpm 워크스페이스가 이 옵션을 지원하지 않기 때문에']}
+  correctAnswer={2}
+  explanation="allowJs·checkJs는 전환 도중 js와 ts가 섞여도 빌드가 깨지지 않게 하는 완화 옵션입니다. 전환이 끝난 뒤 남겨 두면 나중에 추가된 js 파일을 컴파일러가 그냥 받아줘 다시 섞일 위험이 생깁니다."
+  optionExplanations={['속도 문제가 핵심 이유가 아닙니다', '정답입니다', 'React 버전과는 무관합니다', 'pnpm 워크스페이스와는 무관한 tsconfig 옵션입니다']}
+/>
+
+<Quiz
+  questionNumber={2}
+  question="git ls-files로 잔여 js·jsx 파일을 검색했을 때 기대하는 결과는"
+  options={['패키지마다 최소 한 개씩 나와야 한다', '아무 파일도 출력되지 않아야 한다', '테스트 파일만 나와야 한다', '항상 packages 디렉터리의 파일만 나와야 한다']}
+  correctAnswer={2}
+  explanation="22편 시점에는 모든 소스가 ts·tsx로 전환된 상태여야 하므로, js·jsx 검색 결과가 비어 있는 것이 전환 완료의 증거입니다."
+  optionExplanations={['남아 있으면 안 됩니다', '정답입니다', '테스트 파일도 이미 전환 대상입니다', '어느 디렉터리든 남아 있으면 안 됩니다']}
+/>
+
+<Quiz
+  questionNumber={3}
+  question="로컬에서 최종 점검을 CI와 같은 순서(tsc -b → lint → test → build)로 실행하는 이유는"
+  options={['다른 순서로는 명령이 아예 실행되지 않기 때문에', '로컬과 CI의 실행 순서가 어긋나 결과가 달라지는 상황을 막기 위해서', 'pnpm이 이 순서를 강제하기 때문에', 'GitHub Actions 요금이 순서에 따라 달라지기 때문에']}
+  correctAnswer={2}
+  explanation="CI에서 확인한 것과 같은 순서를 로컬에서도 따르면, PR을 올리기 전에 CI와 동일한 결과를 미리 확인할 수 있어 순서 차이로 인한 혼란을 줄입니다."
+  optionExplanations={['순서와 무관하게 각 명령은 독립적으로 실행됩니다', '정답입니다', 'pnpm 자체는 순서를 강제하지 않습니다', '요금과는 무관합니다']}
+/>
+
+<Quiz
+  questionNumber={4}
+  question="apps/web이 workspace:* 프로토콜로 참조하는 @bookshelf/shared-types의 버전 번호만 올렸을 때 벌어지는 일은"
+  options={['apps/web이 참조하는 타입이 즉시 새 버전 기준으로 바뀐다', '버전 번호만으로는 아무 변화가 없고, shared-types의 실제 코드를 고쳐야 apps/web에 반영된다', 'pnpm이 자동으로 apps/web의 코드를 재작성한다', 'CI 워크플로가 실패로 바뀐다']}
+  correctAnswer={2}
+  explanation="workspace 프로토콜은 로컬 코드를 직접 링크하므로 버전 번호 자체는 참조에 영향을 주지 않습니다. 버전은 npm publish로 배포할 때만 의미가 있습니다."
+  optionExplanations={['버전 번호만으로는 바뀌지 않습니다', '정답입니다', '자동 재작성은 일어나지 않습니다', 'CI 실패와는 직접 관련이 없습니다']}
+/>
+
+## bookshelf-ts 마무리 — 완료 기준 점검
+
+22편으로 `bookshelf-ts`가 pnpm 워크스페이스 모노레포로 완성되었습니다. 01편 학습 방향에서 정한 결과물과 대조합니다.
+
+```
+bookshelf-ts/
+├── package.json                      # packageManager, typecheck·lint·test·build 스크립트
+├── pnpm-workspace.yaml
+├── tsconfig.json                     # composite references: shared-types → ui → web
+├── eslint.config.mjs                 # 20편
+├── .github/workflows/ci.yml          # 21편
+├── apps/
+│   └── web/
+│       ├── package.json              # workspace: 프로토콜로 shared-types·ui 참조
+│       ├── tsconfig.json
+│       └── src/
+│           ├── App.tsx                        # 08편
+│           ├── routes/{HomePage,BookDetailPage,BookFormPage,NotFoundPage}.tsx  # 05, 08편
+│           ├── components/{Layout,BookStatusBadge,DataTable}.tsx              # 04, 09, 10편(+ react_3에서 이어받아 전환된 나머지 컴포넌트)
+│           ├── context/ThemeContext.tsx       # 07편
+│           ├── hooks/{useBooks,useLocalStorage}.ts  # 06편
+│           ├── stores/*.ts                    # 11편, Zustand
+│           ├── services/books.ts              # 12편, TanStack Query
+│           └── test/                          # react_3에서 이어받은 Vitest+RTL
+└── packages/
+    ├── shared-types/
+    │   ├── package.json               # @bookshelf/shared-types
+    │   ├── tsconfig.json               # composite: true
+    │   ├── src/{book,api,schemas,index}.ts   # 13, 15편
+    │   └── dist/                       # 18편, d.ts 포함
+    └── ui/
+        ├── package.json               # @bookshelf/ui
+        ├── tsconfig.json
+        ├── src/{BookCard,index}.tsx    # 17편
+        └── dist/                       # 18편
+```
+
+| 완료 기준(01편 학습 목표) | 확인 방법 |
+|---------------------------|-----------|
+| `apps/web`의 전체 컴포넌트·훅·스토어·서비스가 `.tsx`/`.ts`로 전환 | `git ls-files`로 잔여 `.js`/`.jsx` 없음 확인 |
+| `packages/shared-types`를 `workspace:` 프로토콜로 공유 | `apps/web`의 `package.json` 의존성, `pnpm run typecheck` 통과 |
+| `packages/ui`를 tsdown으로 빌드해 `d.ts` 생성, 배포 가능 상태 | `pnpm --filter @bookshelf/ui publish --dry-run` 결과에 `d.ts` 포함 |
+| `tsconfig` project references로 빌드 순서 관리 | `pnpm run typecheck`가 앱 로컬 TS 7의 `tsc -b`로 순서대로 통과 |
+| typescript-eslint 공용 설정과 GitHub Actions CI 적용 | `pnpm run lint` 통과, PR에서 `CI` 체크 통과 |
+
+다섯 항목이 모두 통과하면 `bookshelf-ts`는 react_3의 JS 앱이 아니라 **타입 안전한 pnpm 워크스페이스 모노레포**로 완성된 것입니다. `typescript_fundamentals`·`typescript_2`의 문법과 `react_1`~`react_3`의 기능이 22편에 걸쳐 이 구조 위에 그대로 다시 자리 잡았습니다.
+
+## 참고 자료
+
+- [TypeScript Handbook — Project References](https://www.typescriptlang.org/docs/handbook/project-references.html)

@@ -1,0 +1,190 @@
+---
+title: '21. GitHub Actions로 타입 체크·빌드·테스트 CI 구성'
+description: 'PR을 올릴 때마다 tsc -b·lint·테스트·빌드를 자동 실행하는 GitHub Actions 워크플로를 pnpm 워크스페이스에 맞춰 만듭니다.'
+---
+
+<Callout type="info">
+  **이번 편의 결과물:** PR을 올리면 GitHub Actions가 타입 체크·린트·테스트·빌드를 자동 실행하고 결과가 체크로 표시됩니다. · **다루는 개념:** `.github/workflows/ci.yml` 작성, pnpm 캐시, `tsc -b`→lint→테스트→빌드 순서 자동화
+</Callout>
+
+16편에서 `tsc -b`로 세 패키지의 빌드 순서를 관리하게 됐고, 20편에서 `pnpm -r lint`로 전체를 검사할 수 있게 됐습니다. 이 편에서는 이 명령들을 GitHub Actions 워크플로 하나에 순서대로 넣어, PR을 여는 사람이 로컬에서 매번 같은 명령을 반복하지 않아도 자동으로 검증되게 만듭니다.
+
+## 이 편에서 만드는 파일
+
+```
+bookshelf-ts/
+├ package.json               (~, packageManager 필드·typecheck 스크립트 추가)
+└ .github/
+  └ workflows/
+    └ ci.yml                 (+, 타입 체크·린트·테스트·빌드 워크플로)
+```
+
+## 개념 정리
+
+### 왜 이 순서인가 — 실패를 가장 싸게 잡는 순서
+
+네 단계는 검사 비용이 낮은 순서로 배치합니다. 앱에 설치된 TypeScript 7의 `tsc -b`는 project references 그래프를 따라 변경된 패키지만 증분 컴파일해 타입 오류를 가장 빠르게 드러냅니다. 린트는 그다음으로 빠르고, 테스트는 실제 코드를 실행하므로 더 오래 걸리며, 번들 산출물을 만드는 빌드가 보통 가장 오래 걸립니다. 앞 단계가 실패하면 GitHub Actions는 해당 step에서 job을 즉시 종료하므로, 느린 단계까지 갈 필요 없이 빠르게 결과를 알 수 있습니다.
+
+### pnpm/setup — Node 설치까지 한 번에
+
+과거에는 `pnpm/action-setup`으로 pnpm만 설치하고 `actions/setup-node`로 Node.js를 따로 설치하는 두 단계가 필요했습니다. pnpm 공식 문서(2026-09-22 확인)는 이제 `pnpm/setup` 액션 하나로 pnpm과 Node.js를 함께 설치하는 방법을 권장합니다. 이 액션은 설치 후 기본적으로 `pnpm install`까지 자동 실행합니다.
+
+| 설정 | 의미 |
+|------|------|
+| `runtime: node@22` | 설치할 Node.js 버전 |
+| `cache: true` | pnpm 저장소 캐시를 자동으로 켠다 |
+| `install: false` | (기본값 아님) 설정하면 자동 설치를 건너뛴다 |
+
+pnpm 버전 자체는 액션이 아니라 루트 `package.json`의 `packageManager` 필드에서 읽으므로, 워크플로 파일을 pnpm 버전이 바뀔 때마다 고칠 필요가 없습니다.
+
+### pnpm -r가 패키지 순서를 자동으로 지키는 이유
+
+`pnpm -r`(recursive)은 기본적으로 워크스페이스의 의존성 그래프를 따라 순서를 정합니다. `apps/web`이 `@bookshelf/shared-types`와 `@bookshelf/ui`를 `workspace:` 프로토콜로 참조하고 있으므로, `pnpm -r build`를 실행하면 `shared-types`와 `ui`가 먼저 빌드되고 그 뒤에 `web`이 빌드됩니다. 순서를 직접 지정하는 별도 설정은 필요 없습니다.
+
+## 실습
+
+<Steps>
+
+### 1. package.json에 packageManager와 typecheck 스크립트 확인하기
+
+```json
+// package.json (루트, 발췌)
+{
+  "packageManager": "pnpm@12.5.1",
+  "scripts": {
+    "typecheck": "pnpm --filter @bookshelf/web exec tsc -b ../..",
+    "lint": "pnpm -r lint",
+    "test": "pnpm -r test",
+    "build": "pnpm -r build"
+  }
+}
+```
+
+`packageManager` 필드는 14편에서 워크스페이스를 만들 때 이미 넣었다면 버전만 다시 확인합니다. `typecheck`는 `apps/web`에 설치된 TypeScript 7의 `tsc`로 루트 project references를 읽어 세 패키지를 순서대로 컴파일합니다. 루트의 TypeScript 6 호환 패키지는 20편의 typescript-eslint 전용이므로 타입체크에는 사용하지 않습니다.
+
+### 2. 워크플로 파일 작성하기
+
+```yaml
+# .github/workflows/ci.yml
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+
+jobs:
+  typecheck-lint-test-build:
+    runs-on: ubuntu-24.04
+    steps:
+      - name: 저장소 코드 가져오기
+        uses: actions/checkout@v6
+
+      - name: pnpm·Node 설치
+        uses: pnpm/setup@v1
+        with:
+          runtime: node@22
+          cache: true
+
+      - name: 타입 체크 (project references)
+        run: pnpm run typecheck
+
+      - name: 린트
+        run: pnpm run lint
+
+      - name: 테스트
+        run: pnpm run test
+
+      - name: 빌드
+        run: pnpm run build
+```
+
+`pnpm/setup` step이 `pnpm install`까지 자동으로 실행하므로 별도의 설치 step이 없습니다. `on.pull_request.branches`에 `main`을 지정해, `main`으로 향하는 PR마다 이 워크플로가 돕니다.
+
+### 3. 커밋하고 PR을 열어 확인하기
+
+```bash
+git checkout -b ci/github-actions
+git add package.json .github/workflows/ci.yml
+git commit -m "ci: 타입체크·린트·테스트·빌드 워크플로 추가"
+git push -u origin ci/github-actions
+```
+
+</Steps>
+
+## 확인
+
+- GitHub 저장소의 `Actions` 탭에 `CI` 워크플로 실행 기록이 생기고, `typecheck-lint-test-build` job의 각 step이 순서대로 초록 체크로 바뀝니다.
+- PR 화면 하단에도 같은 체크가 나타납니다.
+- `packages/shared-types`의 타입 하나를 일부러 틀리게 고쳐 push하면, `타입 체크` step에서 바로 실패하고 뒤의 린트·테스트·빌드 step은 실행되지 않습니다. 확인 후 되돌립니다.
+
+## 직접 해보기
+
+1. `on`에 `workflow_dispatch: {}`를 추가해, Actions 탭에서 브랜치를 골라 수동으로도 이 워크플로를 실행할 수 있게 만들어 보세요.
+2. `strategy.matrix`로 `node-version: [22, 24]` 두 버전에서 같은 job을 실행하도록 확장해 보세요. `runtime: node@${{ matrix.node-version }}`처럼 표현식을 씁니다.
+
+<details>
+<summary>1번 정답 보기</summary>
+
+```yaml
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+  workflow_dispatch: {}
+```
+
+</details>
+
+## 자주 하는 실수
+
+| 증상 | 원인 | 고치는 법 |
+|------|------|-----------|
+| CI에서 pnpm 명령을 찾을 수 없다는 오류 | `pnpm/setup` step보다 앞에 다른 step에서 pnpm을 쓰려고 함 | `pnpm/setup` step을 다른 pnpm 명령보다 먼저 배치 |
+| 로컬 pnpm 버전과 CI에서 설치되는 버전이 다르다 | 루트 `package.json`에 `packageManager` 필드가 없음 | `packageManager: "pnpm@12.5.1"`을 추가 |
+| 빌드 step에서 `@bookshelf/shared-types`를 찾을 수 없다는 오류 | `pnpm -r build`가 아니라 `web` 패키지만 단독으로 빌드함 | 루트 `build` 스크립트로 워크스페이스 전체를 의존성 순서대로 빌드 |
+
+## 확인 문제
+
+<Quiz
+  questionNumber={1}
+  question="이 워크플로에서 타입 체크를 린트·테스트·빌드보다 먼저 실행하는 이유는"
+  options={['GitHub Actions가 항상 그 순서만 허용해서', '가장 빠르게 오류를 드러내는 검사를 먼저 두어 실패를 싸게 확인하기 위해서', '타입 체크가 항상 가장 오래 걸리는 단계라서', 'tsc -b는 다른 명령과 동시에 실행할 수 없어서']}
+  correctAnswer={2}
+  explanation="비용이 낮고 빠르게 결과가 나오는 검사부터 실행하면, 실패할 코드에서 느린 테스트·빌드까지 기다리지 않고 빠르게 피드백을 받을 수 있습니다."
+  optionExplanations={['GitHub Actions는 순서를 강제하지 않습니다', '정답입니다', '보통 타입 체크는 빌드·테스트보다 빠릅니다', '동시 실행 여부와는 무관한 이유입니다']}
+/>
+
+<Quiz
+  questionNumber={2}
+  question="pnpm/setup 액션을 쓰면 워크플로에서 생략할 수 있는 것은"
+  options={['actions/checkout step', '별도의 actions/setup-node step', 'package.json의 scripts 정의', 'GitHub 저장소 자체']}
+  correctAnswer={2}
+  explanation="pnpm/setup은 pnpm을 설치한 뒤 그것으로 Node.js 런타임까지 설치하므로, 예전 방식처럼 actions/setup-node를 별도로 둘 필요가 없습니다."
+  optionExplanations={['체크아웃은 여전히 필요합니다', '정답입니다', 'scripts 정의는 워크플로와 별개로 필요합니다', '저장소 자체는 생략 대상이 아닙니다']}
+/>
+
+<Quiz
+  questionNumber={3}
+  question="루트 package.json의 packageManager 필드가 하는 역할은"
+  options={['워크플로 파일이 사용할 pnpm 버전을 지정해, 버전이 바뀌어도 워크플로 YAML을 고치지 않아도 되게 한다', 'React와 TypeScript의 버전을 강제로 맞춘다', 'GitHub Actions의 runner OS를 결정한다', 'ESLint 규칙 세트를 선택한다']}
+  correctAnswer={1}
+  explanation="pnpm/setup 같은 액션은 packageManager 필드에 적힌 버전을 읽어 그대로 설치하므로, 워크플로 파일에 pnpm 버전을 하드코딩할 필요가 없습니다."
+  optionExplanations={['정답입니다', 'React·TypeScript 버전과는 무관합니다', 'runs-on 설정이 담당합니다', 'ESLint 설정과는 무관합니다']}
+/>
+
+<Quiz
+  questionNumber={4}
+  question="pnpm -r build가 apps/web보다 packages/shared-types를 먼저 빌드하는 이유는"
+  options={['알파벳 순서로 패키지를 정렬해 실행하기 때문에', 'apps/web이 workspace 프로토콜로 shared-types를 참조하는 의존성 그래프를 pnpm이 따르기 때문에', 'package.json에 순서를 배열로 직접 나열했기 때문에', 'GitHub Actions가 무작위로 순서를 정하기 때문에']}
+  correctAnswer={2}
+  explanation="pnpm의 재귀 실행은 기본적으로 워크스페이스 패키지 간 의존성 그래프를 따르므로, 의존되는 패키지(shared-types)가 의존하는 패키지(web)보다 먼저 실행됩니다."
+  optionExplanations={['알파벳 순서가 아니라 의존성 그래프 순서입니다', '정답입니다', '순서를 배열로 나열하는 별도 설정은 하지 않았습니다', '무작위가 아니라 의존성 그래프 기반입니다']}
+/>
+
+## 참고 자료
+
+- [pnpm — Continuous Integration](https://pnpm.io/continuous-integration)
+- [GitHub Docs — Building and testing Node.js](https://docs.github.com/en/actions/use-cases-and-examples/building-and-testing/building-and-testing-nodejs)

@@ -1,0 +1,245 @@
+---
+title: '11. Zustand 스토어 타이핑'
+description: 'useUiStore를 create의 커링 호출 패턴으로 타이핑하고 persist 미들웨어에서도 타입을 유지한다'
+---
+
+<Callout type="info">
+  **이번 편의 결과물:** `store/`가 `stores/`로 정리되고 `useUiStore`가 완전히 타이핑되어, selector와 액션 호출 모두에서 타입 오류가 자동으로 잡힙니다. · **다루는 개념:** `create<State>()(...)` 패턴, selector 타입 추론, `persist` 미들웨어와 `partialize` 타이핑
+</Callout>
+
+## 이 편에서 만드는 파일
+
+```
+bookshelf-ts/src/
+├── stores/
+│   └── useUiStore.ts          + 신규 (store/useUiStore.js를 대체)
+├── store/
+│   └── useUiStore.js          − 삭제
+├── components/
+│   └── Header.tsx             ~ 수정 (import 경로만 stores/로 변경)
+└── pages/
+    └── BookListPage.tsx       ~ 수정 (import 경로만 stores/로 변경)
+```
+
+## 개념 정리
+
+지금까지 `store/useUiStore.js`는 자바스크립트로 남아 있었습니다. 10편에서 `DataTable`에 정렬 상태(`sortBy`, `setSort`)를 연결할 때, 스토어가 아직 타입이 없어 편집기가 그 값들의 정확한 모양을 보여주지 못했던 것을 기억할 것입니다. 이 편에서 스토어 자체를 타이핑하면 이 훅을 쓰는 모든 파일이 한 번에 정확한 타입을 얻습니다. 폴더 이름도 다른 패키지 폴더들과 맞춰 `stores/`(복수형)로 정리합니다.
+
+### `create<State>()(...)`가 두 번 호출되는 이유
+
+일반 함수라면 `create<State>(config)`처럼 한 번만 호출해도 될 것 같지만, Zustand는 미들웨어(`persist`, `devtools` 등)를 조합할 때 `set`·`get`의 타입을 정확히 추론하기 위해 **커링**(curried call) 형태를 씁니다.
+
+```ts
+// State만 먼저 확정하고
+create<UiState>()
+// 그 결과를 실제 스토어 정의(미들웨어 포함)에 적용한다
+(persist((set) => ({ ... }), { name: '...' }))
+```
+
+`create<UiState>()`처럼 빈 괄호로 한 번 호출해 타입 매개변수 `UiState`를 먼저 고정합니다. 그렇게 하지 않고 `create<UiState>(persist(...))`처럼 한 번에 호출하면, TypeScript가 미들웨어 체인 전체의 타입을 한 번에 추론해야 해서 `persist`가 감싼 스토어의 타입이 정확히 맞물리지 않는 경우가 생깁니다. 미들웨어를 쓰지 않는 가장 단순한 스토어라면 `create<State>((set) => ({...}))`처럼 한 번만 호출해도 되지만, `persist`를 포함한 순간부터는 커링 형태가 표준 패턴입니다.
+
+### selector는 따로 타입을 쓰지 않는다
+
+스토어가 `create<UiState>()(...)`로 만들어지면, `useUiStore`가 반환하는 값의 타입이 이미 `UiState`로 확정됩니다. `useUiStore((state) => state.statusFilter)`라고 쓰면 `state`의 타입이 자동으로 `UiState`가 되고, 반환값의 타입도 `UiState['statusFilter']`로 자동 추론됩니다. selector 함수 매개변수에 타입을 직접 써줄 필요가 없습니다.
+
+### `persist`의 `partialize`도 타입이 맞아야 한다
+
+`partialize` 옵션은 저장소에 실제로 남길 부분 상태를 고릅니다. 반환값의 타입은 전체 상태의 부분집합(`Partial<UiState>`에 해당하는 형태)이어야 하고, 존재하지 않는 필드를 반환하면 오류가 납니다.
+
+## 실습
+
+<Steps>
+
+### 1. types/book.ts에서 BookStatus 재사용 확인
+
+09편에서 `as const` 배열로 다시 정의한 `BookStatus`를 스토어의 필터 타입에 그대로 씁니다. 새 파일은 만들지 않고 import만 합니다.
+
+```ts
+// src/types/book.ts (09편 코드 그대로 — 여기서는 import 대상만 확인)
+export const BOOK_STATUSES = ['wish', 'reading', 'done'] as const
+export type BookStatus = (typeof BOOK_STATUSES)[number]
+```
+
+### 2. useUiStore.ts 작성
+
+```ts
+// src/stores/useUiStore.ts
+import { create } from 'zustand'
+import { persist } from 'zustand/middleware'
+import type { BookStatus } from '../types/book.ts'
+
+type SortKey = 'title' | 'author' | 'pages' | 'status'
+type SortOrder = 'asc' | 'desc'
+type StatusFilter = BookStatus | 'all'
+
+interface UiFilters {
+  statusFilter: StatusFilter
+  sortBy: SortKey
+  sortOrder: SortOrder
+  searchQuery: string
+  page: number
+}
+
+interface UiState extends UiFilters {
+  isSidebarOpen: boolean
+  setStatusFilter: (statusFilter: StatusFilter) => void
+  setSearchQuery: (searchQuery: string) => void
+  setPage: (page: number) => void
+  setSort: (sortBy: SortKey) => void
+  toggleSidebar: () => void
+  resetFilters: () => void
+}
+
+const initialFilters: UiFilters = {
+  statusFilter: 'all',
+  sortBy: 'title',
+  sortOrder: 'asc',
+  searchQuery: '',
+  page: 1,
+}
+
+export const useUiStore = create<UiState>()(
+  persist(
+    (set) => ({
+      ...initialFilters,
+      isSidebarOpen: false,
+      setStatusFilter: (statusFilter) => set({ statusFilter, page: 1 }),
+      setSearchQuery: (searchQuery) => set({ searchQuery, page: 1 }),
+      setPage: (page) => set({ page }),
+      setSort: (sortBy) =>
+        set((state) => ({
+          sortBy,
+          sortOrder: state.sortBy === sortBy && state.sortOrder === 'asc' ? 'desc' : 'asc',
+          page: 1,
+        })),
+      toggleSidebar: () => set((state) => ({ isSidebarOpen: !state.isSidebarOpen })),
+      resetFilters: () => set(initialFilters),
+    }),
+    {
+      name: 'bookshelf-ui',
+      partialize: (state) => ({
+        statusFilter: state.statusFilter,
+        sortBy: state.sortBy,
+        sortOrder: state.sortOrder,
+      }),
+    },
+  ),
+)
+
+export type { UiState, SortKey, SortOrder, StatusFilter }
+```
+
+`UiFilters`를 별도 interface로 분리해 둔 덕분에 `initialFilters: UiFilters`라고 명시할 수 있고, `resetFilters: () => set(initialFilters)`가 필터 관련 필드만 정확히 되돌린다는 것이 타입으로 보장됩니다. `set` 콜백의 매개변수 타입(`set`, 함수형 업데이터의 `state`)은 모두 `create<UiState>()`에서 이미 확정된 `UiState`를 바탕으로 자동 추론되어 별도 주석이 필요 없습니다. `partialize`가 반환하는 객체에 `UiState`에 없는 필드를 넣거나 오타를 내면 그 자리에서 오류가 납니다.
+
+### 3. 기존 store/useUiStore.js 삭제와 import 경로 정리
+
+```text
+rm src/store/useUiStore.js
+rmdir src/store
+```
+
+이 훅을 가져다 쓰는 두 파일의 import 경로만 고칩니다. 나머지 코드는 그대로 둡니다.
+
+```tsx
+// src/pages/BookListPage.tsx (import 한 줄만 수정 — 나머지는 10편 코드 유지)
+import { useUiStore } from '../stores/useUiStore.ts'
+```
+
+```tsx
+// src/components/Header.tsx (import 한 줄만 수정 — 나머지는 04편 코드 유지)
+import { useUiStore } from '../stores/useUiStore.ts'
+```
+
+두 파일 모두 코드 내용은 바뀌지 않았지만, 이제 `useUiStore((state) => state.sortBy)`, `useUiStore((state) => state.setSort)`처럼 꺼내는 값마다 정확한 타입(`SortKey`, `(sortBy: SortKey) => void`)이 자동으로 붙습니다. `BookListPage.tsx`의 `DataTable`에 넘기던 `setSort`도 이제 `onSortChange`가 요구하는 `(key: keyof Book) => void`와 정확히 맞는 함수라는 것이 컴파일 타임에 확인됩니다.
+
+### 4. 실행
+
+```text
+npm run dev
+```
+
+### 5. 확인
+
+- 필터·정렬·검색·페이지 이동이 09~10편까지와 동일하게 동작합니다.
+- VS Code에서 `useUiStore((state) => state.statusFilter)`에 마우스를 올리면 반환 타입이 `StatusFilter`(`BookStatus | 'all'`)로 뜨는 것을 확인합니다.
+- `setStatusFilter('finished')`처럼 `StatusFilter`에 없는 문자열을 일부러 넘겨보고 컴파일 오류가 나는지 확인한 뒤 되돌립니다.
+- `partialize`가 반환하는 객체에 `isSidebarOpen: state.isSidebarOpen`을 추가해보고, 정상적으로 타입이 통과하는지도 확인해 봅니다(추가해도 되는 필드인지는 `UiState`에 포함되는지로 판단합니다).
+
+</Steps>
+
+## 직접 해보기
+
+1. `UiState`에 `theme: 'light' | 'dark'`와 `setTheme` 액션을 추가해 보세요. `initialFilters`(`UiFilters`)에는 넣지 않고 `isSidebarOpen`처럼 별도 필드로 둡니다.
+2. `partialize`에서 `searchQuery`도 저장하도록 추가해 보고, 새로고침 후 검색어까지 유지되는지 확인해 보세요.
+
+<details>
+<summary>정답 보기</summary>
+
+```ts
+// src/stores/useUiStore.ts (필드·액션 추가분만 발췌)
+interface UiState extends UiFilters {
+  isSidebarOpen: boolean
+  theme: 'light' | 'dark'
+  setTheme: (theme: 'light' | 'dark') => void
+  // ...기존 액션 유지
+}
+
+// create 콜백 안에 추가
+theme: 'light',
+setTheme: (theme) => set({ theme }),
+```
+
+`theme`은 `UiFilters`에 넣지 않았으므로 `resetFilters`(`set(initialFilters)`) 호출로는 초기화되지 않습니다. 필터와 무관한 화면 설정을 필터 초기화 대상에서 자연스럽게 제외한 것입니다.
+
+</details>
+
+## 자주 하는 실수
+
+| 증상 | 원인 | 고치는 법 |
+|---|---|---|
+| `create<UiState>(persist(...))`처럼 한 번만 호출해 `set` 타입이 어긋남 | 커링 호출(`create<UiState>()(...)`)을 빠뜨림 | `persist` 등 미들웨어를 쓸 때는 빈 괄호를 한 번 더 붙인다 |
+| selector 콜백에 `(state: UiState) => ...`처럼 타입을 직접 씀 | `create<UiState>()`로 이미 확정된 타입을 다시 반복함 | 타입 매개변수를 스토어 생성 시점에만 쓰고, selector에서는 추론에 맡긴다 |
+| `partialize`가 반환한 객체 필드에 오타가 있어도 저장은 되는 것처럼 보임 | `partialize`의 반환 타입을 검사하지 않고 넘어감 | 반환 객체의 각 필드가 `UiState`에 실제로 존재하는 이름인지 편집기 경고로 확인한다 |
+| `resetFilters`가 `isSidebarOpen`까지 초기화해버림 | `initialFilters`에 필터 아닌 필드까지 섞어 넣음 | 필터 전용 상태는 `UiFilters`로, 그 외 UI 상태는 `UiState`에서만 분리해 선언한다 |
+
+## 확인 문제
+
+<Quiz
+  questionNumber={1}
+  question="persist 같은 미들웨어를 쓸 때 create를 create(State)()(...)처럼 두 번 호출하는 이유는"
+  options={['런타임에서 스토어를 두 번 초기화하기 위해서', '상태 타입을 먼저 고정한 뒤 미들웨어를 포함한 스토어 정의의 타입을 정확히 추론하게 하기 위해서', 'persist 미들웨어가 두 번 호출되는 함수만 허용하기 때문에', '리렌더 횟수를 줄이기 위해서']}
+  correctAnswer={2}
+  explanation="빈 괄호로 먼저 State 타입 매개변수를 고정하는 커링 호출은, 미들웨어가 감싼 스토어 정의에서 set·get의 타입을 정확히 추론하기 위한 패턴입니다."
+  optionExplanations={['런타임 초기화 횟수와는 무관합니다', '정답입니다', 'persist가 호출 횟수를 강제하는 것이 아닙니다', '리렌더 횟수와는 무관합니다']}
+/>
+
+<Quiz
+  questionNumber={2}
+  question="useUiStore에 selector 콜백을 넘겨 statusFilter만 꺼낼 때, 그 콜백의 매개변수에 타입을 직접 쓰지 않아도 되는 이유는"
+  options={['statusFilter가 항상 string이라 타입 검사가 필요 없어서', 'create의 커링 호출로 스토어를 만든 시점에 매개변수의 타입이 이미 UiState로 확정돼 자동 추론되기 때문에', 'selector 함수는 타입 검사 대상이 아니기 때문에', 'Zustand가 모든 값을 any로 취급하기 때문에']}
+  correctAnswer={2}
+  explanation="스토어 생성 시점에 State 타입이 확정되므로, 그 스토어에서 파생되는 모든 selector 콜백의 매개변수 타입도 자동으로 추론됩니다."
+  optionExplanations={['statusFilter는 문자열 유니온이지 아무 string이 아닙니다', '정답입니다', 'selector도 다른 함수와 동일하게 타입 검사를 받습니다', 'Zustand는 any로 취급하지 않습니다']}
+/>
+
+<Quiz
+  questionNumber={3}
+  question="partialize 옵션에서 UiState에 존재하지 않는 필드 이름을 반환하면 어떤 일이 일어나는가"
+  options={['해당 필드는 무시되고 나머지만 저장된다', '반환 객체의 타입이 UiState의 필드 집합과 맞지 않아 컴파일 타임에 오류가 난다', 'localStorage에 undefined로 저장된다', 'persist 미들웨어가 자동으로 필드 이름을 UiState 기준으로 고쳐준다']}
+  correctAnswer={2}
+  explanation="partialize의 반환 타입은 UiState를 기준으로 검사되므로, 존재하지 않는 필드를 반환하면 컴파일 타임에 오류로 드러납니다."
+  optionExplanations={['무시되는 것이 아니라 오류로 드러납니다', '정답입니다', '컴파일이 통과하지 못해 저장 자체가 되지 않습니다', '자동으로 고쳐주지 않습니다']}
+/>
+
+<Quiz
+  questionNumber={4}
+  question="UiFilters를 UiState와 별도 interface로 분리해 initialFilters의 타입으로 쓴 이유는"
+  options={['타입스크립트 문법상 interface는 반드시 두 개 이상 필요해서', 'resetFilters가 필터 관련 필드만 정확히 되돌린다는 것을 타입으로 보장하기 위해서', 'persist 미들웨어가 interface 두 개를 요구하기 때문에', 'isSidebarOpen을 저장소에서 제외하기 위한 유일한 방법이라서']}
+  correctAnswer={2}
+  explanation="UiFilters를 분리하면 initialFilters: UiFilters로 명시할 수 있고, resetFilters가 필터 이외의 필드(isSidebarOpen 등)는 건드리지 않는다는 것이 타입 구조로 드러납니다."
+  optionExplanations={['interface 개수에 그런 제약은 없습니다', '정답입니다', 'persist는 interface 개수를 요구하지 않습니다', 'partialize로도 저장소 제외는 가능하며, 분리의 목적은 resetFilters 범위 보장입니다']}
+/>
+
+## 참고 자료
+
+- [Zustand 공식 저장소(README) — TypeScript 사용법](https://github.com/pmndrs/zustand#typescript-usage)

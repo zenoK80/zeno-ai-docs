@@ -1,0 +1,198 @@
+---
+title: '06. 커스텀 훅 타이핑'
+description: 'useBooks와 useLocalStorage에 반환 타입을 명시하고, useLocalStorage를 제네릭 훅으로 만든다'
+---
+
+<Callout type="info">
+  **이번 편의 결과물:** `hooks/useBooks.ts`, `hooks/useLocalStorage.ts`(제네릭)로 전환되어 반환값 타입이 자동 추론됩니다. · **다루는 개념:** 훅 반환 타입 명시, 제네릭 훅(`useLocalStorage<T>`), 훅 매개변수 타입
+</Callout>
+
+05편까지 폼 쪽 파일을 전환했습니다. 이 편은 컴포넌트가 아니라 **훅**을 전환합니다. 훅은 반환값의 모양이 호출하는 쪽 코드 전체에 퍼지기 때문에, 훅 하나에 타입을 제대로 붙이면 그 훅을 쓰는 곳 전부가 덕을 봅니다.
+
+## 이 편에서 만드는 파일
+
+```
+bookshelf-ts/src/
+└── hooks/
+    ├── useBooks.ts            ~ .js → .ts 전환 (매개변수·반환 타입 명시)
+    └── useLocalStorage.ts     ~ .js → .ts 전환 (제네릭 useLocalStorage<T>)
+```
+
+04편에서 만든 `src/types/book.ts`의 `Book`·`BookStatus` 타입을 그대로 재사용합니다. 이 편에서 새로 만드는 타입 파일은 없습니다.
+
+## 개념 정리
+
+### 훅 반환 타입을 명시하는 이유
+
+`useBooks`는 TanStack Query의 `useQuery`를 감싼 얇은 래퍼입니다. `useQuery` 자체는 `queryFn`의 반환 타입으로부터 `data`의 타입을 추론하지만, `queryFn` 안에서 부르는 `getBooks`가 아직 `.js`라 반환 타입 정보가 없습니다. 이럴 때는 훅의 반환 타입을 직접 명시해, "이 훅을 쓰면 이런 모양의 데이터를 받는다"는 계약을 코드로 남깁니다.
+
+### 마이그레이션 경계에서의 캐스팅
+
+`allowJs` 환경에서는 아직 전환하지 않은 `.js` 파일의 함수를 그대로 가져다 쓸 수 있지만, 타입 정보는 없습니다. 이 편처럼 그 함수의 실제 반환 모양을 알고 있을 때는 `as`로 타입을 붙여 훅 내부에서만 캐스팅합니다. 캐스팅은 훅 경계에 딱 한 번만 두고, 훅을 쓰는 컴포넌트 쪽에는 이미 타입이 붙은 값만 넘어가게 합니다. `api/books.js` 자체를 타이핑하는 것은 13편(zod로 API 스키마 통일)의 몫입니다.
+
+### 제네릭 훅
+
+`useLocalStorage`는 `books`뿐 아니라 문자열(테마)이나 다른 배열도 저장할 수 있는 범용 훅입니다. 저장할 값의 타입을 훅 안에 고정하면 재사용성이 사라지므로, 타입 매개변수 `T`로 남겨둡니다.
+
+```ts
+function useLocalStorage<T>(key: string, initialValue: T): [T, ...]
+```
+
+호출하는 쪽에서 `useLocalStorage<string>('bookshelf-theme', 'light')`처럼 쓰면 `T`가 `string`으로 고정되고, `useLocalStorage<Book[]>('bookshelf-books', [])`처럼 쓰면 `Book[]`로 고정됩니다. 함수 하나로 여러 타입을 안전하게 지원하는 것이 제네릭의 핵심입니다.
+
+## 실습
+
+<Steps>
+
+### 1. useBooks를 TypeScript로 전환
+
+```ts
+// src/hooks/useBooks.ts
+import { useQuery, type UseQueryResult } from '@tanstack/react-query'
+import { getBooks } from '../api/books'
+import type { Book, BookStatus } from '../types/book'
+
+export interface BookListParams {
+  status?: BookStatus | 'all'
+  sortBy?: keyof Book
+  sortOrder?: 'asc' | 'desc'
+  search?: string
+  page?: number
+  pageSize?: number
+}
+
+export interface BookListResult {
+  items: Book[]
+  total: number
+  page: number
+  pageSize: number
+}
+
+export function useBooks(params: BookListParams = {}): UseQueryResult<BookListResult, Error> {
+  return useQuery({
+    queryKey: ['books', params] as const,
+    queryFn: () => getBooks(params) as Promise<BookListResult>,
+  })
+}
+```
+
+`BookListParams`는 `getBooks`가 실제로 받는 필드(상태·정렬·검색·페이지)를 그대로 옮긴 것입니다. 오타 난 필드 이름을 넘기면(예: `stauts`) 이 자리에서 바로 오류가 납니다. `queryFn`의 `as Promise<BookListResult>` 캐스팅은 `getBooks`(아직 `.js`)의 실제 응답 모양을 훅 안에서만 명시하는 역할입니다. `useBooks`의 반환 타입을 `UseQueryResult<BookListResult, Error>`로 명시했으므로, 이 훅을 쓰는 컴포넌트가 TypeScript로 전환되면 `data.items`, `data.total`에 자동완성이 뜹니다.
+
+### 2. useLocalStorage를 제네릭 훅으로 전환
+
+```ts
+// src/hooks/useLocalStorage.ts
+import { useState, useEffect, type Dispatch, type SetStateAction } from 'react'
+
+type InitialValue<T> = T | (() => T)
+
+function resolveInitialValue<T>(initialValue: InitialValue<T>): T {
+  return initialValue instanceof Function ? initialValue() : initialValue
+}
+
+export function useLocalStorage<T>(
+  key: string,
+  initialValue: InitialValue<T>,
+): [T, Dispatch<SetStateAction<T>>] {
+  const [value, setValue] = useState<T>(() => {
+    const raw = localStorage.getItem(key)
+    if (raw === null) {
+      return resolveInitialValue(initialValue)
+    }
+    try {
+      return JSON.parse(raw) as T
+    } catch {
+      return resolveInitialValue(initialValue)
+    }
+  })
+
+  useEffect(() => {
+    localStorage.setItem(key, JSON.stringify(value))
+  }, [key, value])
+
+  return [value, setValue]
+}
+```
+
+반환 타입 `[T, Dispatch<SetStateAction<T>>]`은 `useState<T>()`가 돌려주는 튜플과 정확히 같은 모양입니다. 이전에 `useState`를 쓰던 자리에 이름만 바꿔 끼울 수 있다는 05편 이전(react_2 06편)의 설계 원칙이 타입에도 그대로 이어집니다. `JSON.parse(raw)`의 결과는 원래 `any`이므로 `as T`로 명시해, 저장된 값이 실제로 `T` 모양이라는 것을 알려줍니다. 이 캐스팅은 런타임 검증이 아니라 타입 단언이라, 저장된 값이 실제로 `T`와 다르면 런타임 오류로 이어질 수 있다는 점은 그대로 남습니다.
+
+### 3. 실행
+
+```text
+npm run dev
+```
+
+### 4. 확인
+
+- `npm run dev` 실행 후 화면이 이전과 동일하게 보입니다(이 편은 동작을 바꾸지 않습니다).
+- VS Code에서 `useBooks({ stauts: 'all' })`처럼 오타를 내보면 빨간 밑줄이 뜹니다. 확인 후 되돌립니다.
+- `src/hooks/useLocalStorage.ts` 위에 마우스를 올리면 함수 시그니처가 `useLocalStorage<T>(key: string, initialValue: T | (() => T)): [T, Dispatch<SetStateAction<T>>]`로 표시됩니다.
+
+</Steps>
+
+## 직접 해보기
+
+`ThemeContext.jsx`(아직 JS, 07편에서 전환 예정)의 `useState('light')`를 미리 `useLocalStorage<string>('bookshelf-theme', 'light')`로 바꿔치기해 보고, VS Code가 반환값의 첫 번째 원소를 `string`으로 정확히 인식하는지 확인해 보세요. 실제 파일 전환은 07편에서 다시 다루므로, 이번에는 타입 추론만 확인하고 원래 코드로 되돌립니다.
+
+<details>
+<summary>확인 방법</summary>
+
+```ts
+const [theme, setTheme] = useLocalStorage<string>('bookshelf-theme', 'light')
+```
+
+`theme` 위에 마우스를 올리면 `string`으로 표시됩니다. 타입 인자를 생략하고 `useLocalStorage('bookshelf-theme', 'light')`로만 써도, 두 번째 인자 `'light'`로부터 `T`가 `string`으로 추론되어 결과는 같습니다. 타입 인자를 직접 쓰는 것은 추론이 애매한 경우(빈 배열 등)를 위한 안전장치입니다.
+
+</details>
+
+## 자주 하는 실수
+
+| 증상 | 원인 | 고치는 법 |
+|---|---|---|
+| `data.items`에 자동완성이 안 뜸 | `useBooks`의 반환 타입을 명시하지 않아 `useQuery`가 `unknown`으로 추론 | `UseQueryResult<BookListResult, Error>`를 반환 타입으로 명시한다 |
+| `useLocalStorage`를 쓸 때마다 타입 인자를 강제로 써야 하는 줄 앎 | 제네릭과 타입 추론의 관계를 오해함 | 인자로부터 추론 가능하면 생략해도 되고, 애매할 때만 명시한다 |
+| `JSON.parse(raw) as T`가 위험하다고 느껴 캐스팅을 지움 | 캐스팅과 런타임 검증을 혼동함 | 캐스팅은 타입 단언일 뿐이며, 값 자체의 정확성은 저장하는 쪽 책임이라는 것을 이해한다 |
+| `getBooks(params)`에 `as Promise<BookListResult>`를 빼먹어 `data`가 `unknown`이 됨 | queryFn의 캐스팅 생략 | `.js` 함수 반환값에는 훅 경계에서 캐스팅을 반드시 붙인다 |
+
+## 확인 문제
+
+<Quiz
+  questionNumber={1}
+  question="useBooks의 반환 타입을 UseQueryResult로 명시하는 이유는?"
+  options={['getBooks가 아직 자바스크립트라 타입 정보가 없어 훅 자체에 계약을 남기기 위해', 'TanStack Query가 타입 명시를 강제하기 때문에', '반환 타입을 명시하지 않으면 훅이 실행되지 않기 때문에', 'ESLint 규칙을 통과시키기 위한 형식적 절차이기 때문에']}
+  correctAnswer={1}
+  explanation="getBooks가 아직 .js라 queryFn의 반환 타입을 추론할 수 없으므로, 훅의 반환 타입을 직접 명시해 계약을 남깁니다."
+  optionExplanations={['정답입니다', 'TanStack Query 자체는 명시를 강제하지 않습니다', '실행 여부와는 무관합니다', 'ESLint와는 별개입니다']}
+/>
+
+<Quiz
+  questionNumber={2}
+  question="useLocalStorage에서 타입 매개변수 T를 쓰지 않고 저장 값을 항상 Book[] 타입으로 고정했다면 생기는 문제는?"
+  options={['성능이 느려진다', '테마 같은 문자열 값을 저장할 때도 재사용할 수 없게 된다', 'localStorage 자체가 배열만 허용하게 된다', 'JSON.stringify가 동작하지 않는다']}
+  correctAnswer={2}
+  explanation="타입을 Book[]로 고정하면 이 훅은 책 목록 저장에만 쓸 수 있어, 문자열이나 다른 배열을 저장하려는 곳에서는 다시 만들어야 합니다."
+  optionExplanations={['성능과는 무관합니다', '정답입니다', 'localStorage 자체는 타입과 무관합니다', 'JSON.stringify는 값의 종류와 무관하게 동작합니다']}
+/>
+
+<Quiz
+  questionNumber={3}
+  question="useBooks 안에서 getBooks(params)의 결과에 as Promise&lt;BookListResult&gt;를 붙이는 이유는?"
+  options={['getBooks가 아직 .js라 반환 타입 정보가 없어, 실제로 알고 있는 모양을 훅 경계에서 명시하기 위해', 'Promise 자체를 만들기 위해 필수적인 문법이라서', '이 캐스팅이 런타임에 값을 실제로 검증해주기 때문에', 'TanStack Query가 캐스팅 없이는 동작을 거부하기 때문에']}
+  correctAnswer={1}
+  explanation="getBooks는 아직 자바스크립트 함수라 반환 타입이 없습니다. 실제 응답 모양을 알고 있으므로 훅 경계에서만 캐스팅으로 명시합니다."
+  optionExplanations={['정답입니다', 'Promise 생성 문법과는 무관합니다', '캐스팅은 타입 단언일 뿐 런타임 검증이 아닙니다', 'TanStack Query는 캐스팅 여부와 무관하게 동작합니다']}
+/>
+
+<Quiz
+  questionNumber={4}
+  question="useLocalStorage&lt;string&gt;('bookshelf-theme', 'light')처럼 타입 인자를 직접 쓰지 않고 useLocalStorage('bookshelf-theme', 'light')로만 호출해도 되는 이유는?"
+  options={['두 번째 인자 light로부터 T가 string으로 자동 추론되기 때문에', 'string이 항상 기본 타입 매개변수로 지정되어 있기 때문에', '타입 인자를 생략하면 자동으로 any가 되어 문제가 없기 때문에', 'localStorage에 저장하는 값은 타입 검사 대상이 아니기 때문에']}
+  correctAnswer={1}
+  explanation="제네릭 타입 추론에 의해 인자로 넘긴 값의 타입으로부터 T가 자동으로 결정되므로, 애매하지 않은 경우 타입 인자를 생략할 수 있습니다."
+  optionExplanations={['정답입니다', '이 훅에는 기본 타입 매개변수가 없습니다', 'any로 조용히 넘어가는 것이 아니라 정확히 추론됩니다', '저장 값도 T로 타입 검사됩니다']}
+/>
+
+## 참고 자료
+
+- [React 공식 문서 - Reusing Logic with Custom Hooks](https://react.dev/learn/reusing-logic-with-custom-hooks)
+- [TanStack Query - TypeScript](https://tanstack.com/query/latest/docs/framework/react/typescript)

@@ -1,0 +1,364 @@
+---
+title: '04. 컴포넌트 Props 타이핑 첫걸음'
+description: 'BookCard, Header, ProtectedRoute를 .tsx로 전환하며 interface props와 children: ReactNode를 실제 코드에 적용합니다'
+---
+
+<Callout type="info">
+  **이번 편의 결과물:** `BookCard.tsx`, `Header.tsx`, `ProtectedRoute.tsx`가 타입 있는 props로 전환되고, 나머지 파일은 아직 `.jsx`/`.js`로 남은 채 앱이 이전과 동일하게 렌더링됩니다. · **다루는 개념:** `interface` props, `children: ReactNode`, `.jsx`→`.tsx` 전환 절차, 컴포넌트 파일 우선순위 정하기
+</Callout>
+
+## 이 편에서 만드는 파일
+
+```
+bookshelf-ts/src/
+├── types/
+│   └── book.ts                          + 신규(Book, BookStatus 타입)
+├── components/
+│   ├── BookCard.jsx → BookCard.tsx       ~ 전환
+│   ├── Header.jsx → Header.tsx           ~ 전환
+│   └── ProtectedRoute.jsx → ProtectedRoute.tsx  ~ 전환
+└── pages/
+    └── BookListPage.jsx                  ~ import 경로만 확장자 수정(나머지 코드는 JS 그대로)
+```
+
+## 개념 정리
+
+### 컴포넌트 파일 우선순위 정하기
+
+`bookshelf-ts`에는 아직 `.tsx`로 바뀌지 않은 파일이 훨씬 많습니다. 어떤 파일을 먼저 바꿀지는 임의로 정하지 않습니다.
+
+| 기준 | 이유 |
+|------|------|
+| 의존성이 적은 파일부터 | 다른 로컬 컴포넌트를 `import`하지 않는 파일은, 아직 전환하지 않은 다른 파일 때문에 막힐 일이 없다 |
+| 필요한 새 타입이 적은 파일부터 | 도메인 타입 하나만 정의하면 되는 파일을 앞에 둔다 |
+| 페이지보다 컴포넌트 먼저 | 페이지는 여러 컴포넌트를 조합만 하므로, 그 부품이 먼저 타입을 갖춰야 페이지 전환(08편)이 수월하다 |
+
+이 기준으로 이번 편은 `BookCard` → `Header` → `ProtectedRoute` 순서로 전환합니다.
+
+| 순서 | 파일 | 전환 이유 |
+|------|------|-----------|
+| 1 | `BookCard.tsx` | 다른 컴포넌트를 `import`하지 않는 리프 컴포넌트. 도메인 타입(`Book`) 하나만 정의하면 끝난다 |
+| 2 | `Header.tsx` | 리프 컴포넌트지만 여러 훅(`useTheme`, `useUiStore`)에 의존한다. 그 훅들이 아직 `.js`라 어떤 타입이 자동으로 추론되는지 확인한다 |
+| 3 | `ProtectedRoute.tsx` | `children` prop을 받는 첫 컴포넌트다. 자식 요소를 그대로 반환하는 패턴을 다룬다 |
+
+### interface로 props 타이핑하기
+
+컴포넌트가 받는 props의 모양을 `interface`로 선언하고, 함수의 구조 분해 매개변수에 타입으로 붙입니다.
+
+```tsx
+interface BookCardProps {
+  book: Book
+}
+
+function BookCard({ book }: BookCardProps) {
+  return <h3>{book.title}</h3>
+}
+```
+
+`book`의 타입이 `Book`으로 고정되면, `book.titel`처럼 필드 이름을 잘못 적거나 `<BookCard />`처럼 `book` 없이 호출하는 실수를 편집기가 그 자리에서 표시합니다. 01편에서 실행해야만 드러난다고 짚었던 문제가 이제 저장하는 순간 드러납니다.
+
+### children: ReactNode
+
+`children`은 컴포넌트 태그 사이에 들어온 내용을 가리키는 특별한 prop입니다. React 19의 타입 선언은 `children`을 자동으로 넣어주지 않으므로, 자식을 받는 컴포넌트는 props 타입에 `children`을 직접 적어야 합니다.
+
+```tsx
+import type { ReactNode } from 'react'
+
+interface ProtectedRouteProps {
+  children: ReactNode
+}
+```
+
+`ReactNode`는 문자열, 숫자, JSX 엘리먼트, `null`, `boolean`, 배열까지 자식 자리에 올 수 있는 모든 값을 포괄하는 타입입니다. `<ProtectedRoute>` 태그 사이에 어떤 값이 와도 받아들일 수 있어야 하므로, 더 좁은 `ReactElement` 대신 `ReactNode`를 씁니다.
+
+### .jsx에서 .tsx로 전환하는 절차
+
+| 단계 | 내용 |
+|------|------|
+| 1 | 파일 확장자를 `.tsx`로 바꾼다(JSX 문법이 있으므로 `.ts`가 아니다) |
+| 2 | 구조 분해한 props 매개변수에 `interface`로 만든 타입을 붙인다 |
+| 3 | 이 파일을 `import`하는 다른 파일 중, 확장자를 명시한 곳이 있는지 찾아 `.tsx`로 맞춘다 |
+| 4 | `npx tsc -b`로 타입 오류가 없는지 확인한다 |
+| 5 | `npm run dev`로 화면이 이전과 같은지 확인한다 |
+
+3단계가 특히 자주 빠뜨리는 부분입니다. `bookshelf`는 일부 파일에서 `import BookCard from '../components/BookCard.jsx'`처럼 확장자를 명시적으로 적어 왔습니다. 파일 이름이 `BookCard.tsx`로 바뀌면 이 경로는 더 이상 존재하지 않아 빌드가 깨집니다.
+
+## 실습
+
+<Steps>
+
+### 1. 도메인 타입 파일 만들기
+
+`db.json`의 책 데이터 모양을 그대로 타입으로 옮깁니다. 이 파일은 15편에서 `packages/shared-types`로 옮길 때까지 임시로 `src/types/`에 둡니다.
+
+```ts
+// bookshelf-ts/src/types/book.ts
+export type BookStatus = 'wish' | 'reading' | 'done'
+
+export interface Book {
+  id: number
+  title: string
+  author: string
+  status: BookStatus
+  rating: number
+  pages: number
+  coverColor: string
+  coverImage?: string
+  startedAt: string
+  finishedAt: string | null
+  memo: string
+}
+```
+
+`status`를 `string` 대신 `BookStatus`(리터럴 유니온)로 좁혀두면, 다음 단계에서 상태별 문구를 찾는 객체를 만들 때 존재하지 않는 상태 값을 실수로 적어도 바로 오류로 잡힙니다.
+
+### 2. BookCard.jsx를 BookCard.tsx로 전환
+
+```text
+git mv src/components/BookCard.jsx src/components/BookCard.tsx
+```
+
+```tsx
+// bookshelf-ts/src/components/BookCard.tsx
+import { useTranslation } from 'react-i18next'
+import type { Book, BookStatus } from '../types/book'
+
+interface BookCardProps {
+  book: Book
+}
+
+const STATUS_KEY: Record<BookStatus, string> = {
+  wish: 'statusWish',
+  reading: 'statusReading',
+  done: 'statusDone',
+}
+
+function formatDate(dateString: string | null, locale: string): string {
+  if (!dateString) return '-'
+  return new Intl.DateTimeFormat(locale, { dateStyle: 'medium' }).format(new Date(dateString))
+}
+
+function BookCover({ book }: BookCardProps) {
+  if (book.coverImage) {
+    return <img className="book-cover" src={book.coverImage} alt={`${book.title} 표지`} />
+  }
+  return <div className="book-cover-placeholder" style={{ backgroundColor: book.coverColor }} />
+}
+
+function BookCard({ book }: BookCardProps) {
+  const { t, i18n } = useTranslation()
+
+  return (
+    <li className="book-card">
+      <BookCover book={book} />
+      <h3>{book.title}</h3>
+      <p>{book.author}</p>
+      <p>{t(`bookCard.${STATUS_KEY[book.status]}`)}</p>
+      <p>{t('bookCard.pages', { count: book.pages })}</p>
+      <p>{t('bookCard.startedAt', { date: formatDate(book.startedAt, i18n.language) })}</p>
+    </li>
+  )
+}
+
+export default BookCard
+```
+
+`STATUS_KEY`의 타입을 `Record<BookStatus, string>`으로 선언해 두면, `wish`·`reading`·`done` 세 키를 하나라도 빠뜨리거나 `BookStatus`에 없는 키를 넣는 순간 이 객체 선언 자체에서 오류가 납니다. `book.status`로 이 객체를 조회할 때도 결과가 항상 `string`임이 보장됩니다.
+
+### 3. Header.jsx를 Header.tsx로 전환
+
+```text
+git mv src/components/Header.jsx src/components/Header.tsx
+```
+
+```tsx
+// bookshelf-ts/src/components/Header.tsx
+import type { ChangeEvent } from 'react'
+import { Link } from 'react-router'
+import { useTranslation } from 'react-i18next'
+import { useTheme } from '../context/ThemeContext'
+import { useUiStore } from '../store/useUiStore'
+import styles from './Header.module.css'
+
+const FILTERS = ['all', 'wish', 'reading', 'done'] as const
+
+function Header() {
+  const { t, i18n } = useTranslation()
+  const { theme, toggleTheme } = useTheme()
+  const statusFilter = useUiStore((state) => state.statusFilter)
+  const setStatusFilter = useUiStore((state) => state.setStatusFilter)
+  const isSidebarOpen = useUiStore((state) => state.isSidebarOpen)
+  const toggleSidebar = useUiStore((state) => state.toggleSidebar)
+
+  function handleLanguageChange(event: ChangeEvent<HTMLSelectElement>) {
+    i18n.changeLanguage(event.target.value)
+  }
+
+  return (
+    <header className={styles.header}>
+      <nav className={styles.nav}>
+        <Link to="/">{t('header.title')}</Link>
+        <Link to="/books/new">{t('header.newBook')}</Link>
+      </nav>
+      <button type="button" onClick={toggleSidebar} aria-expanded={isSidebarOpen}>
+        {t('header.filterToggle')}
+      </button>
+      {isSidebarOpen && (
+        <div className={styles.filterBar}>
+          {FILTERS.map((filter) => (
+            <button
+              key={filter}
+              type="button"
+              className={statusFilter === filter ? styles.active : ''}
+              onClick={() => setStatusFilter(filter)}
+            >
+              {t(`header.filter.${filter}`)}
+            </button>
+          ))}
+        </div>
+      )}
+      <label>
+        {t('language.label')}
+        <select value={i18n.language} onChange={handleLanguageChange}>
+          <option value="ko">{t('language.ko')}</option>
+          <option value="en">{t('language.en')}</option>
+        </select>
+      </label>
+      <button type="button" onClick={toggleTheme} className={styles.themeButton}>
+        {theme === 'dark' ? t('header.lightMode') : t('header.darkMode')}
+      </button>
+    </header>
+  );
+}
+
+export default Header
+```
+
+`Header`는 props를 하나도 받지 않으므로 `interface`가 필요 없습니다. 대신 `handleLanguageChange`의 `event` 매개변수처럼, 이 파일 안에서 새로 선언하는 함수는 타입을 직접 붙여야 합니다(`strict` 옵션이 켜져 있어 매개변수 타입을 생략하면 오류가 납니다). `useTheme`, `useUiStore`는 아직 `.js` 파일이지만, `allowJs`가 켜져 있으면 `checkJs`가 꺼져 있어도 TypeScript가 그 함수들의 반환값 모양을 최대한 추론해 이 파일에서 자동완성을 제공합니다. 다만 `theme`처럼 `useState('light')`에서 시작한 값은 `'light' | 'dark'`가 아니라 넓은 `string`으로 추론됩니다. 이 값을 정확한 유니온 타입으로 좁히는 작업은 07편에서 `ThemeContext` 자체를 전환할 때 다룹니다. `Header.module.css`를 import하는 부분은 Vite가 기본 제공하는 타입 선언(`vite/client`) 덕분에 별도 설정 없이 바로 동작합니다.
+
+### 4. ProtectedRoute.jsx를 ProtectedRoute.tsx로 전환
+
+```text
+git mv src/components/ProtectedRoute.jsx src/components/ProtectedRoute.tsx
+```
+
+```tsx
+// bookshelf-ts/src/components/ProtectedRoute.tsx
+import type { ReactNode } from 'react'
+import { Navigate, useLocation } from 'react-router'
+import { useAuth } from '../context/AuthContext'
+
+interface ProtectedRouteProps {
+  children: ReactNode
+}
+
+function ProtectedRoute({ children }: ProtectedRouteProps) {
+  const { token } = useAuth()
+  const location = useLocation()
+
+  if (!token) {
+    return <Navigate to="/login" replace state={{ from: location.pathname }} />
+  }
+
+  return children
+}
+
+export default ProtectedRoute
+```
+
+`children`을 `ReactNode`로 선언했으므로, `router.jsx`에서 `<ProtectedRoute>{element}</ProtectedRoute>` 형태로 감싸는 어떤 JSX 요소를 넣어도 타입 오류 없이 통과합니다. 반대로 `ProtectedRoute` 태그를 닫는 위치에 자식을 아예 안 넣으면(`<ProtectedRoute />`), `children`이 필수 프로퍼티이므로 그 자리에서 오류가 납니다.
+
+### 5. 남은 import 경로 정리
+
+`pages/BookListPage.jsx`는 아직 전환하지 않지만, 방금 확장자를 바꾼 두 파일을 명시적 경로로 가져오고 있어 두 줄만 고칩니다.
+
+```jsx
+// bookshelf-ts/src/pages/BookListPage.jsx (import 부분만 발췌 — 나머지 코드는 그대로)
+import Header from '../components/Header.tsx'
+import BookCard from '../components/BookCard.tsx'
+// ...기존 import·컴포넌트 본문 유지
+```
+
+`router.jsx`가 `ProtectedRoute`를 가져오는 줄은 원래 확장자를 생략하고 있었으므로(`import ProtectedRoute from './components/ProtectedRoute'`) 고칠 필요가 없습니다.
+
+### 6. 실행
+
+```text
+npx json-server db.json --port 3001
+npm run dev
+```
+
+</Steps>
+
+## 확인
+
+- 브라우저 화면은 03편 이전과 완전히 동일하게 보인다(책 카드, 헤더, 로그인 가드 동작 모두 그대로)
+- `npx tsc -b`를 실행하면 오류 없이 끝난다
+- `src/components/BookCard.tsx`에서 일부러 `book.titel`처럼 오타를 내면 편집기가 즉시 빨간 줄로 표시한다(확인 후 되돌린다)
+- `src/components/ProtectedRoute.tsx`에서 `return children` 줄을 지우면 `children`을 쓰지 않았다는 경고 대신, 함수가 값을 반환하지 않아도 되는지 편집기가 어떻게 반응하는지 관찰한다(확인 후 되돌린다)
+
+## 직접 해보기
+
+<details>
+<summary>BookCard.tsx의 STATUS_KEY 객체에서 done: 'statusDone' 줄을 지워보고 어떤 오류 메시지가 나오는지 확인해 보세요.</summary>
+
+`Record<BookStatus, string>`은 `BookStatus`의 세 값(`wish`, `reading`, `done`) 모두에 대응하는 키가 있어야 한다고 요구합니다. 하나라도 빠지면 "`done` 프로퍼티가 없다"는 오류가 객체 선언 위치에 바로 나타나, 실행하기 전에 빠진 상태를 알 수 있습니다.
+</details>
+
+<details>
+<summary>Header.tsx의 handleLanguageChange에서 매개변수 타입 표기(: ChangeEvent&lt;HTMLSelectElement&gt;)를 지워보세요.</summary>
+
+`strict` 옵션이 기본으로 켜져 있어 매개변수의 타입을 추론할 근거가 없으면 암묵적 `any`를 금지하는 오류가 납니다. 이벤트 타입을 자세히 다루는 것은 05편이지만, `.tsx` 파일에서 새로 작성하는 함수는 지금부터도 매개변수 타입을 생략할 수 없다는 것을 미리 확인해 둡니다.
+</details>
+
+## 자주 하는 실수
+
+| 증상 | 원인 | 고치는 법 |
+|------|------|-----------|
+| JSX가 있는 파일인데 `.ts`로 이름을 바꿔 오류가 남 | 확장자를 `.tsx`가 아니라 `.ts`로 바꿈 | JSX 문법이 있는 파일은 반드시 `.tsx` |
+| `Cannot find module '../components/BookCard.jsx'` | 파일 이름을 바꿨는데 그 파일을 가져오던 곳의 확장자를 안 고침 | `import`하는 모든 파일에서 옛 확장자를 찾아 `.tsx`로 수정 |
+| `children` 없이 `ProtectedRoute`를 썼는데 아무 표시가 없다가 나중에 오류남 | `children`을 선택적(`children?: ReactNode`)으로 잘못 선언 | 반드시 자식이 필요한 컴포넌트라면 `children: ReactNode`(물음표 없이)로 선언 |
+| `Header.module.css`를 import했는데 타입 오류가 난다고 착각 | `vite/client` 타입이 이미 `*.module.css`를 선언해 두어 실제로는 문제없음 | 실제 오류 메시지를 다시 확인. 대부분 다른 원인 |
+
+## 확인 문제
+
+<Quiz
+  questionNumber={1}
+  question="BookCard 컴포넌트에서 book 매개변수에 interface로 만든 Book 타입을 붙였을 때 얻는 이점은 무엇입니까"
+  options={['렌더링 속도가 빨라진다', 'book.titel처럼 필드 이름을 잘못 적거나 book 없이 호출하는 실수를 저장하는 순간 편집기가 알려준다', 'CSS 스타일이 자동으로 적용된다', '컴포넌트가 자동으로 메모이제이션된다']}
+  correctAnswer={2}
+  explanation="타입이 있으면 존재하지 않는 필드 접근이나 필수 prop 누락을 실행 전에 편집기가 즉시 표시해줍니다."
+  optionExplanations={['렌더링 속도와는 무관합니다', '정답입니다', 'CSS와는 무관합니다', '메모이제이션과는 별개 기능입니다']}
+/>
+
+<Quiz
+  questionNumber={2}
+  question="ProtectedRoute의 children을 ReactElement가 아니라 ReactNode로 선언한 이유는 무엇입니까"
+  options={['ReactNode가 더 짧은 이름이라서', '문자열·숫자·null 등 자식 자리에 올 수 있는 모든 값을 포괄해야 하기 때문', 'ReactElement는 더 이상 지원되지 않아서', 'ReactNode만 react-router와 호환되어서']}
+  correctAnswer={2}
+  explanation="ReactNode는 JSX 엘리먼트뿐 아니라 문자열, 숫자, null 등 자식으로 올 수 있는 모든 값을 포괄하는 넓은 타입이라 범용적인 children에 적합합니다."
+  optionExplanations={['이름 길이는 이유가 아닙니다', '정답입니다', 'ReactElement는 여전히 유효한 타입입니다', 'react-router와는 무관합니다']}
+/>
+
+<Quiz
+  questionNumber={3}
+  question="BookCard.jsx를 BookCard.tsx로 이름을 바꾼 뒤 반드시 확인해야 하는 것은 무엇입니까"
+  options={['파일 크기가 줄었는지', '이 파일을 확장자까지 명시해 가져오던 다른 파일의 import 경로', 'CSS 클래스 이름이 겹치는지', 'Git 커밋 메시지 길이']}
+  correctAnswer={2}
+  explanation="확장자를 명시해 import하던 파일이 있다면 파일명이 바뀐 뒤 그 경로가 더 이상 존재하지 않아 빌드가 깨집니다."
+  optionExplanations={['파일 크기와는 무관합니다', '정답입니다', 'CSS 충돌과는 다른 문제입니다', '커밋 메시지와는 무관합니다']}
+/>
+
+<Quiz
+  questionNumber={4}
+  question="Header.tsx가 아직 JS인 useTheme, useUiStore를 import해도 어느 정도 타입 지원을 받을 수 있는 이유는 무엇입니까"
+  options={['checkJs가 켜져 있기 때문에', 'allowJs가 켜져 있으면 checkJs 여부와 무관하게 TypeScript가 js 파일의 타입을 최대한 추론해 제공하기 때문', 'react-i18next가 대신 타입을 만들어주기 때문', 'Header.tsx 안에서 useTheme의 타입을 직접 재정의했기 때문']}
+  correctAnswer={2}
+  explanation="allowJs가 켜지면 checkJs로 오류를 표시하지 않아도, TypeScript는 js 파일을 분석해 가능한 만큼 타입을 추론해 가져오는 쪽에 제공합니다."
+  optionExplanations={['checkJs는 js 파일 내부 오류 표시 여부와 관련됩니다', '정답입니다', 'react-i18next와는 무관합니다', 'Header.tsx 안에서 재정의하지 않았습니다']}
+/>
+
+## 참고 자료
+
+- [React — Using TypeScript(공식 문서)](https://react.dev/learn/typescript)
+- [TypeScript — tsconfig allowJs](https://www.typescriptlang.org/tsconfig/#allowJs)

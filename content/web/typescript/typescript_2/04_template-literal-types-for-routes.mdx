@@ -1,0 +1,207 @@
+---
+title: '04. 템플릿 리터럴 타입으로 API 경로 만들기'
+description: 'API 라우트와 쿼리 문자열을 템플릿 리터럴 타입으로 정의하고, 함수로 실제 경로 문자열을 만듭니다.'
+---
+
+<Callout type="info">
+  **이번 편의 결과물:** `lib/api/routes.ts`에 `/api/transactions/${string}` 형태의 라우트 타입과 필터 쿼리 문자열 타입을 정의하고, 실제 경로 문자열을 만드는 함수를 작성합니다. · **다루는 개념:** 템플릿 리터럴 타입 문법, 유니온과 결합해 문자열 집합 만들기, 내장 문자열 조작 타입(`Uppercase` 등)
+</Callout>
+
+## 이 편에서 만드는 파일
+
+```
+expense-tracker/src/lib/
+└── api/
+    └── routes.ts   + (TransactionRoute, TransactionListRoute, HttpMethodLabel)
+```
+
+## 개념 정리
+
+### 템플릿 리터럴 타입 문법
+
+문자열 리터럴 타입 안에 다른 타입을 `${}`로 끼워 넣으면, 그 자리에 올 수 있는 모든 조합이 하나의 문자열 타입으로 계산됩니다.
+
+```ts
+type Greeting = `안녕, ${string}`
+
+const a: Greeting = '안녕, 세계' // 허용
+```
+
+### 유니온과 결합해 문자열 집합 만들기
+
+`${}` 안에 유니온을 넣으면 각 멤버로 만들 수 있는 모든 문자열 조합이 다시 유니온으로 펼쳐집니다.
+
+```ts
+type Method = 'get' | 'post'
+type Action = `${Method}Transaction` // 'getTransaction' | 'postTransaction'
+```
+
+라우트 경로도 같은 방식으로 만듭니다. 거래 하나를 가리키는 경로는 고정된 접두사 뒤에 아무 문자열 id나 올 수 있는 형태입니다.
+
+```ts
+type TransactionRoute = '/api/transactions' | `/api/transactions/${string}`
+```
+
+### 내장 문자열 조작 타입
+
+TypeScript는 문자열 리터럴 타입의 대소문자를 바꿔주는 내장 타입 네 가지를 제공합니다.
+
+| 타입 | 하는 일 |
+|------|---------|
+| `Uppercase<T>` | 전체를 대문자로 |
+| `Lowercase<T>` | 전체를 소문자로 |
+| `Capitalize<T>` | 첫 글자만 대문자로 |
+| `Uncapitalize<T>` | 첫 글자만 소문자로 |
+
+```ts
+type HttpMethod = 'get' | 'post'
+type HttpMethodLabel = Uppercase<HttpMethod> // 'GET' | 'POST'
+```
+
+## 실습
+
+<Steps>
+
+### 1. api 폴더에 routes.ts 만들기
+
+`expense-tracker/src/lib/api/` 폴더를 만들고 `routes.ts` 파일을 추가합니다.
+
+### 2. 단일 리소스 라우트 타입과 생성 함수
+
+```ts
+// expense-tracker/src/lib/api/routes.ts
+export type TransactionRoute = '/api/transactions' | `/api/transactions/${string}`
+
+export function transactionRoute(id?: string): TransactionRoute {
+  return id === undefined ? '/api/transactions' : `/api/transactions/${id}`
+}
+```
+
+### 3. 필터 쿼리 문자열 타입 정의
+
+06·07편에서 만든 `TransactionFilter`(`{ category: string } | { month: string }`)는 12편의 화면 필터가 종류(수입/지출) 기준으로 바뀌면서 화면에서는 더 이상 쓰이지 않았습니다. 이 편부터는 같은 모양을 API 쪽 쿼리 조건으로 재사용합니다.
+
+```ts
+// expense-tracker/src/lib/api/routes.ts (이어서 추가)
+import type { TransactionFilter } from '../parsing.ts'
+
+export type TransactionListQuery = `category=${string}` | `month=${string}`
+export type TransactionListRoute = '/api/transactions' | `/api/transactions?${TransactionListQuery}`
+
+export function transactionListRoute(filter: TransactionFilter | null): TransactionListRoute {
+  if (filter === null) {
+    return '/api/transactions'
+  }
+  if ('category' in filter) {
+    return `/api/transactions?category=${filter.category}`
+  }
+  return `/api/transactions?month=${filter.month}`
+}
+```
+
+### 4. HTTP 메서드 라벨 타입
+
+```ts
+// expense-tracker/src/lib/api/routes.ts (이어서 추가)
+export type HttpMethod = 'get' | 'post' | 'patch' | 'delete'
+export type HttpMethodLabel = Uppercase<HttpMethod>
+```
+
+`HttpMethodLabel`은 09편에서 요청 함수의 로그 문구를 만들 때 다시 씁니다.
+
+### 5. 타입이 실제로 문자열 형태를 제한하는지 확인
+
+```ts
+// 임시로 아래 줄을 추가해봅니다(확인 후 지웁니다)
+const wrong: TransactionRoute = '/transactions'
+```
+
+```text
+npx tsc --noEmit
+
+src/lib/api/routes.ts:20:7 - error TS2322: Type '"/transactions"' is not assignable to type 'TransactionRoute'.
+```
+
+`/api/` 접두사가 빠진 문자열은 `TransactionRoute`가 허용하는 두 형태 중 어느 쪽에도 맞지 않아 그 자리에서 오류가 납니다. 확인이 끝나면 임시로 추가한 줄을 지웁니다.
+
+### 6. 실행
+
+```text
+npx tsc --noEmit
+```
+
+</Steps>
+
+## 확인
+
+- `npx tsc --noEmit`이 임시 오류 코드를 지운 뒤 오류 없이 통과한다.
+- 편집기에서 `transactionRoute('abc123')`의 반환 타입에 마우스를 올리면 `TransactionRoute`로 표시된다.
+- `HttpMethodLabel` 타입을 열어보면 `'GET' | 'POST' | 'PATCH' | 'DELETE'` 네 가지로 펼쳐져 있다.
+
+## 직접 해보기
+
+1. `TransactionListQuery`에 정렬 조건(`sort=${'date' | 'amount'}`)을 유니온 멤버로 추가하고, `TransactionListRoute`가 허용하는 문자열 집합이 어떻게 늘어나는지 편집기에서 확인해보세요.
+2. `transactionListRoute({ category: 'food' })`, `transactionListRoute(null)`을 각각 호출해 반환값을 확인해보세요.
+
+<details>
+<summary>정답 보기</summary>
+
+```ts
+export type TransactionListQuery = `category=${string}` | `month=${string}` | `sort=${'date' | 'amount'}`
+```
+
+이 유니온에 멤버를 추가하면 `TransactionListRoute`도 함께 넓어져, `/api/transactions?sort=date`, `/api/transactions?sort=amount` 같은 문자열도 허용됩니다.
+
+`transactionListRoute({ category: 'food' })`는 `'/api/transactions?category=food'`를, `transactionListRoute(null)`은 `'/api/transactions'`를 반환합니다.
+
+</details>
+
+## 자주 하는 실수
+
+| 증상 | 원인 | 고치는 법 |
+|------|------|-----------|
+| 라우트 문자열에 접두사를 빠뜨려 타입 오류 | 하드코딩한 문자열이 템플릿 리터럴 타입 형태와 다름 | 반드시 `transactionRoute`, `transactionListRoute` 함수를 거쳐 문자열을 만든다 |
+| Capitalize 등을 값에 직접 적용하려 함 | 문자열 조작 타입은 타입에만 적용되고 런타임 값에는 적용되지 않음 | 런타임에 대소문자를 바꾸려면 `toUpperCase()` 같은 문자열 메서드를 쓴다 |
+| TransactionFilter를 화면 필터 UI와 혼동 | 12편 이후 화면 필터는 종류 기준으로 바뀐 사실을 놓침 | TransactionFilter는 이제 API 쿼리 조건 전용이라는 점을 기억한다 |
+
+## 확인 문제
+
+<Quiz
+  questionNumber={1}
+  question="템플릿 리터럴 타입에서 유니온을 끼워 넣었을 때 일어나는 일은"
+  options={['첫 번째 유니온 멤버만 사용된다', '가능한 모든 조합이 계산되어 다시 유니온으로 펼쳐진다', '컴파일 오류가 발생한다', '유니온이 배열 타입으로 바뀐다']}
+  correctAnswer={2}
+  explanation="템플릿 리터럴 타입 안의 유니온은 가능한 모든 문자열 조합으로 펼쳐져 새로운 유니온 타입이 됩니다."
+  optionExplanations={['첫 멤버만 쓰이지 않습니다', '정답입니다', '정상적으로 컴파일됩니다', '배열이 아니라 문자열 유니온입니다']}
+/>
+
+<Quiz
+  questionNumber={2}
+  question="Uppercase&lt;HttpMethod&gt;가 하는 일은"
+  options={['런타임에 문자열을 대문자로 바꾼다', '문자열 리터럴 유니온의 각 멤버를 컴파일 타임에 대문자 형태로 바꾼 새 타입을 만든다', 'HTTP 요청을 실제로 보낸다', 'HttpMethod 값의 개수를 센다']}
+  correctAnswer={2}
+  explanation="Uppercase는 타입 수준에서 문자열 리터럴을 대문자로 바꾸는 내장 유틸리티 타입입니다."
+  optionExplanations={['런타임 변환이 아니라 타입 계산입니다', '정답입니다', '요청 전송과는 무관합니다', '개수를 세지 않습니다']}
+/>
+
+<Quiz
+  questionNumber={3}
+  question="이 편에서 06·07편의 TransactionFilter 타입을 다시 가져다 쓴 이유는"
+  options={['화면 필터 UI가 여전히 이 타입을 그대로 쓰고 있어서', '화면에서는 더 이상 쓰이지 않지만 category·month로 거르는 모양이 API 쿼리 조건과 그대로 맞아서', 'TransactionFilter가 아니면 컴파일이 안 되기 때문에', '이름이 같아야만 하는 규칙이 있어서']}
+  correctAnswer={2}
+  explanation="12편 이후 화면 필터는 종류 기준으로 바뀌었지만, category·month로 거르는 TransactionFilter의 모양은 API 쿼리 조건에 그대로 재사용할 수 있습니다."
+  optionExplanations={['화면에서는 더 이상 쓰이지 않습니다', '정답입니다', '다른 타입으로도 구현할 수 있습니다', '그런 이름 규칙은 없습니다']}
+/>
+
+<Quiz
+  questionNumber={4}
+  question="const wrong: TransactionRoute = /transactions처럼 접두사를 빠뜨린 문자열을 대입했을 때 생기는 일은"
+  options={['런타임에만 오류가 난다', 'TransactionRoute가 허용하는 두 형태 중 어느 것과도 맞지 않아 컴파일 타임에 오류가 난다', '자동으로 올바른 접두사가 붙는다', '경고만 뜨고 컴파일은 통과한다']}
+  correctAnswer={2}
+  explanation="TransactionRoute는 정해진 접두사를 가진 두 형태만 허용하므로, 접두사가 다른 문자열은 대입 시점에 바로 타입 오류가 됩니다."
+  optionExplanations={['컴파일 타임에 즉시 잡힙니다', '정답입니다', '자동 보정 기능은 없습니다', '오류로 처리되어 컴파일이 실패합니다']}
+/>
+
+## 참고 자료
+
+- [TypeScript Handbook — Template Literal Types](https://www.typescriptlang.org/docs/handbook/2/template-literal-types.html)

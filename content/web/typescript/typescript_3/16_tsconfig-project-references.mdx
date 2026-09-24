@@ -1,0 +1,257 @@
+---
+title: '16. tsconfig project references 구성'
+description: 'composite와 references로 shared-types와 web의 빌드 순서를 관리하고 tsc -b로 한 번에 검사합니다'
+---
+
+<Callout type="info">
+  **이번 편의 결과물:** 루트에서 `tsc -b` 한 번으로 `shared-types` → `web` 순서로 빌드되고, 의도적으로 순환 참조를 만들어 오류를 확인합니다. · **다루는 개념:** `composite: true`, `tsconfig.json`의 `references` 배열, `tsc -b` 증분 빌드, 순환 참조 오류
+</Callout>
+
+15편에서 `apps/web`이 `@bookshelf/shared-types`를 `workspace:` 프로토콜로 참조하게 됐습니다. `pnpm install`이 만든 심볼릭 링크 덕분에 실행은 잘 되지만, 지금 두 패키지의 `tsconfig.json`은 서로를 전혀 모릅니다. 그래서 편집기가 `shared-types`의 타입을 매번 소스부터 다시 읽고, 두 패키지를 한 번에 타입 검사하려면 각각 따로 명령을 실행해야 합니다. 이 편에서 `composite`와 `references`로 두 패키지의 빌드 의존 관계를 명시하고, `tsc -b`로 순서를 자동 관리합니다.
+
+## 이 편에서 만드는 파일
+
+```
+bookshelf-ts/
+├── tsconfig.json                       (+, 모노레포 루트 솔루션 파일)
+├── package.json                        (~, typescript devDependency 추가, typecheck 스크립트를 tsc -b로 교체)
+├── packages/shared-types/
+│   └── tsconfig.json                   (~, composite: true 추가)
+└── apps/web/
+    └── tsconfig.app.json               (~, shared-types에 대한 references 추가)
+```
+
+## 개념 정리
+
+### composite: 다른 프로젝트가 참조할 수 있게 만드는 표시
+
+`composite: true`를 켠 프로젝트는 "내 타입 정보를 다른 프로젝트가 가져다 쓸 수 있다"고 선언하는 것입니다. 이 옵션은 `declaration`(`.d.ts` 생성)이 켜져 있을 것을 요구하고, 소스 파일이 전부 `include`나 `files`에 잡혀 있을 것을 요구합니다. 반대로, 남을 참조하기만 하고 자신은 아무도 참조하지 않는 프로젝트(`apps/web`)는 `composite`가 필요 없습니다.
+
+### references 배열
+
+한 `tsconfig.json`이 다른 프로젝트의 산출물에 의존한다는 것을 `references`로 표시합니다.
+
+```json
+{
+  "references": [{ "path": "../../packages/shared-types" }]
+}
+```
+
+`path`는 다른 프로젝트의 `tsconfig.json`이 있는 폴더(또는 파일 자체)를 가리킵니다. 이 배열이 있으면 `tsc`가 "이 프로젝트를 검사하기 전에 저 프로젝트부터 최신 상태로 만들어야 한다"는 것을 압니다.
+
+### tsc -b: 순서를 아는 빌드
+
+일반 `tsc`는 지정된 프로젝트 하나만 검사합니다. `tsc -b`(빌드 모드)는 `references`를 따라가며 의존하는 프로젝트부터 먼저 빌드하고, 이미 최신 상태인 프로젝트는 건너뜁니다.
+
+```bash
+tsc -b                # 현재 폴더의 tsconfig.json 기준
+tsc -b --verbose      # 어떤 프로젝트를 빌드·스킵했는지 출력
+tsc -b --force        # 전부 오래된 것으로 간주하고 다시 빌드
+```
+
+### 순환 참조는 빌드 자체를 막는다
+
+A가 B를 참조하고 B가 다시 A를 참조하면, "어느 쪽을 먼저 빌드해야 하는지" 결정할 수 없습니다. `tsc -b`는 이런 순환을 감지하면 아무것도 빌드하지 않고 즉시 오류를 냅니다.
+
+## 실습
+
+<Steps>
+
+### 1. shared-types를 참조 가능하게 표시
+
+```json
+// bookshelf-ts/packages/shared-types/tsconfig.json
+{
+  "compilerOptions": {
+    "target": "ES2023",
+    "module": "ESNext",
+    "moduleResolution": "bundler",
+    "strict": true,
+    "skipLibCheck": true,
+    "composite": true,
+    "declaration": true,
+    "outDir": "./dist"
+  },
+  "include": ["src"]
+}
+```
+
+`composite: true`를 추가했습니다. 이미 `declaration: true`와 `include`가 있었으므로 요구 조건은 그대로 충족됩니다.
+
+### 2. apps/web에서 shared-types를 참조로 명시
+
+```json
+// bookshelf-ts/apps/web/tsconfig.app.json
+{
+  "compilerOptions": {
+    "tsBuildInfoFile": "./node_modules/.tmp/tsconfig.app.tsbuildinfo",
+    "target": "es2023",
+    "lib": ["ES2023", "DOM"],
+    "module": "esnext",
+    "types": ["vite/client"],
+    "allowArbitraryExtensions": true,
+    "skipLibCheck": true,
+    "moduleResolution": "bundler",
+    "allowImportingTsExtensions": true,
+    "verbatimModuleSyntax": true,
+    "moduleDetection": "force",
+    "noEmit": true,
+    "jsx": "react-jsx",
+    "noUnusedLocals": true,
+    "noUnusedParameters": true,
+    "erasableSyntaxOnly": true,
+    "noFallthroughCasesInSwitch": true
+  },
+  "include": ["src"],
+  "references": [{ "path": "../../packages/shared-types" }]
+}
+```
+
+`apps/web`은 `shared-types`의 산출물을 가져다 쓰는 쪽이라 `composite`가 필요 없습니다. `noEmit: true`는 그대로 둡니다. 실제 번들링은 여전히 `vite`가 담당하고, `tsc -b`는 타입 검사와 빌드 순서 관리만 맡습니다.
+
+### 3. 모노레포 루트 솔루션 파일 작성
+
+```json
+// bookshelf-ts/tsconfig.json
+{
+  "files": [],
+  "references": [
+    { "path": "packages/shared-types" },
+    { "path": "apps/web" }
+  ]
+}
+```
+
+```json
+// bookshelf-ts/package.json (일부)
+{
+  "devDependencies": {
+    "typescript": "7.0.2"
+  },
+  "scripts": {
+    "dev": "pnpm --filter @bookshelf/web dev",
+    "build": "pnpm -r build",
+    "test": "pnpm -r test",
+    "lint": "pnpm -r lint",
+    "typecheck": "tsc -b"
+  }
+}
+```
+
+루트 `typecheck` 스크립트가 각 패키지의 `tsc -b`를 따로 실행하던 `pnpm -r typecheck` 대신, 루트 `tsconfig.json`을 기준으로 전체를 한 번에 빌드하는 `tsc -b`로 바뀌었습니다.
+
+### 4. 설치와 실행
+
+```bash
+pnpm install
+pnpm typecheck
+```
+
+### 5. 순환 참조 오류 직접 만들어보기
+
+`shared-types`가 `apps/web`을 참조하도록 잘못 추가해봅니다.
+
+```json
+// bookshelf-ts/packages/shared-types/tsconfig.json (임시로 추가)
+{
+  "compilerOptions": {
+    "composite": true,
+    "declaration": true,
+    "outDir": "./dist"
+  },
+  "include": ["src"],
+  "references": [{ "path": "../../apps/web/tsconfig.app.json" }]
+}
+```
+
+이제 `shared-types`는 `apps/web`을, `apps/web`은 다시 `shared-types`를 참조합니다.
+
+```bash
+pnpm typecheck
+```
+
+```text
+Project references may not form a circular graph. Cycle detected: packages/shared-types/tsconfig.json, apps/web/tsconfig.app.json
+```
+
+원인을 확인했으면 방금 추가한 `references` 항목을 지워 원래 상태로 되돌립니다. `shared-types`는 도메인 타입만 담는 패키지라 애초에 `apps/web`을 알 이유가 없습니다.
+
+</Steps>
+
+## 확인
+
+- 순환 참조를 만들기 전, `pnpm typecheck`를 실행하면 `packages/shared-types/dist/`에 `book.js`·`book.d.ts`가 생기고 오류 없이 끝납니다.
+- 같은 명령을 한 번 더 실행하면 아무것도 다시 빌드하지 않고 즉시 끝납니다(이미 최신 상태이기 때문).
+- `packages/shared-types/src/book.ts`를 한 글자 고치고 다시 실행하면 그 프로젝트만 다시 빌드됩니다.
+- 순환 참조를 임시로 추가한 상태에서 실행하면 빌드가 진행되지 않고 순환을 알리는 오류만 출력됩니다.
+- 오류 원인이 된 `references` 항목을 지우면 다시 정상적으로 빌드됩니다.
+
+## 직접 해보기
+
+1. `pnpm typecheck -- --verbose`(또는 루트에서 `tsc -b --verbose`)를 실행해, 어떤 프로젝트를 빌드했고 어떤 프로젝트를 건너뛰었는지 로그로 확인해보세요.
+2. `packages/shared-types/dist` 폴더를 삭제한 뒤 다시 `pnpm typecheck`를 실행해, 산출물이 없을 때는 최신 여부와 상관없이 다시 빌드되는지 확인해보세요.
+
+<details>
+<summary>정답 보기</summary>
+
+`--verbose` 실행 결과에는 대략 다음과 같은 줄이 섞여 나옵니다.
+
+```text
+Project 'packages/shared-types/tsconfig.json' is out of date because output file 'packages/shared-types/dist/book.js' does not exist
+Building project 'packages/shared-types/tsconfig.json'...
+Project 'apps/web/tsconfig.app.json' is up to date because newest input 'apps/web/src/...' is older than output '...tsbuildinfo'
+```
+
+`dist` 폴더를 지우면 산출물 자체가 없어져 `tsc -b`가 "출력 파일이 없다"는 이유로 무조건 다시 빌드합니다. 소스가 안 바뀌었어도 산출물이 사라지면 최신 상태로 보지 않습니다.
+
+</details>
+
+## 자주 하는 실수
+
+| 증상 | 원인 | 고치는 법 |
+|------|------|-----------|
+| `shared-types`를 고쳐도 `apps/web`에서 타입이 안 바뀜 | `apps/web/tsconfig.app.json`에 `references`를 추가하지 않음 | 참조 대상 경로를 정확히 추가하고 `pnpm typecheck`를 다시 실행한다 |
+| `composite`를 켰는데 오류가 남 | `declaration`이 꺼져 있거나 소스가 `include`에 안 잡힘 | `composite`를 쓰는 프로젝트는 `declaration: true`와 정확한 `include`가 함께 필요하다 |
+| 순환 참조 오류가 나는데 원인을 못 찾음 | 참조 방향을 반대로 착각함(누가 누구를 쓰는지) | 실제로 코드를 가져다 쓰는 쪽에서 쓰이는 쪽으로만 `references`를 건다. `shared-types`는 누구도 참조하면 안 된다 |
+
+## 확인 문제
+
+<Quiz
+  questionNumber={1}
+  question="composite: true가 요구하는 조건은"
+  options={['strict 옵션을 꺼야 한다', 'declaration이 켜져 있고 소스 파일이 include·files에 모두 잡혀 있어야 한다', 'React 컴포넌트만 포함해야 한다', 'noEmit을 반드시 켜야 한다']}
+  correctAnswer={2}
+  explanation="composite는 다른 프로젝트가 이 프로젝트의 선언 파일을 참조할 수 있어야 하므로 declaration이 켜져 있어야 하고, 어떤 파일이 컴파일 대상인지 명확히 지정돼 있어야 합니다."
+  optionExplanations={['strict와는 무관합니다', '정답입니다', '파일 종류 제한이 아닙니다', 'noEmit과는 반대되는 요구입니다']}
+/>
+
+<Quiz
+  questionNumber={2}
+  question="apps/web/tsconfig.app.json에 composite를 켜지 않아도 되는 이유는"
+  options={['apps/web은 아무 프로젝트에서도 참조되지 않기 때문에', 'React 프로젝트는 항상 composite가 금지되기 때문에', 'Vite가 composite를 자동으로 대신 처리하기 때문에', 'noEmit이 composite보다 우선순위가 높아서 무시되기 때문에']}
+  correctAnswer={1}
+  explanation="composite는 다른 프로젝트가 참조할 대상에게 필요한 옵션입니다. apps/web은 shared-types를 참조하는 쪽이지 참조당하는 쪽이 아니라서 필요 없습니다."
+  optionExplanations={['정답입니다', 'React와는 무관한 규칙입니다', 'Vite가 대신 처리하는 것이 아닙니다', '우선순위 문제로 무시되는 것이 아닙니다']}
+/>
+
+<Quiz
+  questionNumber={3}
+  question="tsc -b를 한 번 실행한 뒤 아무것도 바꾸지 않고 다시 실행하면"
+  options={['매번 모든 프로젝트를 처음부터 다시 빌드한다', '이미 최신 상태인 프로젝트는 건너뛰고 즉시 종료한다', '오류가 발생한다', 'dist 폴더를 전부 삭제한다']}
+  correctAnswer={2}
+  explanation="tsc -b는 각 프로젝트의 입력과 출력을 비교해, 바뀐 것이 없으면 다시 빌드하지 않고 건너뜁니다."
+  optionExplanations={['증분 빌드이므로 매번 처음부터 하지 않습니다', '정답입니다', '변경 사항이 없으면 오류가 나지 않습니다', '삭제 동작이 아닙니다']}
+/>
+
+<Quiz
+  questionNumber={4}
+  question="shared-types의 tsconfig.json에 apps/web에 대한 references를 추가하면 안 되는 이유는"
+  options={['파일 크기가 커지기 때문에', 'apps/web도 shared-types를 참조하고 있어 순환 참조가 만들어지기 때문에', 'zod 스키마가 깨지기 때문에', 'pnpm이 해당 설정을 무시하기 때문에']}
+  correctAnswer={2}
+  explanation="apps/web이 이미 shared-types를 참조하는 상태에서 shared-types가 다시 apps/web을 참조하면, 어느 쪽을 먼저 빌드해야 할지 정할 수 없는 순환 참조가 됩니다."
+  optionExplanations={['파일 크기와는 무관합니다', '정답입니다', 'zod 스키마와는 무관합니다', 'pnpm이 아니라 tsc가 검사하는 규칙입니다']}
+/>
+
+## 참고 자료
+
+- [TypeScript Handbook — Project References](https://www.typescriptlang.org/docs/handbook/project-references.html)

@@ -1,0 +1,444 @@
+---
+title: '17. UI 컴포넌트 라이브러리 패키지 추출'
+description: 'BookCard 등 재사용 컴포넌트를 packages/ui 패키지로 분리하고 apps/web이 이를 참조하도록 바꿉니다'
+---
+
+<Callout type="info">
+  **이번 편의 결과물:** `packages/ui/src` 아래로 `BookCard`, `StatusBadge`, `Modal`, `DataTable`이 독립 패키지로 옮겨지고, `apps/web`이 `@bookshelf/ui`를 import해 화면이 그대로 렌더링됩니다. · **다루는 개념:** 패키지 추출 기준, `package.json`의 `main`·`types` 필드, `tsconfig` project references에 세 번째 패키지 추가
+</Callout>
+
+16편까지 `bookshelf-ts`는 `apps/web`(react 컴포넌트 전체가 TypeScript로 전환된 앱)과 `packages/shared-types`(도메인 타입과 zod 스키마) 두 패키지로 이루어진 모노레포였습니다. 루트 `tsc -b`를 실행하면 `shared-types`가 먼저 빌드되고 그다음 `web`이 빌드되는 순서가 project references로 관리되고 있습니다. 이번 편은 여기에 세 번째 패키지 `packages/ui`를 더해, 책 도메인에 묶이지 않고 여러 화면에서 재사용되는 프레젠테이션 컴포넌트를 분리합니다.
+
+## 이 편에서 만드는 파일
+
+```
+bookshelf-ts/
+├── tsconfig.json                          ~ (references에 packages/ui 추가)
+├── packages/
+│   ├── shared-types/                      (기존, 변경 없음)
+│   └── ui/                                + 신규 패키지
+│       ├── package.json                   +
+│       ├── tsconfig.json                  +
+│       └── src/
+│           ├── index.ts                   + (배럴 export)
+│           ├── BookCard.tsx               + (apps/web에서 이동)
+│           ├── StatusBadge.tsx            + (apps/web에서 이동)
+│           ├── Modal.tsx                  + (apps/web에서 이동)
+│           └── DataTable.tsx              + (apps/web에서 이동)
+└── apps/
+    └── web/
+        ├── package.json                   ~ (dependencies에 @bookshelf/ui 추가)
+        ├── tsconfig.app.json              ~ (references에 packages/ui 추가)
+        └── src/
+            ├── components/                - BookCard.tsx, StatusBadge.tsx, Modal.tsx, DataTable.tsx 삭제
+            └── pages/BookListPage.tsx      ~ (import 경로를 @bookshelf/ui로 교체)
+```
+
+## 개념 정리
+
+### 무엇을 패키지로 뽑을 것인가
+
+`packages/shared-types`는 "타입만" 담아 기준이 단순했습니다. UI 컴포넌트는 기준이 하나 더 필요합니다. `BookCard`, `StatusBadge`, `Modal`, `DataTable`은 모두 **props로 받은 데이터만 그리는 프레젠테이션 컴포넌트**입니다. TanStack Query 훅을 직접 호출하거나 Zustand 스토어를 구독하는 컨테이너 컴포넌트(`BookListPage` 등)는 앱의 데이터 흐름에 묶여 있으므로 `apps/web`에 남깁니다.
+
+| 컴포넌트 | 데이터 소스 | 분리 대상 |
+|---|---|---|
+| `BookCard` | props로 받은 `Book` 하나 | 예 |
+| `StatusBadge` | props로 받은 상태 값 | 예 |
+| `Modal` | props로 받은 열림 여부와 자식 요소 | 예 |
+| `DataTable` | props로 받은 배열과 컬럼 정의(제네릭) | 예 |
+| `BookListPage` | `useBooks` 훅으로 서버에서 직접 조회 | 아니오 |
+
+### package.json의 main·types 필드
+
+패키지를 다른 패키지에서 `import`할 때, Node.js와 TypeScript는 각각 `main`과 `types`(또는 `typings`) 필드를 보고 실제 진입 파일을 찾습니다. 아직 tsdown을 붙이기 전인 이번 편에서는 `tsc -b`가 `src`를 컴파일해 만든 `dist/index.js`, `dist/index.d.ts`를 그대로 가리킵니다.
+
+```json
+{
+  "main": "./dist/index.js",
+  "types": "./dist/index.d.ts"
+}
+```
+
+이 방식의 한계는 `packages/ui`의 코드를 고칠 때마다 `dist`를 다시 빌드해야 `apps/web`에 반영된다는 점입니다. 18편에서 tsdown의 개발용 참조 기능으로 이 부분을 개선합니다.
+
+### project references에 패키지 추가하기
+
+16편에서 만든 루트 `tsconfig.json`의 `references` 배열에 `packages/ui`를 추가하고, `packages/ui`는 타입만 참조하는 `shared-types`를 다시 참조합니다. `apps/web`은 `shared-types`와 `ui`를 모두 참조합니다. 빌드 순서는 의존 관계를 거슬러 `shared-types` → `ui` → `web`으로 자동 결정됩니다.
+
+## 실습
+
+<Steps>
+
+### 1. packages/ui 스캐폴딩
+
+```json
+// packages/ui/package.json
+{
+  "name": "@bookshelf/ui",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "main": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "scripts": {
+    "build": "tsc -b"
+  },
+  "dependencies": {
+    "@bookshelf/shared-types": "workspace:*"
+  },
+  "peerDependencies": {
+    "react": "^19.3.0",
+    "react-dom": "^19.3.0"
+  },
+  "devDependencies": {
+    "typescript": "^7.0.2",
+    "@types/react": "^19.3.0",
+    "@types/react-dom": "^19.3.0"
+  }
+}
+```
+
+`react`를 `dependencies`가 아니라 `peerDependencies`에 둡니다. 컴포넌트 라이브러리는 자기만의 React 인스턴스를 갖지 않고, 이 패키지를 설치하는 앱(`apps/web`)이 이미 가진 React를 빌려 씁니다.
+
+```json
+// packages/ui/tsconfig.json
+{
+  "extends": "../../tsconfig.base.json",
+  "compilerOptions": {
+    "composite": true,
+    "outDir": "./dist",
+    "rootDir": "./src",
+    "jsx": "react-jsx",
+    "lib": ["ES2023", "DOM", "DOM.Iterable"]
+  },
+  "include": ["src"],
+  "references": [{ "path": "../shared-types" }]
+}
+```
+
+### 2. 컴포넌트 이동과 타입 적용
+
+```tsx
+// packages/ui/src/BookCard.tsx
+import type { Book } from '@bookshelf/shared-types'
+
+interface BookCardProps {
+  book: Book
+}
+
+function BookCard({ book }: BookCardProps) {
+  return (
+    <article className="book-card">
+      {book.coverUrl ? (
+        <img className="book-cover" src={book.coverUrl} alt={`${book.title} 표지`} />
+      ) : (
+        <div className="book-cover-placeholder" aria-hidden="true" />
+      )}
+      <h3>{book.title}</h3>
+      <p>{book.author}</p>
+      <p>{book.pages}쪽</p>
+    </article>
+  )
+}
+
+export default BookCard
+```
+
+`Book`은 `apps/web`이 직접 정의하지 않고 `@bookshelf/shared-types`에서 가져옵니다. `packages/ui`가 `shared-types`에 의존하는 이유가 여기서 드러납니다. `BookCard`가 알아야 하는 책의 모양(제목, 저자, 쪽수, 표지 주소)이 앱과 라이브러리 양쪽에서 항상 같은 정의를 참조해야 하기 때문입니다.
+
+```tsx
+// packages/ui/src/StatusBadge.tsx
+type StatusBadgeProps =
+  | { status: 'wish' }
+  | { status: 'reading'; startedAt: string }
+  | { status: 'done'; rating: number }
+
+function StatusBadge(props: StatusBadgeProps) {
+  if (props.status === 'reading') {
+    return <span className="badge badge-reading">읽는 중 · {props.startedAt}부터</span>
+  }
+  if (props.status === 'done') {
+    return <span className="badge badge-done">완독 · 별점 {props.rating}</span>
+  }
+  return <span className="badge badge-wish">읽고 싶어요</span>
+}
+
+export default StatusBadge
+export type { StatusBadgeProps }
+```
+
+09편에서 만든 판별 유니온 props를 그대로 옮겼습니다. `status`가 `reading`이면 `startedAt`이, `done`이면 `rating`이 함께 있어야 한다는 규칙이 패키지 경계를 넘어도 그대로 유지됩니다. `StatusBadge`는 `Book`을 몰라도 되도록 일부러 `Book`을 import하지 않습니다. `Book`에서 필요한 값을 뽑아 이 props 모양으로 바꾸는 변환 로직은 `apps/web` 쪽 코드가 맡고, `packages/ui`는 이미 정리된 값만 받아 그리는 역할만 합니다. 그래야 나중에 `Book`의 필드가 바뀌어도 `packages/ui`를 다시 배포하지 않아도 됩니다.
+
+```tsx
+// packages/ui/src/Modal.tsx
+import { useEffect, useRef, type ReactNode } from 'react'
+
+interface ModalProps {
+  isOpen: boolean
+  onClose: () => void
+  title: string
+  children: ReactNode
+}
+
+export function Modal({ isOpen, onClose, title, children }: ModalProps) {
+  const dialogRef = useRef<HTMLDivElement>(null)
+  const previouslyFocused = useRef<HTMLElement | null>(null)
+
+  useEffect(() => {
+    if (!isOpen) return
+    previouslyFocused.current = document.activeElement as HTMLElement | null
+    dialogRef.current?.focus()
+
+    function handleKeyDown(event: KeyboardEvent): void {
+      if (event.key === 'Escape') onClose()
+    }
+
+    document.addEventListener('keydown', handleKeyDown)
+    return () => {
+      document.removeEventListener('keydown', handleKeyDown)
+      previouslyFocused.current?.focus()
+    }
+  }, [isOpen, onClose])
+
+  if (!isOpen) return null
+
+  return (
+    <div className="modal-backdrop" onClick={onClose}>
+      <div
+        ref={dialogRef}
+        role="dialog"
+        aria-modal="true"
+        aria-labelledby="modal-title"
+        tabIndex={-1}
+        onClick={(event) => event.stopPropagation()}
+      >
+        <h2 id="modal-title">{title}</h2>
+        {children}
+      </div>
+    </div>
+  )
+}
+```
+
+```tsx
+// packages/ui/src/DataTable.tsx
+import type { ReactNode } from 'react'
+
+interface WithId {
+  id: string | number
+}
+
+export interface DataTableColumn<T> {
+  key: keyof T
+  label: string
+  sortable?: boolean
+  render?: (item: T) => ReactNode
+}
+
+interface DataTableProps<T extends WithId> {
+  items: T[]
+  columns: DataTableColumn<T>[]
+  sortBy?: keyof T
+  sortOrder?: 'asc' | 'desc'
+  onSortChange?: (key: keyof T) => void
+}
+
+function DataTable<T extends WithId>({ items, columns, sortBy, sortOrder, onSortChange }: DataTableProps<T>) {
+  return (
+    <table className="data-table">
+      <thead>
+        <tr>
+          {columns.map((column) => (
+            <th key={String(column.key)}>
+              {column.sortable && onSortChange ? (
+                <button type="button" onClick={() => onSortChange(column.key)}>
+                  {column.label}
+                  {sortBy === column.key ? (sortOrder === 'asc' ? ' ▲' : ' ▼') : ''}
+                </button>
+              ) : (
+                column.label
+              )}
+            </th>
+          ))}
+        </tr>
+      </thead>
+      <tbody>
+        {items.map((item) => (
+          <tr key={item.id}>
+            {columns.map((column) => (
+              <td key={String(column.key)}>{column.render ? column.render(item) : String(item[column.key])}</td>
+            ))}
+          </tr>
+        ))}
+      </tbody>
+    </table>
+  )
+}
+
+export default DataTable
+export type { DataTableColumn }
+```
+
+10편에서 만든 제네릭 컴포넌트를 그대로 옮겼습니다. `DataTable`은 `Book`을 전혀 모르고, `T extends WithId` 제약만으로 `apps/web`이 넘기는 어떤 목록에도 재사용됩니다. `Book`은 `id`가 `string`이라 `WithId`(`id: string | number`) 제약을 그대로 만족합니다.
+
+```ts
+// packages/ui/src/index.ts
+export { default as BookCard } from './BookCard'
+export { default as StatusBadge } from './StatusBadge'
+export type { StatusBadgeProps } from './StatusBadge'
+export { Modal } from './Modal'
+export { default as DataTable } from './DataTable'
+export type { DataTableColumn } from './DataTable'
+```
+
+각 컴포넌트 파일 안에서는 `export default`(09·10편의 기존 방식)를 그대로 두고, 배럴 파일에서 `export { default as 이름 }`으로 이름을 붙여 다시 내보냅니다. `apps/web`은 이제 어떤 파일이 기본 내보내기였는지 신경 쓰지 않고 `@bookshelf/ui`에서 이름으로만 가져오면 됩니다.
+
+### 3. 루트와 apps/web 설정 갱신
+
+```json
+// tsconfig.json (루트, references 배열만 발췌)
+{
+  "files": [],
+  "references": [
+    { "path": "packages/shared-types" },
+    { "path": "packages/ui" },
+    { "path": "apps/web" }
+  ]
+}
+```
+
+```json
+// apps/web/tsconfig.app.json (references 배열만 발췌 — 16편에서 shared-types 참조를 추가했던 바로 그 파일)
+{
+  "references": [
+    { "path": "../../packages/shared-types" },
+    { "path": "../../packages/ui" }
+  ]
+}
+```
+
+```json
+// apps/web/package.json (dependencies 발췌)
+{
+  "dependencies": {
+    "@bookshelf/shared-types": "workspace:*",
+    "@bookshelf/ui": "workspace:*"
+  }
+}
+```
+
+```tsx
+// apps/web/src/pages/BookListPage.tsx (import 부분만 발췌 — 나머지는 기존 코드 유지)
+import { DataTable, BookCard, StatusBadge } from '@bookshelf/ui'
+import type { Book } from '@bookshelf/shared-types'
+```
+
+기존에 `../components/BookCard`, `../components/DataTable`처럼 상대 경로로 가져오던 부분을 모두 `@bookshelf/ui`로 바꿉니다. `apps/web/src/components`에는 이제 `Layout.tsx`처럼 앱 전용 컴포넌트만 남습니다.
+
+### 4. 설치와 빌드
+
+```text
+pnpm install
+pnpm --filter @bookshelf/ui build
+pnpm -w exec tsc -b
+pnpm --filter @bookshelf/web dev
+```
+
+### 5. 확인
+
+- `pnpm install` 실행 후 `node_modules/@bookshelf/ui`가 `packages/ui`로 연결된 심볼릭 링크로 보입니다.
+- `packages/ui`에서 `pnpm build`를 실행하면 `dist/index.js`, `dist/index.d.ts`가 생성됩니다.
+- 루트에서 `tsc -b`를 실행하면 `shared-types`, `ui`, `web` 순서로 빌드되고 오류 없이 끝납니다.
+- 책 목록 화면, 상태 뱃지, 정렬 가능한 표가 이전과 동일하게 보입니다.
+- VS Code에서 `BookCard`에 마우스를 올리면 정의로 `packages/ui/src/BookCard.tsx`가 잡힙니다.
+
+</Steps>
+
+## 직접 해보기
+
+1. `apps/web/src/components`에 남아 있는 컴포넌트 중 페이지 이동 없이 여러 화면에 쓰이는 것이 더 있는지 찾아보고, 있다면 같은 방식으로 `packages/ui`로 옮겨 보세요.
+2. `packages/ui/src`에 `Pagination.tsx`(현재 페이지·전체 페이지 수·페이지 변경 콜백만 props로 받는 컴포넌트)를 새로 만들고 `index.ts`에 추가해 보세요.
+
+<details>
+<summary>정답 보기</summary>
+
+```tsx
+// packages/ui/src/Pagination.tsx
+interface PaginationProps {
+  page: number
+  totalPages: number
+  onChange: (page: number) => void
+}
+
+export function Pagination({ page, totalPages, onChange }: PaginationProps) {
+  return (
+    <nav className="pagination" aria-label="페이지 이동">
+      <button type="button" disabled={page <= 1} onClick={() => onChange(page - 1)}>
+        이전
+      </button>
+      <span>
+        {page} / {totalPages}
+      </span>
+      <button type="button" disabled={page >= totalPages} onClick={() => onChange(page + 1)}>
+        다음
+      </button>
+    </nav>
+  )
+}
+```
+
+`Pagination`도 `DataTable`과 마찬가지로 책 도메인을 전혀 모르는 순수 프레젠테이션 컴포넌트라 분리 기준에 정확히 들어맞습니다.
+
+</details>
+
+## 자주 하는 실수
+
+| 증상 | 원인 | 고치는 법 |
+|---|---|---|
+| import 에러(@bookshelf/ui를 찾을 수 없음) | `pnpm install`을 다시 안 돌려 워크스페이스 링크가 안 생김 | 새 패키지를 추가한 뒤에는 항상 `pnpm install` 재실행 |
+| 화면은 그대로인데 타입만 오류남 | `packages/ui`를 고치고 `dist`를 다시 빌드하지 않음 | `pnpm --filter @bookshelf/ui build`로 dist 갱신 |
+| 훅 관련 런타임 오류(Invalid hook call) | `react`를 `peerDependencies`가 아닌 `dependencies`에 둠 | React는 항상 `peerDependencies`로 선언 |
+| DataTable을 쓰는 곳에서 타입 추론이 안 됨 | 컬럼 배열을 빈 배열로 시작해 타입 매개변수를 추론할 근거가 없음 | `columns` 배열에 실제 `Book` 배열용 컬럼 정의를 채워 타입 인자가 추론되게 함 |
+
+## 확인 문제
+
+<Quiz
+  questionNumber={1}
+  question="BookListPage 같은 컨테이너 컴포넌트를 packages/ui로 옮기지 않는 이유는"
+  options={['코드가 너무 길어서', 'TanStack Query 훅과 Zustand 스토어 등 앱의 데이터 흐름에 묶여 있어서', 'JSX 문법을 쓰지 않아서', '테스트 코드가 없어서']}
+  correctAnswer={2}
+  explanation="프레젠테이션 컴포넌트는 props만으로 그려져 재사용이 쉽지만, 컨테이너 컴포넌트는 앱의 데이터 소스에 직접 의존해 라이브러리로 분리할 이유가 적습니다."
+  optionExplanations={['길이는 분리 기준이 아닙니다', '정답입니다', 'BookListPage도 JSX를 씁니다', '테스트 유무와는 무관합니다']}
+/>
+
+<Quiz
+  questionNumber={2}
+  question="packages/ui의 package.json에서 react를 peerDependencies에 두는 이유는"
+  options={['설치 속도를 높이기 위해서', '라이브러리가 자기만의 React 사본을 번들에 포함해 앱과 충돌하는 것을 막기 위해서', 'react-dom을 자동으로 삭제하기 위해서', 'devDependencies보다 우선순위가 높아서']}
+  correctAnswer={2}
+  explanation="컴포넌트 라이브러리는 이를 사용하는 앱이 이미 설치한 React 인스턴스를 빌려 써야 훅 관련 오류 없이 동작합니다."
+  optionExplanations={['속도와는 무관합니다', '정답입니다', 'react-dom 삭제와는 관련 없습니다', 'peerDependencies는 우선순위 개념이 아닙니다']}
+/>
+
+<Quiz
+  questionNumber={3}
+  question="루트 tsconfig의 references 배열에 packages/ui 경로를 추가하는 이유는"
+  options={['런타임 성능을 높이기 위해서', 'tsc -b가 shared-types, ui, web의 빌드 순서를 의존 관계에 맞게 관리하도록 하기 위해서', 'ESLint 설정을 공유하기 위해서', 'vite dev 서버 포트를 지정하기 위해서']}
+  correctAnswer={2}
+  explanation="project references에 새 패키지를 등록해야 tsc -b가 그 패키지를 빌드 그래프에 포함시켜 의존 순서대로 빌드합니다."
+  optionExplanations={['런타임 성능과는 무관합니다', '정답입니다', 'ESLint 설정과는 관련 없습니다', '포트 지정과는 무관합니다']}
+/>
+
+<Quiz
+  questionNumber={4}
+  question="packages/ui의 DataTable이 Book 타입을 import하지 않는 이유는"
+  options={['아직 타입 정의가 끝나지 않아서', '제네릭 컴포넌트로 만들어 어떤 데이터 타입에도 재사용할 수 있게 하기 위해서', 'shared-types 패키지가 존재하지 않아서', 'React 19에서 제네릭 컴포넌트를 지원하지 않아서']}
+  correctAnswer={2}
+  explanation="DataTable은 타입 매개변수로 데이터 모양을 받으므로 Book을 몰라도 되고, 사용하는 쪽에서 넘기는 데이터로 타입이 결정됩니다."
+  optionExplanations={['타입 정의와는 무관합니다', '정답입니다', 'shared-types는 이미 존재합니다', 'React 19에서도 제네릭 컴포넌트를 그대로 쓸 수 있습니다']}
+/>
+
+## 참고 자료
+
+- [TypeScript Handbook — Project References](https://www.typescriptlang.org/docs/handbook/project-references.html)
+- [pnpm — Workspace](https://pnpm.io/workspaces)

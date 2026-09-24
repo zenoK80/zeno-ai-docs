@@ -1,0 +1,409 @@
+---
+title: '15. 타입 안전 API 클라이언트 완성하기'
+description: 'MSW로 거래 CRUD 목업 서버를 구성하고, 08~13편 조각을 하나의 API 클라이언트로 통합합니다.'
+---
+
+<Callout type="info">
+  **이번 편의 결과물:** 거래 추가·수정·삭제·조회가 MSW 목업 서버를 거쳐 동작하고, 네트워크 탭에서 실제 요청과 응답을 확인할 수 있습니다. · **다루는 개념:** MSW `http` 핸들러, `setupWorker`, `extends keyof` 라우트 제약, zod 응답 검증 통합
+</Callout>
+
+## 이 편에서 만드는 파일
+
+```
+expense-tracker/
+├── package.json                     ~ (msw 추가)
+└── src/
+    ├── mocks/
+    │   ├── data.ts                  + (mockTransactions, 시드 데이터 검증)
+    │   ├── handlers.ts              + (거래 CRUD 핸들러)
+    │   └── browser.ts               + (setupWorker)
+    ├── lib/api/
+    │   ├── endpoints.ts             ~ (08편 satisfies 설정에 remove 라우트 추가)
+    │   ├── request.ts               ~ (09편 오버로드에 DELETE 추가)
+    │   └── client.ts                ~ (10편 ApiClient를 라우트 이름 헬퍼로 완성)
+    ├── services/
+    │   ├── createTransaction.ts     - (삭제, transactionsApi.ts가 대체)
+    │   └── transactionsApi.ts       + (list/create/update/remove)
+    ├── ui/
+    │   ├── transactionForm.ts       ~ (TransactionFormHandlers를 비동기 허용으로 변경)
+    │   └── transactionList.ts       ~ (TransactionListHandlers를 비동기 허용으로 변경)
+    └── main.ts                       ~ (MSW 시작, transactionsApi로 전면 교체)
+```
+
+지금까지 거래 데이터는 `localStorage`(fundamentals 09편의 `Storage` 클래스)에만 있었습니다. 이 편부터는 MSW가 흉내 내는 `/api/transactions` 서버가 데이터의 출처가 되고, `Storage`는 더 이상 거래 저장에 쓰지 않습니다.
+
+## 개념 정리
+
+### MSW가 하는 일
+
+MSW(Mock Service Worker)는 브라우저의 서비스 워커를 이용해 실제 네트워크 요청을 가로챕니다. 코드 입장에서는 진짜 서버에 `fetch`를 보내는 것과 똑같이 동작하지만, 응답은 우리가 정의한 핸들러가 만들어 줍니다. 그래서 백엔드 서버 없이도 개발자 도구 네트워크 탭에서 진짜 요청/응답 흐름을 볼 수 있습니다.
+
+| 함수 | 역할 |
+|---|---|
+| `http.get`/`http.post`/`http.patch`/`http.delete` | 메서드·경로별 요청을 가로채는 핸들러 등록 |
+| `HttpResponse.json(값, 옵션)` | JSON 응답과 상태 코드를 함께 반환 |
+| `setupWorker(...handlers)` | 브라우저용 워커 인스턴스 생성(`msw/browser`) |
+| `worker.start()` | 서비스 워커를 등록하고 가로채기를 시작 |
+
+경로에 `:id`처럼 콜론이 붙은 부분은 핸들러의 `params`로 전달됩니다.
+
+### 08~10편 조각을 다시 모으기
+
+이 편은 새 개념보다는 지금까지 만든 조각을 실제로 연결하는 데 집중합니다. 08편의 `satisfies` 라우트 설정, 09편의 오버로드된 `request()`, 10편의 제네릭 `ApiClient`, 13편의 zod 스키마가 모두 `services/transactionsApi.ts` 한 곳에서 만납니다.
+
+`ApiClient`의 `path` 메서드는 `K extends keyof Routes` 제약 덕분에, 등록되지 않은 라우트 이름을 넘기면 실행 전에 컴파일 오류로 걸러집니다.
+
+## 실습
+
+<Steps>
+
+### 1. MSW 설치와 서비스 워커 준비
+
+```text
+npm install -D msw
+npx msw init public/ --save
+```
+
+```json
+// package.json (발췌 — 추가되는 부분)
+{
+  "devDependencies": {
+    "msw": "^2.15.0"
+  },
+  "msw": {
+    "workerDirectory": ["public"]
+  }
+}
+```
+
+`npx msw init`은 `public/mockServiceWorker.js`를 생성하고, `package.json`에 워커 파일 위치를 기록합니다.
+
+### 2. 목업 서버의 데이터와 핸들러 작성
+
+```ts
+// src/mocks/data.ts
+import { z } from 'zod'
+import seedRaw from '../data/seedTransactions.json'
+import { TransactionSchema } from '../schemas/transaction.ts'
+import type { Transaction } from '../models/index.ts'
+
+export const mockTransactions: Transaction[] = z.array(TransactionSchema).parse(seedRaw)
+```
+
+```ts
+// src/mocks/handlers.ts
+import { http, HttpResponse } from 'msw'
+import { mockTransactions } from './data.ts'
+import type { Transaction } from '../models/index.ts'
+
+export const handlers = [
+  http.get('/api/transactions', () => {
+    return HttpResponse.json(mockTransactions)
+  }),
+
+  http.post('/api/transactions', async ({ request }) => {
+    const body = await request.json()
+    const created = { ...(body as object), id: crypto.randomUUID() } as Transaction
+    mockTransactions.push(created)
+    return HttpResponse.json(created, { status: 201 })
+  }),
+
+  http.patch('/api/transactions/:id', async ({ params, request }) => {
+    const id = params.id as string
+    const index = mockTransactions.findIndex((transaction) => transaction.id === id)
+    if (index === -1) {
+      return HttpResponse.json({ message: '거래를 찾을 수 없습니다' }, { status: 404 })
+    }
+    const changes = await request.json()
+    mockTransactions[index] = { ...mockTransactions[index], ...(changes as object) }
+    return HttpResponse.json(mockTransactions[index])
+  }),
+
+  http.delete('/api/transactions/:id', ({ params }) => {
+    const id = params.id as string
+    const index = mockTransactions.findIndex((transaction) => transaction.id === id)
+    if (index === -1) {
+      return HttpResponse.json({ message: '거래를 찾을 수 없습니다' }, { status: 404 })
+    }
+    mockTransactions.splice(index, 1)
+    return new HttpResponse(null, { status: 204 })
+  }),
+]
+```
+
+```ts
+// src/mocks/browser.ts
+import { setupWorker } from 'msw/browser'
+import { handlers } from './handlers.ts'
+
+export const worker = setupWorker(...handlers)
+```
+
+`mockTransactions`는 서비스 워커가 살아있는 동안 메모리에 남아있는 배열입니다. 진짜 데이터베이스가 아니므로 서비스 워커가 재등록되면(예: 브라우저를 완전히 새로 켬) 시드 데이터로 되돌아갑니다.
+
+### 3. 라우트·요청 함수 정리
+
+```ts
+// src/lib/api/endpoints.ts
+export const ENDPOINTS = {
+  list: { method: 'GET', path: '/api/transactions' },
+  create: { method: 'POST', path: '/api/transactions' },
+  update: { method: 'PATCH', path: '/api/transactions' },
+  remove: { method: 'DELETE', path: '/api/transactions' },
+} satisfies Record<string, { method: 'GET' | 'POST' | 'PATCH' | 'DELETE'; path: string }>
+```
+
+```ts
+// src/lib/api/request.ts
+export function request(method: 'GET' | 'DELETE', path: string): Promise<unknown>
+export function request(method: 'POST' | 'PATCH', path: string, body: unknown): Promise<unknown>
+export async function request(method: string, path: string, body?: unknown): Promise<unknown> {
+  const hasBody = body !== undefined
+  const response = await fetch(path, {
+    method,
+    headers: hasBody ? { 'Content-Type': 'application/json' } : undefined,
+    body: hasBody ? JSON.stringify(body) : undefined,
+  })
+  if (!response.ok) {
+    throw new Error(`요청 실패(${response.status}): ${method} ${path}`)
+  }
+  if (response.status === 204) {
+    return null
+  }
+  return response.json()
+}
+```
+
+09편에는 본문 없는 `GET`과 본문 있는 `POST`만 있었습니다. 이제 삭제(`DELETE`)도 본문이 없으므로 `GET` 쪽 오버로드에 합쳤습니다.
+
+```ts
+// src/lib/api/client.ts
+export class ApiClient<Routes extends Record<string, { path: string }>> {
+  constructor(private routes: Routes) {}
+
+  path<K extends keyof Routes>(key: K, id?: string): string {
+    const route = this.routes[key]
+    return id === undefined ? route.path : `${route.path}/${id}`
+  }
+}
+```
+
+`path`는 등록된 라우트 이름(`K extends keyof Routes`)만 받습니다. `client.path('lists')`처럼 오타를 내면 `Routes`에 그런 키가 없으므로 컴파일 오류가 납니다.
+
+### 4. transactionsApi.ts로 통합
+
+```ts
+// src/services/transactionsApi.ts
+import { z } from 'zod'
+import { request } from '../lib/api/request.ts'
+import { ApiClient } from '../lib/api/client.ts'
+import { ENDPOINTS } from '../lib/api/endpoints.ts'
+import { TransactionSchema } from '../schemas/transaction.ts'
+import type { Transaction } from '../models/index.ts'
+import type { NewTransactionDraft, EditableFields } from '../ui/transactionForm.ts'
+
+const client = new ApiClient(ENDPOINTS)
+
+export async function listTransactions(): Promise<Transaction[]> {
+  const raw = await request('GET', client.path('list'))
+  return z.array(TransactionSchema).parse(raw)
+}
+
+export async function createTransaction(draft: NewTransactionDraft): Promise<Transaction> {
+  const raw = await request('POST', client.path('create'), draft)
+  return TransactionSchema.parse(raw)
+}
+
+export async function updateTransaction(id: string, changes: Partial<EditableFields>): Promise<Transaction> {
+  const raw = await request('PATCH', client.path('update', id), changes)
+  return TransactionSchema.parse(raw)
+}
+
+export async function removeTransaction(id: string): Promise<void> {
+  await request('DELETE', client.path('remove', id))
+}
+```
+
+응답은 서버(사실은 MSW 핸들러)가 무엇을 보내든 `TransactionSchema.parse`를 거칩니다. 컴파일러는 서버가 실제로 무엇을 보낼지 보장할 수 없으므로, 13편에서 만든 스키마를 여기서도 그대로 씁니다. 13편의 `services/createTransaction.ts`는 이제 지웁니다. 서버가 `id`를 만들어 응답에 포함하므로 클라이언트가 직접 `id`를 조립할 필요가 없습니다.
+
+### 5. main.ts와 UI 핸들러 타입 갱신
+
+```ts
+// src/ui/transactionForm.ts (발췌 — TransactionFormHandlers 타입만 수정)
+export interface TransactionFormHandlers {
+  onCreate: (draft: NewTransactionDraft) => void | Promise<void>
+  onUpdate: (id: string, changes: Partial<EditableFields>) => void | Promise<void>
+}
+```
+
+```ts
+// src/ui/transactionList.ts (발췌 — TransactionListHandlers 타입만 수정)
+export interface TransactionListHandlers {
+  onEdit: (transaction: Transaction) => void
+  onRemove: (id: string) => void | Promise<void>
+}
+```
+
+```ts
+// src/main.ts
+import type { Transaction } from './models/index.ts'
+import { listTransactions, createTransaction, updateTransaction, removeTransaction } from './services/transactionsApi.ts'
+import { mountTransactionForm } from './ui/transactionForm.ts'
+import { mountTransactionList } from './ui/transactionList.ts'
+import { mountStatsPanel } from './ui/statsPanel.ts'
+import { getRequiredElement } from './lib/dom.ts'
+
+async function enableMocking(): Promise<void> {
+  if (!import.meta.env.DEV) return
+  const { worker } = await import('./mocks/browser.ts')
+  await worker.start({ onUnhandledRequest: 'bypass' })
+}
+
+async function bootstrap(): Promise<void> {
+  await enableMocking()
+
+  let transactions: Transaction[] = await listTransactions()
+
+  const app = getRequiredElement<HTMLDivElement>(document, '#app')
+  app.innerHTML = `
+    <h1>expense-tracker</h1>
+    <div id="form-root"></div>
+    <div id="list-root"></div>
+    <div id="stats-root"></div>
+  `
+
+  const formRoot = getRequiredElement<HTMLDivElement>(app, '#form-root')
+  const listRoot = getRequiredElement<HTMLDivElement>(app, '#list-root')
+  const statsRoot = getRequiredElement<HTMLDivElement>(app, '#stats-root')
+
+  function renderAll(): void {
+    list.update(transactions)
+    stats.update(transactions)
+  }
+
+  const list = mountTransactionList(listRoot, {
+    onEdit: (transaction) => form.openEdit(transaction),
+    onRemove: async (id) => {
+      await removeTransaction(id)
+      transactions = transactions.filter((transaction) => transaction.id !== id)
+      renderAll()
+    },
+  })
+
+  const stats = mountStatsPanel(statsRoot)
+
+  const form = mountTransactionForm(formRoot, {
+    onCreate: async (draft) => {
+      const created = await createTransaction(draft)
+      transactions.push(created)
+      renderAll()
+    },
+    onUpdate: async (id, changes) => {
+      const updated = await updateTransaction(id, changes)
+      transactions = transactions.map((transaction) => (transaction.id === id ? updated : transaction))
+      renderAll()
+    },
+  })
+
+  renderAll()
+}
+
+bootstrap()
+```
+
+`enableMocking`은 개발 모드에서만 워커를 시작합니다. 화면을 그리기 전에 `listTransactions()`로 초기 데이터를 받아와야 하므로, 전체 초기화 로직을 `bootstrap` 비동기 함수 하나로 묶었습니다.
+
+### 6. 실행
+
+```text
+npm run typecheck
+npm run dev
+```
+
+</Steps>
+
+## 확인
+
+- 브라우저 콘솔에 MSW가 가로채기를 시작했다는 로그가 보입니다.
+- 개발자 도구 네트워크 탭에 `GET /api/transactions` 요청이 기록되고, 응답 본문에 시드 거래 목록이 담겨 있습니다.
+- 거래를 추가하면 네트워크 탭에 `POST /api/transactions` 요청이 남고, 응답에 서버가 만든 `id`가 포함되어 목록에 반영됩니다.
+- 거래를 수정·삭제하면 각각 `PATCH`, `DELETE` 요청이 기록되고 화면이 즉시 갱신됩니다.
+- 페이지를 새로고침해도 서비스 워커가 계속 실행 중이면 방금 추가한 거래가 남아 있습니다.
+- `npm run typecheck`, `npm run build`가 모두 통과합니다.
+
+## 직접 해보기
+
+1. `handlers.ts`의 `GET` 핸들러 안에서 `HttpResponse.json`을 반환하기 전에 짧은 지연(`await new Promise((resolve) => setTimeout(resolve, 1000))`)을 추가해, 로딩 중인 화면을 눈으로 확인해 봅니다.
+2. 존재하지 않는 `id`로 `removeTransaction`을 호출해 `404` 응답이 오는 것을 확인하고, `services/transactionsApi.ts`에서 이 상황을 어떻게 사용자에게 알릴지 생각해 봅니다.
+
+<details>
+<summary>정답 보기</summary>
+
+1번은 핸들러 콜백을 `async`로 바꾸고 `HttpResponse.json` 반환 직전에 `await new Promise((resolve) => setTimeout(resolve, 1000))`를 넣으면, 거래를 추가한 뒤 목록이 1초 뒤에 갱신되는 것을 볼 수 있습니다.
+
+2번은 `request` 함수가 `response.ok`가 아니면 이미 오류를 던지므로, `removeTransaction`을 호출하는 쪽(`main.ts`의 `onRemove`)에서 `try`, `catch`로 감싸 사용자에게 알림을 띄우는 방식으로 확장할 수 있습니다.
+
+</details>
+
+## 자주 하는 실수
+
+| 증상 | 원인 | 고치는 법 |
+|------|------|-----------|
+| 요청이 실제 네트워크로 나가 404가 남 | `npx msw init`을 실행하지 않아 서비스 워커 파일이 없음 | `public/mockServiceWorker.js`가 있는지 확인하고 없으면 다시 초기화한다 |
+| 라우트 경로 오타로 항상 404 | 문자열 경로를 여러 곳에 직접 반복해서 씀 | `client.path('list')`처럼 등록된 라우트 이름을 통해서만 경로를 만든다 |
+| 서버 응답을 그대로 믿고 쓰다 화면이 깨짐 | 응답에 `TransactionSchema.parse`를 적용하지 않음 | `transactionsApi.ts`의 모든 함수가 응답을 스키마로 검증하게 유지한다 |
+| onCreate 호출 뒤 목록 순서가 뒤엉킴 | 비동기 호출을 `await` 하지 않고 다음 코드를 먼저 실행함 | 콜백을 `async`로 선언하고 API 호출 뒤에만 상태를 갱신한다 |
+
+## 확인 문제
+
+<Quiz
+  questionNumber={1}
+  question="MSW가 브라우저에서 하는 역할은"
+  options={['실제 백엔드 서버 코드를 대신 배포한다', '서비스 워커로 네트워크 요청을 가로채 정의한 핸들러의 응답을 대신 돌려준다', 'localStorage 데이터를 자동으로 암호화한다', 'TypeScript 타입 오류를 자동으로 고친다']}
+  correctAnswer={2}
+  explanation="MSW는 서비스 워커를 이용해 fetch 요청을 가로채고, 등록된 핸들러가 만든 응답으로 대신합니다."
+  optionExplanations={['실제 배포와는 무관합니다', '정답입니다', '암호화 기능이 아닙니다', '타입 검사와는 무관합니다']}
+/>
+
+<Quiz
+  questionNumber={2}
+  question="MSW의 http.patch 핸들러 콜백이 받는 params 객체로 얻을 수 있는 것은"
+  options={['요청 본문 전체', '경로에 콜론으로 표시한 부분과 일치하는 값(예: id)', '응답 상태 코드', 'HTTP 헤더 전체']}
+  correctAnswer={2}
+  explanation="경로 문자열에서 콜론이 붙은 부분(:id 등)은 실제 요청 경로의 해당 위치 값으로 채워져 params에 담깁니다."
+  optionExplanations={['본문은 request.json()으로 얻습니다', '정답입니다', '상태 코드는 응답을 만들 때 지정하는 값입니다', '헤더는 request.headers로 접근합니다']}
+/>
+
+<Quiz
+  questionNumber={3}
+  question="ApiClient의 path 메서드가 K extends keyof Routes로 제약된 효과는"
+  options={['모든 문자열을 라우트 이름으로 허용한다', '등록되지 않은 라우트 이름을 넘기면 컴파일 오류가 난다', '런타임에만 오류를 알려준다', '경로에 항상 id를 강제로 추가한다']}
+  correctAnswer={2}
+  explanation="K가 Routes의 실제 키로 제약되어 있어, 존재하지 않는 라우트 이름을 넘기면 실행 전에 타입 오류로 걸러집니다."
+  optionExplanations={['오히려 제한합니다', '정답입니다', '컴파일 타임에 이미 걸러집니다', 'id는 선택적 매개변수일 뿐입니다']}
+/>
+
+<Quiz
+  questionNumber={4}
+  question="transactionsApi.ts의 각 함수가 응답에 TransactionSchema.parse를 적용하는 이유는"
+  options={['응답 속도를 높이기 위해서', '서버(목업 포함)가 실제로 어떤 값을 보낼지 컴파일러가 보장할 수 없기 때문에', 'JSON.stringify를 대신하기 위해서', 'MSW가 이 호출 없이는 동작하지 않기 때문에']}
+  correctAnswer={2}
+  explanation="fetch로 받아온 응답의 타입은 컴파일러가 검사할 수 없으므로, zod 스키마로 실제 값을 검증해 이후 코드가 안전하게 타입을 신뢰할 수 있게 합니다."
+  optionExplanations={['속도 향상이 목적이 아닙니다', '정답입니다', '직렬화와는 무관합니다', 'MSW 동작 자체와는 무관합니다']}
+/>
+
+<Quiz
+  questionNumber={5}
+  question="새로고침해도 방금 추가한 거래가 화면에 남아있는 이유는"
+  options={['localStorage에 여전히 저장되기 때문에', '서비스 워커가 백그라운드에서 계속 실행되며 mockTransactions 배열을 메모리에 유지하기 때문에', '거래가 실제 데이터베이스에 저장되기 때문에', 'Vite 캐시가 자동으로 복원해주기 때문에']}
+  correctAnswer={2}
+  explanation="서비스 워커는 페이지 새로고침과 별개로 브라우저 백그라운드에서 계속 실행되므로, 그 안의 배열 상태가 유지되는 동안은 데이터가 남아 있습니다."
+  optionExplanations={['이 편부터 거래 저장에는 localStorage를 쓰지 않습니다', '정답입니다', '실제 데이터베이스가 아닙니다', 'Vite 캐시와는 무관합니다']}
+/>
+
+## 참고 자료
+
+- [MSW — Docs](https://mswjs.io/docs/)
+- [MSW — Quick Start](https://mswjs.io/docs/quick-start)
+- [MSW — Handling Requests](https://mswjs.io/docs/http/handling-requests)
+- [Zod — API 레퍼런스](https://zod.dev/api)

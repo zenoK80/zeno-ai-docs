@@ -1,0 +1,202 @@
+---
+title: '08. satisfies로 설정 객체 검증하기'
+description: 'satisfies 연산자로 엔드포인트 설정 객체의 리터럴 타입을 지키면서 형태를 검증합니다.'
+---
+
+<Callout type="info">
+  **이번 편의 결과물:** `lib/api/endpoints.ts`의 엔드포인트 설정 객체가 `satisfies Record`로 검증되면서도 각 값의 리터럴 타입이 그대로 유지됩니다. · **다루는 개념:** `satisfies` 연산자, 타입 애너테이션과의 차이, 리터럴 타입 보존
+</Callout>
+
+04편에서 `lib/api/routes.ts`에 아래 두 타입을 이미 만들어 두었습니다.
+
+```ts
+// expense-tracker/src/lib/api/routes.ts (04편, 이 편에서는 수정하지 않음)
+export type TransactionRoute = '/api/transactions' | `/api/transactions/${string}`
+export type HttpMethod = 'get' | 'post' | 'patch' | 'delete'
+```
+
+이 편에서는 이 두 타입을 이용해, 어떤 엔드포인트가 어떤 메서드와 경로를 쓰는지 한곳에 모아 정리합니다.
+
+## 이 편에서 만드는 파일
+
+```
+expense-tracker/src/
+└── lib/
+    └── api/
+        └── endpoints.ts    + (EndpointConfig, TRANSACTION_ENDPOINTS)
+```
+
+## 개념 정리
+
+### 타입 애너테이션의 부작용
+
+객체 리터럴에 `: Record<string, Config>`처럼 타입 애너테이션을 붙이면, 컴파일러는 그 타입에 맞는지 검사한 뒤 변수의 타입을 애너테이션 그대로 확정합니다. 이 과정에서 각 값의 리터럴 타입(`'get'` 같은 구체적인 문자열)이 애너테이션에 적힌 넓은 타입(`HttpMethod`)으로 넓어집니다.
+
+```ts
+type Config = { method: 'get' | 'post'; path: string }
+
+const withAnnotation: Record<string, Config> = {
+  list: { method: 'get', path: '/x' },
+}
+// withAnnotation.list.method의 타입: 'get' | 'post'
+```
+
+### satisfies는 검사만 하고 넓히지 않는다
+
+`satisfies`는 오른쪽 객체 리터럴이 지정한 타입의 형태를 만족하는지 검사만 할 뿐, 변수의 타입을 그 타입으로 바꾸지 않습니다. 변수의 타입은 원래 리터럴에서 추론된 그대로, 즉 가장 좁은 타입으로 남습니다.
+
+```ts
+const withSatisfies = {
+  list: { method: 'get', path: '/x' },
+} satisfies Record<string, Config>
+// withSatisfies.list.method의 타입: 'get'
+```
+
+두 방식 모두 `method`에 `Config`가 허용하지 않는 값(예: `'put'`)을 넣으면 똑같이 오류를 잡아냅니다. 차이는 검사를 통과한 뒤 남는 타입의 정밀도입니다.
+
+### 언제 쓰는가
+
+값 하나하나의 리터럴 타입을 그대로 유지해야 나중에 그 값으로 분기하거나, 특정 리터럴만 받는 함수에 넘길 수 있는 상황에서 `satisfies`가 유리합니다. 단순히 "이 객체가 이 형태를 만족하는지"만 확인하고 이후에는 넓은 타입으로 다뤄도 무방하다면 기존 애너테이션으로도 충분합니다.
+
+## 실습
+
+<Steps>
+
+### 1. endpoints.ts 작성
+
+```ts
+// expense-tracker/src/lib/api/endpoints.ts
+import type { TransactionRoute, HttpMethod } from './routes.ts'
+
+export interface EndpointConfig {
+  method: HttpMethod
+  path: TransactionRoute
+}
+
+export const TRANSACTION_ENDPOINTS = {
+  list: { method: 'get', path: '/api/transactions' },
+  create: { method: 'post', path: '/api/transactions' },
+  update: { method: 'patch', path: '/api/transactions/:id' },
+  remove: { method: 'delete', path: '/api/transactions/:id' },
+} satisfies Record<string, EndpointConfig>
+
+/** get 요청만 받는 함수입니다. 인자 타입이 리터럴 get 하나로 고정되어 있습니다 */
+export function isCacheableMethod(method: 'get'): true {
+  return method === 'get'
+}
+```
+
+`update`, `remove`의 `path`에 쓴 `'/api/transactions/:id'`는 `` `/api/transactions/${string}` `` 패턴에 맞는 문자열이라 `TransactionRoute`를 그대로 만족합니다. 실제 id를 채운 경로를 만드는 일은 이후 API 클라이언트 편이 맡습니다.
+
+### 2. 타입 애너테이션으로 바꿔 차이 확인
+
+`satisfies Record<string, EndpointConfig>`를 잠시 `: Record<string, EndpointConfig>`로 바꿔봅니다.
+
+```ts
+export const TRANSACTION_ENDPOINTS: Record<string, EndpointConfig> = {
+  list: { method: 'get', path: '/api/transactions' },
+  create: { method: 'post', path: '/api/transactions' },
+  update: { method: 'patch', path: '/api/transactions/:id' },
+  remove: { method: 'delete', path: '/api/transactions/:id' },
+}
+```
+
+파일 아래쪽에 확인용 코드를 한 줄 추가합니다.
+
+```ts
+isCacheableMethod(TRANSACTION_ENDPOINTS.list.method)
+```
+
+```text
+npx tsc --noEmit
+
+error TS2345: Argument of type 'HttpMethod' is not assignable to parameter of type '"get"'.
+```
+
+애너테이션 방식에서는 `list.method`의 타입이 `HttpMethod`(네 메서드의 유니온)로 넓어져, `'get'`만 받는 `isCacheableMethod`에 그대로 넘길 수 없습니다. 확인했다면 `satisfies` 방식으로 되돌립니다.
+
+### 3. 되돌린 뒤 다시 확인
+
+```ts
+isCacheableMethod(TRANSACTION_ENDPOINTS.list.method) // 통과 — get 리터럴이 유지됨
+```
+
+`satisfies`로 되돌리면 같은 줄이 오류 없이 통과합니다. 확인이 끝났으면 이 한 줄은 지웁니다.
+
+### 4. 실행
+
+```text
+npx tsc --noEmit
+```
+
+### 5. 확인
+
+- `npx tsc --noEmit`이 오류 없이 끝난다.
+- 편집기에서 `TRANSACTION_ENDPOINTS.list.method`에 마우스를 올리면 타입이 `HttpMethod`가 아니라 `"get"`으로 표시된다.
+- `TRANSACTION_ENDPOINTS`에 `method: 'put'`처럼 `HttpMethod`에 없는 값을 넣으면 즉시 오류가 난다.
+
+</Steps>
+
+## 직접 해보기
+
+1. `TRANSACTION_ENDPOINTS`에 `search: { method: 'get', path: '/api/search' }`처럼 `TransactionRoute`에 없는 경로를 추가해보고, `satisfies`가 어떤 오류를 보여주는지 확인한 뒤 지웁니다.
+2. `EndpointConfig`에 `description?: string` 선택 프로퍼티를 추가하고, `TRANSACTION_ENDPOINTS`의 항목 하나에만 `description`을 채워봅니다. `satisfies`를 쓰면 나머지 항목에 `description`이 없어도 오류가 나지 않는 이유를 생각해봅니다.
+
+<details>
+<summary>정답 보기</summary>
+
+1번은 `path`가 `TransactionRoute`(`` '/api/transactions' 또는 `/api/transactions/${string}` ``)에 맞지 않는다는 오류가 납니다. `'/api/search'`는 그 패턴에 속하지 않기 때문입니다.
+
+2번은 `description`이 선택 프로퍼티(`?`)이므로 없어도 `EndpointConfig` 형태를 만족합니다. `satisfies`는 형태 검사만 하므로, 선택 프로퍼티가 빠진 항목도 그대로 통과하고 각 항목의 실제 리터럴 타입은 그대로 유지됩니다.
+
+</details>
+
+## 자주 하는 실수
+
+| 증상 | 원인 | 고치는 법 |
+|------|------|-----------|
+| satisfies를 썼는데도 리터럴 타입이 넓어짐 | satisfies 대신 콜론 애너테이션을 그대로 남겨둠 | 리터럴을 지키려면 콜론 애너테이션이 아니라 satisfies를 뒤에 붙인다 |
+| 잘못된 값을 넣었는데 오류가 안 남 | satisfies 뒤의 타입 이름을 잘못 적거나 아예 생략함 | Record 등 실제로 검사할 타입을 satisfies 뒤에 정확히 명시한다 |
+| 특정 리터럴만 받는 함수에 값을 못 넘김 | 애너테이션 방식으로 선언해 값이 넓은 유니온 타입으로 굳어짐 | satisfies로 바꿔 원래 리터럴 타입을 유지한다 |
+
+## 확인 문제
+
+<Quiz
+  questionNumber={1}
+  question="satisfies 연산자가 하는 일은"
+  options={['변수의 타입을 오른쪽 타입으로 강제로 바꾼다', '객체 리터럴이 지정한 타입의 형태를 만족하는지 검사만 하고 원래 추론된 좁은 타입은 유지한다', '런타임에 값을 검증한다', '타입 검사를 완전히 건너뛴다']}
+  correctAnswer={2}
+  explanation="satisfies는 형태 검사만 수행하며, 검사에 사용한 타입으로 변수 타입을 바꾸지 않고 원래 추론된 좁은 타입을 그대로 남깁니다."
+  optionExplanations={['타입을 강제로 바꾸지 않습니다', '정답입니다', '컴파일 타임 검사입니다', '검사를 건너뛰지 않습니다']}
+/>
+
+<Quiz
+  questionNumber={2}
+  question="콜론 타입 애너테이션과 satisfies의 차이로 옳은 것은"
+  options={['둘 다 리터럴 타입을 그대로 유지한다', '애너테이션은 값의 타입을 애너테이션 타입으로 넓히고, satisfies는 검사만 하고 원래 타입을 유지한다', '애너테이션은 검사를 하지 않는다', 'satisfies는 구버전 TypeScript에서만 동작한다']}
+  correctAnswer={2}
+  explanation="콜론 애너테이션은 변수의 타입을 애너테이션에 적힌 타입으로 확정해 리터럴 정보를 넓히지만, satisfies는 검사만 하고 추론된 좁은 타입을 그대로 둡니다."
+  optionExplanations={['애너테이션은 오히려 타입을 넓힙니다', '정답입니다', '애너테이션도 형태 검사를 수행합니다', '최신 TypeScript에서 도입된 문법입니다']}
+/>
+
+<Quiz
+  questionNumber={3}
+  question="get 리터럴 하나만 받는 함수에 TRANSACTION_ENDPOINTS.list.method를 그대로 넘기려면 필요한 것은"
+  options={['method 값을 문자열로 강제 변환한다', 'TRANSACTION_ENDPOINTS 선언에서 리터럴 타입이 보존되어야 한다', 'HttpMethod 유니온에 get만 남긴다', '함수의 매개변수 타입을 항상 string으로 바꾼다']}
+  correctAnswer={2}
+  explanation="satisfies로 선언해 method의 타입이 HttpMethod로 넓어지지 않고 get 리터럴로 남아 있어야 이 함수에 그대로 넘길 수 있습니다."
+  optionExplanations={['문자열 변환과는 무관합니다', '정답입니다', '유니온 자체를 줄이는 방법이 아닙니다', '매개변수 타입을 바꾸는 것은 원인 해결이 아닙니다']}
+/>
+
+<Quiz
+  questionNumber={4}
+  question="satisfies를 쓰기에 적합한 상황은"
+  options={['객체의 형태를 검사하면서도 각 값의 구체적인 리터럴 타입을 이후 코드에서 계속 활용하고 싶을 때', '타입 검사를 아예 생략하고 싶을 때', '객체를 배열로 바꾸고 싶을 때', '변수 이름을 자동으로 바꾸고 싶을 때']}
+  correctAnswer={1}
+  explanation="설정 객체처럼 형태는 검증받되 각 값의 리터럴 정보를 잃지 않아야 이후 코드에서 정확한 타입으로 다룰 수 있을 때 satisfies가 유리합니다."
+  optionExplanations={['정답입니다', '검사는 여전히 수행됩니다', '배열 변환과는 무관합니다', '변수 이름과는 무관합니다']}
+/>
+
+## 참고 자료
+
+- [TypeScript — Release Notes 4.9: satisfies](https://www.typescriptlang.org/docs/handbook/release-notes/typescript-4-9.html)

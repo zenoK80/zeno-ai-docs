@@ -1,0 +1,252 @@
+---
+title: '18. tsdown으로 라이브러리 빌드와 d.ts 생성'
+description: 'packages/ui와 packages/shared-types에 tsdown 빌드를 붙여 번들과 선언 파일을 생성합니다'
+---
+
+<Callout type="info">
+  **이번 편의 결과물:** `packages/ui`, `packages/shared-types`에 `npm run build` 스크립트가 생기고, `dist/`에 ESM·CJS 번들과 `index.d.ts`가 생성됩니다. · **다루는 개념:** tsdown 설정(`entry`, `format`, `dts`), `exports` 필드 자동 생성, 개발용 소스 참조(`devExports`)
+</Callout>
+
+17편까지 `packages/ui`는 `tsc -b`가 만든 `dist`를 `main`·`types` 필드로 직접 가리켰습니다. 이 방식은 코드를 고칠 때마다 빌드를 다시 돌려야 하고, 배포용으로 쓰기엔 파일이 소스 파일 개수만큼 그대로 나뉘어 있어 비효율적입니다. 이번 편은 두 패키지에 tsdown을 붙여 번들링·선언 파일 생성·`package.json`의 `exports` 필드 관리를 한 번에 맡깁니다.
+
+## 이 편에서 만드는 파일
+
+```
+bookshelf-ts/
+├── package.json                    ~ (devDependencies에 tsdown 추가, -w 설치)
+└── packages/
+    ├── shared-types/
+    │   ├── package.json            ~ (scripts.build를 tsdown으로 교체)
+    │   └── tsdown.config.ts        +
+    └── ui/
+        ├── package.json            ~ (scripts.build를 tsdown으로 교체)
+        └── tsdown.config.ts        +
+```
+
+## 개념 정리
+
+### tsdown의 두 가지 d.ts 생성 경로
+
+tsdown은 `tsconfig.json`에 `isolatedDeclarations`가 켜져 있으면 더 빠른 oxc 기반 경로를, 아니면 TypeScript 컴파일러를 통한 경로를 씁니다. `bookshelf-ts`는 아직 `isolatedDeclarations`를 켜지 않았으므로(모든 함수에 반환 타입을 명시해야 하는 제약이 큽니다) 기본 경로를 그대로 씁니다. `dts: true`만 지정하면 됩니다.
+
+### peerDependencies 자동 외부화
+
+tsdown은 `peerDependencies`에 적힌 패키지를 번들에 포함하지 않고 `import`·`require` 구문으로 남겨둡니다. 17편에서 `react`, `react-dom`을 `peerDependencies`로 선언해 둔 덕분에, 별도 설정 없이도 `packages/ui`의 번들에 React 코드가 섞이지 않습니다.
+
+### exports 필드 자동 생성과 devExports
+
+`exports: true`를 켜면 tsdown이 실제 출력 파일을 분석해 `package.json`의 `exports`(그리고 `format`이 두 개 이상이면 `main`·`module`·`types`까지)를 채워 넣습니다. 여기에 `devExports: true`를 더하면, 평소에는 `exports`가 소스 파일(`src/index.ts`)을 직접 가리키고 `publishConfig.exports`에만 빌드 결과(`dist`) 경로가 들어갑니다.
+
+| 상황 | 실제로 참조되는 파일 |
+|---|---|
+| `apps/web`에서 pnpm 워크스페이스로 개발 중 | `packages/ui/src/index.ts` (빌드 없이 바로 반영) |
+| `npm pack`·`npm publish`로 배포 | `publishConfig.exports`의 `dist/*` (배포 직전 우선 적용) |
+
+pnpm·yarn의 pack·publish 명령은 `publishConfig`를 `package.json`에 병합한 뒤 패키징하므로, 개발 중에는 빌드 없이 즉시 반영되고 배포 시에는 자동으로 번들 파일을 쓰는 두 마리 토끼를 잡습니다. 17편에서 겪은 "고칠 때마다 dist를 다시 빌드해야 하는" 불편이 이렇게 해소됩니다.
+
+## 실습
+
+<Steps>
+
+### 1. tsdown 설치
+
+```text
+pnpm add -D tsdown -w
+```
+
+워크스페이스 루트(`-w`)에 한 번만 설치하면 모든 패키지의 `tsdown` 명령을 쓸 수 있습니다.
+
+### 2. packages/ui/tsdown.config.ts 작성
+
+```ts
+// packages/ui/tsdown.config.ts
+import { defineConfig } from 'tsdown'
+
+export default defineConfig({
+  entry: ['src/index.ts'],
+  format: ['esm', 'cjs'],
+  dts: true,
+  clean: true,
+  sourcemap: true,
+  exports: {
+    devExports: true,
+  },
+})
+```
+
+`format`을 두 가지로 지정해 ESM(`dist/index.js`)과 CJS(`dist/index.cjs`)를 모두 만듭니다. `apps/web`은 ESM만 쓰지만, 이 패키지를 CommonJS 환경(예: 구버전 Node 스크립트)에서 쓰는 사람도 있을 수 있으므로 둘 다 지원합니다.
+
+### 3. packages/shared-types/tsdown.config.ts 작성
+
+```ts
+// packages/shared-types/tsdown.config.ts
+import { defineConfig } from 'tsdown'
+
+export default defineConfig({
+  entry: ['src/index.ts'],
+  format: ['esm', 'cjs'],
+  dts: true,
+  clean: true,
+  exports: {
+    devExports: true,
+  },
+})
+```
+
+zod 스키마는 타입이 아니라 실제 실행되는 값이므로, `shared-types`도 `ui`와 똑같이 실제 번들이 필요합니다.
+
+### 4. 두 패키지의 package.json 갱신
+
+```json
+// packages/ui/package.json (scripts 발췌)
+{
+  "scripts": {
+    "build": "tsdown",
+    "dev": "tsdown --watch"
+  }
+}
+```
+
+```json
+// packages/shared-types/package.json (scripts 발췌)
+{
+  "scripts": {
+    "build": "tsdown"
+  }
+}
+```
+
+`main`·`types` 필드는 지우지 않아도 됩니다. 빌드를 한 번 실행하면 tsdown이 `exports`(그리고 `devExports` 규칙에 따른 `publishConfig.exports`)를 자동으로 써넣으면서 필요한 필드를 함께 정리합니다.
+
+### 5. 빌드 실행과 결과 확인
+
+```text
+pnpm --filter @bookshelf/shared-types build
+pnpm --filter @bookshelf/ui build
+```
+
+```text
+packages/ui/dist/
+├── index.js
+├── index.js.map
+├── index.cjs
+├── index.cjs.map
+├── index.d.ts
+└── index.d.cts
+```
+
+빌드가 끝나면 `packages/ui/package.json`을 다시 열어봅니다.
+
+```json
+// packages/ui/package.json (빌드 후 자동 반영된 부분 발췌)
+{
+  "exports": {
+    ".": "./src/index.ts"
+  },
+  "publishConfig": {
+    "exports": {
+      ".": {
+        "types": "./dist/index.d.ts",
+        "import": "./dist/index.js",
+        "require": "./dist/index.cjs"
+      }
+    }
+  }
+}
+```
+
+### 6. apps/web이 여전히 정상 동작하는지 확인
+
+```text
+pnpm --filter @bookshelf/web dev
+```
+
+</Steps>
+
+## 확인
+
+- `packages/ui/dist`, `packages/shared-types/dist`에 `index.js`, `index.cjs`, `index.d.ts`, `index.d.cts`가 모두 생성됩니다.
+- `packages/ui/package.json`에 `exports`와 `publishConfig.exports`가 자동으로 채워집니다.
+- `npm run dev`로 `apps/web`을 켜면 이전과 동일하게 렌더링되고, 이번에는 `packages/ui`의 소스를 고쳐도 별도 빌드 없이 곧바로 반영됩니다.
+- `packages/ui/dist/index.cjs`를 열어보면 `react`가 번들에 포함되지 않고 `require("react")` 형태로 남아 있습니다.
+
+## 직접 해보기
+
+1. `tsdown.config.ts`에 `publint: true`를 추가하고 다시 빌드해, `package.json` 필드가 실제 출력 파일과 어긋나는 곳이 있는지 검사 결과를 읽어 보세요.
+2. `packages/ui/tsconfig.json`에 `isolatedDeclarations: true`를 켜고 빌드해 보세요. 반환 타입이 없는 함수가 있다면 오류 메시지가 어디를 가리키는지 확인합니다.
+
+<details>
+<summary>정답 보기</summary>
+
+```ts
+// packages/ui/tsdown.config.ts (publint 추가)
+import { defineConfig } from 'tsdown'
+
+export default defineConfig({
+  entry: ['src/index.ts'],
+  format: ['esm', 'cjs'],
+  dts: true,
+  clean: true,
+  sourcemap: true,
+  publint: true,
+  exports: {
+    devExports: true,
+  },
+})
+```
+
+`isolatedDeclarations`를 켜면 `DataTable` 같은 제네릭 컴포넌트에서 반환 타입을 명시하지 않았다는 오류가 날 수 있습니다. 함수 시그니처에 `: ReactNode` 등 반환 타입을 직접 적어 해결합니다. 이 옵션은 파일마다 다른 파일을 보지 않고도 타입을 알 수 있게 강제해, tsdown이 더 빠른 경로로 선언 파일을 만들도록 돕습니다.
+
+</details>
+
+## 자주 하는 실수
+
+| 증상 | 원인 | 고치는 법 |
+|---|---|---|
+| 소비하는 쪽에서 선언 파일을 찾을 수 없다는 오류 | `tsdown.config.ts`에 `dts: true`를 빠뜨림 | 설정에 `dts: true` 추가 후 재빌드 |
+| 번들 안에 React 코드가 통째로 들어감 | `react`를 `peerDependencies`가 아닌 일반 `dependencies`로 선언 | `package.json`에서 `react`, `react-dom`을 `peerDependencies`로 이동 |
+| 빌드 결과에 예전 파일이 섞여 남음 | `clean` 옵션 없이 반복 빌드 | `clean: true`를 설정에 추가 |
+| exports 필드가 이상하게 채워짐 | entry에 없는 파일까지 내부적으로 참조 | `entry`를 실제 공개할 진입점(`src/index.ts`)만으로 좁히고 재빌드 |
+
+## 확인 문제
+
+<Quiz
+  questionNumber={1}
+  question="tsdown 설정에서 dts를 참으로 설정하는 이유는"
+  options={['빌드 속도를 늦추기 위해서', '번들 JS와 함께 타입 선언 파일을 생성해 소비자가 타입 검사를 받을 수 있게 하기 위해서', 'CSS 파일을 자동 생성하기 위해서', '테스트 코드를 자동으로 작성하기 위해서']}
+  correctAnswer={2}
+  explanation="dts 옵션은 배포용 d.ts 선언 파일 생성을 담당하며, 이것이 있어야 이 패키지를 쓰는 다른 프로젝트에서도 타입 검사가 됩니다."
+  optionExplanations={['속도를 늦추려는 목적이 아닙니다', '정답입니다', 'CSS 생성과는 무관합니다', '테스트 작성과는 관련이 없습니다']}
+/>
+
+<Quiz
+  questionNumber={2}
+  question="packages/ui의 번들 파일에 react 코드가 포함되지 않는 이유는"
+  options={['react가 devDependencies에 있어서', 'react가 peerDependencies로 선언되어 tsdown이 자동으로 외부화하기 때문에', 'tsdown이 react를 인식하지 못해서', 'entry 파일에서 react를 import하지 않아서']}
+  correctAnswer={2}
+  explanation="tsdown은 peerDependencies에 있는 패키지를 번들에서 제외하고 import·require 구문으로만 남겨, 소비하는 앱의 React를 그대로 쓰게 합니다."
+  optionExplanations={['devDependencies 여부와는 무관합니다', '정답입니다', 'tsdown은 peerDependencies를 인식합니다', 'BookCard 등 여러 컴포넌트가 react를 import합니다']}
+/>
+
+<Quiz
+  questionNumber={3}
+  question="devExports를 켰을 때 개발 중(pnpm 워크스페이스 안)에 실제로 참조되는 파일은"
+  options={['항상 dist 안의 번들 파일', 'src/index.ts 같은 소스 파일', 'node_modules에 복사된 파일', 'package.json 자체']}
+  correctAnswer={2}
+  explanation="devExports를 켜면 기본 exports 필드가 소스 파일을 가리켜, 빌드 없이도 코드 변경이 바로 반영됩니다. 빌드 결과는 publishConfig.exports에만 들어갑니다."
+  optionExplanations={['dist는 배포 시에만 쓰입니다', '정답입니다', 'node_modules 복사와는 무관합니다', 'package.json 자체를 가리키지 않습니다']}
+/>
+
+<Quiz
+  questionNumber={4}
+  question="publishConfig.exports가 실제로 적용되는 시점은"
+  options={['pnpm install을 실행할 때', 'npm pack이나 npm publish처럼 패키지를 배포용으로 묶을 때', 'vite dev 서버를 시작할 때', 'tsc -b로 타입 검사만 할 때']}
+  correctAnswer={2}
+  explanation="pack·publish 계열 명령은 publishConfig 내용을 package.json에 병합한 뒤 패키징하므로, 이 시점에만 배포용 exports가 실제로 쓰입니다."
+  optionExplanations={['install 시점과는 무관합니다', '정답입니다', 'dev 서버는 devExports 경로를 그대로 씁니다', '타입 검사만으로는 패키징이 일어나지 않습니다']}
+/>
+
+## 참고 자료
+
+- [tsdown — 공식 문서](https://tsdown.dev/)
+- [tsdown — Auto-Generating Package Exports](https://tsdown.dev/options/package-exports)

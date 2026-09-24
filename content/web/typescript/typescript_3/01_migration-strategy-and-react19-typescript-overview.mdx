@@ -1,0 +1,168 @@
+---
+title: '01. JS 앱을 왜, 어떻게 TypeScript로 옮기는가'
+description: 'bookshelf(JS)에서 타입이 못 잡아주는 지점을 확인하고, 빅뱅 전환 대신 allowJs 기반 점진 전환을 택하는 이유와 이 과목의 최종 목표를 정리합니다'
+---
+
+<Callout type="info">
+  **이번 편의 결과물:** 지금 `bookshelf`(JS) 코드에서 타입이 있었다면 컴파일 시점에 잡혔을 오류 지점을 두 곳 확인합니다. 코드는 아직 바꾸지 않습니다. · **다루는 개념:** `allowJs`/`checkJs`로 점진 전환하는 원칙, 빅뱅 전환의 위험, React 19의 타입 지형(`@types/react`, `ReactNode`), 이 과목의 최종 목표(모노레포) 미리보기
+</Callout>
+
+## 이 편에서 만드는 파일
+
+이 편은 개념 편입니다. 새로 만들거나 고치는 파일이 없습니다. 대신 `react_3`를 마친 `bookshelf`의 기존 파일을 근거로 이야기합니다.
+
+```
+bookshelf/src/
+├── components/BookCard.jsx   ← 지금은 props 타입을 문서·주석으로만 약속
+└── hooks/useBooks.js         ← 지금은 반환값 모양을 호출부가 기억해서 씀
+```
+
+## 개념 정리
+
+### 지금 코드에서 타입이 못 잡아주는 지점
+
+`react_1`부터 `react_3`까지 20편이 넘게 쌓인 `bookshelf`는 잘 동작합니다. 하지만 "잘 동작한다"와 "잘못 쓰면 즉시 알려준다"는 다른 이야기입니다. `components/BookCard.jsx`는 `book` 객체를 받아 제목·저자·상태를 렌더링합니다.
+
+```jsx
+// bookshelf/src/components/BookCard.jsx (일부)
+function BookCard({ book }) {
+  return (
+    <li className="book-card">
+      <h3>{book.title}</h3>
+      <p>{book.author}</p>
+    </li>
+  )
+}
+```
+
+이 함수는 `book`이 무엇인지 코드 어디에도 적혀 있지 않습니다. 다음 두 호출은 모두 편집기에서 아무 경고 없이 통과하고, 브라우저에서 실행해야만 문제가 드러납니다.
+
+```jsx
+<BookCard book={{ title: '클린 코드' }} />
+<BookCard />
+```
+
+첫 번째는 `author`가 없어 화면에 빈 문단이 나옵니다. 두 번째는 `book`이 `undefined`라 `book.title`을 읽는 순간 `Cannot read properties of undefined` 예외가 던져져 화면 전체가 하얗게 됩니다. 두 경우 모두 코드를 저장하는 순간이 아니라 그 코드가 실행되는 순간에야 알 수 있습니다. `hooks/useBooks.js`도 마찬가지입니다. 이 훅이 정확히 어떤 모양의 객체를 반환하는지는 훅 안을 직접 읽어야만 알 수 있고, 사용하는 쪽에서 필드 이름을 하나 잘못 적어도 편집기는 조용합니다.
+
+타입스크립트는 이 두 문제를 코드를 실행하기 전, 편집기 위에서 바로 알려줍니다. `book`의 타입을 한 번 정의해 두면 `book.titel`처럼 오타가 난 순간 빨간 줄이 뜨고, `BookCard` 없이 호출하면 "필수 프로퍼티가 없다"는 오류가 즉시 나타납니다.
+
+### 빅뱅 전환과 점진적 전환
+
+`bookshelf`의 모든 파일을 하루 만에 `.tsx`/`.ts`로 바꾸는 방법(빅뱅 전환)도 있습니다. 이 과목은 그 대신 점진적 전환을 택합니다.
+
+| 기준 | 빅뱅 전환 | 점진적 전환(이 과목) |
+|------|-----------|----------------------|
+| 작업 단위 | 프로젝트 전체를 한 번에 | 파일 하나씩, 편마다 |
+| 전환 중 앱 상태 | 다 바꾸기 전까지 실행 불가할 수 있음 | 매 편이 끝날 때마다 정상 렌더링 |
+| 오류 발생량 | 수십–수백 개가 한꺼번에 쏟아짐 | 방금 바꾼 파일 범위로 한정됨 |
+| 롤백 난이도 | 어려움(변경 범위가 큼) | 쉬움(파일 하나만 되돌리면 됨) |
+| 팀 작업 병행 | 사실상 불가능(충돌 위험) | 다른 기능 개발과 병행 가능 |
+
+실무에서 다루는 앱은 대부분 `bookshelf`보다 훨씬 큽니다. 빅뱅 전환은 그 규모에서 "전환이 끝날 때까지 아무 기능도 못 만든다"는 위험을 감수해야 합니다. 점진적 전환은 매 편(실무에서는 매 커밋)마다 앱이 계속 동작한다는 것을 대가로, 한동안 `.js`와 `.ts` 파일이 섞여 있는 상태를 견뎌야 합니다. 이 과목은 이 혼용 상태를 안전하게 유지하는 도구로 `allowJs`와 `checkJs`를 씁니다.
+
+### allowJs와 checkJs
+
+| 옵션 | 기본값 | 켜면 생기는 일 |
+|------|--------|------------------|
+| `allowJs` | `false` | `.js`/`.jsx` 파일을 컴파일 대상에 포함하고, `.ts` 파일에서 `import`할 수 있게 한다 |
+| `checkJs` | `false` | `allowJs`가 켜진 상태에서, `.js`/`.jsx` 파일 안의 타입 오류까지 검사한다 |
+
+`checkJs`는 `allowJs`가 꺼져 있으면 켤 수 없습니다. `.js` 파일을 아예 컴파일 대상에서 빼놓고 그 안의 타입만 검사할 방법은 없기 때문입니다. 이 과목은 02편에서 `allowJs: true`, `checkJs: false`로 시작합니다. 아직 전환하지 않은 `.jsx` 파일은 컴파일에는 포함되어 화면에 정상적으로 렌더링되지만, 타입 오류 검사 대상에서는 빠집니다. 파일을 하나씩 `.tsx`로 바꿀 때마다 그 파일만 `checkJs`를 켠 것과 같은 효과가 생깁니다. 04편부터 이 흐름을 실제로 진행합니다.
+
+### React 19의 타입 지형
+
+React 자체는 타입 선언을 포함하지 않습니다. `@types/react`, `@types/react-dom` 패키지가 `useState`, `JSX.Element`, 이벤트 객체 같은 타입을 제공합니다. 이 과목에서 자주 마주칠 타입은 아래와 같습니다.
+
+| 타입 | 뜻 | 쓰이는 곳 |
+|------|-----|-----------|
+| `ReactNode` | 문자열, 숫자, JSX 엘리먼트, `null` 등 자식으로 올 수 있는 모든 값의 합집합 | `children` prop 타입(04편) |
+| `ReactElement` | JSX 엘리먼트만(문자열·숫자 제외) | 특정 컴포넌트만 자식으로 받고 싶을 때 |
+| `ChangeEvent<T>`, `FormEvent<T>` | DOM 이벤트 객체에 대상 요소 타입까지 붙인 제네릭 타입 | 입력·폼 핸들러(05편) |
+| `JSX.Element` | 컴포넌트 함수가 반환하는 값의 타입 | 컴포넌트 반환 타입을 명시할 때 |
+
+JSX 문법을 쓰는 파일은 확장자가 `.tsx`여야 합니다. `.ts` 파일 안에 `<BookCard />` 같은 태그를 쓰면 컴파일러가 이를 비교 연산자로 오해해 오류를 냅니다. 04편에서 컴포넌트 파일을 `.jsx`에서 `.tsx`로 바꿀 때 이 규칙이 그대로 적용됩니다.
+
+### 이 과목의 최종 목표: bookshelf-ts 모노레포
+
+02편부터 22편까지 거치는 전체 경로를 미리 봅니다.
+
+```
+bookshelf-ts/                       ← pnpm 워크스페이스(14편부터)
+├── apps/
+│   └── web/                        ← bookshelf(JS)가 전부 .tsx/.ts로 전환된 상태
+├── packages/
+│   ├── shared-types/                ← 도메인 타입·zod 스키마 공유(15편)
+│   └── ui/                          ← BookCard 등 재사용 컴포넌트, tsdown 빌드(17~18편)
+└── .github/workflows/ci.yml         ← 타입 체크·린트·테스트·빌드 자동화(21편)
+```
+
+02편에서는 아직 `apps/`·`packages/` 구분 없이 `bookshelf-ts/` 단일 프로젝트로 시작합니다. 03편에서 이 구조를 나누는 이유를 먼저 짚고, 실제 전환은 14편부터 진행합니다.
+
+## 직접 해보기
+
+<details>
+<summary>hooks/useBooks.js를 열어, 이 훅이 반환하는 객체에 어떤 필드가 있는지 코드만 보고 나열해 보세요. 그다음 BookListPage.jsx에서 그 필드들을 실제로 어떤 이름으로 쓰고 있는지 대조해 보세요.</summary>
+
+`useBooks`가 `useQuery`를 감싸고 있다면 반환값은 `data`, `isLoading`, `isError`, `error` 등입니다. 이 이름을 하나라도 다르게 적어 써도(`isloading`처럼) 지금은 편집기가 알려주지 않고, 실행해서 화면이 이상하게 나와야 알아챌 수 있습니다. 06편에서 이 훅에 반환 타입을 명시하면 이런 오타가 바로 빨간 줄로 표시됩니다.
+</details>
+
+## 자주 하는 실수
+
+| 증상 | 원인 | 고치는 법 |
+|------|------|-----------|
+| 전환을 시작하자마자 파일 수십 개에서 오류가 쏟아진다 | `.js`를 전부 `.ts`로 확장자만 바꾸고 `strict` 옵션을 처음부터 최고 강도로 켬 | `allowJs`로 기존 `.js`는 그대로 두고, 파일 하나를 `.tsx`로 바꿀 때만 그 파일의 오류를 본다 |
+| `.jsx` 파일 안 JSX 태그에서 알 수 없는 오류가 난다 | 확장자를 `.ts`로만 바꾸고 `.tsx`로 바꾸지 않음 | JSX를 쓰는 파일은 반드시 `.tsx` |
+| `checkJs`를 켰는데 오류가 안 남 | `allowJs`가 꺼져 있어 `checkJs` 자체가 무시됨 | `allowJs: true`를 먼저 켠다 |
+
+## 확인 문제
+
+<Quiz
+  questionNumber={1}
+  question="지금의 BookCard.jsx에서 book prop 없이 컴포넌트를 호출해도 편집기가 조용한 이유는 무엇입니까"
+  options={['React 19가 기본값을 자동으로 채워주기 때문', 'book의 타입이 코드 어디에도 정의되어 있지 않아 필수 여부를 검사할 수 없기 때문', 'JSX 문법이 원래 오류를 표시하지 않기 때문', 'ESLint가 이 규칙을 꺼두었기 때문']}
+  correctAnswer={2}
+  explanation="타입 정의가 없으면 컴파일러가 book이 필수인지, 어떤 필드를 가져야 하는지 알 방법이 없어 실행해야만 문제가 드러납니다."
+  optionExplanations={['React가 자동으로 채워주지 않습니다', '정답입니다', 'JSX 문법 자체와는 무관합니다', 'ESLint 설정과는 별개 문제입니다']}
+/>
+
+<Quiz
+  questionNumber={2}
+  question="이 과목이 빅뱅 전환 대신 점진적 전환을 선택한 가장 큰 이유는 무엇입니까"
+  options={['점진적 전환이 코드 줄 수가 더 적어서', '매 편이 끝날 때마다 앱이 계속 정상 렌더링되는 상태를 유지하기 위해', 'TypeScript가 빅뱅 전환을 기술적으로 지원하지 않아서', '빅뱅 전환은 React 19와 호환되지 않아서']}
+  correctAnswer={2}
+  explanation="점진적 전환은 파일 단위로 진행해 각 단계마다 앱이 계속 동작하는 상태를 유지할 수 있습니다."
+  optionExplanations={['코드 줄 수와는 무관합니다', '정답입니다', '기술적으로는 빅뱅 전환도 가능합니다', 'React 버전과는 무관한 선택입니다']}
+/>
+
+<Quiz
+  questionNumber={3}
+  question="allowJs가 false인 상태에서 checkJs를 true로 설정하면 어떻게 됩니까"
+  options={['정상적으로 js 파일의 타입 오류를 검사한다', 'checkJs는 allowJs가 true여야만 동작하므로 설정 자체가 무효하다', 'ts 파일의 타입 검사가 꺼진다', 'jsx 파일만 골라서 검사한다']}
+  correctAnswer={2}
+  explanation="checkJs는 js 파일이 컴파일 대상에 포함되어 있어야 검사할 수 있으므로 allowJs가 먼저 true여야 합니다."
+  optionExplanations={['allowJs 없이는 동작하지 않습니다', '정답입니다', 'ts 파일 검사와는 무관합니다', '검사 대상 선별 기능이 아닙니다']}
+/>
+
+<Quiz
+  questionNumber={4}
+  question="JSX 태그를 쓰는 파일의 확장자를 tsx가 아니라 ts로 지정하면 생기는 문제는 무엇입니까"
+  options={['빌드 속도가 느려진다', '컴파일러가 태그를 비교 연산자 등으로 오해해 오류를 낸다', 'React 19에서 자동으로 tsx로 바꿔준다', 'ESLint 설정만 다시 하면 해결된다']}
+  correctAnswer={2}
+  explanation="ts 파일은 JSX 문법을 해석하지 않아, 꺾쇠 기호가 들어간 표현을 다른 문법으로 오해해 오류가 발생합니다."
+  optionExplanations={['속도 문제가 아닙니다', '정답입니다', '자동 변환 기능은 없습니다', 'ESLint로 해결되는 문제가 아닙니다']}
+/>
+
+<Quiz
+  questionNumber={5}
+  question="이 과목의 최종 결과물 구조에서 packages/shared-types가 담당하는 역할은 무엇입니까"
+  options={['배포용 정적 파일을 저장한다', '도메인 타입과 zod 스키마를 정의해 apps/web 등 여러 패키지가 공유하게 한다', 'GitHub Actions 워크플로를 저장한다', 'UI 컴포넌트를 렌더링한다']}
+  correctAnswer={2}
+  explanation="shared-types 패키지는 여러 패키지가 공통으로 참조할 도메인 타입과 zod 스키마를 모아두는 역할을 합니다."
+  optionExplanations={['정적 파일 저장소가 아닙니다', '정답입니다', '워크플로는 .github/workflows에 있습니다', 'UI 렌더링은 packages/ui의 역할입니다']}
+/>
+
+## 참고 자료
+
+- [React — Using TypeScript(공식 문서)](https://react.dev/learn/typescript)
+- [TypeScript — tsconfig allowJs](https://www.typescriptlang.org/tsconfig/#allowJs)
+- [TypeScript Handbook — Migrating from JavaScript](https://www.typescriptlang.org/docs/handbook/migrating-from-javascript.html)

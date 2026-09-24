@@ -1,0 +1,267 @@
+---
+title: '11. 가변 튜플로 파이프라인 유틸 만들기'
+description: '가변 튜플 기반 pipe()로 CSV 원시 행을 파싱, 검증, 변환하는 파이프라인을 만듭니다'
+---
+
+<Callout type="info">
+  **이번 편의 결과물:** `lib/types/pipe.ts`에 가변 튜플 기반 `pipe()`를 작성해, CSV로 가져온 원시 행을 파싱→검증→변환하는 파이프라인에 적용합니다. · **다루는 개념:** 가변 튜플 타입, 튜플 스프레드로 함수 합성 타이핑, `pipe`/`compose` 유틸
+</Callout>
+
+거래를 CSV 파일로 한꺼번에 가져오는 기능을 준비하고 있습니다. CSV 한 줄은 문자열 배열(`['2026-09-05', 'food', '12000', '점심']`)로 시작해서, 필드 이름을 붙이는 단계, 금액을 숫자로 바꾸는 단계, 카테고리를 검증하는 단계, 최종적으로 거래 입력 타입을 조립하는 단계를 순서대로 거칩니다. 이런 단계별 변환을 함수 여러 개로 나눠 두면 각 단계를 따로 테스트할 수 있지만, 이어붙여 실행할 때마다 앞 함수의 반환 타입과 뒤 함수의 매개변수 타입이 맞는지 매번 눈으로 확인해야 합니다. 이 편에서는 함수를 몇 개 넘기든 그 사이 타입이 이어지는지 컴파일러가 검사해 주는 `pipe()`를 만듭니다.
+
+## 이 편에서 만드는 파일
+
+```
+expense-tracker/
+├── src/
+│   └── lib/
+│       └── types/
+│           └── pipe.ts        + (가변 튜플 기반 pipe())
+└── tests/
+    └── pipe.test.ts           + (CSV 파이프라인 동작 검증)
+```
+
+## 개념 정리
+
+### 가변 튜플 타입
+
+가변 튜플 타입은 튜플 앞뒤에 다른 타입을 얼마든지 이어붙일 수 있게 해주는 문법입니다. `readonly [A, ...B[]]`처럼 스프레드 문법을 튜플 타입 안에 쓸 수 있고, 이 스프레드 부분은 제네릭 타입 매개변수가 될 수도 있습니다. 함수를 몇 개 받을지 미리 정해두지 않고, "함수들의 튜플"을 그대로 타입 매개변수로 받는 데 이 문법을 씁니다.
+
+### 재귀 조건부 타입으로 인접한 함수 짝 검사하기
+
+함수 여러 개를 한 번에 검사하려면, 튜플을 머리(첫 함수)와 꼬리(나머지 함수들)로 나눠 첫 두 함수의 타입이 맞는지 확인한 뒤, 꼬리에 대해 같은 검사를 반복합니다.
+
+```ts
+type UnaryFn<TInput, TOutput> = (input: TInput) => TOutput
+
+type ValidateChain<TFns extends readonly UnaryFn<any, any>[]> = TFns extends readonly [
+  UnaryFn<infer TIn, infer TOut>,
+  ...infer TRest,
+]
+  ? TRest extends readonly []
+    ? readonly [UnaryFn<TIn, TOut>]
+    : TRest extends readonly [UnaryFn<TOut, any>, ...UnaryFn<any, any>[]]
+      ? readonly [UnaryFn<TIn, TOut>, ...ValidateChain<TRest>]
+      : never
+  : readonly []
+```
+
+`[UnaryFn<infer TIn, infer TOut>, ...infer TRest]`는 튜플의 첫 함수와 나머지를 각각 `TIn`, `TOut`, `TRest`로 뽑아냅니다. `TRest`의 첫 함수가 `TOut`을 입력으로 받는 함수인지 확인하고, 맞으면 `TRest`에 대해 `ValidateChain`을 다시 적용합니다. 어느 한 지점에서 타입이 안 맞으면 그 갈래는 `never`가 되어, 전체 튜플도 원래 넘긴 함수 목록과 다른 모양이 되므로 호출부에서 타입 오류가 납니다.
+
+### pipe/compose 유틸의 두 스타일
+
+| 스타일 | 형태 | 이 편에서 쓰는 방식 |
+|---|---|---|
+| 즉시 실행형 | `pipe(초기값, 함수1, 함수2, ...)` | 아님 |
+| 합성형 | `pipe(함수1, 함수2, ...)`가 새 함수를 반환 | 이 편에서 사용 |
+
+합성형은 함수들을 미리 이어붙여 두고, 나중에 원하는 시점에 값을 넣어 실행합니다. CSV 각 행에 같은 파이프라인을 반복 적용하기에 더 알맞습니다.
+
+## 실습
+
+<Steps>
+
+### 1. 유틸 파일 만들기
+
+`expense-tracker/src/lib/types/` 폴더를 만들고 `pipe.ts` 파일을 추가합니다.
+
+### 2. 코드 작성
+
+```ts
+// expense-tracker/src/lib/types/pipe.ts
+type UnaryFn<TInput, TOutput> = (input: TInput) => TOutput
+
+// 인접한 함수의 출력·입력 타입이 서로 맞는지 재귀적으로 검사한다
+type ValidateChain<TFns extends readonly UnaryFn<any, any>[]> = TFns extends readonly [
+  UnaryFn<infer TIn, infer TOut>,
+  ...infer TRest,
+]
+  ? TRest extends readonly []
+    ? readonly [UnaryFn<TIn, TOut>]
+    : TRest extends readonly [UnaryFn<TOut, any>, ...UnaryFn<any, any>[]]
+      ? readonly [UnaryFn<TIn, TOut>, ...ValidateChain<TRest>]
+      : never
+  : readonly []
+
+type FirstInput<TFns extends readonly UnaryFn<any, any>[]> = TFns extends readonly [UnaryFn<infer TIn, any>, ...any[]]
+  ? TIn
+  : never
+
+type LastOutput<TFns extends readonly UnaryFn<any, any>[]> = TFns extends readonly [...any[], UnaryFn<any, infer TOut>]
+  ? TOut
+  : never
+
+export function pipe<TFns extends readonly UnaryFn<any, any>[]>(
+  ...fns: ValidateChain<TFns>
+): (input: FirstInput<TFns>) => LastOutput<TFns> {
+  return (input: FirstInput<TFns>) =>
+    fns.reduce((value, fn) => (fn as UnaryFn<unknown, unknown>)(value), input as unknown) as LastOutput<TFns>
+}
+```
+
+`pipe`가 받는 `...fns`의 타입은 `ValidateChain<TFns>`입니다. 넘긴 함수들이 서로 이어지지 않으면 `ValidateChain`이 `never`를 포함한 모양이 되어, 실제로 넘긴 함수 목록과 타입이 어긋나 호출부에서 오류가 납니다. 함수 본문에서는 어차피 실행 시점에 값 하나를 계속 다음 함수로 넘기기만 하면 되므로, `reduce` 안에서는 `unknown`으로 다뤄도 안전합니다. 최종 반환 타입은 `LastOutput`이 계산한, 마지막 함수의 출력 타입입니다.
+
+CSV 한 줄을 거래 입력으로 바꾸는 파이프라인에 적용합니다.
+
+```ts
+// expense-tracker/src/lib/csvImport.ts
+import { pipe } from './types/pipe.ts'
+import { isExpenseCategory } from './parsing.ts'
+import type { NewExpenseTransactionInput } from '../models/expense.ts'
+
+interface RawRow {
+  date: string
+  category: string
+  amount: string
+  memo: string
+}
+
+interface ParsedRow {
+  date: string
+  category: string
+  amount: number
+  memo: string
+}
+
+function toRawRow(columns: string[]): RawRow {
+  const [date = '', category = '', amount = '', memo = ''] = columns
+  return { date, category, amount, memo }
+}
+
+function toParsedRow(row: RawRow): ParsedRow {
+  const amount = Number(row.amount)
+  if (Number.isNaN(amount)) {
+    throw new RangeError(`금액이 숫자가 아닙니다: ${row.amount}`)
+  }
+  return { ...row, amount }
+}
+
+function toExpenseInput(row: ParsedRow): NewExpenseTransactionInput {
+  if (!isExpenseCategory(row.category)) {
+    throw new Error(`지출 카테고리가 아닙니다: ${row.category}`)
+  }
+  return { type: 'expense', date: row.date, category: row.category, amount: row.amount, memo: row.memo }
+}
+
+export const parseExpenseCsvRow = pipe(toRawRow, toParsedRow, toExpenseInput)
+```
+
+`toRawRow`의 입력은 `string[]`, 출력은 `RawRow`입니다. `toParsedRow`는 `RawRow`를 받아 `ParsedRow`를 반환하고, `toExpenseInput`은 `ParsedRow`를 받아 `NewExpenseTransactionInput`을 반환합니다. 세 함수가 정확히 이어지므로 `ValidateChain`을 통과하고, `parseExpenseCsvRow`의 타입은 `(input: string[]) => NewExpenseTransactionInput`으로 추론됩니다.
+
+테스트로 동작을 확인합니다.
+
+```ts
+// expense-tracker/tests/pipe.test.ts
+import { describe, expect, it } from 'vitest'
+import { parseExpenseCsvRow } from '../src/lib/csvImport.ts'
+
+describe('parseExpenseCsvRow', () => {
+  it('올바른 CSV 행을 지출 입력으로 변환한다', () => {
+    const input = parseExpenseCsvRow(['2026-09-05', 'food', '12000', '점심'])
+    expect(input).toEqual({ type: 'expense', date: '2026-09-05', category: 'food', amount: 12000, memo: '점심' })
+  })
+
+  it('카테고리가 지출 카테고리가 아니면 오류를 던진다', () => {
+    expect(() => parseExpenseCsvRow(['2026-09-05', 'salary', '12000', '메모'])).toThrow('지출 카테고리가 아닙니다')
+  })
+
+  it('금액이 숫자가 아니면 오류를 던진다', () => {
+    expect(() => parseExpenseCsvRow(['2026-09-05', 'food', '만이천원', '메모'])).toThrow('금액이 숫자가 아닙니다')
+  })
+})
+```
+
+### 3. 실행
+
+```text
+npx vitest run tests/pipe.test.ts
+```
+
+```text
+✓ tests/pipe.test.ts (3)
+  ✓ parseExpenseCsvRow > 올바른 CSV 행을 지출 입력으로 변환한다
+  ✓ parseExpenseCsvRow > 카테고리가 지출 카테고리가 아니면 오류를 던진다
+  ✓ parseExpenseCsvRow > 금액이 숫자가 아니면 오류를 던진다
+```
+
+</Steps>
+
+## 확인
+
+- 세 테스트가 모두 통과합니다.
+- `parseExpenseCsvRow`에 마우스를 올리면 에디터가 `(input: string[]) => NewExpenseTransactionInput` 타입을 보여줍니다.
+- `pipe(toRawRow, toExpenseInput)`처럼 중간 함수를 하나 빼고 호출해 보면(입력·출력 타입이 안 맞으므로) 에디터가 그 자리에서 오류를 표시합니다.
+
+## 직접 해보기
+
+1. `pipe(toRawRow, toExpenseInput)`처럼 `toParsedRow`를 뺀 두 함수만 넘겨 보고, 에디터가 보여주는 오류를 읽어 봅니다. 확인이 끝나면 원래대로 되돌립니다.
+2. `toParsedRow`와 `toExpenseInput` 사이에 메모 앞뒤 공백을 제거하는 `trimMemo(row: ParsedRow): ParsedRow` 함수를 만들어 파이프라인 중간에 끼워 넣습니다.
+
+<details>
+<summary>정답 보기</summary>
+
+1번은 `toRawRow`의 출력이 `RawRow`인데 `toExpenseInput`은 `ParsedRow`를 기대하므로, `ValidateChain`이 그 지점에서 `never`가 되어 "인자 타입이 맞지 않습니다"류의 오류가 납니다.
+
+2번은 다음과 같이 추가합니다.
+
+```ts
+function trimMemo(row: ParsedRow): ParsedRow {
+  return { ...row, memo: row.memo.trim() }
+}
+
+export const parseExpenseCsvRow = pipe(toRawRow, toParsedRow, trimMemo, toExpenseInput)
+```
+
+`trimMemo`의 입력·출력이 모두 `ParsedRow`라 앞뒤 함수와 그대로 이어지므로, 파이프라인 어디에 끼워도 타입 검사를 통과합니다.
+
+</details>
+
+## 자주 하는 실수
+
+| 증상 | 원인 | 고치는 법 |
+|------|------|-----------|
+| 파이프라인 함수 순서를 바꿨는데 오류가 안 남 | 우연히 두 함수의 입력·출력 타입이 같은 원시 타입(`string` 등)이라 구분이 안 됨 | 단계마다 구별되는 인터페이스를 만들어 우연한 일치를 피한다 |
+| pipe 결과 함수의 반환 타입이 any로 보임 | 넘긴 함수 배열을 상수 배열 변수로 먼저 만들고 스프레드함 | `pipe(...)` 호출 자리에 함수를 직접 나열해 타입 추론 근거를 준다 |
+| 파이프라인 중간 함수에서 예외가 나면 이후 단계가 조용히 건너뛰어진다고 착각함 | reduce는 예외를 던지면 그 자리에서 즉시 중단됨을 놓침 | 예외가 파이프라인 전체를 즉시 멈춘다는 것을 테스트로 확인한다 |
+
+## 확인 문제
+
+<Quiz
+  questionNumber={1}
+  question="가변 튜플 타입에서 스프레드 문법을 튜플 타입 안에 쓰는 목적은"
+  options={['배열의 길이를 항상 0으로 고정하기 위해서', '앞뒤로 얼마든지 이어붙을 수 있는 요소들을 타입으로 표현하기 위해서', '문자열 리터럴을 합치기 위해서', '객체의 키 이름을 바꾸기 위해서']}
+  correctAnswer={2}
+  explanation="튜플 타입 안의 스프레드는 정해지지 않은 개수의 요소를 그 자리에 이어붙일 수 있다는 것을 표현합니다."
+  optionExplanations={['길이를 고정하는 것이 아니라 가변으로 만드는 문법입니다', '정답입니다', '문자열 합성은 템플릿 리터럴 타입의 역할입니다', '키 리매핑은 매핑된 타입의 역할입니다']}
+/>
+
+<Quiz
+  questionNumber={2}
+  question="ValidateChain이 튜플을 머리와 꼬리로 나눠 재귀적으로 검사하는 이유는"
+  options={['배열 길이를 미리 알아야만 타입 계산이 가능해서', '인접한 두 함수의 출력·입력 타입이 맞는지 순서대로 확인하기 위해서', '실행 속도를 높이기 위해서', 'JSON으로 직렬화하기 위해서']}
+  correctAnswer={2}
+  explanation="머리 함수의 출력이 꼬리의 첫 함수 입력과 맞는지 확인한 뒤 꼬리에 대해 같은 검사를 반복해야, 파이프라인 전체의 타입 연결을 검증할 수 있습니다."
+  optionExplanations={['길이를 몰라도 재귀로 처리할 수 있습니다', '정답입니다', '속도와는 무관합니다', '직렬화와는 관련이 없습니다']}
+/>
+
+<Quiz
+  questionNumber={3}
+  question="이 편의 pipe가 즉시 실행형이 아니라 합성형(함수를 반환)으로 설계된 이유는"
+  options={['합성형만 문법적으로 가능해서', '같은 변환 파이프라인을 CSV의 여러 행에 반복 적용하기에 더 알맞아서', '즉시 실행형은 타입 추론이 불가능해서', '합성형이 항상 더 빠르게 실행되기 때문에']}
+  correctAnswer={2}
+  explanation="파이프라인을 함수로 미리 만들어 두면 여러 행에 같은 변환을 그대로 재사용할 수 있어, CSV 가져오기처럼 반복 적용하는 상황에 더 알맞습니다."
+  optionExplanations={['두 스타일 모두 문법적으로 가능합니다', '정답입니다', '즉시 실행형도 타입 추론이 가능합니다', '실행 속도 차이가 목적은 아닙니다']}
+/>
+
+<Quiz
+  questionNumber={4}
+  question="pipe 함수 본문에서 reduce 콜백이 값을 unknown으로 다루는 이유는"
+  options={['타입 검사를 완전히 생략하기 위해서', '실행 시점에는 어떤 단계의 값인지 구분할 필요 없이 다음 함수로 그대로 넘기기만 하면 되기 때문에', 'unknown이 항상 number를 의미하기 때문에', 'JSON.stringify를 자동으로 적용하기 위해서']}
+  correctAnswer={2}
+  explanation="실제 타입 안전성은 pipe의 시그니처(ValidateChain, FirstInput, LastOutput)가 호출부에서 보장하므로, 함수 본문은 값을 그대로 다음 함수에 넘기기만 하면 됩니다."
+  optionExplanations={['시그니처 쪽에서 타입 검사를 담당합니다', '정답입니다', 'unknown은 특정 타입을 의미하지 않습니다', '직렬화와는 무관합니다']}
+/>
+
+## 참고 자료
+
+- [TypeScript Release Notes — TypeScript 4.0 (Variadic Tuple Types)](https://www.typescriptlang.org/docs/handbook/release-notes/typescript-4-0.html)

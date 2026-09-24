@@ -1,0 +1,271 @@
+---
+title: '16. expect-type과 Vitest로 타입 테스트 작성하기'
+description: 'lib/types의 유틸 타입마다 test-d.ts 타입 테스트를 작성해 vitest --typecheck로 검증합니다'
+---
+
+<Callout type="info">
+  **이번 편의 결과물:** `lib/types/`의 유틸 타입(`UnwrapPromise`, `ElementOf`, `FormErrors`, `DeepPartial`, `DeepReadonly`, `pipe`, 브랜디드 ID)마다 `test-d.ts` 타입 테스트가 작성되어 `npm run test:types`(`vitest --typecheck`)로 통과합니다. · **다루는 개념:** `expectTypeOf`/`assertType`, `test-d.ts` 파일 작성, `typecheck.enabled` 모드
+</Callout>
+
+03~11편에서 `lib/types/`에 조건부 타입·매핑된 타입·재귀 타입·브랜디드 타입·가변 튜플 유틸을 쌓았습니다. 지금까지는 이 타입들을 실제 코드(거래 목록, 폼, API 클라이언트)에 적용해 보는 방식으로만 확인했습니다. 문제는 유틸 타입 자체를 고치다가 의도와 다르게 동작이 바뀌어도, 적용한 곳에서 우연히 타입 오류가 나지 않으면 알아챌 방법이 없다는 점입니다. 이 편에서는 유틸 타입 각각에 대해 "이 입력을 넣으면 이 타입이 나와야 한다"를 코드로 고정하는 타입 테스트를 작성합니다.
+
+## 이 편에서 만드는 파일
+
+```
+expense-tracker/
+├── package.json                        ~ (expect-type devDependency, test:types 스크립트)
+├── vitest.config.ts                    ~ (typecheck 옵션 추가)
+└── src/lib/types/
+    ├── utility.test-d.ts               + (UnwrapPromise·ElementOf·FormErrors·JsonValue·DeepPartial·DeepReadonly)
+    ├── brand.test-d.ts                 + (TransactionId·CategoryId)
+    └── pipe.test-d.ts                  + (가변 튜플 pipe)
+```
+
+## 개념 정리
+
+### 런타임 테스트와 타입 테스트의 차이
+
+17편까지 써온 `*.test.ts`는 함수를 실제로 호출해 반환값을 `expect(...).toBe(...)`로 검사합니다. 반면 `*.test-d.ts` 파일은 **실행되지 않습니다.** Vitest는 이 파일을 `tsc`(또는 `vue-tsc`)에 넘겨 타입 검사만 하고, 검사 결과 통과 여부로 성공·실패를 가릅니다. 파일 안에서 `test.each`처럼 런타임에 이름이 결정되는 문법을 써도 실제로 여러 번 돌지 않는 이유가 여기 있습니다.
+
+### expect-type의 핵심 API
+
+`expectTypeOf(값 또는 <타입>())`로 시작해 비교 메서드를 이어 붙입니다.
+
+| 메서드 | 역할 |
+|--------|------|
+| `.toEqualTypeOf<T>()` | 정확히 같은 타입인지 확인. 프로퍼티가 하나라도 남거나 모자라면 실패 |
+| `.toExtend<T>()` | 이 타입이 `T`에 대입 가능한지("is-a" 관계)만 확인 |
+| `.not` | 뒤에 오는 검사를 반전 |
+
+과거 버전의 `.toMatchTypeOf`는 폐기(deprecated)되어, 부분 일치는 `.toMatchObjectType`, 대입 가능성은 `.toExtend`로 나눠졌습니다. 값 대신 제네릭 타입 인자만으로도 검사할 수 있습니다.
+
+```ts
+expectTypeOf<string>().toExtend<string | number>()
+```
+
+`assertType<T>(값)`은 `expectTypeOf`보다 짧게, "이 값이 `T`에 대입 가능한가"만 한 줄로 확인할 때 씁니다. 기대와 다른 타입이 되어야 하는 자리에는 바로 위 줄에 `// @ts-expect-error`를 붙여, 그 줄이 실제로 타입 오류를 내는지까지 검증합니다.
+
+### typecheck.enabled 모드
+
+Vitest 설정의 `test.typecheck.include`는 기본값이 `**/*.{test,spec}-d.ts`라서, 파일 이름을 이 규칙에 맞추기만 하면 별도 설정 없이 인식됩니다. 다만 `typecheck.enabled`를 설정 파일에서 `true`로 고정하면 `npm run test`(일반 단위 테스트)를 돌릴 때도 매번 타입 검사가 함께 실행돼 느려집니다. 이 프로젝트는 명령줄 플래그 `--typecheck`로 필요할 때만 켜는 방식을 씁니다.
+
+## 실습
+
+<Steps>
+
+### 1. expect-type 설치와 스크립트 추가
+
+```text
+npm install -D expect-type
+```
+
+```json
+// package.json (발췌)
+{
+  "scripts": {
+    "test": "vitest run",
+    "test:types": "vitest --typecheck --run",
+    "coverage": "vitest run --coverage"
+  },
+  "devDependencies": {
+    "expect-type": "^1.4.0"
+  }
+}
+```
+
+### 2. vitest.config.ts에 typecheck 옵션 명시
+
+```ts
+// vitest.config.ts
+import { defineConfig } from 'vitest/config'
+
+export default defineConfig({
+  test: {
+    environment: 'jsdom',
+    coverage: {
+      provider: 'v8',
+      include: ['src/services/**'],
+    },
+    typecheck: {
+      enabled: false,
+      include: ['src/**/*.test-d.ts'],
+    },
+  },
+})
+```
+
+`enabled: false`로 두어 평소 `npm run test`는 빨리 끝나게 하고, `test:types` 스크립트가 넘기는 `--typecheck` 플래그가 이 회차에서만 검사를 켭니다.
+
+### 3. utility.test-d.ts 작성
+
+```ts
+// src/lib/types/utility.test-d.ts
+import { expectTypeOf } from 'expect-type'
+import type { DeepPartial, DeepReadonly, ElementOf, FormErrors, JsonValue, UnwrapPromise } from './utility.ts'
+
+// UnwrapPromise: 중첩된 Promise를 재귀적으로 풀어낸다
+expectTypeOf<UnwrapPromise<Promise<string>>>().toEqualTypeOf<string>()
+expectTypeOf<UnwrapPromise<Promise<Promise<number>>>>().toEqualTypeOf<number>()
+expectTypeOf<UnwrapPromise<boolean>>().toEqualTypeOf<boolean>()
+
+// ElementOf: 배열 타입에서 요소 타입을 뽑아낸다
+expectTypeOf<ElementOf<string[]>>().toEqualTypeOf<string>()
+expectTypeOf<ElementOf<readonly number[]>>().toEqualTypeOf<number>()
+
+// FormErrors: 각 필드 키에 Error 접미사를 붙인 선택적 문자열 맵으로 리매핑한다
+type DraftInput = { amount: number; memo: string }
+expectTypeOf<FormErrors<DraftInput>>().toEqualTypeOf<{ amountError?: string; memoError?: string }>()
+
+// JsonValue: 중첩된 배열·객체까지 재귀적으로 허용한다
+expectTypeOf<{ items: [1, 2, { nested: true }] }>().toExtend<JsonValue>()
+
+// DeepPartial: 중첩 객체의 모든 단계가 선택적이 된다
+type BudgetLimits = { monthly: { food: number; transport: number } }
+expectTypeOf<DeepPartial<BudgetLimits>>().toEqualTypeOf<{ monthly?: { food?: number; transport?: number } }>()
+
+// DeepReadonly: 중첩 객체의 모든 단계가 readonly가 된다
+expectTypeOf<DeepReadonly<BudgetLimits>>().toEqualTypeOf<{
+  readonly monthly: { readonly food: number; readonly transport: number }
+}>()
+```
+
+### 4. brand.test-d.ts 작성
+
+```ts
+// src/lib/types/brand.test-d.ts
+import { expectTypeOf } from 'expect-type'
+import { toCategoryId, toTransactionId, type CategoryId, type TransactionId } from './brand.ts'
+
+// 브랜디드 타입은 원래 원시 타입에는 대입 가능하다(구조적으로 string을 포함)
+expectTypeOf<TransactionId>().toExtend<string>()
+
+// 하지만 일반 string은 브랜디드 타입에 대입할 수 없다
+expectTypeOf<string>().not.toExtend<TransactionId>()
+
+// 서로 다른 브랜드끼리도 섞이지 않는다
+expectTypeOf<CategoryId>().not.toExtend<TransactionId>()
+
+// 헬퍼 함수의 반환 타입이 각각의 브랜드로 고정된다
+expectTypeOf(toTransactionId('t-1')).toEqualTypeOf<TransactionId>()
+expectTypeOf(toCategoryId('food')).toEqualTypeOf<CategoryId>()
+```
+
+### 5. pipe.test-d.ts 작성
+
+```ts
+// src/lib/types/pipe.test-d.ts
+import { assertType, expectTypeOf } from 'expect-type'
+import { pipe } from './pipe.ts'
+
+// 함수 하나만 거치면 그 함수의 반환 타입이 된다
+const doubled = pipe(2, (n) => n * 2)
+expectTypeOf(doubled).toEqualTypeOf<number>()
+
+// 여러 함수를 거치면 각 단계의 반환 타입이 다음 단계 입력으로 이어진다
+const label = pipe(
+  10,
+  (n) => n.toString(),
+  (s) => `금액: ${s}`,
+  (s) => s.length,
+)
+assertType<number>(label)
+```
+
+### 6. 실행
+
+```text
+npm run test:types
+```
+
+```text
+✓ src/lib/types/utility.test-d.ts (6)
+✓ src/lib/types/brand.test-d.ts (5)
+✓ src/lib/types/pipe.test-d.ts (2)
+
+Type Test Files  3 passed (3)
+```
+
+기존 런타임 테스트도 함께 통과하는지 확인합니다.
+
+```text
+npm run test
+```
+
+</Steps>
+
+## 직접 해보기
+
+1. `utility.test-d.ts`의 `FormErrors<DraftInput>` 검사를 `{ amountError?: number; memoError?: string }`(타입이 하나 틀림)로 바꿔 실행하고, `npm run test:types`가 실패로 보고하는 오류 메시지를 읽어 봅니다.
+2. `pipe.test-d.ts`에 문자열을 받아 숫자를 반환하는 함수와 숫자를 받아 문자열을 반환하는 함수를 번갈아 3번 이어 붙인 `pipe` 호출을 추가해, 최종 반환 타입이 예상대로 이어지는지 확인해 보세요.
+
+<details>
+<summary>정답 보기</summary>
+
+`amountError`를 `number`로 바꾸면 `toEqualTypeOf`가 실제 타입(`string`)과 기대 타입(`number`)이 다르다는 컴파일 오류를 냅니다. 오류 메시지는 어떤 프로퍼티가 어떤 타입이어야 하는지 함께 보여줍니다.
+
+```ts
+const chained = pipe(
+  5,
+  (n) => `${n}개`,
+  (s) => s.length,
+  (n) => `총 ${n}자`,
+)
+expectTypeOf(chained).toEqualTypeOf<string>()
+```
+
+세 함수를 거치는 동안 `number → string → number → string`으로 타입이 이어지고, `pipe`의 가변 튜플 시그니처가 각 단계의 입력·출력을 순서대로 맞춰 최종 타입을 `string`으로 추론합니다.
+
+</details>
+
+## 자주 하는 실수
+
+| 증상 | 원인 | 고치는 법 |
+|------|------|-----------|
+| `test-d.ts` 파일을 실행해도 콘솔에 아무 로그도 안 보임 | 애초에 이 파일은 실행되지 않고 정적 검사만 됨 | `console.log`로 확인하려 하지 말고 `npm run test:types`의 통과·실패 여부로 판단한다 |
+| `npm run test`를 돌릴 때마다 느려짐 | `typecheck.enabled: true`를 설정 파일에 고정함 | `enabled: false`로 두고 필요할 때 `--typecheck` 플래그로만 켠다 |
+| `toEqualTypeOf`가 프로퍼티 순서만 다른데도 통과함 | 객체 타입은 프로퍼티 순서를 구분하지 않음(정상 동작) | 순서가 아니라 프로퍼티 구성이 같은지가 기준이라는 점을 이해한다 |
+| `toMatchTypeOf`를 쓰다 타입 오류 경고가 뜸 | 폐기된 메서드를 그대로 사용 | 대입 가능성 확인은 `toExtend`, 부분 일치는 `toMatchObjectType`으로 바꾼다 |
+
+## 확인 문제
+
+<Quiz
+  questionNumber={1}
+  question="test-d.ts 파일과 test.ts 파일의 가장 근본적인 차이는"
+  options={['test-d.ts는 더 빠르게 실행된다', 'test-d.ts는 실행되지 않고 정적 타입 검사만 이뤄진다', 'test-d.ts는 브라우저 환경에서만 동작한다', 'test-d.ts는 커버리지 리포트에 포함되지 않을 뿐 실행은 동일하다']}
+  correctAnswer={2}
+  explanation="test-d.ts는 tsc 같은 타입 검사기로만 분석되며 실제 코드가 런타임에 실행되지 않습니다."
+  optionExplanations={['속도 비교가 핵심이 아닙니다', '정답입니다', '환경과는 무관합니다', '실행 자체를 하지 않는다는 점이 다릅니다']}
+/>
+
+<Quiz
+  questionNumber={2}
+  question="toEqualTypeOf와 toExtend의 차이로 맞는 것은"
+  options={['둘은 완전히 같은 검사를 한다', 'toEqualTypeOf는 정확히 같은 타입인지, toExtend는 대입 가능한지만 확인한다', 'toExtend가 더 엄격한 검사다', 'toEqualTypeOf는 런타임 값만 비교한다']}
+  correctAnswer={2}
+  explanation="toEqualTypeOf는 프로퍼티까지 정확히 일치해야 통과하고, toExtend는 한쪽이 다른 쪽에 대입 가능하기만 하면 통과합니다."
+  optionExplanations={['둘의 엄격도가 다릅니다', '정답입니다', '오히려 toEqualTypeOf가 더 엄격합니다', '타입 자체를 비교합니다']}
+/>
+
+<Quiz
+  questionNumber={3}
+  question="TransactionId 같은 브랜디드 타입에 일반 string 값을 그대로 대입하면"
+  options={['런타임 오류가 발생한다', '컴파일 타임에 타입 오류가 발생한다', '자동으로 브랜드가 붙는다', '경고만 뜨고 정상 동작한다']}
+  correctAnswer={2}
+  explanation="브랜디드 타입은 원시 타입에 표시용 프로퍼티를 더한 것이라, 일반 string은 그 표시가 없어 대입할 수 없다는 컴파일 오류가 납니다."
+  optionExplanations={['컴파일 타임에 걸립니다', '정답입니다', '자동으로 붙지 않습니다', '오류로 처리됩니다']}
+/>
+
+<Quiz
+  questionNumber={4}
+  question="vitest.config.ts에서 typecheck.enabled를 true로 고정하지 않고 CLI --typecheck 플래그로 처리한 이유는"
+  options={['플래그가 아니면 아예 동작하지 않아서', '평소 npm run test 속도를 유지하고 필요할 때만 타입 검사를 켜기 위해서', 'expect-type이 플래그 방식만 지원해서', 'enabled 옵션 자체가 존재하지 않아서']}
+  correctAnswer={2}
+  explanation="typecheck.enabled를 고정하면 매 테스트 실행마다 타입 검사가 함께 돌아 느려지므로, 별도 스크립트에서만 플래그로 켭니다."
+  optionExplanations={['설정으로도 동작합니다', '정답입니다', 'expect-type과는 무관한 Vitest 옵션입니다', 'enabled 옵션은 존재합니다']}
+/>
+
+## 참고 자료
+
+- [Vitest — Testing Types 가이드](https://vitest.dev/guide/testing-types)
+- [Vitest — Typecheck 설정 레퍼런스](https://vitest.dev/config/typecheck)
+- [expect-type — 공식 저장소(README)](https://github.com/mmkal/expect-type)

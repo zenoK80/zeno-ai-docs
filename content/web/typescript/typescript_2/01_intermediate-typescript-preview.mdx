@@ -1,0 +1,181 @@
+---
+title: '01. 중급으로 넘어가기 전에'
+description: 'typescript_fundamentals가 완성한 expense-tracker 상태를 점검하고, 이번 과목에서 다룰 타입 레벨 프로그래밍을 미리 봅니다.'
+---
+
+<Callout type="info">
+  **이번 편의 결과물:** 코드 산출물은 없습니다. `typescript_fundamentals` 18편이 끝난 시점의 `expense-tracker` 상태를 다시 점검하고, 이번 과목에서 무엇이 더해질지 폴더 구조로 미리 봅니다. · **다루는 개념:** 종료 상태 점검, 타입 레벨 프로그래밍이 필요한 이유, 런타임-컴파일타임 간극, 이번 과목 결과물 미리보기
+</Callout>
+
+## 이 편에서 만드는 파일
+
+이 편은 개념 편이라 새로 만드는 파일이 없습니다. 이미 갖고 있는 `expense-tracker/` 프로젝트를 열어 점검만 합니다. 새 폴더 준비와 버전 업그레이드는 02편에서 진행합니다.
+
+## 개념 정리
+
+### typescript_fundamentals에서 여기까지 왔다
+
+`expense-tracker`는 18편에 걸쳐 아래 순서로 만들어졌습니다.
+
+| 영역 | 편 | 지금 남은 상태 |
+|------|-----|----------------|
+| 모델 | 03–07 | `Transaction`이 `ExpenseTransaction`/`IncomeTransaction` 판별 유니온으로 정의됨 |
+| 제네릭 | 08–09 | `sortBy`/`filterBy` 제네릭 함수, `Storage` 제네릭 클래스로 `localStorage` 저장 |
+| 유틸리티 타입 | 10–11 | `Partial`·`Pick`·`Record`·`ReturnType`·`Readonly`로 수정·통계 기능 구현 |
+| 모듈 분리 | 12 | `models`·`services`·`ui` 폴더와 배럴(`index.ts`)로 정리 |
+| 선언 파일 | 13 | JSON 시드 데이터, 타입 없는 라이브러리용 `.d.ts` |
+| 클래스·조합 | 14–15 | `StatsCalculator` 클래스, `BudgetRule` 인터페이스 기반 전략 객체 |
+| strict 심화 | 16 | `noUncheckedIndexedAccess`, `getRequiredElement` 헬퍼 |
+| 테스트·빌드 | 17–18 | Vitest 단위 테스트, `typecheck`/`test`/`build` 분리 |
+
+지금 `expense-tracker`는 거래를 추가·수정·삭제·필터·정렬할 수 있고, 카테고리별 합계와 예산 경고를 보여주며, `npm run verify`가 타입 검사·테스트·빌드를 모두 통과하는 상태입니다.
+
+### 지금까지 쓴 도구와 이번 과목에서 배울 도구의 차이
+
+지금까지 쓴 `Partial`, `Pick`, `Record`, `ReturnType` 같은 유틸리티 타입은 이미 만들어진 도구를 가져다 쓰는 수준이었습니다. 이번 과목은 그 도구들이 내부적으로 어떻게 만들어지는지, 그리고 필요할 때 직접 만드는 방법을 다룹니다. 조건부 타입으로 타입을 조건에 따라 분기하고, `infer`로 타입 안에서 다른 타입을 뽑아내고, 템플릿 리터럴 타입으로 문자열 집합을 만들고, 매핑된 타입으로 키 이름 자체를 바꾸는 것까지가 여기서 말하는 타입 레벨 프로그래밍입니다. `expense-tracker`에 새 화면을 추가하는 대신, 코드 자체의 타입을 더 정확하게 다듬는 데 집중합니다.
+
+### 런타임-컴파일타임 간극
+
+13편에서 `seedRaw as Transaction[]`라는 코드를 썼습니다. 이 단언은 컴파일러에게 "이 값은 `Transaction[]` 모양이다"라고 알려줄 뿐, JSON 파일의 실제 내용이 정말 그런 모양인지는 전혀 검사하지 않습니다. 카테고리 값에 오타가 있어도 `npx tsc --noEmit`은 통과했습니다. API 응답이나 폼 입력처럼 프로그램 바깥에서 들어오는 값은 전부 같은 문제를 갖습니다. 컴파일타임 타입은 코드를 작성할 때만 보장되고, 런타임에 실제로 들어온 값이 그 모양인지는 별도로 검사해야 합니다. 이 틈을 수동으로 메우는 방법(타입 가드, assertion 함수)과 zod처럼 스키마 하나로 메우는 방법을 12·13편에서 같은 문제로 두 번 풀어보며 비교합니다.
+
+### 이번 과목 결과물 미리보기
+
+`expense-tracker`에 아래 세 가지가 새로 생깁니다.
+
+```
+expense-tracker/src/
+├── lib/
+│   ├── types/     (+, 조건부·매핑·재귀 타입, 브랜디드 ID, pipe 유틸)
+│   └── api/       (+, 라우트 타입·엔드포인트 설정·요청 함수·API 클라이언트)
+└── schemas/       (+, zod 스키마 — API 응답 검증과 폼 검증을 공유)
+```
+
+`lib/types/`는 03편부터, `lib/api/`는 04편부터, `schemas/`는 13편부터 채워집니다. 완성되면 이 세 폴더가 서로 맞물려, 실제로 값이 들어오는 지점(API 응답, 폼 제출)마다 타입과 검증이 같은 스키마를 공유하게 됩니다.
+
+## 실습
+
+<Steps>
+
+### 1. 프로젝트 상태 확인
+
+`expense-tracker/` 폴더를 열고 아래 명령으로 지금 상태가 정상인지 확인합니다.
+
+```text
+npm install
+npm run verify
+```
+
+```text
+> tsc --noEmit
+> vitest run
+ ✓ tests/createTransaction.test.ts (1)
+ ✓ tests/storage.test.ts (2)
+ ✓ tests/stats.test.ts (3)
+> vite build
+✓ built in 401ms
+```
+
+세 단계가 모두 통과하면 18편 종료 상태 그대로입니다.
+
+### 2. 현재 폴더 구조 다시 훑기
+
+```text
+expense-tracker/src/
+├── main.ts
+├── models/          (expense.ts, index.ts)
+├── services/         (storage.ts, stats.ts, createTransaction.ts, budgetRules.ts, index.ts)
+├── ui/                (transactionForm.ts, transactionList.ts, statsPanel.ts)
+├── lib/               (parsing.ts, signedAmount.ts, arrayUtils.ts, dom.ts)
+├── data/              (seedTransactions.json)
+└── types/             (date-format-lib.d.ts)
+```
+
+`services/index.ts`, `models/index.ts` 배럴이 각 폴더의 진입점 역할을 하고, `Transaction`은 여전히 `type` 태그로 구분되는 판별 유니온입니다. 이 이름들은 이번 과목 내내 그대로 이어받습니다.
+
+### 3. package.json 버전 확인
+
+```text
+npx tsc --version
+npm ls vite vitest
+```
+
+02편에서 이 버전들을 각각 최신 패치로 올립니다.
+
+### 4. 브라우저에서 최종 동작 확인
+
+```text
+npm run dev
+```
+
+</Steps>
+
+## 확인
+
+- `npm run verify`의 세 단계(`typecheck`, `test`, `build`)가 모두 통과한다.
+- 브라우저에서 거래 추가·수정·삭제·필터·정렬·카테고리별 합계·예산 경고·최근 거래 표시가 모두 정상 동작한다.
+- `npx tsc --version`이 7.0.0대 버전을 출력한다(정확한 패치 버전은 02편에서 맞춘다).
+
+## 직접 해보기
+
+1. `src/data/seedTransactions.json`의 `category` 값 하나를 존재하지 않는 문자열로 잠시 바꾼 뒤 `npm run verify`를 실행해, 13편에서 확인했던 것처럼 타입 검사는 여전히 통과하는지 다시 확인하고 원래대로 되돌립니다.
+2. `src/services/index.ts`를 열어 지금 내보내는 값과 타입의 목록을 적어보고, 이번 과목에서 `lib/api`가 완성되면 이 배럴에 무엇이 더 늘어날지 예상해봅니다.
+
+<details>
+<summary>정답 보기</summary>
+
+1번은 여전히 통과합니다. JSON에서 가져온 값은 구조적으로만 추론되고 `as Transaction[]` 단언은 실제 값을 검사하지 않기 때문입니다. 이 문제를 이 과목 12·13편에서 다시 다룹니다.
+
+2번은 `Storage`, `StatsCalculator`, `BudgetEvaluator`와 관련 타입들입니다. `lib/api`가 완성되면 API 클라이언트와 라우트 관련 타입이 별도 배럴(또는 `services/index.ts`)에 추가될 가능성이 높습니다.
+
+</details>
+
+## 자주 하는 실수
+
+| 증상 | 원인 | 고치는 법 |
+|------|------|-----------|
+| `npm run verify`가 이 편에서부터 실패함 | 다른 브랜치나 예전 커밋 상태에서 18편이 완전히 끝나지 않음 | `typescript_fundamentals` 18편까지의 코드를 다시 확인하고 맞춘 뒤 시작한다 |
+| 이번 과목 폴더를 미리 만들어 버림 | 목차를 앞서가며 `lib/types` 등을 미리 채움 | 폴더 준비와 설치는 02편에서 순서대로 진행한다 |
+| seedTransactions.json 오타를 되돌리지 않고 넘어감 | 직접 해보기 실습 후 원상 복구를 잊음 | 실습 뒤에는 항상 수정한 값을 원래대로 되돌린다 |
+
+## 확인 문제
+
+<Quiz
+  questionNumber={1}
+  question="이번 과목이 지금까지와 달리 집중하는 지점은"
+  options={['새로운 화면과 기능을 계속 추가하는 것', '이미 만든 유틸리티 타입이 아니라 타입을 직접 계산해 만드는 도구를 다루는 것', 'localStorage 대신 데이터베이스를 쓰는 것', 'React로 화면을 다시 만드는 것']}
+  correctAnswer={2}
+  explanation="이번 과목은 조건부·매핑·템플릿 리터럴 타입처럼 타입 자체를 계산하는 중급 도구에 집중합니다."
+  optionExplanations={['화면 추가가 핵심 목표는 아닙니다', '정답입니다', '저장 방식은 그대로 localStorage입니다', 'React는 다음 과목의 범위입니다']}
+/>
+
+<Quiz
+  questionNumber={2}
+  question="seedRaw as Transaction[]에서 드러나는 런타임-컴파일타임 간극을 가장 정확히 설명한 것은"
+  options={['타입 단언이 실제 값을 런타임에 검사해준다', '타입 단언은 컴파일러를 설득할 뿐 실제 값이 그 모양인지는 검사하지 않는다', 'JSON 파일은 애초에 import할 수 없다', 'Transaction 타입에 오류가 있다는 뜻이다']}
+  correctAnswer={2}
+  explanation="as 단언은 컴파일타임에만 적용되고, 실제 데이터가 정말 그 모양인지는 런타임에 별도로 확인해야 합니다."
+  optionExplanations={['단언은 런타임 검사를 하지 않습니다', '정답입니다', 'resolveJsonModule 덕분에 import는 가능합니다', 'Transaction 타입 자체의 문제가 아닙니다']}
+/>
+
+<Quiz
+  questionNumber={3}
+  question="이번 과목에서 새로 생기는 세 폴더가 아닌 것은"
+  options={['lib/types', 'lib/api', 'schemas', 'components']}
+  correctAnswer={4}
+  explanation="이 과목에서 새로 생기는 폴더는 lib/types, lib/api, schemas 세 곳입니다. components는 React를 다루는 다음 과목의 영역입니다."
+  optionExplanations={['새로 생기는 폴더입니다', '새로 생기는 폴더입니다', '새로 생기는 폴더입니다', '정답입니다']}
+/>
+
+<Quiz
+  questionNumber={4}
+  question="npm run verify가 실행하는 세 단계를 순서대로 나열한 것은"
+  options={['build, test, typecheck', 'test, build, typecheck', 'typecheck, test, build', 'typecheck, build, test']}
+  correctAnswer={3}
+  explanation="18편에서 정한 순서대로 typecheck가 가장 먼저 실행되어 빠르게 실패를 알리고, 이어서 test, build 순으로 진행됩니다."
+  optionExplanations={['순서가 다릅니다', '순서가 다릅니다', '정답입니다', '순서가 다릅니다']}
+/>
+
+## 참고 자료
+
+- [TypeScript Handbook — Conditional Types](https://www.typescriptlang.org/docs/handbook/2/conditional-types.html)
+- [Zod — 공식 문서](https://zod.dev/)

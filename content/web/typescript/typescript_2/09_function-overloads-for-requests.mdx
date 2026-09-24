@@ -1,0 +1,241 @@
+---
+title: '09. 함수 오버로드로 요청 함수 설계하기'
+description: 'GET은 본문 없이, POST는 본문과 함께 호출되는 request() 함수를 오버로드로 설계합니다'
+---
+
+<Callout type="info">
+  **이번 편의 결과물:** `lib/api/request.ts`에 오버로드된 `request()` 함수를 작성해, 본문 없는 GET과 본문 있는 POST가 서로 다른 타입으로 호출됩니다. · **다루는 개념:** 오버로드 시그니처와 구현 시그니처, GET/POST별 다른 매개변수·반환 타입, 좋은 오버로드 작성 기준
+</Callout>
+
+02편에서 `lib/api/` 폴더를 만들고 MSW를 설치했습니다. 이 편부터 그 폴더를 채워 나갑니다. 먼저 `fetch`를 감싸는 요청 함수 하나를 만듭니다. 이 함수는 GET처럼 본문이 없는 요청과 POST처럼 본문이 있는 요청을 모두 처리해야 하는데, 두 경우의 매개변수 개수와 타입이 다릅니다. 이 편에서는 함수 오버로드로 이 차이를 타입에 그대로 드러냅니다. `lib/api/client.ts`(10편)와 실제 거래 API 연동(15편)은 모두 이 함수 위에 세워지므로, 여기서 만든 시그니처를 그대로 이어받습니다.
+
+## 이 편에서 만드는 파일
+
+```
+expense-tracker/
+├── src/
+│   └── lib/
+│       └── api/
+│           └── request.ts       + (오버로드된 request 함수)
+└── tests/
+    └── request.test.ts          + (MSW로 GET·POST 동작 검증)
+```
+
+## 개념 정리
+
+### 오버로드가 필요한 상황
+
+GET 요청은 URL만 있으면 됩니다. POST 요청은 URL에 더해 서버로 보낼 본문이 반드시 있어야 합니다. 하나의 함수로 두 경우를 다 받으려면 세 번째 매개변수를 본문으로 두고 옵셔널로 선언하는 방법이 떠오르지만, 그러면 GET 호출에 실수로 본문을 넘겨도 컴파일러가 막지 못합니다. 함수 오버로드는 "이 함수는 이런 형태로도, 저런 형태로도 호출될 수 있다"를 서로 다른 시그니처 여러 개로 미리 선언해 둡니다.
+
+### 오버로드 시그니처와 구현 시그니처
+
+오버로드는 항상 두 부분으로 이뤄집니다.
+
+| 구성 | 역할 |
+|---|---|
+| 오버로드 시그니처(여러 개) | 함수를 호출하는 쪽에서 실제로 보게 되는 형태. 본문만 있고 구현은 없다 |
+| 구현 시그니처(하나) | 실제 로직을 담는 함수. 모든 오버로드 시그니처를 포괄할 수 있을 만큼 넓어야 한다 |
+
+호출하는 코드는 오버로드 시그니처만 보고 타입 검사를 받습니다. 구현 시그니처는 바깥에서 직접 호출할 수 없고, 함수 내부에서 어떤 형태로 불렸는지 직접 분기해서 처리해야 합니다.
+
+### 유니온 매개변수와 오버로드의 차이
+
+| 방식 | GET 호출 | POST 호출 | 문제점 |
+|---|---|---|---|
+| 본문을 옵셔널 매개변수 하나로 처리 | `request('GET', url)`도, `request('GET', url, body)`도 통과 | `request('POST', url, body)` 통과 | GET에 본문을 실수로 넘겨도 컴파일 오류가 안 남 |
+| 메서드별 오버로드로 분리 | 본문 자리 자체가 없어 넘길 수 없음 | 본문을 반드시 넘겨야 호출됨 | 메서드에 맞는 호출 형태만 허용됨 |
+
+### 좋은 오버로드 작성 기준
+
+오버로드 시그니처는 위에서부터 순서대로 검사되므로, 더 구체적인 시그니처를 먼저 두어야 합니다. 또한 오버로드 시그니처 수가 너무 많아지면 함수 하나가 여러 함수처럼 보여 읽기 어려워지므로, 매개변수 형태가 확실히 갈리는 경우에만 오버로드를 씁니다. 이 편에서는 본문 유무를 기준으로 딱 두 갈래로만 나눕니다.
+
+## 실습
+
+<Steps>
+
+### 1. 요청 함수 파일 만들기
+
+`expense-tracker/src/lib/api/` 폴더를 만들고 `request.ts` 파일을 추가합니다.
+
+### 2. 코드 작성
+
+```ts
+// expense-tracker/src/lib/api/request.ts
+export type HttpMethod = 'GET' | 'DELETE' | 'POST' | 'PUT' | 'PATCH'
+
+export interface RequestOptions {
+  signal?: AbortSignal
+}
+
+// 오버로드 시그니처 1 — 본문이 없는 메서드(GET, DELETE)
+export function request<TResponse>(
+  method: 'GET' | 'DELETE',
+  url: string,
+  options?: RequestOptions,
+): Promise<TResponse>
+
+// 오버로드 시그니처 2 — 본문이 있는 메서드(POST, PUT, PATCH)
+export function request<TResponse, TBody>(
+  method: 'POST' | 'PUT' | 'PATCH',
+  url: string,
+  body: TBody,
+  options?: RequestOptions,
+): Promise<TResponse>
+
+// 구현 시그니처 — 바깥 코드는 이 형태로 직접 호출할 수 없다
+export async function request<TResponse, TBody = undefined>(
+  method: HttpMethod,
+  url: string,
+  bodyOrOptions?: TBody | RequestOptions,
+  maybeOptions?: RequestOptions,
+): Promise<TResponse> {
+  const hasBody = method === 'POST' || method === 'PUT' || method === 'PATCH'
+  const body = hasBody ? (bodyOrOptions as TBody) : undefined
+  const options = hasBody ? maybeOptions : (bodyOrOptions as RequestOptions | undefined)
+
+  const response = await fetch(url, {
+    method,
+    headers: body === undefined ? undefined : { 'Content-Type': 'application/json' },
+    body: body === undefined ? undefined : JSON.stringify(body),
+    signal: options?.signal,
+  })
+
+  if (!response.ok) {
+    throw new Error(`요청 실패: ${method} ${url} (상태 코드 ${response.status})`)
+  }
+
+  return (await response.json()) as TResponse
+}
+```
+
+구현 시그니처의 `bodyOrOptions` 자리는 GET일 때는 `RequestOptions`, POST 계열일 때는 `TBody`가 들어옵니다. `hasBody`로 먼저 메서드를 나눈 뒤, 그 결과에 따라 같은 자리를 서로 다른 타입으로 단언합니다. 이 분기는 함수 내부에만 있고, 호출하는 쪽은 두 오버로드 시그니처 중 하나만 보게 됩니다.
+
+테스트로 동작을 확인합니다.
+
+```ts
+// expense-tracker/tests/request.test.ts
+import { afterAll, afterEach, beforeAll, describe, expect, it } from 'vitest'
+import { http, HttpResponse } from 'msw'
+import { setupServer } from 'msw/node'
+import { request } from '../src/lib/api/request.ts'
+
+const server = setupServer(
+  http.get('/api/ping', () => HttpResponse.json({ message: 'pong' })),
+  http.post('/api/echo', async ({ request: incoming }) => {
+    const body = await incoming.json()
+    return HttpResponse.json({ received: body })
+  }),
+)
+
+beforeAll(() => server.listen())
+afterEach(() => server.resetHandlers())
+afterAll(() => server.close())
+
+describe('request', () => {
+  it('GET은 본문 없이 호출해도 응답을 받는다', async () => {
+    const result = await request<{ message: string }>('GET', '/api/ping')
+    expect(result.message).toBe('pong')
+  })
+
+  it('POST는 세 번째 인자로 넘긴 본문이 그대로 전달된다', async () => {
+    const result = await request<{ received: { name: string } }, { name: string }>('POST', '/api/echo', {
+      name: 'zeno',
+    })
+    expect(result.received.name).toBe('zeno')
+  })
+})
+```
+
+`setupServer`는 Node 환경에서 실제 네트워크 대신 등록한 핸들러로 요청을 가로챕니다. 02편에서 브라우저용으로 띄운 MSW 워커와는 별개로, 테스트에서는 `msw/node`의 서버를 그때그때 띄우고 닫습니다.
+
+### 3. 실행
+
+```text
+npx vitest run tests/request.test.ts
+```
+
+```text
+✓ tests/request.test.ts (2)
+  ✓ request > GET은 본문 없이 호출해도 응답을 받는다
+  ✓ request > POST는 세 번째 인자로 넘긴 본문이 그대로 전달된다
+```
+
+</Steps>
+
+## 확인
+
+- 두 테스트가 모두 통과합니다.
+- 에디터에서 `request('GET', '/api/ping', 'zeno')`처럼 세 번째 자리에 `RequestOptions` 모양이 아닌 문자열을 넣으면 그 자리에서 오류가 표시됩니다.
+- 에디터에서 `request('POST', '/api/echo')`처럼 본문 없이 POST를 호출하면 "인자가 부족합니다" 오류가 표시됩니다.
+
+## 직접 해보기
+
+1. `request('GET', '/api/ping', { name: 'zeno' })`처럼 GET 호출의 세 번째 자리에 `RequestOptions`가 아닌 객체를 넘겨 보고, 에디터가 보여주는 오류 메시지를 읽어 봅니다.
+2. `DELETE` 메서드로 `/api/ping`을 호출하는 테스트를 하나 추가해 봅니다.
+
+<details>
+<summary>정답 보기</summary>
+
+1번은 `{ name: 'zeno' }`가 `RequestOptions`(속성이 `signal` 하나뿐인 타입)와 맞지 않아 "속성이 호환되지 않습니다"류의 오류가 납니다. 세 번째 자리가 옵션 전용이라는 것을 오버로드가 강제하고 있다는 뜻입니다.
+
+2번은 다음과 같이 추가합니다.
+
+```ts
+it('DELETE도 본문 없이 호출할 수 있다', async () => {
+  server.use(http.delete('/api/ping', () => HttpResponse.json({ message: 'deleted' })))
+  const result = await request<{ message: string }>('DELETE', '/api/ping')
+  expect(result.message).toBe('deleted')
+})
+```
+
+</details>
+
+## 자주 하는 실수
+
+| 증상 | 원인 | 고치는 법 |
+|------|------|-----------|
+| POST 호출인데 본문을 안 넘겨도 컴파일이 통과함 | 오버로드 없이 본문 매개변수를 옵셔널로만 선언함 | 본문이 필요한 메서드는 별도 오버로드로 분리해 본문을 필수로 만든다 |
+| 구현 시그니처만 보고 바깥에서 그 형태로 호출하려 함 | 구현 시그니처는 호출용이 아니라는 점을 놓침 | 호출은 항상 오버로드 시그니처 중 하나와 맞아야 한다는 것을 기억한다 |
+| 오버로드 순서를 바꿨더니 다른 오류가 남 | 오버로드는 위에서부터 순서대로 검사됨 | 더 구체적인(좁은) 시그니처를 먼저, 넓은 시그니처를 나중에 둔다 |
+
+## 확인 문제
+
+<Quiz
+  questionNumber={1}
+  question="함수 오버로드에서 실제 로직을 담는 시그니처를 무엇이라고 부르는가"
+  options={['오버로드 시그니처', '구현 시그니처', '제네릭 시그니처', '조건부 시그니처']}
+  correctAnswer={2}
+  explanation="실제 함수 본문을 갖는 시그니처는 구현 시그니처라고 부르며, 바깥에서는 오버로드 시그니처를 통해서만 호출할 수 있습니다."
+  optionExplanations={['호출하는 쪽이 보는 형태입니다', '정답입니다', '이 편에서 다루는 별도 개념이 아닙니다', '조건부 타입과는 다른 개념입니다']}
+/>
+
+<Quiz
+  questionNumber={2}
+  question="본문을 옵셔널 매개변수 하나로 처리하는 방식 대신 오버로드를 쓰는 이유는"
+  options={['코드 줄 수를 줄이기 위해서', 'GET 같은 메서드에 실수로 본문을 넘기는 호출을 컴파일 타임에 막기 위해서', '런타임 속도를 높이기 위해서', 'JSON 직렬화를 자동으로 처리하기 위해서']}
+  correctAnswer={2}
+  explanation="오버로드로 메서드별 호출 형태를 분리하면, 본문이 없어야 할 메서드에 본문을 넘기는 실수를 그 자리에서 잡을 수 있습니다."
+  optionExplanations={['줄 수 절감이 목적은 아닙니다', '정답입니다', '실행 속도와는 무관합니다', '직렬화는 구현 시그니처 안 코드가 담당합니다']}
+/>
+
+<Quiz
+  questionNumber={3}
+  question="오버로드 시그니처 여러 개를 선언할 때 순서가 중요한 이유는"
+  options={['오버로드는 순서와 무관하게 동작하기 때문에', 'TypeScript가 오버로드를 위에서부터 순서대로 검사해 가장 먼저 맞는 것을 선택하기 때문에', '나중에 선언한 오버로드일수록 우선순위가 높기 때문에', '실행 시점에 무작위로 하나를 고르기 때문에']}
+  correctAnswer={2}
+  explanation="호출부는 위에서부터 순서대로 오버로드 시그니처와 맞춰보므로, 더 구체적인 시그니처를 먼저 두어야 의도한 대로 선택됩니다."
+  optionExplanations={['순서는 실제로 중요합니다', '정답입니다', '먼저 선언한 것부터 검사됩니다', '무작위 선택이 아닙니다']}
+/>
+
+<Quiz
+  questionNumber={4}
+  question="request 함수의 구현 시그니처에서 bodyOrOptions 매개변수의 타입을 TBody | RequestOptions로 넓힌 이유는"
+  options={['타입 검사를 생략하기 위해서', '두 오버로드 시그니처가 그 자리에 서로 다른 타입을 넘길 수 있으므로 구현부가 둘 다 받을 수 있어야 하기 때문에', 'JSON 파싱 속도를 높이기 위해서', 'RequestOptions가 항상 필수이기 때문에']}
+  correctAnswer={2}
+  explanation="구현 시그니처는 모든 오버로드 시그니처가 넘길 수 있는 값을 다 받아야 하므로, 두 타입을 유니온으로 묶어 넓혀야 합니다."
+  optionExplanations={['타입 검사를 생략하는 것이 아닙니다', '정답입니다', '속도와는 무관합니다', 'GET 계열에서는 옵셔널입니다']}
+/>
+
+## 참고 자료
+
+- [TypeScript Handbook — More on Functions](https://www.typescriptlang.org/docs/handbook/2/functions.html)

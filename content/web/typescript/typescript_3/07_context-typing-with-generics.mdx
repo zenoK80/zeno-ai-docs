@@ -1,0 +1,183 @@
+---
+title: '07. Context 타이핑'
+description: 'ThemeContext를 제네릭 패턴으로 전환해 Provider 밖에서 쓰면 타입 단계에서도 드러나게 만든다'
+---
+
+<Callout type="info">
+  **이번 편의 결과물:** `ThemeContext.tsx` 전환이 완료되고, `Provider` 밖에서 `useTheme`을 호출하면 명확한 에러가 나는 것을 그대로 확인합니다. · **다루는 개념:** `createContext<T | null>` 패턴, `Provider` 밖 사용을 막는 커스텀 훅, Context 값 타입 설계
+</Callout>
+
+`bookshelf`는 `FilterContext`를 09편(react_3, Zustand 도입)에서 걷어내고 `ThemeContext`만 남겼습니다. 06편까지 훅을 전환했으니, 이 편은 `bookshelf-ts`에 남은 마지막 Context 하나를 전환합니다.
+
+## 이 편에서 만드는 파일
+
+```
+bookshelf-ts/src/
+└── context/
+    └── ThemeContext.tsx    ~ .jsx → .tsx 전환 (값 타입 설계, null 가드)
+```
+
+## 개념 정리
+
+### createContext의 타입 매개변수
+
+`createContext(초기값)`은 초기값의 타입으로부터 Context가 담을 값의 타입을 추론합니다. `ThemeContext`처럼 실제 값이 `Provider`를 통해서만 채워지고 그 전에는 존재하지 않는 경우, 초기값을 `null`로 두면서도 실제 사용 시점에는 `null`이 아니라고 보장하고 싶은 경우가 많습니다. 이때 타입 매개변수를 명시적으로 유니온으로 씁니다.
+
+```ts
+const ThemeContext = createContext<ThemeContextValue | null>(null)
+```
+
+이렇게 하면 `useContext(ThemeContext)`의 반환 타입이 `ThemeContextValue | null`이 되어, 값을 쓰기 전에 `null` 여부를 반드시 확인하게 만듭니다.
+
+### Provider 밖 사용을 막는 커스텀 훅
+
+`useContext`를 직접 노출하는 대신, 그 호출을 감싸고 `null`이면 에러를 던지는 훅을 만듭니다.
+
+| 조각 | 역할 |
+|---|---|
+| `createContext<T \| null>(null)` | 값이 없을 수 있다는 것을 타입으로 표현 |
+| `useContext(Context)` | `T \| null` 반환 |
+| `if (context === null) throw ...` | 런타임에 즉시 실패시켜 실수를 조기에 드러냄 |
+| 함수의 반환 타입을 `T`로 명시 | 이 지점을 통과하면 더 이상 `null`이 아니라고 타입도 확정 |
+
+가드를 통과한 뒤 함수의 반환 타입을 `T`(`null` 제외)로 선언하면, `useTheme()`을 호출하는 컴포넌트 쪽에서는 `null` 검사를 다시 할 필요가 없습니다. 타입 좁히기가 훅 안에서 끝나고, 사용하는 쪽은 항상 값이 있다고 믿고 코드를 쓸 수 있습니다.
+
+## 실습
+
+<Steps>
+
+### 1. ThemeContext를 tsx로 전환
+
+```tsx
+// src/context/ThemeContext.tsx
+import { createContext, useContext, useState, type ReactNode } from 'react'
+
+export type Theme = 'light' | 'dark'
+
+interface ThemeContextValue {
+  theme: Theme
+  toggleTheme: () => void
+}
+
+const ThemeContext = createContext<ThemeContextValue | null>(null)
+
+interface ThemeProviderProps {
+  children: ReactNode
+}
+
+export function ThemeProvider({ children }: ThemeProviderProps) {
+  const [theme, setTheme] = useState<Theme>('light')
+
+  function toggleTheme() {
+    setTheme((prev) => (prev === 'light' ? 'dark' : 'light'))
+  }
+
+  const value: ThemeContextValue = { theme, toggleTheme }
+
+  return <ThemeContext.Provider value={value}>{children}</ThemeContext.Provider>
+}
+
+export function useTheme(): ThemeContextValue {
+  const context = useContext(ThemeContext)
+  if (context === null) {
+    throw new Error('useTheme은 ThemeProvider 내부에서만 사용합니다.')
+  }
+  return context
+}
+```
+
+런타임 로직은 원래 `.jsx` 코드와 완전히 같습니다. 바뀐 것은 `Theme` 타입, `ThemeContextValue` 인터페이스, `ThemeProviderProps`, 그리고 `useTheme`의 반환 타입 선언뿐입니다. `theme`을 `useState<Theme>('light')`로 선언했으므로, `setTheme`에 `'light'`·`'dark'` 이외의 문자열을 넘기면 그 자리에서 오류가 납니다.
+
+### 2. main.jsx의 import 확장자 확인
+
+`Header.tsx`(04편)는 처음부터 확장자 없이 `from '../context/ThemeContext'`로 가져왔으므로 손댈 필요가 없습니다. 반면 아직 자바스크립트인 `main.jsx`가 `from './context/ThemeContext.jsx'`처럼 확장자를 명시해 가져오고 있었다면, 파일이 `.tsx`로 바뀐 지금 이 한 줄만 맞춰 둡니다.
+
+```jsx
+// src/main.jsx (import 줄만 수정)
+import { ThemeProvider } from './context/ThemeContext.tsx'
+```
+
+나머지 코드는 그대로 둡니다. `main.jsx`는 아직 자바스크립트 파일이지만, `.tsx` 모듈을 가져다 쓰는 데는 문제가 없습니다.
+
+### 3. 실행
+
+```text
+npm run dev
+```
+
+### 4. 확인
+
+- "다크 모드" 버튼을 누르면 이전과 동일하게 텍스트가 "라이트 모드"로 바뀝니다.
+- VS Code에서 `setTheme('blue')`처럼 `Theme`에 없는 값을 넣어 보면 빨간 밑줄이 뜹니다. 확인 후 되돌립니다.
+- `useTheme` 함수 정의를 Ctrl(Cmd)+클릭하면 반환 타입이 `ThemeContextValue`로 표시되고, `null` 가능성이 사라져 있는 것을 확인합니다.
+- 잠깐 `App` 트리 밖(예: `main.jsx`에서 `ThemeProvider`로 감싸는 줄을 주석 처리)에서 렌더링을 시도해 콘솔에 "useTheme은 ThemeProvider 내부에서만 사용합니다." 에러가 그대로 뜨는지 확인한 뒤 되돌립니다.
+
+</Steps>
+
+## 직접 해보기
+
+`ThemeContext`의 `theme` 저장 방식을 06편에서 만든 `useLocalStorage<Theme>`로 바꿔 보세요. 새로고침해도 테마가 유지되는지 확인합니다.
+
+<details>
+<summary>정답 보기</summary>
+
+```tsx
+// src/context/ThemeContext.tsx (일부)
+import { useLocalStorage } from '../hooks/useLocalStorage'
+
+export function ThemeProvider({ children }: ThemeProviderProps) {
+  const [theme, setTheme] = useLocalStorage<Theme>('bookshelf-theme', 'light')
+
+  function toggleTheme() {
+    setTheme((prev) => (prev === 'light' ? 'dark' : 'light'))
+  }
+
+  const value: ThemeContextValue = { theme, toggleTheme }
+  return <ThemeContext.Provider value={value}>{children}</ThemeContext.Provider>
+}
+```
+
+`useLocalStorage<Theme>`로 타입 인자를 명시하면, 저장된 값이 손상되어 `initialValue`로 복구될 때도 그 값이 `Theme`(`'light' \| 'dark'`)이라는 것이 타입으로 보장됩니다.
+
+</details>
+
+## 자주 하는 실수
+
+| 증상 | 원인 | 고치는 법 |
+|---|---|---|
+| `useTheme()` 호출부에서 `theme`이 `ThemeContextValue \| null`로 보임 | `useTheme`의 반환 타입을 명시하지 않아 가드 이후에도 `null`이 안 좁혀짐 | `useTheme(): ThemeContextValue`처럼 반환 타입을 명시한다 |
+| `Header.tsx`에서 모듈을 찾을 수 없다는 오류 | `ThemeContext.jsx` import 경로를 `.tsx`로 안 바꿈 | 확장자가 바뀐 모든 import 경로를 함께 수정한다 |
+| `createContext(null)`만 쓰고 타입 인자를 생략해 `theme` 접근 시 오류 | 타입 매개변수 없이 `createContext(null)`을 쓰면 타입이 `null` 하나로 고정됨 | `createContext<ThemeContextValue \| null>(null)`처럼 유니온으로 명시한다 |
+
+## 확인 문제
+
+<Quiz
+  questionNumber={1}
+  question="ThemeContext를 createContext에서 null 대신 undefined로 초기화해도 되는가?"
+  options={['가능하다. 다만 타입 매개변수와 가드의 비교 대상(context === null 등)을 같은 값으로 일관되게 맞춰야 한다', '불가능하다. React Context는 반드시 null만 초기값으로 받는다', '가능하지만 이 경우 Provider 없이도 항상 정상 동작한다', '불가능하다. undefined는 JSX에서 렌더링 오류를 일으킨다']}
+  correctAnswer={1}
+  explanation="null과 undefined 중 무엇을 센티널 값으로 쓸지는 선택의 문제입니다. 중요한 것은 타입 매개변수의 유니온과 가드의 비교 조건을 같은 값으로 일치시키는 것입니다."
+  optionExplanations={['정답입니다', 'React Context는 어떤 초기값이든 받을 수 있습니다', 'Provider 없이도 정상 동작하지 않습니다. 가드가 여전히 막습니다', 'undefined 자체가 렌더링 오류를 일으키지는 않습니다']}
+/>
+
+<Quiz
+  questionNumber={2}
+  question="useTheme 함수의 반환 타입을 ThemeContextValue로 명시적으로 선언하는 효과는?"
+  options={['함수 실행 속도가 빨라진다', 'null 가드를 통과한 뒤에는 호출하는 쪽에서 null 검사를 다시 하지 않아도 되게 만든다', 'React가 이 함수를 자동으로 메모이제이션한다', 'Provider의 개수를 제한한다']}
+  correctAnswer={2}
+  explanation="가드에서 null이면 에러를 던지고, 그 이후 반환 타입을 null이 제외된 T로 선언하면 호출부는 항상 값이 있다고 믿고 쓸 수 있습니다."
+  optionExplanations={['속도와는 무관합니다', '정답입니다', '메모이제이션과는 무관합니다', 'Provider 개수 제한과는 무관합니다']}
+/>
+
+<Quiz
+  questionNumber={3}
+  question="useState 호출 시 Theme을 타입 인자로 명시했을 때 얻는 효과는?"
+  options={['setTheme에 Theme에 속하지 않는 문자열을 넘기면 컴파일 시점에 오류가 난다', 'theme 값이 항상 light로 고정된다', 'React가 자동으로 다크 모드 CSS를 적용한다', 'toggleTheme 함수가 자동으로 생성된다']}
+  correctAnswer={1}
+  explanation="타입 인자를 명시하면 상태 값의 타입이 Theme 유니온으로 제한되어, 그 밖의 값을 설정하려 하면 오류가 납니다."
+  optionExplanations={['정답입니다', 'light로 고정되지 않고 toggleTheme으로 바뀝니다', 'CSS 적용은 별도 스타일 규칙의 역할입니다', 'toggleTheme은 직접 정의한 함수입니다']}
+/>
+
+## 참고 자료
+
+- [React 공식 문서 - TypeScript 사용하기: Context](https://react.dev/learn/typescript#typing-context)

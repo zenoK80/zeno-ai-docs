@@ -1,0 +1,272 @@
+---
+title: '17. 유틸 타입 라이브러리 정리'
+description: 'lib/types를 배럴로 정리하고 JSDoc을 추가한 뒤, zod로 대체된 12편 수동 가드를 제거합니다'
+---
+
+<Callout type="info">
+  **이번 편의 결과물:** `lib/types/index.ts` 배럴로 모든 유틸 타입이 한 곳에서 export되고, 전체 `npm run typecheck`가 경고 없이 통과합니다. · **다루는 개념:** 배럴(barrel) export, JSDoc 주석, 대체된 코드 제거
+</Callout>
+
+03~16편을 거치며 `lib/types/`에 파일 세 개(`utility.ts`, `brand.ts`, `pipe.ts`)와 타입 테스트 세 개가 쌓였습니다. 다른 파일에서 이 유틸을 쓰려면 지금까지는 `./types/utility.ts`, `./types/brand.ts`처럼 각각 다른 경로를 기억해야 했습니다. 또한 12편에서 만든 수동 타입 가드(`isTransaction`, `assertIsTransaction`)는 13편에서 zod 스키마로 완전히 대체된 뒤에도 파일로 남아 있습니다. 이 편에서는 라이브러리를 마무리 상태로 정리합니다.
+
+## 이 편에서 만드는 파일
+
+```
+expense-tracker/src/
+├── lib/
+│   ├── types/
+│   │   ├── index.ts        + (배럴, 모든 유틸 타입 재-export)
+│   │   ├── utility.ts       ~ (JSDoc 주석 추가)
+│   │   ├── brand.ts         ~ (JSDoc 주석 추가)
+│   │   ├── pipe.ts          ~ (JSDoc 주석 추가)
+│   │   └── guards.ts        - (삭제. 12편 수동 가드, 13편 zod로 완전히 대체됨)
+│   └── api/
+│       └── client.ts        ~ (개별 경로 import를 배럴 import로 교체)
+└── schemas/
+    └── transaction.ts       ~ (FormErrors import를 배럴 import로 교체)
+```
+
+## 개념 정리
+
+### 배럴(barrel) export
+
+폴더 하나에 파일이 여러 개일 때, `index.ts`에서 그 파일들을 한 번에 다시 내보내면 사용하는 쪽은 폴더 경로 하나만 기억하면 됩니다.
+
+```ts
+export * from './utility.ts'
+export * from './brand.ts'
+export * from './pipe.ts'
+```
+
+`export *`는 각 파일이 내보내는 이름을 그대로 이어받습니다. 파일 사이에 이름이 겹치면 컴파일 오류가 나므로, 배럴을 만들기 전에 각 파일의 export 이름이 서로 겹치지 않는지 먼저 확인해야 합니다. `lib/types/`의 세 파일은 `UnwrapPromise`, `ElementOf`, `FormErrors`, `JsonValue`, `DeepPartial`, `DeepReadonly`, `Brand`, `TransactionId`, `CategoryId`, `toTransactionId`, `toCategoryId`, `pipe`로 이름이 서로 겹치지 않습니다.
+
+### 배럴을 만들 때 주의할 점
+
+같은 폴더 안 파일끼리 서로를 배럴(`./index.ts`)을 거쳐 참조하면 순환 참조가 생길 수 있습니다. `utility.ts`가 `brand.ts`의 `TransactionId`를 쓰고 싶다면 `./index.ts`가 아니라 `./brand.ts`를 직접 import합니다. 배럴은 **폴더 바깥에서 안으로 들어올 때만** 쓰는 창구로 제한합니다.
+
+### JSDoc 주석
+
+함수·타입 선언 바로 위에 `/** ... */` 형태로 설명을 달면, 에디터가 그 함수를 쓰는 곳에서 마우스를 올렸을 때 설명을 바로 보여줍니다. `@param`, `@example`처럼 정해진 태그를 쓰면 매개변수별 설명과 사용 예시도 함께 표시됩니다.
+
+```ts
+/**
+ * Promise를 재귀적으로 벗겨 내부 값의 타입을 반환합니다.
+ * @example UnwrapPromise<Promise<Promise<string>>> // string
+ */
+export type UnwrapPromise<T> = T extends Promise<infer U> ? UnwrapPromise<U> : T
+```
+
+### 대체된 코드를 지우기 전에 확인할 것
+
+파일을 지우기 전에 그 파일의 export를 실제로 쓰는 곳이 남아 있는지 검색부터 합니다. 검색 결과가 하나도 없어야 안전하게 지울 수 있습니다.
+
+## 실습
+
+<Steps>
+
+### 1. guards.ts 사용처 확인
+
+```text
+grep -rn "guards.ts\|isTransaction\|assertIsTransaction" src --include="*.ts"
+```
+
+```text
+src/lib/types/guards.ts:export function isTransaction(...
+src/lib/types/guards.ts:export function assertIsTransaction(...
+```
+
+`lib/api/client.ts`, `schemas/transaction.ts` 등 다른 파일 어디에서도 `isTransaction`, `assertIsTransaction`을 더 이상 import하지 않습니다. 13편에서 API 클라이언트와 폼 검증 모두 zod 파싱으로 옮겨간 뒤 유일하게 이 함수들을 부르던 자리가 사라졌기 때문입니다. 선언한 파일 자신을 빼면 참조가 없으므로 안전하게 지웁니다.
+
+```text
+rm src/lib/types/guards.ts
+```
+
+### 2. 각 유틸 파일에 JSDoc 추가
+
+```ts
+// src/lib/types/utility.ts
+/**
+ * Promise를 재귀적으로 벗겨 내부 값의 타입을 반환합니다.
+ * @example UnwrapPromise<Promise<Promise<string>>> // string
+ */
+export type UnwrapPromise<T> = T extends Promise<infer U> ? UnwrapPromise<U> : T
+
+/**
+ * 배열 또는 읽기 전용 배열 타입에서 요소 타입을 뽑아냅니다.
+ * @example ElementOf<Transaction[]> // Transaction
+ */
+export type ElementOf<T> = T extends readonly (infer U)[] ? U : never
+
+/**
+ * 객체의 각 키에 Error 접미사를 붙인, 필드별 에러 메시지 맵을 만듭니다.
+ * @example FormErrors<{ amount: number }> // { amountError?: string }
+ */
+export type FormErrors<T> = {
+  [K in keyof T as `${string & K}Error`]?: string
+}
+
+/** JSON으로 직렬화 가능한 값의 재귀적 유니온입니다. */
+export type JsonValue = string | number | boolean | null | JsonValue[] | { [key: string]: JsonValue }
+
+/**
+ * 중첩된 객체의 모든 단계를 선택적 프로퍼티로 만듭니다.
+ * @example DeepPartial<{ a: { b: number } }> // { a?: { b?: number } }
+ */
+export type DeepPartial<T> = T extends object ? { [K in keyof T]?: DeepPartial<T[K]> } : T
+
+/**
+ * 중첩된 객체의 모든 단계를 readonly로 만듭니다.
+ * @example DeepReadonly<{ a: { b: number } }> // { readonly a: { readonly b: number } }
+ */
+export type DeepReadonly<T> = T extends object ? { readonly [K in keyof T]: DeepReadonly<T[K]> } : T
+```
+
+```ts
+// src/lib/types/brand.ts
+declare const brandSymbol: unique symbol
+
+/** 원시 타입 T에 문자열 태그 B를 붙여 구조가 같아도 서로 섞이지 않게 만듭니다. */
+export type Brand<T, B extends string> = T & { readonly [brandSymbol]: B }
+
+/** 거래 하나를 식별하는 브랜디드 문자열 ID입니다. */
+export type TransactionId = Brand<string, 'TransactionId'>
+
+/** 카테고리 하나를 식별하는 브랜디드 문자열 ID입니다. */
+export type CategoryId = Brand<string, 'CategoryId'>
+
+/** 일반 문자열을 TransactionId로 표시합니다. 값 자체는 바뀌지 않습니다. */
+export function toTransactionId(value: string): TransactionId {
+  return value as TransactionId
+}
+
+/** 일반 문자열을 CategoryId로 표시합니다. 값 자체는 바뀌지 않습니다. */
+export function toCategoryId(value: string): CategoryId {
+  return value as CategoryId
+}
+```
+
+```ts
+// src/lib/types/pipe.ts
+type UnaryFn<Input, Output> = (value: Input) => Output
+
+type PipeReturn<Input, Fns extends readonly UnaryFn<any, any>[]> = Fns extends [
+  UnaryFn<Input, infer Output>,
+  ...infer Rest extends readonly UnaryFn<any, any>[],
+]
+  ? Rest extends []
+    ? Output
+    : PipeReturn<Output, Rest>
+  : Input
+
+/**
+ * 값을 여러 단항 함수에 순서대로 통과시킵니다. 각 단계의 반환 타입이 다음 단계 입력 타입과 맞아야 합니다.
+ * @example pipe(2, (n) => n * 2, (n) => `${n}원`) // '4원'
+ */
+export function pipe<Input, Fns extends readonly UnaryFn<any, any>[]>(value: Input, ...fns: Fns): PipeReturn<Input, Fns> {
+  return fns.reduce((acc, fn) => fn(acc), value as unknown) as PipeReturn<Input, Fns>
+}
+```
+
+### 3. 배럴 파일 작성
+
+```ts
+// src/lib/types/index.ts
+export * from './utility.ts'
+export * from './brand.ts'
+export * from './pipe.ts'
+```
+
+### 4. 사용하는 곳의 import를 배럴 경로로 교체
+
+```ts
+// src/lib/api/client.ts (발췌)
+import type { ElementOf, UnwrapPromise } from '../types/index.ts'
+```
+
+```ts
+// src/schemas/transaction.ts (발췌)
+import type { FormErrors } from '../lib/types/index.ts'
+```
+
+### 5. 실행
+
+```text
+npm run typecheck
+```
+
+```text
+tsc --noEmit
+(오류 없음)
+```
+
+```text
+npm run test:types
+```
+
+```text
+✓ src/lib/types/utility.test-d.ts (6)
+✓ src/lib/types/brand.test-d.ts (5)
+✓ src/lib/types/pipe.test-d.ts (2)
+```
+
+`utility.test-d.ts` 등 16편 타입 테스트 파일은 개별 경로(`./utility.ts`, `./brand.ts`, `./pipe.ts`)에서 import하도록 그대로 둡니다. 라이브러리 안에서 자기 자신을 배럴로 다시 참조하면 순환 참조 위험이 생기기 때문입니다.
+
+</Steps>
+
+## 직접 해보기
+
+1. `lib/types/index.ts`에 `export * as types from './utility.ts'`처럼 네임스페이스 export를 추가해 보고, 다른 파일에서 `types.UnwrapPromise<...>` 형태로도 쓸 수 있는지 확인해 보세요.
+2. `guards.ts`를 지우기 전에 되돌릴 수 있도록, 삭제 전 `git status`로 변경 사항을 확인하는 습관을 만들어 보세요.
+
+<details>
+<summary>정답 보기</summary>
+
+```ts
+export * as types from './utility.ts'
+```
+
+이렇게 추가하면 `import { types } from '../types/index.ts'` 뒤 `types.UnwrapPromise<Promise<string>>`처럼 네임스페이스를 거쳐 쓸 수 있습니다. 다만 이 프로젝트는 개별 이름을 바로 꺼내 쓰는 `export *` 방식으로 통일했으므로, 네임스페이스 export는 실습용으로만 추가했다가 제거해도 됩니다.
+
+</details>
+
+## 자주 하는 실수
+
+| 증상 | 원인 | 고치는 법 |
+|------|------|-----------|
+| 배럴 추가 후 `Circular dependency` 경고 | 폴더 안 파일이 `./index.ts`를 거쳐 서로를 참조 | 폴더 안에서는 서로 직접 파일 경로로 import하고, 배럴은 폴더 바깥에서만 쓴다 |
+| `export *` 추가 후 이름 충돌 오류 | 서로 다른 파일이 같은 이름을 export | 배럴을 만들기 전에 각 파일의 export 이름을 미리 정리한다 |
+| 지운 `guards.ts`를 다른 파일이 여전히 import해 빌드 실패 | 삭제 전 사용처 검색을 건너뜀 | `grep`으로 함수 이름을 먼저 검색해 참조가 없는지 확인한 뒤 지운다 |
+| JSDoc `@example`에 실제와 다른 결과를 적어둠 | 코드를 고친 뒤 주석은 갱신하지 않음 | 유틸 타입을 고칠 때마다 JSDoc 예시도 함께 검토한다 |
+
+## 확인 문제
+
+<Quiz
+  questionNumber={1}
+  question="배럴(index.ts)을 도입하는 목적은"
+  options={['타입 검사 속도를 높이기 위해서', '여러 파일의 export를 한 경로로 모아 사용하는 쪽의 import를 단순하게 만들기 위해서', '런타임 번들 크기를 줄이기 위해서', '테스트 커버리지를 자동으로 올리기 위해서']}
+  correctAnswer={2}
+  explanation="배럴은 폴더 안 여러 파일의 export를 한 곳에 모아, 사용하는 쪽이 폴더 경로 하나만 기억하면 되게 해줍니다."
+  optionExplanations={['속도 향상이 목적이 아닙니다', '정답입니다', '번들 크기와는 직접 관련이 없습니다', '커버리지와는 무관합니다']}
+/>
+
+<Quiz
+  questionNumber={2}
+  question="폴더 안 파일끼리 서로 참조할 때 배럴 대신 개별 파일 경로를 쓰는 이유는"
+  options={['개별 경로가 문법적으로만 허용되기 때문에', '배럴을 거친 상호 참조가 순환 참조를 일으킬 수 있기 때문에', 'JSDoc이 개별 경로에서만 표시되기 때문에', '개별 경로가 항상 더 빠르기 때문에']}
+  correctAnswer={2}
+  explanation="폴더 안 파일이 배럴을 거쳐 서로를 참조하면 순환 참조가 생길 수 있어, 폴더 내부에서는 직접 경로로 import합니다."
+  optionExplanations={['둘 다 문법적으로 가능합니다', '정답입니다', 'JSDoc 표시와는 무관합니다', '속도 차이가 이유는 아닙니다']}
+/>
+
+<Quiz
+  questionNumber={3}
+  question="12편 수동 타입 가드(isTransaction, assertIsTransaction)를 이번 편에서 삭제할 수 있었던 근거는"
+  options={['16편 타입 테스트가 통과했기 때문에', '13편에서 zod 스키마 파싱으로 검증 로직이 완전히 대체되어 더 이상 참조하는 곳이 없기 때문에', '더 이상 컴파일이 되지 않기 때문에', 'JSDoc 주석이 없기 때문에']}
+  correctAnswer={2}
+  explanation="사용처를 검색해 참조가 하나도 남지 않았음을 확인한 뒤 삭제했습니다. 13편에서 zod로 검증 방식이 바뀐 것이 그 이유입니다."
+  optionExplanations={['타입 테스트 통과 여부와는 별개입니다', '정답입니다', '컴파일 가능 여부와는 무관합니다', '주석 유무는 삭제 근거가 아닙니다']}
+/>
+
+## 참고 자료
+
+- [TypeScript Handbook — Generics](https://www.typescriptlang.org/docs/handbook/2/generics.html)

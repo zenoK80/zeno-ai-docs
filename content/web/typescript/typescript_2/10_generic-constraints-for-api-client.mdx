@@ -1,0 +1,285 @@
+---
+title: '10. 제네릭 제약 심화로 API 클라이언트 좁히기'
+description: '라우트 이름을 키로 제약한 제네릭 ApiClient를 만들어 잘못된 라우트 호출을 컴파일 타임에 막습니다'
+---
+
+<Callout type="info">
+  **이번 편의 결과물:** `lib/api/client.ts`에 라우트를 키로 제약한 제네릭 `ApiClient`를 작성해, 잘못된 라우트 이름을 넘기면 컴파일 에러가 납니다. · **다루는 개념:** `extends keyof` 제약, 다중 타입 매개변수 제약, 조건부 제약으로 라우트별 응답 타입 좁히기
+</Callout>
+
+09편에서 `request()`는 GET·POST 같은 메서드별로 본문 유무를 구분했지만, 어떤 URL을 부르든 응답 타입은 호출하는 쪽이 매번 직접 적어야 했습니다(`request<Transaction[]>('GET', '/api/transactions')`). URL 문자열은 오타가 나도 컴파일러가 잡아주지 않고, 응답 타입도 실제 라우트와 맞는지 보장되지 않습니다. 이 편에서는 "라우트 이름 → 응답·본문 타입" 매핑을 타입으로 선언하고, 그 매핑의 키만 라우트 이름으로 허용하는 `ApiClient`를 만듭니다. 13~15편에서 zod와 MSW 목업 서버를 붙일 때도 이 `ApiClient`를 그대로 확장합니다.
+
+## 이 편에서 만드는 파일
+
+```
+expense-tracker/
+├── src/
+│   └── lib/
+│       └── api/
+│           └── client.ts        + (ApiRouteDefinition, ApiClient)
+└── tests/
+    └── client.test.ts           + (MSW로 get·send 동작 검증)
+```
+
+## 개념 정리
+
+### extends keyof 제약
+
+`08편의 sortBy`(`typescript_fundamentals`)에서 `K extends keyof T`로 "실제로 존재하는 키만" 받도록 제약했던 것을 기억할 것입니다. 이 편에서는 같은 패턴을 라우트 이름에 적용합니다. 라우트 매핑 객체 타입을 `TRoutes`라 하면, `TRoute extends keyof TRoutes`는 "`TRoute`는 `TRoutes`에 실제로 정의된 라우트 이름 중 하나여야 한다"는 뜻입니다. 정의되지 않은 이름을 넘기면 그 자리에서 오류가 납니다.
+
+### 다중 타입 매개변수 제약
+
+타입 매개변수는 앞서 선언한 다른 타입 매개변수를 제약 조건에서 참조할 수 있습니다.
+
+```ts
+function unwrapRoute<TRoutes extends ApiRouteMap, TRoute extends keyof TRoutes>(
+  routes: TRoutes,
+  route: TRoute,
+): TRoutes[TRoute] {
+  return routes[route]
+}
+```
+
+`TRoute extends keyof TRoutes`처럼 두 번째 타입 매개변수가 첫 번째 타입 매개변수에 기대어 제약되는 것이 다중 타입 매개변수 제약입니다. `TRoutes`가 무엇인지 먼저 정해져야 `keyof TRoutes`도 계산할 수 있으므로, 선언 순서를 지켜야 합니다.
+
+### 조건부 제약으로 라우트별 응답 타입 좁히기
+
+`TRoutes[TRoute]['response']`처럼 인덱스로 접근하면 라우트마다 다른 응답 타입을 그대로 꺼낼 수 있습니다. 여기에 조건부 타입을 더하면, 본문이 필요 없는 라우트(`body`가 `never`)는 매개변수 자리 자체를 비워두고, 본문이 필요한 라우트는 그 자리를 강제로 채우게 만들 수 있습니다.
+
+```ts
+type RequiresBody<TRoutes extends ApiRouteMap, TRoute extends keyof TRoutes> = [TRoutes[TRoute]['body']] extends [never]
+  ? false
+  : true
+```
+
+배열로 한 번 감싼 `[TRoutes[TRoute]['body']] extends [never]`는 `TRoutes[TRoute]['body']`가 유니온일 때 조건부 타입이 각 유니온 멤버에 따로 적용되는 것(분산 조건부 타입)을 막기 위한 관용적인 표기입니다.
+
+## 실습
+
+<Steps>
+
+### 1. 클라이언트 파일 만들기
+
+`expense-tracker/src/lib/api/client.ts` 파일을 추가합니다.
+
+### 2. 코드 작성
+
+```ts
+// expense-tracker/src/lib/api/client.ts
+import { request } from './request.ts'
+
+export interface ApiRouteDefinition<TResponse, TBody = never> {
+  response: TResponse
+  body: TBody
+}
+
+export type ApiRouteMap = Record<string, ApiRouteDefinition<unknown, unknown>>
+
+type RouteResponse<TRoutes extends ApiRouteMap, TRoute extends keyof TRoutes> = TRoutes[TRoute]['response']
+
+type RouteBody<TRoutes extends ApiRouteMap, TRoute extends keyof TRoutes> = TRoutes[TRoute]['body']
+
+// body가 never인 라우트는 세 번째 인자 자리를 아예 받지 않는다
+type RequiresBody<TRoutes extends ApiRouteMap, TRoute extends keyof TRoutes> = [RouteBody<TRoutes, TRoute>] extends [
+  never,
+]
+  ? false
+  : true
+
+type SendArgs<TRoutes extends ApiRouteMap, TRoute extends keyof TRoutes> =
+  RequiresBody<TRoutes, TRoute> extends true ? [body: RouteBody<TRoutes, TRoute>] : []
+
+export class ApiClient<TRoutes extends ApiRouteMap> {
+  constructor(private readonly basePath: string) {}
+
+  get<TRoute extends keyof TRoutes & string>(route: TRoute): Promise<RouteResponse<TRoutes, TRoute>> {
+    return request<RouteResponse<TRoutes, TRoute>>('GET', `${this.basePath}/${route}`)
+  }
+
+  remove<TRoute extends keyof TRoutes & string>(route: TRoute): Promise<RouteResponse<TRoutes, TRoute>> {
+    return request<RouteResponse<TRoutes, TRoute>>('DELETE', `${this.basePath}/${route}`)
+  }
+
+  send<TRoute extends keyof TRoutes & string>(
+    method: 'POST' | 'PUT' | 'PATCH',
+    route: TRoute,
+    ...bodyArgs: SendArgs<TRoutes, TRoute>
+  ): Promise<RouteResponse<TRoutes, TRoute>> {
+    const body = bodyArgs[0] as RouteBody<TRoutes, TRoute>
+    return request<RouteResponse<TRoutes, TRoute>, RouteBody<TRoutes, TRoute>>(
+      method,
+      `${this.basePath}/${route}`,
+      body,
+    )
+  }
+}
+```
+
+`TRoute extends keyof TRoutes & string`는 "`TRoutes`의 키이면서 동시에 문자열이어야 한다"는 뜻입니다. `keyof`는 숫자 키도 포함할 수 있는데, URL 뒤에 이어붙일 라우트 이름은 항상 문자열이어야 하므로 `& string`으로 좁혔습니다. `send`의 `...bodyArgs`는 `SendArgs`가 계산한 튜플 타입을 그대로 받습니다. 본문이 필요 없는 라우트라면 `SendArgs`가 빈 튜플(`[]`)이 되어 세 번째 인자를 아예 넘길 수 없고, 본문이 필요한 라우트라면 한 칸짜리 튜플이 되어 반드시 채워야 합니다.
+
+라우트 매핑과 함께 테스트로 동작을 확인합니다.
+
+```ts
+// expense-tracker/tests/client.test.ts
+import { afterAll, afterEach, beforeAll, describe, expect, it } from 'vitest'
+import { http, HttpResponse } from 'msw'
+import { setupServer } from 'msw/node'
+import { ApiClient, type ApiRouteDefinition } from '../src/lib/api/client.ts'
+import type { NewTransactionInput, Transaction } from '../src/models/expense.ts'
+
+interface TestRoutes {
+  transactions: ApiRouteDefinition<Transaction[]>
+  transaction: ApiRouteDefinition<Transaction, NewTransactionInput>
+}
+
+const sample: Transaction = {
+  id: 't-1',
+  type: 'expense',
+  date: '2026-09-01',
+  category: 'food',
+  amount: 12000,
+  memo: '점심',
+}
+
+const server = setupServer(
+  http.get('/api/transactions', () => HttpResponse.json([sample])),
+  http.post('/api/transaction', async ({ request: incoming }) => {
+    const body = (await incoming.json()) as NewTransactionInput
+    return HttpResponse.json({ id: 't-2', ...body })
+  }),
+)
+
+beforeAll(() => server.listen())
+afterEach(() => server.resetHandlers())
+afterAll(() => server.close())
+
+describe('ApiClient', () => {
+  const client = new ApiClient<TestRoutes>('/api')
+
+  it('body가 없는 라우트는 get으로 호출한다', async () => {
+    const result = await client.get('transactions')
+    expect(result).toHaveLength(1)
+  })
+
+  it('body가 필요한 라우트는 send에 세 번째 인자로 본문을 넘긴다', async () => {
+    const result = await client.send('POST', 'transaction', {
+      type: 'expense',
+      date: '2026-09-02',
+      category: 'transport',
+      amount: 3000,
+      memo: '버스',
+    })
+    expect(result.id).toBe('t-2')
+  })
+})
+```
+
+`TestRoutes`는 실제 CRUD 라우트 전체가 아니라, `body`가 있는 라우트와 없는 라우트를 각각 하나씩만 담은 최소 예시입니다. 나머지 라우트(수정·삭제)와 실제 목업 서버 연결은 15편에서 마저 채웁니다.
+
+### 3. 실행
+
+```text
+npx vitest run tests/client.test.ts
+```
+
+```text
+✓ tests/client.test.ts (2)
+  ✓ ApiClient > body가 없는 라우트는 get으로 호출한다
+  ✓ ApiClient > body가 필요한 라우트는 send에 세 번째 인자로 본문을 넘긴다
+```
+
+</Steps>
+
+## 확인
+
+- 두 테스트가 모두 통과합니다.
+- 에디터에서 `client.get('nonExistentRoute')`처럼 `TestRoutes`에 없는 이름을 넘기면 그 자리에서 오류가 표시됩니다.
+- 에디터에서 `client.send('POST', 'transactions', sample)`처럼 `body`가 `never`인 라우트에 본문을 넘기면 "인자가 너무 많습니다"류의 오류가 표시됩니다.
+
+## 직접 해보기
+
+1. `TestRoutes`에 `'summary'`(응답은 `{ total: number }`, 본문 없음) 라우트를 추가하고, `client.get('summary')`가 정상적으로 타입 검사를 통과하는지 확인합니다.
+2. `client.send('PUT', 'transaction')`처럼 본문을 아예 생략하고 호출해 보고, 에디터가 보여주는 오류를 읽어 봅니다.
+3. 07편의 "직접 해보기"에서 선언해 본 `CategoryId`(`brand<'CategoryId'>()`로 만든 브랜디드 타입)를 실제로 써 봅니다. `ApiClient`에 `filterByCategory` 메서드를 추가해, 카테고리 문자열이 아니라 `CategoryId`만 인자로 받도록 만들어 보세요.
+
+<details>
+<summary>정답 보기</summary>
+
+1번은 다음과 같이 추가합니다.
+
+```ts
+interface TestRoutes {
+  transactions: ApiRouteDefinition<Transaction[]>
+  transaction: ApiRouteDefinition<Transaction, NewTransactionInput>
+  summary: ApiRouteDefinition<{ total: number }>
+}
+```
+
+`ApiRouteDefinition`의 두 번째 타입 매개변수를 생략하면 기본값 `never`가 적용되어, `summary`는 본문이 필요 없는 라우트가 됩니다.
+
+2번은 `SendArgs<TestRoutes, 'transaction'>`이 `[body: NewTransactionInput]`(칸이 하나인 튜플)이므로, 인자를 생략하면 "필수 인자가 없습니다"류의 오류가 납니다. 본문이 필요한 라우트에서는 컴파일러가 호출 시점에 반드시 본문을 요구합니다.
+
+3번은 `ApiClient`에 다음 메서드를 추가합니다.
+
+```ts
+filterByCategory<TRoute extends keyof TRoutes & string>(
+  route: TRoute,
+  categoryId: CategoryId,
+): Promise<RouteResponse<TRoutes, TRoute>> {
+  return request<RouteResponse<TRoutes, TRoute>>('GET', `${this.basePath}/${route}?category=${categoryId}`)
+}
+```
+
+`categoryId` 자리에 브랜딩되지 않은 일반 문자열을 그대로 넘기면 07편에서 본 것과 같은 이유로 타입 오류가 납니다. `asCategoryId('food')`처럼 헬퍼를 거친 값만 넘길 수 있어, 검증되지 않은 카테고리 문자열이 URL에 그대로 섞여 들어가는 것을 막아줍니다.
+
+</details>
+
+## 자주 하는 실수
+
+| 증상 | 원인 | 고치는 법 |
+|------|------|-----------|
+| 존재하지 않는 라우트 이름을 넘겨도 오류가 안 남 | 라우트 매개변수를 `string`으로만 선언함 | `TRoute extends keyof TRoutes`로 실제 라우트 이름만 허용한다 |
+| body가 없는 라우트인데도 본문을 넘길 수 있음 | 본문 매개변수를 항상 옵셔널로 선언함 | `RequiresBody` 같은 조건부 타입으로 라우트별로 필요 여부를 다르게 만든다 |
+| `keyof TRoutes`에 숫자 키까지 섞여 URL 조합에서 타입 오류가 남 | `& string`으로 좁히지 않음 | 라우트 이름을 URL에 붙일 때는 `keyof TRoutes & string`으로 제약한다 |
+
+## 확인 문제
+
+<Quiz
+  questionNumber={1}
+  question="TRoute extends keyof TRoutes 제약이 하는 역할은"
+  options={['TRoute를 항상 문자열로 강제한다', 'TRoute가 TRoutes에 실제로 정의된 키 중 하나여야 한다는 것을 보장한다', 'TRoutes의 모든 프로퍼티를 선택적으로 만든다', 'TRoute와 TRoutes를 하나로 병합한다']}
+  correctAnswer={2}
+  explanation="keyof TRoutes는 TRoutes의 키 이름을 모은 유니온이므로, TRoute extends keyof TRoutes는 TRoute가 그중 하나여야 한다는 뜻입니다."
+  optionExplanations={['문자열 강제가 목적이 아닙니다', '정답입니다', '선택적 프로퍼티와는 무관합니다', '병합이 아니라 제약입니다']}
+/>
+
+<Quiz
+  questionNumber={2}
+  question="다중 타입 매개변수 제약에서 TRoute extends keyof TRoutes처럼 뒤 타입 매개변수가 앞 타입 매개변수를 참조하려면 지켜야 할 것은"
+  options={['선언 순서와 무관하게 아무렇게나 써도 된다', 'TRoutes를 TRoute보다 먼저 선언해야 한다', 'TRoute를 항상 배열로 선언해야 한다', 'extends 대신 implements를 써야 한다']}
+  correctAnswer={2}
+  explanation="keyof TRoutes를 계산하려면 TRoutes가 먼저 정해져 있어야 하므로, 타입 매개변수 목록에서 TRoutes를 TRoute보다 앞에 선언해야 합니다."
+  optionExplanations={['순서는 실제로 중요합니다', '정답입니다', '배열 여부와는 무관합니다', 'implements는 클래스가 인터페이스를 구현할 때 씁니다']}
+/>
+
+<Quiz
+  questionNumber={3}
+  question="RequiresBody 타입에서 [TRoutes[TRoute][body]]처럼 대괄호로 한 번 감싸는 이유는"
+  options={['배열 타입을 만들기 위해서', 'body가 유니온일 때 조건부 타입이 각 멤버에 따로 적용되는 분산을 막기 위해서', 'JSON 직렬화를 위해서', '타입스크립트 문법 오류를 피하기 위한 임의의 장식일 뿐 의미는 없어서']}
+  correctAnswer={2}
+  explanation="조건부 타입의 검사 대상이 유니온이면 각 멤버에 따로 적용되는 분산 조건부 타입이 일어나는데, 대괄호로 한 번 감싸면 이를 막고 유니온 전체를 하나로 검사합니다."
+  optionExplanations={['배열 자체가 목적이 아닙니다', '정답입니다', '직렬화와는 무관합니다', '의미 없는 장식이 아니라 분산을 막는 관용 표현입니다']}
+/>
+
+<Quiz
+  questionNumber={4}
+  question="send 메서드의 매개변수를 bodyArgs 튜플 스프레드로 받은 이유는"
+  options={['인자 개수를 항상 고정하기 위해서', '라우트에 따라 본문이 필요 없으면 인자를 아예 못 넘기게, 필요하면 반드시 넘기게 하기 위해서', '함수 이름을 자동으로 바꾸기 위해서', 'JSON 파싱 속도를 높이기 위해서']}
+  correctAnswer={2}
+  explanation="SendArgs가 라우트별로 계산한 튜플(빈 튜플 또는 한 칸짜리 튜플)을 스프레드로 받으면, 본문 필요 여부에 따라 호출 형태 자체가 달라집니다."
+  optionExplanations={['오히려 라우트마다 인자 개수가 달라집니다', '정답입니다', '함수 이름과는 무관합니다', '속도와는 무관합니다']}
+/>
+
+## 참고 자료
+
+- [TypeScript Handbook — Generics](https://www.typescriptlang.org/docs/handbook/2/generics.html)

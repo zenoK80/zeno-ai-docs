@@ -1,0 +1,280 @@
+---
+title: '09. 판별 유니온과 as const로 Props 설계하기'
+description: '책 상태 뱃지 컴포넌트를 판별 유니온 props로 재설계해 불가능한 상태를 컴파일 타임에 없앤다'
+---
+
+<Callout type="info">
+  **이번 편의 결과물:** 책 상태를 보여주는 `StatusBadge` 컴포넌트가 판별 유니온 props로 재설계되어, 상태와 맞지 않는 값을 넘기면 컴파일 에러가 납니다. · **다루는 개념:** `as const`로 상수 배열에서 유니온 타입 도출, 판별 유니온 기반 컴포넌트 props 설계, 불가능한 상태를 타입으로 제거하기
+</Callout>
+
+## 이 편에서 만드는 파일
+
+```
+bookshelf-ts/src/
+├── types/
+│   └── book.ts               ~ 수정 (손으로 쓴 유니온 → as const 기반 BookStatus)
+└── components/
+    ├── StatusBadge.tsx        + 신규
+    └── BookCard.tsx           ~ 수정 (STATUS_KEY 텍스트 표시 → StatusBadge로 교체)
+```
+
+## 개념 정리
+
+04편에서 `types/book.ts`에 `BookStatus`를 정의할 때 값을 나열한 유니온 타입을 손으로 썼습니다.
+
+```ts
+export type BookStatus = 'wish' | 'reading' | 'done'
+```
+
+`BookCard.tsx`(04편)에는 이 값을 화면 문구 키로 바꾸는 `STATUS_KEY: Record<BookStatus, string>` 객체가 있었습니다. 상태가 하나 더 늘어나면 `BookStatus` 유니온과 `STATUS_KEY` 양쪽을 따로 고쳐야 합니다. 이 편에서는 값 목록 하나로 타입까지 도출하도록 정리하고, 상태별로 함께 있어야 할 정보(며칠째 읽는 중인지, 별점)가 다른 문제도 판별 유니온으로 해결합니다.
+
+### `as const`로 유니온 도출하기
+
+`typescript_2`에서 `as const`를 배웠습니다. 배열 리터럴 뒤에 붙이면 각 원소가 넓은 타입(`string`)이 아니라 그 값 자체의 리터럴 타입으로 좁혀지고, 배열도 읽기 전용 튜플이 됩니다.
+
+```ts
+const rawStatuses = ['wish', 'reading', 'done']
+// string[] — 원소가 무엇이든 될 수 있는 넓은 타입
+
+const constStatuses = ['wish', 'reading', 'done'] as const
+// readonly ['wish', 'reading', 'done'] — 원소 하나하나가 리터럴 타입
+```
+
+`typeof constStatuses[number]`로 튜플의 원소 타입만 뽑으면 `'wish' | 'reading' | 'done'` 유니온이 됩니다. 값과 타입을 같은 배열 하나에서 함께 관리하는 방법입니다.
+
+### 판별 유니온으로 불가능한 상태 없애기
+
+지금까지 컴포넌트 props를 설계할 때 관련 있는 필드를 전부 선택적(`?`)으로 늘어놓는 방식을 썼을 수 있습니다.
+
+| 방식 | 문제 |
+|---|---|
+| `{ status: BookStatus; rating?: number; startedAt?: string }` | `status`가 `'wish'`인데 `rating`을 같이 넘기는 조합도 타입으로는 허용됨 |
+| `{ status: 'wish' } \| { status: 'reading'; startedAt: string } \| { status: 'done'; rating: number }` | `status`값에 따라 함께 있어야 할 필드가 정확히 정해짐 |
+
+두 번째 방식이 **판별 유니온**(discriminated union)입니다. `status` 필드가 **판별자**(discriminant) 역할을 해서, 그 값에 따라 나머지 필드의 존재 여부와 타입이 자동으로 좁혀집니다. 컴포넌트 props에 적용하면, 상태에 맞지 않는 조합 자체가 만들어지지 않습니다.
+
+## 실습
+
+<Steps>
+
+### 1. types/book.ts에 as const 기반 BookStatus 적용
+
+```ts
+// src/types/book.ts (BookStatus 선언만 교체 — Book 인터페이스는 04편 코드 그대로)
+export const BOOK_STATUSES = ['wish', 'reading', 'done'] as const
+
+export type BookStatus = (typeof BOOK_STATUSES)[number]
+
+export interface Book {
+  id: number
+  title: string
+  author: string
+  status: BookStatus
+  rating: number
+  pages: number
+  coverColor: string
+  coverImage?: string
+  startedAt: string
+  finishedAt: string | null
+  memo: string
+}
+```
+
+`BOOK_STATUSES`는 값과 타입을 동시에 제공합니다. 값으로는 상태 선택 UI에서 목록을 순회할 때 쓰고, 타입으로는 `BookStatus`가 `'wish' | 'reading' | 'done'`로 정확히 좁혀지도록 씁니다. 상태가 하나 늘어나면 이 배열 한 줄만 고치면 됩니다. `Book` 인터페이스 자체는 04편 그대로 두었습니다.
+
+### 2. StatusBadge 컴포넌트 작성
+
+```tsx
+// src/components/StatusBadge.tsx
+import { useTranslation } from 'react-i18next'
+import type { Book, BookStatus } from '../types/book.ts'
+
+const STATUS_META = {
+  wish: { labelKey: 'statusWish', color: '#64748b' },
+  reading: { labelKey: 'statusReading', color: '#2563eb' },
+  done: { labelKey: 'statusDone', color: '#16a34a' },
+} satisfies Record<BookStatus, { labelKey: string; color: string }>
+
+type StatusBadgeProps =
+  | { status: 'wish' }
+  | { status: 'reading'; startedAt: string }
+  | { status: 'done'; rating: number }
+
+function formatReadingDays(startedAt: string): string {
+  const startedTime = new Date(startedAt).getTime()
+  const days = Math.floor((Date.now() - startedTime) / (1000 * 60 * 60 * 24))
+  return `${Math.max(days, 0)}일째`
+}
+
+function StatusBadge(props: StatusBadgeProps) {
+  const { t } = useTranslation()
+  const meta = STATUS_META[props.status]
+
+  return (
+    <span className="status-badge" style={{ backgroundColor: meta.color }}>
+      {t(`bookCard.${meta.labelKey}`)}
+      {props.status === 'reading' && (
+        <span className="status-badge-detail"> · {formatReadingDays(props.startedAt)}</span>
+      )}
+      {props.status === 'done' && <span className="status-badge-detail"> · 별점 {props.rating}</span>}
+    </span>
+  )
+}
+
+function assertNever(value: never): never {
+  throw new Error(`처리하지 않은 상태입니다: ${JSON.stringify(value)}`)
+}
+
+export function bookToStatusBadgeProps(book: Book): StatusBadgeProps {
+  switch (book.status) {
+    case 'wish':
+      return { status: 'wish' }
+    case 'reading':
+      return { status: 'reading', startedAt: book.startedAt }
+    case 'done':
+      return { status: 'done', rating: book.rating }
+    default:
+      return assertNever(book.status)
+  }
+}
+
+export default StatusBadge
+export type { StatusBadgeProps }
+```
+
+`STATUS_META`는 `satisfies Record<BookStatus, { labelKey: string; color: string }>`로 세 상태를 모두 빠짐없이 정의했는지 검사받습니다. 번역 키(`labelKey`)는 04편의 `STATUS_KEY`가 쓰던 `bookCard.statusWish` 같은 키를 그대로 이어받아, 다국어 리소스 파일은 손대지 않습니다. `StatusBadge` 안에서는 `props.status === 'reading'`으로 좁힌 블록에서만 `props.startedAt`을 읽을 수 있고, `'done'` 블록에서만 `props.rating`을 읽을 수 있습니다. `bookToStatusBadgeProps`의 `switch`는 세 분기를 모두 다뤄야 컴파일되고, 빠뜨린 분기가 있으면 `default`의 `assertNever(book.status)`에서 오류로 드러납니다.
+
+### 3. BookCard에서 StatusBadge 사용
+
+```tsx
+// src/components/BookCard.tsx (04편 코드에서 상태 표시 부분만 교체 — BookCover·formatDate는 그대로 유지)
+import { useTranslation } from 'react-i18next'
+import type { Book } from '../types/book.ts'
+import StatusBadge, { bookToStatusBadgeProps } from './StatusBadge.tsx'
+
+interface BookCardProps {
+  book: Book
+}
+
+function formatDate(dateString: string | null, locale: string): string {
+  if (!dateString) return '-'
+  return new Intl.DateTimeFormat(locale, { dateStyle: 'medium' }).format(new Date(dateString))
+}
+
+function BookCover({ book }: BookCardProps) {
+  if (book.coverImage) {
+    return <img className="book-cover" src={book.coverImage} alt={`${book.title} 표지`} />
+  }
+  return <div className="book-cover-placeholder" style={{ backgroundColor: book.coverColor }} />
+}
+
+function BookCard({ book }: BookCardProps) {
+  const { t, i18n } = useTranslation()
+
+  return (
+    <li className="book-card">
+      <BookCover book={book} />
+      <h3>{book.title}</h3>
+      <p>{book.author}</p>
+      <StatusBadge {...bookToStatusBadgeProps(book)} />
+      <p>{t('bookCard.pages', { count: book.pages })}</p>
+      <p>{t('bookCard.startedAt', { date: formatDate(book.startedAt, i18n.language) })}</p>
+    </li>
+  )
+}
+
+export default BookCard
+```
+
+`STATUS_KEY` 객체와 그 객체를 조회하던 `<p>` 한 줄이 사라지고, `BookCard`는 `Book` 전체를 `bookToStatusBadgeProps`에 넘기기만 합니다. 상태별로 어떤 필드를 뽑아 넘길지는 `StatusBadge.tsx` 한 곳에만 몰려 있습니다.
+
+### 4. 실행
+
+```text
+npm run dev
+```
+
+### 5. 확인
+
+- 책 목록에서 `상태`가 `읽고 싶음`인 카드는 색상 뱃지만 보이고, `읽는 중`인 카드는 며칠째인지, `다 읽음`인 카드는 별점이 함께 보입니다.
+- VS Code에서 `StatusBadge` 사용 부분에 `{ status: 'wish', rating: 5 }`처럼 억지로 넘겨보면 빨간 밑줄과 함께 타입 오류가 뜹니다.
+- `bookToStatusBadgeProps`의 `switch`에서 `case 'reading':`을 지워보면 `default`의 `assertNever(book.status)` 줄에서 오류가 나는 것을 확인합니다. 지운 케이스를 되돌려 오류가 사라지는지도 확인합니다.
+
+</Steps>
+
+## 직접 해보기
+
+1. `BOOK_STATUSES`에 `'paused'`(읽다 중단)를 추가해 보세요. 배열에 문자열 하나만 추가하면 `BookStatus` 유니온에도 자동으로 반영됩니다. 이어서 `STATUS_META`와 `StatusBadgeProps`, `bookToStatusBadgeProps`에서 어떤 부분이 컴파일 오류로 드러나는지 확인해 보세요.
+2. `StatusBadgeProps`의 `'done'` 분기에 `finishedAt: string` 필드를 추가하고, 뱃지에 완독 날짜도 함께 표시해 보세요.
+
+<details>
+<summary>정답 보기</summary>
+
+```ts
+// src/types/book.ts
+export const BOOK_STATUSES = ['wish', 'reading', 'paused', 'done'] as const
+```
+
+이 한 줄만 고치면 `STATUS_META`(`satisfies Record<BookStatus, ...>`)와 `bookToStatusBadgeProps`의 `switch`(`assertNever` 분기) 두 곳에서 각각 `'paused'` 키·분기가 빠졌다는 오류가 납니다. 배열 하나를 고쳤을 뿐인데 이 값을 다루는 모든 곳이 컴파일 타임에 드러나는 것이 판별 유니온과 `as const`를 함께 쓰는 이유입니다.
+
+</details>
+
+## 자주 하는 실수
+
+| 증상 | 원인 | 고치는 법 |
+|---|---|---|
+| `as const`를 붙였는데도 원소가 `string`으로 추론됨 | 배열이 아니라 개별 변수 선언에 `as const`를 빠뜨림 | 배열 리터럴 전체(`['wish', 'reading', 'done'] as const`)에 붙였는지 확인 |
+| `StatusBadge`에 `status`만 넘겼는데 `rating`이 없다는 오류가 남 | `status: 'done'`인데 `rating`을 빠뜨림 | 판별 유니온의 해당 분기가 요구하는 필드를 모두 넘긴다 |
+| `props.startedAt`에 접근하는 곳에서 프로퍼티가 없다는 오류가 남 | `if (props.status === 'reading')` 같은 좁히기 없이 바로 접근 | 판별자로 먼저 좁힌 블록 안에서만 해당 필드에 접근한다 |
+| `assertNever` 호출에서 인자 타입이 `never`가 아니라는 오류가 남 | `switch`에서 처리하지 않은 상태 값이 남아 있음 | 빠뜨린 `case`를 추가하거나 `BookStatus`에 실제로 없는 값인지 확인 |
+
+## 확인 문제
+
+<Quiz
+  questionNumber={1}
+  question={"다음 두 선언의 차이를 설명한 것으로 옳은 것은\n\n```ts\nconst a = ['wish', 'reading', 'done']\nconst b = ['wish', 'reading', 'done'] as const\n```"}
+  options={['둘 다 정확히 같은 타입으로 추론된다', 'a는 원소가 string으로 넓게 추론되고, b는 as const 덕분에 원소가 리터럴 타입으로 좁게 추론된다', 'b는 배열이 아니라 객체로 바뀐다', 'a만 런타임 값으로 사용할 수 있다']}
+  correctAnswer={2}
+  explanation="as const가 없으면 배열 원소 타입이 string처럼 넓게 추론되고, as const를 붙이면 각 원소가 그 값 자체의 리터럴 타입으로, 배열 전체는 읽기 전용 튜플로 추론됩니다."
+  optionExplanations={['두 선언의 추론 결과는 다릅니다', '정답입니다', '객체가 아니라 여전히 배열(튜플)입니다', '둘 다 런타임 값으로 그대로 쓸 수 있습니다']}
+/>
+
+<Quiz
+  questionNumber={2}
+  question="StatusBadgeProps 판별 유니온에서 status 필드가 하는 역할은"
+  options={['컴포넌트 이름을 정하는 값', '어떤 분기인지 구분해 나머지 필드의 존재 여부와 타입을 결정하는 판별자', 'CSS 클래스 이름과 항상 동일한 값', '뱃지 색상만 결정하고 다른 필드와는 무관한 값']}
+  correctAnswer={2}
+  explanation="status는 판별 유니온의 판별자로, 이 값에 따라 함께 존재해야 하는 다른 필드(startedAt, rating)가 정확히 정해집니다."
+  optionExplanations={['컴포넌트 이름과는 무관합니다', '정답입니다', 'CSS 클래스 이름과 반드시 같을 필요는 없습니다', '색상뿐 아니라 함께 있어야 할 필드도 함께 결정합니다']}
+/>
+
+<Quiz
+  questionNumber={3}
+  question="status를 reading, rating을 5로 함께 넘겨 StatusBadge를 호출하면 어떤 일이 일어나는가"
+  options={['정상 동작하며 rating은 무시된다', 'reading 분기에는 rating이라는 필드가 없어 컴파일 에러가 난다', 'TypeScript가 자동으로 status를 done으로 바꾼다', '런타임에만 경고가 출력되고 컴파일은 통과한다']}
+  correctAnswer={2}
+  explanation="StatusBadgeProps에서 status가 reading인 분기는 startedAt만 요구하고 rating 필드를 정의하지 않으므로, 존재하지 않는 프로퍼티를 넘긴 것이 되어 컴파일 에러가 납니다."
+  optionExplanations={['잘못된 조합은 컴파일 단계에서 막힙니다', '정답입니다', '자동으로 값을 바꿔주지 않습니다', '컴파일 자체가 통과하지 못합니다']}
+/>
+
+<Quiz
+  questionNumber={4}
+  question="satisfies Record 형태로 STATUS_META를 정의하는 이유로 가장 알맞은 것은"
+  options={['객체를 읽기 전용으로 만들기 위해서', 'BookStatus의 각 값에 해당하는 키가 모두 빠짐없이 정의됐는지 컴파일 타임에 검사받기 위해서', '객체 리터럴을 배열로 변환하기 위해서', '런타임에 각 필드의 존재 여부를 검사하기 위해서']}
+  correctAnswer={2}
+  explanation="satisfies Record 형태는 STATUS_META가 BookStatus의 모든 값을 키로 가져야 한다는 것을 컴파일 타임에 검사하면서도, 각 값의 리터럴 타입 추론은 그대로 유지합니다."
+  optionExplanations={['읽기 전용 여부와는 직접 관련이 없습니다', '정답입니다', '배열 변환과는 무관합니다', '이 검사는 런타임이 아니라 컴파일 타임에 일어납니다']}
+/>
+
+<Quiz
+  questionNumber={5}
+  question="bookToStatusBadgeProps의 switch에서 case 하나를 실수로 지웠을 때 default의 assertNever(book.status) 호출이 오류를 내는 이유는"
+  options={['assertNever 함수 자체가 항상 오류를 던지도록 만들어졌기 때문에', '남은 상태 값이 never로 좁혀지지 않아 never 타입을 요구하는 assertNever의 매개변수와 맞지 않기 때문에', 'switch 문에는 default가 있으면 안 되기 때문에', 'book 객체에 status 프로퍼티가 없어졌기 때문에']}
+  correctAnswer={2}
+  explanation="case를 모두 처리하면 default에 도달했을 때 남은 값의 타입이 never로 좁혀집니다. case 하나를 빠뜨리면 처리되지 않은 리터럴 값이 남아 never가 아니게 되고, never만 받는 assertNever의 매개변수 타입과 맞지 않아 오류가 납니다."
+  optionExplanations={['assertNever는 never가 아닌 값이 들어올 때만 타입 오류를 냅니다', '정답입니다', 'default 자체는 문제가 아닙니다', 'book.status 프로퍼티는 그대로 있습니다']}
+/>
+
+## 참고 자료
+
+- [TypeScript Handbook — Narrowing(Discriminated Unions)](https://www.typescriptlang.org/docs/handbook/2/narrowing.html#discriminated-unions)

@@ -1,0 +1,265 @@
+---
+title: '15. 공용 타입 패키지 만들기'
+description: '책 도메인 타입과 zod 스키마를 packages/shared-types로 옮기고 workspace 프로토콜로 참조합니다'
+---
+
+<Callout type="info">
+  **이번 편의 결과물:** `apps/web`의 import가 `@bookshelf/shared-types`에서 타입을 가져오도록 바뀌고, 앱이 그대로 동작합니다. · **다루는 개념:** `packages/shared-types` 생성, 도메인 타입·zod 스키마 이동, `workspace:` 프로토콜로 참조
+</Callout>
+
+14편에서 `apps/web` + 빈 `packages/`로 폴더를 나눴습니다. 지금 `bookshelf` 도메인 타입(`Book`, `BookInput`)과 `zod` 스키마는 여전히 `apps/web/src/schemas/book.ts` 안에만 있습니다. 앞으로 만들 `packages/ui`(17편)나 서버 코드가 생기면 이 타입을 다시 정의하거나 상대 경로로 억지로 끌어와야 합니다. 이 편에서 `packages/shared-types`라는 독립 패키지로 옮겨, `apps/web`이 `workspace:` 프로토콜로 참조하게 만듭니다.
+
+## 이 편에서 만드는 파일
+
+```
+bookshelf-ts/
+├── apps/web/
+│   ├── package.json                    (~, @bookshelf/shared-types 의존성 추가)
+│   └── src/
+│       ├── schemas/book.ts             (삭제, 내용은 shared-types로 이동)
+│       ├── services/books.ts           (~, import 경로를 @bookshelf/shared-types로 변경)
+│       └── routes/BookFormPage.tsx     (~, import 경로를 @bookshelf/shared-types로 변경)
+└── packages/
+    └── shared-types/                    (+)
+        ├── package.json
+        ├── tsconfig.json
+        └── src/
+            ├── book.ts                  (schemas/book.ts 내용 그대로 이동)
+            └── index.ts                 (재수출 진입점)
+```
+
+## 개념 정리
+
+### 왜 앱 안이 아니라 별도 패키지인가
+
+`apps/web/src/schemas/`에 두면 이 타입을 쓸 수 있는 곳은 `apps/web` 하나뿐입니다. 별도 패키지로 빼면 `packages/ui`, 나중에 추가될 서버 코드, 심지어 다른 앱도 같은 타입·같은 검증 규칙을 그대로 가져다 쓸 수 있습니다. "한 곳에서 정의하고 여러 곳에서 참조한다"는 모노레포를 나누는 가장 흔한 이유입니다.
+
+### workspace: 프로토콜
+
+일반적인 npm 패키지는 버전 범위(`^1.2.0`)로 의존성을 명시하지만, 같은 워크스페이스 안의 패키지는 `workspace:` 프로토콜로 가리킵니다.
+
+| 표기 | 의미 |
+|------|------|
+| `workspace:*` | 워크스페이스에 있는 버전 그대로 연결. 배포 시 실제 버전 번호로 치환됨 |
+| `workspace:^` | 배포 시 `^`가 붙은 버전 범위로 치환됨 |
+
+```json
+{
+  "dependencies": {
+    "@bookshelf/shared-types": "workspace:*"
+  }
+}
+```
+
+`pnpm install`을 실행하면 pnpm이 `apps/web/node_modules/@bookshelf/shared-types`에 `packages/shared-types`를 가리키는 심볼릭 링크를 만듭니다. 별도의 빌드 없이도 `import`가 실제 소스 파일을 바로 찾아갑니다.
+
+### package.json의 main·types가 소스를 직접 가리키는 이유
+
+`packages/shared-types`는 아직 빌드 스크립트가 없습니다(빌드는 18편에서 `tsdown`으로 추가). 지금은 `package.json`의 `main`·`types`가 `dist/`가 아니라 `src/index.ts`를 직접 가리키게 해서, `apps/web`을 개발 모드로 실행하는 `vite`가 이 소스를 즉시 변환해 쓰도록 합니다.
+
+## 실습
+
+<Steps>
+
+### 1. shared-types 패키지 뼈대 작성
+
+```json
+// bookshelf-ts/packages/shared-types/package.json
+{
+  "name": "@bookshelf/shared-types",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "main": "./src/index.ts",
+  "types": "./src/index.ts"
+}
+```
+
+```json
+// bookshelf-ts/packages/shared-types/tsconfig.json
+{
+  "compilerOptions": {
+    "target": "ES2023",
+    "module": "ESNext",
+    "moduleResolution": "bundler",
+    "strict": true,
+    "skipLibCheck": true,
+    "declaration": true,
+    "outDir": "./dist"
+  },
+  "include": ["src"]
+}
+```
+
+`declaration`·`outDir`은 지금 당장 쓰이지 않지만, 16편에서 `composite: true`를 추가할 때 그대로 재사용합니다.
+
+### 2. 도메인 타입과 스키마 이동
+
+```ts
+// bookshelf-ts/packages/shared-types/src/book.ts
+import { z } from 'zod'
+
+export const bookStatusValues = ['wish', 'reading', 'done'] as const
+
+export const bookInputSchema = z.object({
+  title: z.string().min(1, '제목을 입력하세요'),
+  author: z.string().min(1, '저자를 입력하세요'),
+  pages: z.coerce.number().int().positive('쪽수는 1 이상이어야 합니다'),
+  status: z.enum(bookStatusValues),
+  memo: z.string().optional().default(''),
+  coverUrl: z.string().optional(),
+})
+
+export const bookSchema = bookInputSchema.extend({
+  id: z.string(),
+})
+
+export const bookListSchema = z.array(bookSchema)
+
+export type BookStatus = (typeof bookStatusValues)[number]
+export type BookInput = z.infer<typeof bookInputSchema>
+export type Book = z.infer<typeof bookSchema>
+```
+
+```ts
+// bookshelf-ts/packages/shared-types/src/index.ts
+export * from './book'
+```
+
+`apps/web/src/schemas/book.ts`는 내용이 그대로 옮겨졌으므로 삭제합니다.
+
+```bash
+rm apps/web/src/schemas/book.ts
+```
+
+### 3. apps/web에 의존성 추가
+
+```json
+// bookshelf-ts/apps/web/package.json (dependencies 부분만)
+{
+  "dependencies": {
+    "@bookshelf/shared-types": "workspace:*",
+    "@hookform/resolvers": "5.9.1",
+    "@tanstack/react-query": "5.103.2",
+    "i18next": "26.4.2",
+    "react": "19.3.0",
+    "react-dom": "19.3.0",
+    "react-hook-form": "7.88.0",
+    "react-i18next": "17.0.15",
+    "react-router": "8.4.0",
+    "zod": "4.6.5",
+    "zustand": "5.0.15"
+  }
+}
+```
+
+### 4. import 경로 갱신
+
+```ts
+// bookshelf-ts/apps/web/src/services/books.ts (import 부분만)
+import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
+import { bookListSchema, bookSchema, type Book, type BookInput } from '@bookshelf/shared-types'
+```
+
+```tsx
+// bookshelf-ts/apps/web/src/routes/BookFormPage.tsx (import 부분만)
+import { useNavigate, useParams } from 'react-router'
+import { useForm } from 'react-hook-form'
+import { zodResolver } from '@hookform/resolvers/zod'
+import { bookInputSchema, bookStatusValues, type BookInput } from '@bookshelf/shared-types'
+import { useBookQuery, useCreateBookMutation, useUpdateBookMutation } from '../services/books'
+```
+
+상대 경로(`'../schemas/book'`)가 패키지 이름(`'@bookshelf/shared-types'`)으로 바뀐 것 외에는 나머지 코드가 전혀 바뀌지 않습니다. `Book`, `BookInput`, `bookInputSchema`가 가리키는 실제 선언이 옮겨졌을 뿐, 사용하는 쪽 코드 입장에서는 같은 이름·같은 타입입니다.
+
+### 5. 설치와 실행
+
+```bash
+pnpm install
+pnpm dev
+```
+
+</Steps>
+
+## 확인
+
+- 루트에서 `pnpm install`을 실행하면 `apps/web/node_modules/@bookshelf/shared-types`가 `packages/shared-types`를 가리키는 링크로 생깁니다.
+- `apps/web/src/schemas/book.ts` 파일이 더 이상 존재하지 않습니다.
+- 앱을 다시 실행하면 책 목록·등록·수정이 13편과 똑같이 동작합니다.
+- `packages/shared-types/src/book.ts`에서 필드 하나를 지워보면, `apps/web`의 `services/books.ts`에서 바로 타입 오류가 뜹니다.
+
+## 직접 해보기
+
+1. `packages/shared-types/src/`에 `pagination.ts`를 새로 만들어 `PageParams`(`page`, `pageSize`) 타입을 정의하고 `index.ts`에서 재수출해보세요.
+2. `apps/web`에서 방금 만든 `PageParams`를 import해 아무 함수의 매개변수 타입으로 써보고, 정상적으로 타입이 인식되는지 확인해보세요.
+
+<details>
+<summary>정답 보기</summary>
+
+```ts
+// packages/shared-types/src/pagination.ts
+export interface PageParams {
+  page: number
+  pageSize: number
+}
+```
+
+```ts
+// packages/shared-types/src/index.ts
+export * from './book'
+export * from './pagination'
+```
+
+새 파일을 만들고 `index.ts`에서 재수출만 하면, 별도의 빌드나 설치 과정 없이 `apps/web`에서 `import { type PageParams } from '@bookshelf/shared-types'`로 바로 쓸 수 있습니다. `main`이 소스를 직접 가리키기 때문입니다.
+
+</details>
+
+## 자주 하는 실수
+
+| 증상 | 원인 | 고치는 법 |
+|------|------|-----------|
+| `Cannot find module @bookshelf/shared-types` | `pnpm install`을 다시 실행하지 않음 | `package.json`에 의존성을 추가한 뒤 반드시 `pnpm install`을 실행해 링크를 새로 만든다 |
+| 타입은 잡히는데 실행 시 모듈을 못 찾음 | `packages/shared-types/package.json`의 `main`이 존재하지 않는 경로를 가리킴 | `main`·`types`가 실제 `src/index.ts` 경로와 정확히 일치하는지 확인한다 |
+| 스키마를 옮긴 뒤 어디서 import하는지 찾기 어려움 | 상대 경로 import를 하나씩 수동으로 찾음 | 에디터의 전체 검색으로 `from '../schemas/book'`, `from '../../schemas/book'`을 모두 찾아 바꾼다 |
+
+## 확인 문제
+
+<Quiz
+  questionNumber={1}
+  question="도메인 타입을 apps/web 안이 아니라 packages/shared-types로 분리하는 가장 큰 이유는"
+  options={['타입스크립트 컴파일 속도를 위해서만', '여러 패키지(ui, 서버 등)가 같은 타입과 검증 규칙을 공유할 수 있게 하기 위해서', 'React 렌더링 성능을 높이기 위해서', 'zod 패키지 용량을 줄이기 위해서']}
+  correctAnswer={2}
+  explanation="별도 패키지로 분리하면 apps/web뿐 아니라 packages/ui나 서버 코드도 같은 소스에서 타입과 검증 규칙을 그대로 가져다 쓸 수 있습니다."
+  optionExplanations={['컴파일 속도가 주된 이유는 아닙니다', '정답입니다', '렌더링 성능과는 무관합니다', '패키지 용량 문제가 아닙니다']}
+/>
+
+<Quiz
+  questionNumber={2}
+  question="apps/web/package.json에 workspace:*로 의존성을 적었을 때 pnpm install이 하는 일은"
+  options={['npm 레지스트리에서 같은 이름의 패키지를 새로 내려받는다', 'packages/shared-types 폴더를 가리키는 심볼릭 링크를 node_modules 안에 만든다', '패키지를 자동으로 npm에 배포한다', 'shared-types 코드를 apps/web 소스 폴더에 복사한다']}
+  correctAnswer={2}
+  explanation="workspace: 프로토콜은 레지스트리 대신 로컬 워크스페이스 패키지를 가리키며, pnpm은 node_modules 안에 실제 경로로 연결되는 링크를 만듭니다."
+  optionExplanations={['레지스트리에서 새로 받지 않습니다', '정답입니다', '설치 시점에 배포가 일어나지 않습니다', '복사가 아니라 링크입니다']}
+/>
+
+<Quiz
+  questionNumber={3}
+  question="packages/shared-types/package.json의 main이 dist가 아니라 src/index.ts를 가리키는 이유는"
+  options={['dist 폴더 이름이 금지어라서', '아직 빌드 스크립트가 없어 개발 중에는 소스를 직접 쓰기 위해서', 'TypeScript가 dist 경로를 지원하지 않아서', '테스트 실행 속도를 늦추기 위해서']}
+  correctAnswer={2}
+  explanation="tsdown 빌드는 18편에서 추가되므로, 그전까지는 main·types가 소스 파일을 직접 가리켜 개발 중 바로 쓸 수 있게 합니다."
+  optionExplanations={['금지어와는 무관합니다', '정답입니다', 'TypeScript와 무관한 설정입니다', '테스트 속도와는 무관합니다']}
+/>
+
+<Quiz
+  questionNumber={4}
+  question="import 경로를 '../schemas/book'에서 '@bookshelf/shared-types'로 바꾼 뒤 services/books.ts의 나머지 코드가 그대로인 이유는"
+  options={['zod 스키마가 더 이상 검증을 하지 않기 때문에', 'Book, BookInput 등 실제 이름과 타입은 바뀌지 않고 어디서 가져오는지만 바뀌었기 때문에', 'TypeScript가 import 경로를 무시하기 때문에', 'React Query가 자동으로 코드를 다시 작성해주기 때문에']}
+  correctAnswer={2}
+  explanation="옮겨진 것은 선언의 위치일 뿐, 이름과 타입 구조는 그대로라서 사용하는 코드는 import 경로 한 줄만 바뀌면 됩니다."
+  optionExplanations={['검증 로직은 그대로 동작합니다', '정답입니다', 'import 경로는 무시되지 않습니다', '자동 재작성 기능이 아닙니다']}
+/>
+
+## 참고 자료
+
+- [pnpm — Workspace](https://pnpm.io/workspaces)

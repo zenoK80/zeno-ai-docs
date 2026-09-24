@@ -1,0 +1,185 @@
+---
+title: '17. 유니온 파인드와 위상 정렬'
+description: '연결 집합을 합치고 선행 관계가 있는 작업의 올바른 순서를 구합니다.'
+---
+
+<Callout type="info">
+  **학습 목표:** 연결성 질의와 방향 비순환 그래프 순서 문제를 구분합니다. 모든 예시는 주어진 매개변수를 처리해 정답을 반환하는 `solution` 함수로 완성합니다.
+</Callout>
+
+## 문제를 푸는 기준
+
+그룹 병합과 연결 여부가 반복되면 유니온 파인드, 선행 조건을 만족하는 순서가 필요하면 위상 정렬을 사용합니다.
+
+## 핵심 개념
+
+| 개념 | 코딩테스트에서의 역할 |
+|---|---|
+| 유니온 파인드 | 서로소 집합의 대표를 찾아 연결 여부를 관리합니다. |
+| 경로 압축 | find 과정에서 부모를 대표로 바로 연결합니다. |
+| 진입차수 | 한 정점으로 들어오는 선행 간선 수입니다. |
+| 위상 정렬 | 진입차수 0 정점을 제거하며 순서를 만듭니다. |
+
+## 대표 문제
+
+### 가능한 작업 순서
+
+작업 수 n과 [before,after] 선행 관계 dependencies가 주어집니다. 가능한 작업 순서 하나를 반환하고 사이클이면 빈 배열을 반환하세요.
+
+**함수 시그니처:** `solution(n, dependencies)`
+
+### 제한사항
+
+- n은 1 이상 200,000 이하입니다.
+- 중복 간선은 없습니다.
+
+### 입출력 예
+
+| 매개변수 | 반환값 |
+|---|---|
+| `4, [[0,1],[0,2],[1,3],[2,3]]` | `[0,1,2,3] 또는 [0,2,1,3]` |
+| `2, [[0,1],[1,0]]` | `[]` |
+
+### 풀이 설계
+
+1. 인접 리스트와 진입차수를 만듭니다.
+2. 진입차수 0 작업을 큐에 넣습니다.
+3. 작업을 꺼내 후속 작업의 진입차수를 줄입니다.
+4. 결과 길이가 n보다 작으면 사이클입니다.
+
+### JavaScript 풀이
+
+```js
+function solution(n, dependencies) {
+  const graph = Array.from({ length: n }, () => []);
+  const indegree = Array(n).fill(0);
+  for (const [before, after] of dependencies) {
+    graph[before].push(after);
+    indegree[after] += 1;
+  }
+  const queue = [];
+  for (let node = 0; node < n; node += 1) {
+    if (indegree[node] === 0) queue.push(node);
+  }
+  const order = [];
+  let head = 0;
+  while (head < queue.length) {
+    const node = queue[head++];
+    order.push(node);
+    for (const next of graph[node]) {
+      indegree[next] -= 1;
+      if (indegree[next] === 0) queue.push(next);
+    }
+  }
+  return order.length === n ? order : [];
+}
+```
+
+### 복잡도
+
+- 시간복잡도: `O(V + E)`
+- 공간복잡도: `O(V + E)`
+- 핵심 패턴: 진입차수 0 정점을 큐로 처리하며 선행 간선 제거
+- 경계 사례: 결과 정점 수가 n보다 작으면 사이클
+
+## 연습 문제
+
+### 1. 네트워크 그룹 수
+
+연결 쌍을 합친 그룹 수를 반환하세요.
+
+<details>
+<summary>힌트</summary>
+
+유니온 파인드 대표 수
+
+</details>
+
+### 2. 첫 사이클 간선
+
+처음 사이클이 생기는 간선 위치를 반환하세요.
+
+<details>
+<summary>힌트</summary>
+
+두 대표가 이미 같음
+
+</details>
+
+### 3. 가장 이른 학기
+
+선수 관계로 각 과목의 이른 학기를 반환하세요.
+
+<details>
+<summary>힌트</summary>
+
+위상 정렬 깊이
+
+</details>
+
+## 자주 하는 실수
+
+- 진입차수를 반대 방향에 더하는 실수
+- 0이 되는 순간 큐에 넣지 않는 실수
+- 결과 길이로 사이클을 확인하지 않는 실수
+- find에서 대표를 끝까지 따라가지 않는 실수
+
+## 핵심 정리
+
+- 함수 시그니처와 반환 자료형을 먼저 확정합니다.
+- 제한사항으로 가능한 시간복잡도를 판단합니다.
+- 예시와 경계 사례를 손으로 추적한 뒤 구현합니다.
+- 완성한 `solution` 함수가 입력을 불필요하게 바꾸지 않는지도 확인합니다.
+
+## 확인 문제
+
+<Quiz
+  questionNumber={1}
+  question="위상 정렬을 시작할 때 큐에 넣을 정점은?"
+  options={['진출차수가 큰 정점', '진입차수가 0인 정점', '번호가 큰 정점만', '사이클 안의 정점']}
+  correctAnswer={2}
+  explanation="선행 작업이 남지 않은 정점부터 처리합니다."
+  optionExplanations={['핵심 조건이나 복잡도 기준과 맞지 않습니다.', '정답입니다. 핵심 조건에 맞는 선택입니다.', '핵심 조건이나 복잡도 기준과 맞지 않습니다.', '핵심 조건이나 복잡도 기준과 맞지 않습니다.']}
+/>
+
+<Quiz
+  questionNumber={2}
+  question="대표 문제의 시간복잡도로 알맞은 것은?"
+  options={['O(1)', 'O(V + E)', 'O(n⁴)', 'O(2ⁿ)']}
+  correctAnswer={2}
+  explanation="대표 풀이는 O(V + E) 시간에 동작합니다."
+  optionExplanations={['핵심 조건이나 복잡도 기준과 맞지 않습니다.', '정답입니다. 핵심 조건에 맞는 선택입니다.', '핵심 조건이나 복잡도 기준과 맞지 않습니다.', '핵심 조건이나 복잡도 기준과 맞지 않습니다.']}
+/>
+
+<Quiz
+  questionNumber={3}
+  question="가능한 작업 순서에서 사용한 핵심 패턴은?"
+  options={['진입차수 0 정점을 큐로 처리하며 선행 간선 제거', '모든 순열을 항상 생성', '첫 원소를 바로 반환', '문자열로만 변환']}
+  correctAnswer={1}
+  explanation="진입차수 0 정점을 큐로 처리하며 선행 간선 제거이 문제 조건을 직접 해결합니다."
+  optionExplanations={['정답입니다. 핵심 조건에 맞는 선택입니다.', '핵심 조건이나 복잡도 기준과 맞지 않습니다.', '핵심 조건이나 복잡도 기준과 맞지 않습니다.', '핵심 조건이나 복잡도 기준과 맞지 않습니다.']}
+/>
+
+<Quiz
+  questionNumber={4}
+  question="대표 문제에서 반드시 확인할 경계 사례는?"
+  options={['배경색', '변수 이름 길이', '주석 개수', '결과 정점 수가 n보다 작으면 사이클']}
+  correctAnswer={4}
+  explanation="결과 정점 수가 n보다 작으면 사이클 조건을 별도로 점검해야 합니다."
+  optionExplanations={['핵심 조건이나 복잡도 기준과 맞지 않습니다.', '핵심 조건이나 복잡도 기준과 맞지 않습니다.', '핵심 조건이나 복잡도 기준과 맞지 않습니다.', '정답입니다. 핵심 조건에 맞는 선택입니다.']}
+/>
+
+<Quiz
+  questionNumber={5}
+  question="이 과정의 정답 코드가 지켜야 할 계약은?"
+  options={['직접 데이터를 읽는다', 'solution 함수에서 요구된 값을 return한다', '결과를 화면에만 출력한다', '전역 변수에 정답을 저장한다']}
+  correctAnswer={2}
+  explanation="채점기는 solution 함수의 반환값을 검사하므로 요구된 자료형을 return해야 합니다."
+  optionExplanations={['핵심 조건이나 복잡도 기준과 맞지 않습니다.', '정답입니다. 핵심 조건에 맞는 선택입니다.', '핵심 조건이나 복잡도 기준과 맞지 않습니다.', '핵심 조건이나 복잡도 기준과 맞지 않습니다.']}
+/>
+
+## 참고 자료
+
+- [Princeton Algorithms 4e - Union-Find](https://algs4.cs.princeton.edu/15uf/)
+- [Princeton Algorithms 4e - Graphs](https://algs4.cs.princeton.edu/40graphs/)
+- [MIT OpenCourseWare 6.006 Introduction to Algorithms](https://ocw.mit.edu/courses/6-006-introduction-to-algorithms-fall-2011/)

@@ -1,0 +1,196 @@
+---
+title: '13. 힙과 우선순위 큐'
+description: '가장 작은 값 또는 큰 값만 반복해 꺼내는 문제를 이진 힙으로 해결합니다.'
+---
+
+<Callout type="info">
+  **학습 목표:** 상위 k개 유지와 우선순위 처리 문제에 힙을 적용합니다. 모든 예시는 주어진 매개변수를 처리해 정답을 반환하는 `solution` 함수로 완성합니다.
+</Callout>
+
+## 문제를 푸는 기준
+
+전체 정렬이 아니라 최솟값이나 최댓값을 반복해 필요로 한다면 힙을 검토합니다. k번째 큰 값은 크기 k의 최소 힙으로 구합니다.
+
+## 핵심 개념
+
+| 개념 | 코딩테스트에서의 역할 |
+|---|---|
+| 최소 힙 | 루트가 전체 최솟값이 되도록 부모가 자식 이하를 유지합니다. |
+| push | 마지막에 넣고 위로 올립니다. |
+| pop | 루트를 꺼내고 마지막 값을 아래로 내립니다. |
+
+## 대표 문제
+
+### k번째로 큰 값
+
+정수 배열 numbers와 k가 주어집니다. 중복을 포함해 내림차순으로 정렬했을 때 k번째 값을 반환하세요.
+
+**함수 시그니처:** `solution(numbers, k)`
+
+### 제한사항
+
+- numbers의 길이는 1 이상 200,000 이하입니다.
+- k는 1 이상 numbers의 길이 이하입니다.
+
+### 입출력 예
+
+| 매개변수 | 반환값 |
+|---|---|
+| `[3,2,1,5,6,4], 2` | `5` |
+| `[2,2,1], 2` | `2` |
+
+### 풀이 설계
+
+1. 크기 k 이하의 최소 힙을 유지합니다.
+2. 새 값을 넣고 크기가 k보다 크면 최솟값을 제거합니다.
+3. 마지막 힙 루트를 반환합니다.
+
+### JavaScript 풀이
+
+```js
+function solution(numbers, k) {
+  const heap = [];
+  const push = (value) => {
+    heap.push(value);
+    let i = heap.length - 1;
+    while (i > 0) {
+      const p = Math.floor((i - 1) / 2);
+      if (heap[p] <= heap[i]) break;
+      [heap[p], heap[i]] = [heap[i], heap[p]];
+      i = p;
+    }
+  };
+  const pop = () => {
+    const root = heap[0];
+    const last = heap.pop();
+    if (heap.length === 0) return root;
+    heap[0] = last;
+    let i = 0;
+    while (true) {
+      const left = i * 2 + 1;
+      const right = left + 1;
+      let next = i;
+      if (left < heap.length && heap[left] < heap[next]) next = left;
+      if (right < heap.length && heap[right] < heap[next]) next = right;
+      if (next === i) break;
+      [heap[i], heap[next]] = [heap[next], heap[i]];
+      i = next;
+    }
+    return root;
+  };
+  for (const number of numbers) {
+    push(number);
+    if (heap.length > k) pop();
+  }
+  return heap[0];
+}
+```
+
+### 복잡도
+
+- 시간복잡도: `O(n log k)`
+- 공간복잡도: `O(k)`
+- 핵심 패턴: 크기 k의 최소 힙으로 가장 큰 k개 유지
+- 경계 사례: 중복 값도 각각 한 순위로 계산
+
+## 연습 문제
+
+### 1. 작업 우선순위
+
+우선순위가 높은 작업부터 처리 순서를 반환하세요.
+
+<details>
+<summary>힌트</summary>
+
+비교 기준 힙
+
+</details>
+
+### 2. 두 묶음 합치기
+
+가장 작은 두 묶음을 합치는 총비용을 구하세요.
+
+<details>
+<summary>힌트</summary>
+
+최소 힙 두 번 pop
+
+</details>
+
+### 3. 상위 k 스트림
+
+값마다 현재 상위 k개의 최솟값을 반환하세요.
+
+<details>
+<summary>힌트</summary>
+
+크기 k 힙 유지
+
+</details>
+
+## 자주 하는 실수
+
+- 부모 인덱스를 잘못 계산하는 실수
+- pop에서 한쪽 자식만 비교하는 실수
+- 최대 힙과 최소 힙을 반대로 고르는 실수
+- 중복 값을 제거해 순위를 바꾸는 실수
+
+## 핵심 정리
+
+- 함수 시그니처와 반환 자료형을 먼저 확정합니다.
+- 제한사항으로 가능한 시간복잡도를 판단합니다.
+- 예시와 경계 사례를 손으로 추적한 뒤 구현합니다.
+- 완성한 `solution` 함수가 입력을 불필요하게 바꾸지 않는지도 확인합니다.
+
+## 확인 문제
+
+<Quiz
+  questionNumber={1}
+  question="크기 k 최소 힙의 루트가 의미하는 값은?"
+  options={['전체 최댓값', '현재 상위 k개 중 최솟값', '전체 평균', '최근 값']}
+  correctAnswer={2}
+  explanation="상위 k개만 남았으므로 그중 최솟값이 전체 k번째 큰 값입니다."
+  optionExplanations={['핵심 조건이나 복잡도 기준과 맞지 않습니다.', '정답입니다. 핵심 조건에 맞는 선택입니다.', '핵심 조건이나 복잡도 기준과 맞지 않습니다.', '핵심 조건이나 복잡도 기준과 맞지 않습니다.']}
+/>
+
+<Quiz
+  questionNumber={2}
+  question="대표 문제의 시간복잡도로 알맞은 것은?"
+  options={['O(1)', 'O(n log k)', 'O(n⁴)', 'O(2ⁿ)']}
+  correctAnswer={2}
+  explanation="대표 풀이는 O(n log k) 시간에 동작합니다."
+  optionExplanations={['핵심 조건이나 복잡도 기준과 맞지 않습니다.', '정답입니다. 핵심 조건에 맞는 선택입니다.', '핵심 조건이나 복잡도 기준과 맞지 않습니다.', '핵심 조건이나 복잡도 기준과 맞지 않습니다.']}
+/>
+
+<Quiz
+  questionNumber={3}
+  question="k번째로 큰 값에서 사용한 핵심 패턴은?"
+  options={['크기 k의 최소 힙으로 가장 큰 k개 유지', '모든 순열을 항상 생성', '첫 원소를 바로 반환', '문자열로만 변환']}
+  correctAnswer={1}
+  explanation="크기 k의 최소 힙으로 가장 큰 k개 유지이 문제 조건을 직접 해결합니다."
+  optionExplanations={['정답입니다. 핵심 조건에 맞는 선택입니다.', '핵심 조건이나 복잡도 기준과 맞지 않습니다.', '핵심 조건이나 복잡도 기준과 맞지 않습니다.', '핵심 조건이나 복잡도 기준과 맞지 않습니다.']}
+/>
+
+<Quiz
+  questionNumber={4}
+  question="대표 문제에서 반드시 확인할 경계 사례는?"
+  options={['배경색', '변수 이름 길이', '주석 개수', '중복 값도 각각 한 순위로 계산']}
+  correctAnswer={4}
+  explanation="중복 값도 각각 한 순위로 계산 조건을 별도로 점검해야 합니다."
+  optionExplanations={['핵심 조건이나 복잡도 기준과 맞지 않습니다.', '핵심 조건이나 복잡도 기준과 맞지 않습니다.', '핵심 조건이나 복잡도 기준과 맞지 않습니다.', '정답입니다. 핵심 조건에 맞는 선택입니다.']}
+/>
+
+<Quiz
+  questionNumber={5}
+  question="이 과정의 정답 코드가 지켜야 할 계약은?"
+  options={['직접 데이터를 읽는다', 'solution 함수에서 요구된 값을 return한다', '결과를 화면에만 출력한다', '전역 변수에 정답을 저장한다']}
+  correctAnswer={2}
+  explanation="채점기는 solution 함수의 반환값을 검사하므로 요구된 자료형을 return해야 합니다."
+  optionExplanations={['핵심 조건이나 복잡도 기준과 맞지 않습니다.', '정답입니다. 핵심 조건에 맞는 선택입니다.', '핵심 조건이나 복잡도 기준과 맞지 않습니다.', '핵심 조건이나 복잡도 기준과 맞지 않습니다.']}
+/>
+
+## 참고 자료
+
+- [Princeton Algorithms 4e - Priority Queues](https://algs4.cs.princeton.edu/24pq/)
+- [MIT OpenCourseWare 6.006 Introduction to Algorithms](https://ocw.mit.edu/courses/6-006-introduction-to-algorithms-fall-2011/)
+- [프로그래머스 코딩테스트 고득점 Kit](https://school.programmers.co.kr/learn/challenges?tab=algorithm_practice_kit)

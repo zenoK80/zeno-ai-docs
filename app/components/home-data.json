@@ -1,5 +1,5 @@
 {
-  "generatedAt": "2026-09-22T13:04:12.796Z",
+  "generatedAt": "2026-09-23T05:22:53.680Z",
   "groupCount": 12,
   "seriesCount": 52,
   "groups": [
@@ -51,7 +51,7 @@
     },
     {
       "title": "Web · JavaScript",
-      "description": "3개 시리즈 · 문서 56편",
+      "description": "3개 시리즈 · 문서 58편",
       "order": "03",
       "series": [
         {
@@ -72,9 +72,9 @@
         },
         {
           "title": "JavaScript 코딩테스트",
-          "description": "빈 폴더에서 coding-test 저장소를 만들고 프로그래머스·백준·LeetCode 세 제출 형식으로 같은 로직을 구현해 node --test로 검증합니다.",
-          "href": "/web/javascript/coding_test/01_judge-io-and-submission-formats",
-          "documentCount": 19,
+          "description": "매개변수·반환값·제한사항을 읽고 solution 함수로 정답을 완성하는 기준을 익힙니다.",
+          "href": "/web/javascript/coding_test/01_solution-function-and-problem-solving",
+          "documentCount": 21,
           "preview": "code",
           "accent": "amber"
         }

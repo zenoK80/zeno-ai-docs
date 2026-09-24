@@ -1,67 +1,62 @@
 ---
-title: '03. 배열과 문자열 순회'
-description: '인덱스와 누적 상태로 배열·문자열 문제를 한 번의 순회에 해결합니다.'
+title: '05. 스택과 큐'
+description: '최근 항목부터 처리하는 스택과 먼저 들어온 항목부터 처리하는 큐를 적용합니다.'
 ---
 
 <Callout type="info">
-  **학습 목표:** 연속 구간과 문자 그룹을 추적하는 상태 변수를 설계합니다. 모든 예시는 주어진 매개변수를 처리해 정답을 반환하는 `solution` 함수로 완성합니다.
+  **학습 목표:** 괄호·취소·대기열 문제에서 LIFO와 FIFO 중 맞는 구조를 선택합니다. 모든 예시는 주어진 매개변수를 처리해 정답을 반환하는 `solution` 함수로 완성합니다.
 </Callout>
 
 ## 문제를 푸는 기준
 
-현재 원소만 보지 말고 이전까지 무엇을 기억해야 하는지 정합니다. 상태를 최소화하면 중첩 반복 없이 한 번의 순회로 끝낼 수 있습니다.
+최근 상태로 되돌아가면 스택, 대기 순서대로 처리하면 큐를 떠올립니다. 큐는 head 인덱스를 두어 앞 원소 삭제 비용을 피합니다.
 
 ## 핵심 개념
 
 | 개념 | 코딩테스트에서의 역할 |
 |---|---|
-| 인덱스 | 현재 위치와 이전·다음 위치의 관계를 나타냅니다. |
-| 누적 상태 | 합, 최댓값, 개수처럼 순회 중 갱신할 값을 저장합니다. |
-| 연속 구간 | 값이 바뀌는 지점에서 지금까지의 그룹을 확정합니다. |
+| 스택 | 가장 나중에 넣은 값을 먼저 꺼냅니다. |
+| 큐 | 가장 먼저 넣은 값을 먼저 꺼냅니다. |
+| head 인덱스 | shift 대신 읽을 위치를 늘려 큐를 소비합니다. |
 
 ## 대표 문제
 
-### 연속 문자 압축
+### 괄호 문자열 검사
 
-영문 소문자 문자열 text에서 같은 문자가 연속한 개수를 문자 뒤에 붙인 문자열을 반환하세요. 빈 문자열은 그대로 반환합니다.
+소괄호·대괄호·중괄호 문자열 text가 올바르게 열리고 닫히면 true, 아니면 false를 반환하세요.
 
 **함수 시그니처:** `solution(text)`
 
 ### 제한사항
 
 - text의 길이는 0 이상 200,000 이하입니다.
-- 떨어져 있는 같은 문자는 다른 그룹입니다.
+- text에는 괄호 문자만 들어 있습니다.
 
 ### 입출력 예
 
 | 매개변수 | 반환값 |
 |---|---|
-| `aaabbc` | `a3b2c1` |
-| `` | `` |
+| `([]{})` | `true` |
+| `([)]` | `false` |
 
 ### 풀이 설계
 
-1. 첫 문자를 현재 그룹으로 잡습니다.
-2. 같은 문자가 이어지면 count를 늘립니다.
-3. 문자가 바뀌면 이전 그룹을 확정하고 마지막 그룹도 반복 뒤 붙입니다.
+1. 여는 괄호는 스택에 넣습니다.
+2. 닫는 괄호에서 스택 꼭대기의 짝을 확인합니다.
+3. 모든 문자 뒤 스택이 비었는지 반환합니다.
 
 ### JavaScript 풀이
 
 ```js
 function solution(text) {
-  if (text.length === 0) return '';
-  let result = '';
-  let current = text[0];
-  let count = 1;
-  for (let i = 1; i < text.length; i += 1) {
-    if (text[i] === current) count += 1;
-    else {
-      result += current + count;
-      current = text[i];
-      count = 1;
-    }
+  const stack = [];
+  const opening = new Set(['(', '[', '{']);
+  const pair = { ')': '(', ']': '[', '}': '{' };
+  for (const char of text) {
+    if (opening.has(char)) stack.push(char);
+    else if (stack.pop() !== pair[char]) return false;
   }
-  return result + current + count;
+  return stack.length === 0;
 }
 ```
 
@@ -69,50 +64,50 @@ function solution(text) {
 
 - 시간복잡도: `O(n)`
 - 공간복잡도: `O(n)`
-- 핵심 패턴: 값이 바뀌는 경계에서 이전 그룹 확정
-- 경계 사례: 빈 문자열과 마지막 그룹을 별도 처리
+- 핵심 패턴: 여는 기호를 쌓고 닫는 기호에서 짝 확인
+- 경계 사례: 닫는 괄호가 먼저 나오거나 여는 괄호가 남으면 false
 
 ## 연습 문제
 
-### 1. 최장 연속 길이
+### 1. 문자 지우기
 
-같은 숫자가 연속하는 최장 길이를 반환하세요.
+별표마다 바로 앞 문자를 지운 결과를 반환하세요.
 
 <details>
 <summary>힌트</summary>
 
-현재 길이와 최대 길이
+문자 스택
 
 </details>
 
-### 2. 구간 뒤집기
+### 2. 작업 대기열
 
-지정된 인덱스 구간만 뒤집어 반환하세요.
+처리 시간으로 완료 순서를 반환하세요.
 
 <details>
 <summary>힌트</summary>
 
-앞·구간·뒤로 분리
+head 인덱스 큐
 
 </details>
 
-### 3. 회전 일치
+### 3. 다음 큰 값
 
-문자열 a를 회전해 b로 만들 수 있는지 반환하세요.
+오른쪽 첫 큰 값을 반환하세요.
 
 <details>
 <summary>힌트</summary>
 
-b가 a+a에 포함되는지 확인
+인덱스 단조 스택
 
 </details>
 
 ## 자주 하는 실수
 
-- 빈 문자열에서 첫 문자를 바로 읽는 실수
-- 문자가 바뀔 때 count를 초기화하지 않는 실수
-- 마지막 그룹을 누락하는 실수
-- 원본 배열 변경 여부를 확인하지 않는 실수
+- 빈 스택에서 닫는 괄호를 처리하지 않는 실수
+- 마지막 스택 길이를 확인하지 않는 실수
+- 큐에서 shift를 반복하는 실수
+- 인덱스가 필요한 문제에서 값만 저장하는 실수
 
 ## 핵심 정리
 
@@ -125,10 +120,10 @@ b가 a+a에 포함되는지 확인
 
 <Quiz
   questionNumber={1}
-  question="연속 그룹의 결과를 확정해야 하는 시점은?"
-  options={['길이가 짝수일 때', '현재 문자가 이전 문자와 달라질 때', '모든 문자가 같을 때만', '인덱스가 0일 때만']}
+  question="가장 최근에 열린 괄호와 현재 닫는 괄호를 비교할 구조는?"
+  options={['정렬 배열', '스택', '그래프', '누적합']}
   correctAnswer={2}
-  explanation="문자가 바뀌는 경계에서 이전 그룹이 완성됩니다."
+  explanation="괄호는 가장 나중에 열린 것부터 닫혀야 합니다."
   optionExplanations={['핵심 조건이나 복잡도 기준과 맞지 않습니다.', '정답입니다. 핵심 조건에 맞는 선택입니다.', '핵심 조건이나 복잡도 기준과 맞지 않습니다.', '핵심 조건이나 복잡도 기준과 맞지 않습니다.']}
 />
 
@@ -143,19 +138,19 @@ b가 a+a에 포함되는지 확인
 
 <Quiz
   questionNumber={3}
-  question="연속 문자 압축에서 사용한 핵심 패턴은?"
-  options={['값이 바뀌는 경계에서 이전 그룹 확정', '모든 순열을 항상 생성', '첫 원소를 바로 반환', '문자열로만 변환']}
+  question="괄호 문자열 검사에서 사용한 핵심 패턴은?"
+  options={['여는 기호를 쌓고 닫는 기호에서 짝 확인', '모든 순열을 항상 생성', '첫 원소를 바로 반환', '문자열로만 변환']}
   correctAnswer={1}
-  explanation="값이 바뀌는 경계에서 이전 그룹 확정이 문제 조건을 직접 해결합니다."
+  explanation="여는 기호를 쌓고 닫는 기호에서 짝 확인이 문제 조건을 직접 해결합니다."
   optionExplanations={['정답입니다. 핵심 조건에 맞는 선택입니다.', '핵심 조건이나 복잡도 기준과 맞지 않습니다.', '핵심 조건이나 복잡도 기준과 맞지 않습니다.', '핵심 조건이나 복잡도 기준과 맞지 않습니다.']}
 />
 
 <Quiz
   questionNumber={4}
   question="대표 문제에서 반드시 확인할 경계 사례는?"
-  options={['배경색', '변수 이름 길이', '주석 개수', '빈 문자열과 마지막 그룹을 별도 처리']}
+  options={['배경색', '변수 이름 길이', '주석 개수', '닫는 괄호가 먼저 나오거나 여는 괄호가 남으면 false']}
   correctAnswer={4}
-  explanation="빈 문자열과 마지막 그룹을 별도 처리 조건을 별도로 점검해야 합니다."
+  explanation="닫는 괄호가 먼저 나오거나 여는 괄호가 남으면 false 조건을 별도로 점검해야 합니다."
   optionExplanations={['핵심 조건이나 복잡도 기준과 맞지 않습니다.', '핵심 조건이나 복잡도 기준과 맞지 않습니다.', '핵심 조건이나 복잡도 기준과 맞지 않습니다.', '정답입니다. 핵심 조건에 맞는 선택입니다.']}
 />
 
@@ -170,6 +165,6 @@ b가 a+a에 포함되는지 확인
 
 ## 참고 자료
 
+- [Princeton Algorithms 4e - Stacks and Queues](https://algs4.cs.princeton.edu/13stacks/)
 - [MDN Array](https://developer.mozilla.org/ko/docs/Web/JavaScript/Reference/Global_Objects/Array)
-- [MDN String](https://developer.mozilla.org/ko/docs/Web/JavaScript/Reference/Global_Objects/String)
 - [프로그래머스 코딩테스트 고득점 Kit](https://school.programmers.co.kr/learn/challenges?tab=algorithm_practice_kit)

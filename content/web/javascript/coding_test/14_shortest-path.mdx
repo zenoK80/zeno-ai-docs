@@ -1,0 +1,206 @@
+---
+title: '14. 가중 그래프 최단 경로'
+description: '양의 가중치 그래프에서 다익스트라 알고리즘으로 시작점 최단 거리를 구합니다.'
+---
+
+<Callout type="info">
+  **학습 목표:** BFS와 다익스트라의 차이를 알고 우선순위 큐 최단 경로를 구현합니다. 모든 예시는 주어진 매개변수를 처리해 정답을 반환하는 `solution` 함수로 완성합니다.
+</Callout>
+
+## 문제를 푸는 기준
+
+모든 간선 비용이 같으면 BFS가 충분합니다. 비용이 서로 다른 음이 아닌 값이면 다익스트라로 가장 짧은 후보부터 확정합니다.
+
+## 핵심 개념
+
+| 개념 | 코딩테스트에서의 역할 |
+|---|---|
+| 완화 | 더 짧은 경로를 찾으면 거리 값을 갱신합니다. |
+| 우선순위 큐 | 현재 거리가 가장 짧은 정점을 먼저 처리합니다. |
+| 오래된 후보 | 이미 더 짧은 거리가 있으면 건너뜁니다. |
+
+## 대표 문제
+
+### 배송망 최단 시간
+
+정점 수 n, 방향 간선 [from,to,cost] 배열 roads, 시작점 start가 주어집니다. 1번부터 n번까지의 최단 거리를 반환하고 도달 불가는 -1로 표시하세요.
+
+**함수 시그니처:** `solution(n, roads, start)`
+
+### 제한사항
+
+- n은 1 이상 100,000 이하입니다.
+- 간선 비용은 0 이상의 정수입니다.
+
+### 입출력 예
+
+| 매개변수 | 반환값 |
+|---|---|
+| `4, [[1,2,2],[1,3,5],[2,3,1],[3,4,2]], 1` | `[0,2,3,5]` |
+
+### 풀이 설계
+
+1. 인접 리스트와 거리 배열을 만듭니다.
+2. 최소 힙에서 가장 짧은 후보를 꺼냅니다.
+3. 인접 간선을 완화하고 새 거리를 힙에 넣습니다.
+
+### JavaScript 풀이
+
+```js
+function solution(n, roads, start) {
+  const graph = Array.from({ length: n + 1 }, () => []);
+  for (const [from, to, cost] of roads) graph[from].push([to, cost]);
+  const heap = [];
+  const push = (item) => {
+    heap.push(item);
+    let i = heap.length - 1;
+    while (i > 0) {
+      const p = Math.floor((i - 1) / 2);
+      if (heap[p][0] <= heap[i][0]) break;
+      [heap[p], heap[i]] = [heap[i], heap[p]];
+      i = p;
+    }
+  };
+  const pop = () => {
+    const root = heap[0];
+    const last = heap.pop();
+    if (heap.length === 0) return root;
+    heap[0] = last;
+    let i = 0;
+    while (true) {
+      const left = i * 2 + 1;
+      const right = left + 1;
+      let next = i;
+      if (left < heap.length && heap[left][0] < heap[next][0]) next = left;
+      if (right < heap.length && heap[right][0] < heap[next][0]) next = right;
+      if (next === i) break;
+      [heap[i], heap[next]] = [heap[next], heap[i]];
+      i = next;
+    }
+    return root;
+  };
+  const distance = Array(n + 1).fill(Infinity);
+  distance[start] = 0;
+  push([0, start]);
+  while (heap.length > 0) {
+    const [current, node] = pop();
+    if (current !== distance[node]) continue;
+    for (const [next, cost] of graph[node]) {
+      const candidate = current + cost;
+      if (candidate >= distance[next]) continue;
+      distance[next] = candidate;
+      push([candidate, next]);
+    }
+  }
+  return distance.slice(1).map((value) => value === Infinity ? -1 : value);
+}
+```
+
+### 복잡도
+
+- 시간복잡도: `O((V + E) log V)`
+- 공간복잡도: `O(V + E)`
+- 핵심 패턴: 가장 짧은 후보를 꺼내 인접 간선 완화
+- 경계 사례: 도달할 수 없는 정점은 -1로 변환
+
+## 연습 문제
+
+### 1. 목표점 하나
+
+특정 목표까지 거리만 반환하세요.
+
+<details>
+<summary>힌트</summary>
+
+목표가 확정되면 종료
+
+</details>
+
+### 2. 왕복 최단 시간
+
+특정 정점 왕복 시간 최댓값을 구하세요.
+
+<details>
+<summary>힌트</summary>
+
+정방향·역방향
+
+</details>
+
+### 3. 경로 복원
+
+거리와 실제 경로를 함께 반환하세요.
+
+<details>
+<summary>힌트</summary>
+
+이전 정점 기록
+
+</details>
+
+## 자주 하는 실수
+
+- 음수 가중치에 적용하는 실수
+- 오래된 후보를 다시 처리하는 실수
+- 방향 간선을 반대 방향에도 넣는 실수
+- Infinity를 그대로 반환하는 실수
+
+## 핵심 정리
+
+- 함수 시그니처와 반환 자료형을 먼저 확정합니다.
+- 제한사항으로 가능한 시간복잡도를 판단합니다.
+- 예시와 경계 사례를 손으로 추적한 뒤 구현합니다.
+- 완성한 `solution` 함수가 입력을 불필요하게 바꾸지 않는지도 확인합니다.
+
+## 확인 문제
+
+<Quiz
+  questionNumber={1}
+  question="비용이 서로 다른 음이 아닌 간선의 단일 시작점 최단 경로 알고리즘은?"
+  options={['괄호 스택', '다익스트라', '문자 압축', '선택 정렬']}
+  correctAnswer={2}
+  explanation="다익스트라는 음수 가중치가 없는 가중 그래프에 사용합니다."
+  optionExplanations={['핵심 조건이나 복잡도 기준과 맞지 않습니다.', '정답입니다. 핵심 조건에 맞는 선택입니다.', '핵심 조건이나 복잡도 기준과 맞지 않습니다.', '핵심 조건이나 복잡도 기준과 맞지 않습니다.']}
+/>
+
+<Quiz
+  questionNumber={2}
+  question="대표 문제의 시간복잡도로 알맞은 것은?"
+  options={['O(1)', 'O((V + E) log V)', 'O(n⁴)', 'O(2ⁿ)']}
+  correctAnswer={2}
+  explanation="대표 풀이는 O((V + E) log V) 시간에 동작합니다."
+  optionExplanations={['핵심 조건이나 복잡도 기준과 맞지 않습니다.', '정답입니다. 핵심 조건에 맞는 선택입니다.', '핵심 조건이나 복잡도 기준과 맞지 않습니다.', '핵심 조건이나 복잡도 기준과 맞지 않습니다.']}
+/>
+
+<Quiz
+  questionNumber={3}
+  question="배송망 최단 시간에서 사용한 핵심 패턴은?"
+  options={['가장 짧은 후보를 꺼내 인접 간선 완화', '모든 순열을 항상 생성', '첫 원소를 바로 반환', '문자열로만 변환']}
+  correctAnswer={1}
+  explanation="가장 짧은 후보를 꺼내 인접 간선 완화이 문제 조건을 직접 해결합니다."
+  optionExplanations={['정답입니다. 핵심 조건에 맞는 선택입니다.', '핵심 조건이나 복잡도 기준과 맞지 않습니다.', '핵심 조건이나 복잡도 기준과 맞지 않습니다.', '핵심 조건이나 복잡도 기준과 맞지 않습니다.']}
+/>
+
+<Quiz
+  questionNumber={4}
+  question="대표 문제에서 반드시 확인할 경계 사례는?"
+  options={['배경색', '변수 이름 길이', '주석 개수', '도달할 수 없는 정점은 -1로 변환']}
+  correctAnswer={4}
+  explanation="도달할 수 없는 정점은 -1로 변환 조건을 별도로 점검해야 합니다."
+  optionExplanations={['핵심 조건이나 복잡도 기준과 맞지 않습니다.', '핵심 조건이나 복잡도 기준과 맞지 않습니다.', '핵심 조건이나 복잡도 기준과 맞지 않습니다.', '정답입니다. 핵심 조건에 맞는 선택입니다.']}
+/>
+
+<Quiz
+  questionNumber={5}
+  question="이 과정의 정답 코드가 지켜야 할 계약은?"
+  options={['직접 데이터를 읽는다', 'solution 함수에서 요구된 값을 return한다', '결과를 화면에만 출력한다', '전역 변수에 정답을 저장한다']}
+  correctAnswer={2}
+  explanation="채점기는 solution 함수의 반환값을 검사하므로 요구된 자료형을 return해야 합니다."
+  optionExplanations={['핵심 조건이나 복잡도 기준과 맞지 않습니다.', '정답입니다. 핵심 조건에 맞는 선택입니다.', '핵심 조건이나 복잡도 기준과 맞지 않습니다.', '핵심 조건이나 복잡도 기준과 맞지 않습니다.']}
+/>
+
+## 참고 자료
+
+- [Princeton Algorithms 4e - Shortest Paths](https://algs4.cs.princeton.edu/44sp/)
+- [Princeton Algorithms 4e - Priority Queues](https://algs4.cs.princeton.edu/24pq/)
+- [MIT OpenCourseWare 6.006 Introduction to Algorithms](https://ocw.mit.edu/courses/6-006-introduction-to-algorithms-fall-2011/)

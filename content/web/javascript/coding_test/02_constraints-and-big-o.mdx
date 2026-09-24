@@ -1,0 +1,176 @@
+---
+title: '02. 제한사항과 시간복잡도'
+description: '데이터 크기로 허용 가능한 연산량을 가늠하고 완전탐색과 최적화 풀이를 구분합니다.'
+---
+
+<Callout type="info">
+  **학습 목표:** 제한사항을 근거로 O(n), O(n log n), O(n²) 중 가능한 풀이를 판단합니다. 모든 예시는 주어진 매개변수를 처리해 정답을 반환하는 `solution` 함수로 완성합니다.
+</Callout>
+
+## 문제를 푸는 기준
+
+모든 쌍을 직접 비교하기 전에 이미 본 값을 Set이나 Map에 기록해 한 번의 순회로 바꿀 수 있는지 확인합니다.
+
+## 핵심 개념
+
+| 개념 | 코딩테스트에서의 역할 |
+|---|---|
+| O(1) | 데이터 크기와 무관한 일정한 연산입니다. |
+| O(n) | 전체 원소를 한 번 또는 상수 번 순회합니다. |
+| O(n log n) | 정렬과 분할 정복에서 자주 나타납니다. |
+| O(n²) | 모든 쌍을 확인하는 이중 반복에서 자주 나타납니다. |
+
+## 대표 문제
+
+### 서로 다른 값 쌍 세기
+
+정수 배열 numbers와 target이 주어집니다. 합이 target인 서로 다른 값 쌍의 개수를 반환하세요. 같은 값 쌍은 여러 번 등장해도 한 번만 셉니다.
+
+**함수 시그니처:** `solution(numbers, target)`
+
+### 제한사항
+
+- numbers의 길이는 1 이상 200,000 이하입니다.
+- 같은 값이 여러 번 등장할 수 있습니다.
+- 한 원소를 자기 자신과 두 번 사용할 수 없습니다.
+
+### 입출력 예
+
+| 매개변수 | 반환값 |
+|---|---|
+| `[1, 4, 2, 3, 3], 5` | `2` |
+| `[2, 2, 2], 4` | `1` |
+
+### 풀이 설계
+
+1. seen에 앞에서 본 값을 기록합니다.
+2. 현재 값마다 target과의 차이를 찾습니다.
+3. 발견한 쌍은 작은 값과 큰 값으로 정규화해 pairs에 넣습니다.
+
+### JavaScript 풀이
+
+```js
+function solution(numbers, target) {
+  const seen = new Set();
+  const pairs = new Set();
+  for (const value of numbers) {
+    const complement = target - value;
+    if (seen.has(complement)) {
+      const left = Math.min(value, complement);
+      const right = Math.max(value, complement);
+      pairs.add(left + ':' + right);
+    }
+    seen.add(value);
+  }
+  return pairs.size;
+}
+```
+
+### 복잡도
+
+- 시간복잡도: `O(n)`
+- 공간복잡도: `O(n)`
+- 핵심 패턴: 이미 본 값을 Set에 기록해 이중 반복 제거
+- 경계 사례: 같은 수 쌍은 그 값이 실제 두 번 등장해야 인정
+
+## 연습 문제
+
+### 1. 중복 존재
+
+같은 값이 두 번 이상 있으면 true를 반환하세요.
+
+<details>
+<summary>힌트</summary>
+
+Set 크기 비교
+
+</details>
+
+### 2. 첫 중복 위치
+
+처음 두 번째로 등장한 값의 인덱스를 반환하세요.
+
+<details>
+<summary>힌트</summary>
+
+seen Set
+
+</details>
+
+### 3. 세 수의 합
+
+세 인덱스의 합이 target인 조합 수를 구하세요.
+
+<details>
+<summary>힌트</summary>
+
+정렬과 투 포인터로 O(n²)
+
+</details>
+
+## 자주 하는 실수
+
+- 작은 예시만 보고 O(n²)을 선택하는 실수
+- 평균 O(1) 조회와 전체 O(n)을 혼동하는 실수
+- 값 쌍과 인덱스 쌍을 혼동하는 실수
+- 추가 메모리를 분석에서 빼는 실수
+
+## 핵심 정리
+
+- 함수 시그니처와 반환 자료형을 먼저 확정합니다.
+- 제한사항으로 가능한 시간복잡도를 판단합니다.
+- 예시와 경계 사례를 손으로 추적한 뒤 구현합니다.
+- 완성한 `solution` 함수가 입력을 불필요하게 바꾸지 않는지도 확인합니다.
+
+## 확인 문제
+
+<Quiz
+  questionNumber={1}
+  question="길이 200,000인 배열에서 모든 쌍을 비교하는 풀이의 문제는?"
+  options={['반환값이 문자열이 됨', 'O(n²) 연산량이 큼', 'Set을 사용할 수 없음', '정렬이 금지됨']}
+  correctAnswer={2}
+  explanation="모든 쌍 비교는 데이터가 커질수록 제곱 비율로 연산량이 증가합니다."
+  optionExplanations={['핵심 조건이나 복잡도 기준과 맞지 않습니다.', '정답입니다. 핵심 조건에 맞는 선택입니다.', '핵심 조건이나 복잡도 기준과 맞지 않습니다.', '핵심 조건이나 복잡도 기준과 맞지 않습니다.']}
+/>
+
+<Quiz
+  questionNumber={2}
+  question="대표 문제의 시간복잡도로 알맞은 것은?"
+  options={['O(1)', 'O(n)', 'O(n⁴)', 'O(2ⁿ)']}
+  correctAnswer={2}
+  explanation="대표 풀이는 O(n) 시간에 동작합니다."
+  optionExplanations={['핵심 조건이나 복잡도 기준과 맞지 않습니다.', '정답입니다. 핵심 조건에 맞는 선택입니다.', '핵심 조건이나 복잡도 기준과 맞지 않습니다.', '핵심 조건이나 복잡도 기준과 맞지 않습니다.']}
+/>
+
+<Quiz
+  questionNumber={3}
+  question="서로 다른 값 쌍 세기에서 사용한 핵심 패턴은?"
+  options={['이미 본 값을 Set에 기록해 이중 반복 제거', '모든 순열을 항상 생성', '첫 원소를 바로 반환', '문자열로만 변환']}
+  correctAnswer={1}
+  explanation="이미 본 값을 Set에 기록해 이중 반복 제거이 문제 조건을 직접 해결합니다."
+  optionExplanations={['정답입니다. 핵심 조건에 맞는 선택입니다.', '핵심 조건이나 복잡도 기준과 맞지 않습니다.', '핵심 조건이나 복잡도 기준과 맞지 않습니다.', '핵심 조건이나 복잡도 기준과 맞지 않습니다.']}
+/>
+
+<Quiz
+  questionNumber={4}
+  question="대표 문제에서 반드시 확인할 경계 사례는?"
+  options={['배경색', '변수 이름 길이', '주석 개수', '같은 수 쌍은 그 값이 실제 두 번 등장해야 인정']}
+  correctAnswer={4}
+  explanation="같은 수 쌍은 그 값이 실제 두 번 등장해야 인정 조건을 별도로 점검해야 합니다."
+  optionExplanations={['핵심 조건이나 복잡도 기준과 맞지 않습니다.', '핵심 조건이나 복잡도 기준과 맞지 않습니다.', '핵심 조건이나 복잡도 기준과 맞지 않습니다.', '정답입니다. 핵심 조건에 맞는 선택입니다.']}
+/>
+
+<Quiz
+  questionNumber={5}
+  question="이 과정의 정답 코드가 지켜야 할 계약은?"
+  options={['직접 데이터를 읽는다', 'solution 함수에서 요구된 값을 return한다', '결과를 화면에만 출력한다', '전역 변수에 정답을 저장한다']}
+  correctAnswer={2}
+  explanation="채점기는 solution 함수의 반환값을 검사하므로 요구된 자료형을 return해야 합니다."
+  optionExplanations={['핵심 조건이나 복잡도 기준과 맞지 않습니다.', '정답입니다. 핵심 조건에 맞는 선택입니다.', '핵심 조건이나 복잡도 기준과 맞지 않습니다.', '핵심 조건이나 복잡도 기준과 맞지 않습니다.']}
+/>
+
+## 참고 자료
+
+- [MIT OpenCourseWare 6.006 Introduction to Algorithms](https://ocw.mit.edu/courses/6-006-introduction-to-algorithms-fall-2011/)
+- [MIT 6.006 알고리즘 설명·정당성·복잡도 지침](https://ocw.mit.edu/courses/6-006-introduction-to-algorithms-fall-2011/pages/syllabus/)
+- [MDN Set](https://developer.mozilla.org/ko/docs/Web/JavaScript/Reference/Global_Objects/Set)

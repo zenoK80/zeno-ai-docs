@@ -1,0 +1,176 @@
+---
+title: '12. 트리와 순회'
+description: '부모·자식 관계를 인접 리스트로 만들고 깊이와 서브트리 정보를 계산합니다.'
+---
+
+<Callout type="info">
+  **학습 목표:** 루트 트리에서 재귀 또는 스택 순회로 깊이와 누적 정보를 구합니다. 모든 예시는 주어진 매개변수를 처리해 정답을 반환하는 `solution` 함수로 완성합니다.
+</Callout>
+
+## 문제를 푸는 기준
+
+주어진 트리 표현을 익숙한 구조로 바꿉니다. 부모 배열이라면 자식 목록을 만들고, 무방향 간선이면 부모로 돌아가는 간선을 제외합니다.
+
+## 핵심 개념
+
+| 개념 | 코딩테스트에서의 역할 |
+|---|---|
+| 루트 | 부모가 없는 시작 정점입니다. |
+| 전위 순회 | 현재 정점을 처리한 뒤 자식으로 내려갑니다. |
+| 후위 순회 | 자식을 처리한 뒤 현재 값을 계산합니다. |
+
+## 대표 문제
+
+### 조직도의 최대 깊이
+
+parent[i]가 i번 노드의 부모인 배열 parent가 주어집니다. 루트 부모는 -1이고 루트 깊이는 0일 때 최대 깊이를 반환하세요.
+
+**함수 시그니처:** `solution(parent)`
+
+### 제한사항
+
+- 노드 수는 1 이상 200,000 이하입니다.
+- 정확히 하나의 루트가 있는 올바른 트리입니다.
+
+### 입출력 예
+
+| 매개변수 | 반환값 |
+|---|---|
+| `[-1,0,0,1,1]` | `2` |
+| `[-1]` | `0` |
+
+### 풀이 설계
+
+1. parent를 보며 자식 목록과 루트를 찾습니다.
+2. 스택에 루트와 깊이를 넣습니다.
+3. 정점을 꺼내 최대 깊이를 갱신하고 자식을 넣습니다.
+
+### JavaScript 풀이
+
+```js
+function solution(parent) {
+  const children = Array.from({ length: parent.length }, () => []);
+  let root = -1;
+  for (let node = 0; node < parent.length; node += 1) {
+    if (parent[node] === -1) root = node;
+    else children[parent[node]].push(node);
+  }
+  const stack = [[root, 0]];
+  let maxDepth = 0;
+  while (stack.length > 0) {
+    const [node, depth] = stack.pop();
+    maxDepth = Math.max(maxDepth, depth);
+    for (const child of children[node]) stack.push([child, depth + 1]);
+  }
+  return maxDepth;
+}
+```
+
+### 복잡도
+
+- 시간복잡도: `O(n)`
+- 공간복잡도: `O(n)`
+- 핵심 패턴: 부모 배열을 자식 목록으로 바꾼 뒤 깊이 순회
+- 경계 사례: 루트 하나뿐이면 깊이 0 반환
+
+## 연습 문제
+
+### 1. 리프 개수
+
+자식이 없는 노드 개수를 반환하세요.
+
+<details>
+<summary>힌트</summary>
+
+자식 목록 길이
+
+</details>
+
+### 2. 서브트리 크기
+
+각 노드의 서브트리 크기를 반환하세요.
+
+<details>
+<summary>힌트</summary>
+
+후위 순회
+
+</details>
+
+### 3. 공통 조상
+
+두 노드의 가장 가까운 공통 조상을 반환하세요.
+
+<details>
+<summary>힌트</summary>
+
+깊이를 맞춘 뒤 부모 이동
+
+</details>
+
+## 자주 하는 실수
+
+- 루트 깊이 정의를 확인하지 않는 실수
+- 무방향 트리에서 부모로 되돌아가는 실수
+- 노드가 많아도 깊은 재귀만 사용하는 실수
+- 후위 계산을 전위 시점에 하는 실수
+
+## 핵심 정리
+
+- 함수 시그니처와 반환 자료형을 먼저 확정합니다.
+- 제한사항으로 가능한 시간복잡도를 판단합니다.
+- 예시와 경계 사례를 손으로 추적한 뒤 구현합니다.
+- 완성한 `solution` 함수가 입력을 불필요하게 바꾸지 않는지도 확인합니다.
+
+## 확인 문제
+
+<Quiz
+  questionNumber={1}
+  question="서브트리 크기를 계산하기 자연스러운 시점은?"
+  options={['자식을 보기 전', '자식을 모두 처리한 뒤', '정렬 직후', '루트만 본 뒤']}
+  correctAnswer={2}
+  explanation="자식 크기를 모두 받은 뒤 현재 서브트리 크기를 계산합니다."
+  optionExplanations={['핵심 조건이나 복잡도 기준과 맞지 않습니다.', '정답입니다. 핵심 조건에 맞는 선택입니다.', '핵심 조건이나 복잡도 기준과 맞지 않습니다.', '핵심 조건이나 복잡도 기준과 맞지 않습니다.']}
+/>
+
+<Quiz
+  questionNumber={2}
+  question="대표 문제의 시간복잡도로 알맞은 것은?"
+  options={['O(1)', 'O(n)', 'O(n⁴)', 'O(2ⁿ)']}
+  correctAnswer={2}
+  explanation="대표 풀이는 O(n) 시간에 동작합니다."
+  optionExplanations={['핵심 조건이나 복잡도 기준과 맞지 않습니다.', '정답입니다. 핵심 조건에 맞는 선택입니다.', '핵심 조건이나 복잡도 기준과 맞지 않습니다.', '핵심 조건이나 복잡도 기준과 맞지 않습니다.']}
+/>
+
+<Quiz
+  questionNumber={3}
+  question="조직도의 최대 깊이에서 사용한 핵심 패턴은?"
+  options={['부모 배열을 자식 목록으로 바꾼 뒤 깊이 순회', '모든 순열을 항상 생성', '첫 원소를 바로 반환', '문자열로만 변환']}
+  correctAnswer={1}
+  explanation="부모 배열을 자식 목록으로 바꾼 뒤 깊이 순회이 문제 조건을 직접 해결합니다."
+  optionExplanations={['정답입니다. 핵심 조건에 맞는 선택입니다.', '핵심 조건이나 복잡도 기준과 맞지 않습니다.', '핵심 조건이나 복잡도 기준과 맞지 않습니다.', '핵심 조건이나 복잡도 기준과 맞지 않습니다.']}
+/>
+
+<Quiz
+  questionNumber={4}
+  question="대표 문제에서 반드시 확인할 경계 사례는?"
+  options={['배경색', '변수 이름 길이', '주석 개수', '루트 하나뿐이면 깊이 0 반환']}
+  correctAnswer={4}
+  explanation="루트 하나뿐이면 깊이 0 반환 조건을 별도로 점검해야 합니다."
+  optionExplanations={['핵심 조건이나 복잡도 기준과 맞지 않습니다.', '핵심 조건이나 복잡도 기준과 맞지 않습니다.', '핵심 조건이나 복잡도 기준과 맞지 않습니다.', '정답입니다. 핵심 조건에 맞는 선택입니다.']}
+/>
+
+<Quiz
+  questionNumber={5}
+  question="이 과정의 정답 코드가 지켜야 할 계약은?"
+  options={['직접 데이터를 읽는다', 'solution 함수에서 요구된 값을 return한다', '결과를 화면에만 출력한다', '전역 변수에 정답을 저장한다']}
+  correctAnswer={2}
+  explanation="채점기는 solution 함수의 반환값을 검사하므로 요구된 자료형을 return해야 합니다."
+  optionExplanations={['핵심 조건이나 복잡도 기준과 맞지 않습니다.', '정답입니다. 핵심 조건에 맞는 선택입니다.', '핵심 조건이나 복잡도 기준과 맞지 않습니다.', '핵심 조건이나 복잡도 기준과 맞지 않습니다.']}
+/>
+
+## 참고 자료
+
+- [Princeton Algorithms 4e - Graphs](https://algs4.cs.princeton.edu/40graphs/)
+- [MIT OpenCourseWare 6.006 Introduction to Algorithms](https://ocw.mit.edu/courses/6-006-introduction-to-algorithms-fall-2011/)
+- [MDN Array](https://developer.mozilla.org/ko/docs/Web/JavaScript/Reference/Global_Objects/Array)

@@ -1,0 +1,171 @@
+---
+title: '15. 그리디 알고리즘'
+description: '매 순간의 선택이 전체 최적해로 이어지는 근거를 세우고 정렬과 함께 구현합니다.'
+---
+
+<Callout type="info">
+  **학습 목표:** 그리디 선택 기준을 제안하고 왜 안전한지 설명합니다. 모든 예시는 주어진 매개변수를 처리해 정답을 반환하는 `solution` 함수로 완성합니다.
+</Callout>
+
+## 문제를 푸는 기준
+
+그리디는 지금 좋아 보이는 것을 고르는 기법이 아니라 그 선택이 이후 최적 가능성을 해치지 않는다는 근거가 있는 알고리즘입니다.
+
+## 핵심 개념
+
+| 개념 | 코딩테스트에서의 역할 |
+|---|---|
+| 탐욕적 선택 | 현재 단계에서 이후 가능성을 가장 많이 남기는 후보를 고릅니다. |
+| 교환 논리 | 최적해의 선택을 그리디 선택으로 바꿔도 손해가 없음을 보입니다. |
+| 반례 탐색 | 작은 사례로 선택 기준이 깨지는지 확인합니다. |
+
+## 대표 문제
+
+### 최대 회의 개수
+
+회의 [start,end] 배열 meetings에서 서로 겹치지 않게 선택할 수 있는 최대 개수를 반환하세요. 끝나는 시각에 다음 회의를 시작할 수 있습니다.
+
+**함수 시그니처:** `solution(meetings)`
+
+### 제한사항
+
+- meetings의 길이는 0 이상 200,000 이하입니다.
+- start는 end 이하입니다.
+
+### 입출력 예
+
+| 매개변수 | 반환값 |
+|---|---|
+| `[[1,4],[2,3],[3,5],[5,7]]` | `3` |
+| `[]` | `0` |
+
+### 풀이 설계
+
+1. 종료 시각 오름차순으로 정렬합니다.
+2. 가장 빨리 끝나는 회의를 먼저 선택합니다.
+3. 다음 시작이 마지막 종료 이상이면 선택합니다.
+
+### JavaScript 풀이
+
+```js
+function solution(meetings) {
+  const sorted = [...meetings].sort((a, b) => a[1] - b[1] || a[0] - b[0]);
+  let count = 0;
+  let lastEnd = -Infinity;
+  for (const [start, end] of sorted) {
+    if (start < lastEnd) continue;
+    count += 1;
+    lastEnd = end;
+  }
+  return count;
+}
+```
+
+### 복잡도
+
+- 시간복잡도: `O(n log n)`
+- 공간복잡도: `O(n)`
+- 핵심 패턴: 가장 빨리 끝나는 구간부터 선택
+- 경계 사례: 끝과 시작이 같으면 연속 선택 가능
+
+## 연습 문제
+
+### 1. 두 명 보트
+
+최대 두 명일 때 최소 보트 수를 구하세요.
+
+<details>
+<summary>힌트</summary>
+
+가장 무거운 사람과 가장 가벼운 사람
+
+</details>
+
+### 2. 숫자 제거
+
+k개를 지워 가장 큰 수를 만드세요.
+
+<details>
+<summary>힌트</summary>
+
+단조 스택
+
+</details>
+
+### 3. 동전 최소 개수
+
+배수 동전 체계에서 최소 동전 수를 구하세요.
+
+<details>
+<summary>힌트</summary>
+
+큰 동전부터 선택의 정당성 확인
+
+</details>
+
+## 자주 하는 실수
+
+- 정당성 없이 직감으로 기준을 정하는 실수
+- 시작 시각이 빠른 회의를 먼저 고르는 실수
+- 동률 정렬 기준을 빼는 실수
+- 끝과 시작이 같은 경우를 확인하지 않는 실수
+
+## 핵심 정리
+
+- 함수 시그니처와 반환 자료형을 먼저 확정합니다.
+- 제한사항으로 가능한 시간복잡도를 판단합니다.
+- 예시와 경계 사례를 손으로 추적한 뒤 구현합니다.
+- 완성한 `solution` 함수가 입력을 불필요하게 바꾸지 않는지도 확인합니다.
+
+## 확인 문제
+
+<Quiz
+  questionNumber={1}
+  question="종료 시각이 빠른 회의를 먼저 고르는 이유는?"
+  options={['이름이 짧아서', '뒤에 남는 시간을 가장 많이 확보해서', '정렬을 피해서', '항상 가장 긴 회의라서']}
+  correctAnswer={2}
+  explanation="빨리 끝날수록 이후 회의를 배치할 수 있는 공간을 줄이지 않습니다."
+  optionExplanations={['핵심 조건이나 복잡도 기준과 맞지 않습니다.', '정답입니다. 핵심 조건에 맞는 선택입니다.', '핵심 조건이나 복잡도 기준과 맞지 않습니다.', '핵심 조건이나 복잡도 기준과 맞지 않습니다.']}
+/>
+
+<Quiz
+  questionNumber={2}
+  question="대표 문제의 시간복잡도로 알맞은 것은?"
+  options={['O(1)', 'O(n log n)', 'O(n⁴)', 'O(2ⁿ)']}
+  correctAnswer={2}
+  explanation="대표 풀이는 O(n log n) 시간에 동작합니다."
+  optionExplanations={['핵심 조건이나 복잡도 기준과 맞지 않습니다.', '정답입니다. 핵심 조건에 맞는 선택입니다.', '핵심 조건이나 복잡도 기준과 맞지 않습니다.', '핵심 조건이나 복잡도 기준과 맞지 않습니다.']}
+/>
+
+<Quiz
+  questionNumber={3}
+  question="최대 회의 개수에서 사용한 핵심 패턴은?"
+  options={['가장 빨리 끝나는 구간부터 선택', '모든 순열을 항상 생성', '첫 원소를 바로 반환', '문자열로만 변환']}
+  correctAnswer={1}
+  explanation="가장 빨리 끝나는 구간부터 선택이 문제 조건을 직접 해결합니다."
+  optionExplanations={['정답입니다. 핵심 조건에 맞는 선택입니다.', '핵심 조건이나 복잡도 기준과 맞지 않습니다.', '핵심 조건이나 복잡도 기준과 맞지 않습니다.', '핵심 조건이나 복잡도 기준과 맞지 않습니다.']}
+/>
+
+<Quiz
+  questionNumber={4}
+  question="대표 문제에서 반드시 확인할 경계 사례는?"
+  options={['배경색', '변수 이름 길이', '주석 개수', '끝과 시작이 같으면 연속 선택 가능']}
+  correctAnswer={4}
+  explanation="끝과 시작이 같으면 연속 선택 가능 조건을 별도로 점검해야 합니다."
+  optionExplanations={['핵심 조건이나 복잡도 기준과 맞지 않습니다.', '핵심 조건이나 복잡도 기준과 맞지 않습니다.', '핵심 조건이나 복잡도 기준과 맞지 않습니다.', '정답입니다. 핵심 조건에 맞는 선택입니다.']}
+/>
+
+<Quiz
+  questionNumber={5}
+  question="이 과정의 정답 코드가 지켜야 할 계약은?"
+  options={['직접 데이터를 읽는다', 'solution 함수에서 요구된 값을 return한다', '결과를 화면에만 출력한다', '전역 변수에 정답을 저장한다']}
+  correctAnswer={2}
+  explanation="채점기는 solution 함수의 반환값을 검사하므로 요구된 자료형을 return해야 합니다."
+  optionExplanations={['핵심 조건이나 복잡도 기준과 맞지 않습니다.', '정답입니다. 핵심 조건에 맞는 선택입니다.', '핵심 조건이나 복잡도 기준과 맞지 않습니다.', '핵심 조건이나 복잡도 기준과 맞지 않습니다.']}
+/>
+
+## 참고 자료
+
+- [MIT OpenCourseWare 6.006 Introduction to Algorithms](https://ocw.mit.edu/courses/6-006-introduction-to-algorithms-fall-2011/)
+- [프로그래머스 코딩테스트 고득점 Kit](https://school.programmers.co.kr/learn/challenges?tab=algorithm_practice_kit)
+- [MDN Array.prototype.sort](https://developer.mozilla.org/ko/docs/Web/JavaScript/Reference/Global_Objects/Array/sort)

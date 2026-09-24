@@ -1,0 +1,181 @@
+---
+title: '10. 재귀와 백트래킹'
+description: '선택·복원 구조로 조합과 순열을 만들고 조건을 어긴 가지를 일찍 중단합니다.'
+---
+
+<Callout type="info">
+  **학습 목표:** 재귀 상태와 종료 조건을 정의하고 중복 없는 백트래킹 코드를 작성합니다. 모든 예시는 주어진 매개변수를 처리해 정답을 반환하는 `solution` 함수로 완성합니다.
+</Callout>
+
+## 문제를 푸는 기준
+
+함수 한 번이 무엇을 의미하는지 한 문장으로 정의합니다. 재귀가 끝난 뒤 상태를 복원해야 형제 가지가 서로 영향을 주지 않습니다.
+
+## 핵심 개념
+
+| 개념 | 코딩테스트에서의 역할 |
+|---|---|
+| 재귀 상태 | 현재 선택, 다음 위치, 남은 목표를 인자로 전달합니다. |
+| 종료 조건 | 정답이 완성됐거나 진행할 수 없을 때 반환합니다. |
+| 선택과 복원 | push 뒤 재귀 호출, pop으로 이전 상태를 복원합니다. |
+
+## 대표 문제
+
+### 중복 없는 k개 조합
+
+정수 배열 numbers와 k가 주어집니다. 값이 같은 조합은 한 번만 포함하고 오름차순 조합 배열을 반환하세요.
+
+**함수 시그니처:** `solution(numbers, k)`
+
+### 제한사항
+
+- numbers의 길이는 1 이상 15 이하입니다.
+- k는 0 이상 numbers의 길이 이하입니다.
+
+### 입출력 예
+
+| 매개변수 | 반환값 |
+|---|---|
+| `[1,1,2], 2` | `[[1,1],[1,2]]` |
+| `[3,2,1], 0` | `[[]]` |
+
+### 풀이 설계
+
+1. 배열을 정렬해 같은 값을 이웃하게 만듭니다.
+2. start 뒤 후보를 path에 넣고 재귀 호출합니다.
+3. 같은 깊이의 같은 값은 건너뛰고 호출 뒤 pop합니다.
+
+### JavaScript 풀이
+
+```js
+function solution(numbers, k) {
+  const sorted = [...numbers].sort((a, b) => a - b);
+  const result = [];
+  const path = [];
+
+  const backtrack = (start) => {
+    if (path.length === k) {
+      result.push([...path]);
+      return;
+    }
+    for (let i = start; i < sorted.length; i += 1) {
+      if (i > start && sorted[i] === sorted[i - 1]) continue;
+      path.push(sorted[i]);
+      backtrack(i + 1);
+      path.pop();
+    }
+  };
+
+  backtrack(0);
+  return result;
+}
+```
+
+### 복잡도
+
+- 시간복잡도: `O(C(n, k) × k)`
+- 공간복잡도: `O(k)`
+- 핵심 패턴: 선택하고 재귀 호출한 뒤 상태 복원
+- 경계 사례: k가 0이면 빈 조합 하나 반환
+
+## 연습 문제
+
+### 1. 모든 순열
+
+서로 다른 값의 모든 순열을 반환하세요.
+
+<details>
+<summary>힌트</summary>
+
+used 배열
+
+</details>
+
+### 2. 목표 합 조합
+
+후보를 중복 사용해 target을 만드는 조합을 반환하세요.
+
+<details>
+<summary>힌트</summary>
+
+남은 합 가지치기
+
+</details>
+
+### 3. 격자 단어 찾기
+
+인접 칸으로 단어를 만들 수 있는지 반환하세요.
+
+<details>
+<summary>힌트</summary>
+
+방문 표시 복원
+
+</details>
+
+## 자주 하는 실수
+
+- 종료 조건이 없는 실수
+- path 복사본이 아닌 원본을 결과에 넣는 실수
+- pop을 빠뜨리는 실수
+- 중복 제거 조건을 모든 깊이에 잘못 적용하는 실수
+
+## 핵심 정리
+
+- 함수 시그니처와 반환 자료형을 먼저 확정합니다.
+- 제한사항으로 가능한 시간복잡도를 판단합니다.
+- 예시와 경계 사례를 손으로 추적한 뒤 구현합니다.
+- 완성한 `solution` 함수가 입력을 불필요하게 바꾸지 않는지도 확인합니다.
+
+## 확인 문제
+
+<Quiz
+  questionNumber={1}
+  question="재귀 호출 뒤 path.pop이 필요한 이유는?"
+  options={['정렬하기 위해', '다음 후보 전에 선택 상태를 복원하기 위해', '문자열로 바꾸기 위해', '항상 O(1)로 만들기 위해']}
+  correctAnswer={2}
+  explanation="현재 가지의 선택을 지워야 다른 후보가 깨끗한 상태에서 시작합니다."
+  optionExplanations={['핵심 조건이나 복잡도 기준과 맞지 않습니다.', '정답입니다. 핵심 조건에 맞는 선택입니다.', '핵심 조건이나 복잡도 기준과 맞지 않습니다.', '핵심 조건이나 복잡도 기준과 맞지 않습니다.']}
+/>
+
+<Quiz
+  questionNumber={2}
+  question="대표 문제의 시간복잡도로 알맞은 것은?"
+  options={['O(1)', 'O(C(n, k) × k)', 'O(n⁴)', 'O(2ⁿ)']}
+  correctAnswer={2}
+  explanation="대표 풀이는 O(C(n, k) × k) 시간에 동작합니다."
+  optionExplanations={['핵심 조건이나 복잡도 기준과 맞지 않습니다.', '정답입니다. 핵심 조건에 맞는 선택입니다.', '핵심 조건이나 복잡도 기준과 맞지 않습니다.', '핵심 조건이나 복잡도 기준과 맞지 않습니다.']}
+/>
+
+<Quiz
+  questionNumber={3}
+  question="중복 없는 k개 조합에서 사용한 핵심 패턴은?"
+  options={['선택하고 재귀 호출한 뒤 상태 복원', '모든 순열을 항상 생성', '첫 원소를 바로 반환', '문자열로만 변환']}
+  correctAnswer={1}
+  explanation="선택하고 재귀 호출한 뒤 상태 복원이 문제 조건을 직접 해결합니다."
+  optionExplanations={['정답입니다. 핵심 조건에 맞는 선택입니다.', '핵심 조건이나 복잡도 기준과 맞지 않습니다.', '핵심 조건이나 복잡도 기준과 맞지 않습니다.', '핵심 조건이나 복잡도 기준과 맞지 않습니다.']}
+/>
+
+<Quiz
+  questionNumber={4}
+  question="대표 문제에서 반드시 확인할 경계 사례는?"
+  options={['배경색', '변수 이름 길이', '주석 개수', 'k가 0이면 빈 조합 하나 반환']}
+  correctAnswer={4}
+  explanation="k가 0이면 빈 조합 하나 반환 조건을 별도로 점검해야 합니다."
+  optionExplanations={['핵심 조건이나 복잡도 기준과 맞지 않습니다.', '핵심 조건이나 복잡도 기준과 맞지 않습니다.', '핵심 조건이나 복잡도 기준과 맞지 않습니다.', '정답입니다. 핵심 조건에 맞는 선택입니다.']}
+/>
+
+<Quiz
+  questionNumber={5}
+  question="이 과정의 정답 코드가 지켜야 할 계약은?"
+  options={['직접 데이터를 읽는다', 'solution 함수에서 요구된 값을 return한다', '결과를 화면에만 출력한다', '전역 변수에 정답을 저장한다']}
+  correctAnswer={2}
+  explanation="채점기는 solution 함수의 반환값을 검사하므로 요구된 자료형을 return해야 합니다."
+  optionExplanations={['핵심 조건이나 복잡도 기준과 맞지 않습니다.', '정답입니다. 핵심 조건에 맞는 선택입니다.', '핵심 조건이나 복잡도 기준과 맞지 않습니다.', '핵심 조건이나 복잡도 기준과 맞지 않습니다.']}
+/>
+
+## 참고 자료
+
+- [MIT OpenCourseWare 6.006 Introduction to Algorithms](https://ocw.mit.edu/courses/6-006-introduction-to-algorithms-fall-2011/)
+- [프로그래머스 코딩테스트 고득점 Kit](https://school.programmers.co.kr/learn/challenges?tab=algorithm_practice_kit)
+- [MDN Array](https://developer.mozilla.org/ko/docs/Web/JavaScript/Reference/Global_Objects/Array)

@@ -1,0 +1,171 @@
+---
+title: '07. 완전탐색'
+description: '후보 수를 계산하고 가능한 경우를 빠짐없이 확인합니다.'
+---
+
+<Callout type="info">
+  **학습 목표:** 제한사항이 작을 때 완전탐색을 선택하고 중복 없이 후보를 열거합니다. 모든 예시는 주어진 매개변수를 처리해 정답을 반환하는 `solution` 함수로 완성합니다.
+</Callout>
+
+## 문제를 푸는 기준
+
+완전탐색은 제한사항 안에서 가장 단순하고 확실한 풀이일 수 있습니다. 후보 수와 후보 하나의 검사 비용을 곱해 먼저 판단합니다.
+
+## 핵심 개념
+
+| 개념 | 코딩테스트에서의 역할 |
+|---|---|
+| 후보 공간 | 가능한 답의 총개수를 먼저 계산합니다. |
+| 중첩 반복 | 선택 개수가 고정되어 작을 때 직접 열거합니다. |
+| 중복 제어 | 인덱스 순서를 고정해 같은 조합을 여러 번 세지 않습니다. |
+
+## 대표 문제
+
+### 세 수의 목표 합
+
+정수 배열 numbers에서 서로 다른 세 인덱스를 골라 합이 target이 되는 조합의 개수를 반환하세요.
+
+**함수 시그니처:** `solution(numbers, target)`
+
+### 제한사항
+
+- numbers의 길이는 3 이상 100 이하입니다.
+- 같은 값이 서로 다른 인덱스에 있을 수 있습니다.
+
+### 입출력 예
+
+| 매개변수 | 반환값 |
+|---|---|
+| `[1,2,3,4], 6` | `1` |
+| `[0,0,0,0], 0` | `4` |
+
+### 풀이 설계
+
+1. i를 첫 인덱스로 고릅니다.
+2. j는 i 뒤, k는 j 뒤에서 고릅니다.
+3. 합이 target이면 개수를 늘립니다.
+
+### JavaScript 풀이
+
+```js
+function solution(numbers, target) {
+  let count = 0;
+  for (let i = 0; i < numbers.length - 2; i += 1) {
+    for (let j = i + 1; j < numbers.length - 1; j += 1) {
+      for (let k = j + 1; k < numbers.length; k += 1) {
+        if (numbers[i] + numbers[j] + numbers[k] === target) count += 1;
+      }
+    }
+  }
+  return count;
+}
+```
+
+### 복잡도
+
+- 시간복잡도: `O(n³)`
+- 공간복잡도: `O(1)`
+- 핵심 패턴: 증가하는 인덱스로 고정 개수 조합 전부 확인
+- 경계 사례: 값이 같아도 인덱스가 다르면 별도 조합
+
+## 연습 문제
+
+### 1. 반복 답안 점수
+
+세 답안 패턴의 최고 득점자를 반환하세요.
+
+<details>
+<summary>힌트</summary>
+
+나머지 인덱스
+
+</details>
+
+### 2. 카펫 크기
+
+칸 수 조건에 맞는 가로·세로를 반환하세요.
+
+<details>
+<summary>힌트</summary>
+
+약수 쌍 열거
+
+</details>
+
+### 3. 숫자 카드 소수
+
+카드를 이어 만들 수 있는 소수 수를 구하세요.
+
+<details>
+<summary>힌트</summary>
+
+순열과 Set
+
+</details>
+
+## 자주 하는 실수
+
+- 후보 수를 계산하지 않는 실수
+- 인덱스 순서를 고정하지 않아 중복 계산하는 실수
+- 값 중복과 인덱스 중복을 혼동하는 실수
+- 반복 경계를 하나 빠뜨리는 실수
+
+## 핵심 정리
+
+- 함수 시그니처와 반환 자료형을 먼저 확정합니다.
+- 제한사항으로 가능한 시간복잡도를 판단합니다.
+- 예시와 경계 사례를 손으로 추적한 뒤 구현합니다.
+- 완성한 `solution` 함수가 입력을 불필요하게 바꾸지 않는지도 확인합니다.
+
+## 확인 문제
+
+<Quiz
+  questionNumber={1}
+  question="완전탐색 선택 전에 가장 먼저 확인할 것은?"
+  options={['변수 이름', '제한사항으로 계산한 후보 수', '주석 개수', '반환 색상']}
+  correctAnswer={2}
+  explanation="전체 후보 수가 허용 연산량 안인지 먼저 판단합니다."
+  optionExplanations={['핵심 조건이나 복잡도 기준과 맞지 않습니다.', '정답입니다. 핵심 조건에 맞는 선택입니다.', '핵심 조건이나 복잡도 기준과 맞지 않습니다.', '핵심 조건이나 복잡도 기준과 맞지 않습니다.']}
+/>
+
+<Quiz
+  questionNumber={2}
+  question="대표 문제의 시간복잡도로 알맞은 것은?"
+  options={['O(1)', 'O(n³)', 'O(n⁴)', 'O(2ⁿ)']}
+  correctAnswer={2}
+  explanation="대표 풀이는 O(n³) 시간에 동작합니다."
+  optionExplanations={['핵심 조건이나 복잡도 기준과 맞지 않습니다.', '정답입니다. 핵심 조건에 맞는 선택입니다.', '핵심 조건이나 복잡도 기준과 맞지 않습니다.', '핵심 조건이나 복잡도 기준과 맞지 않습니다.']}
+/>
+
+<Quiz
+  questionNumber={3}
+  question="세 수의 목표 합에서 사용한 핵심 패턴은?"
+  options={['증가하는 인덱스로 고정 개수 조합 전부 확인', '모든 순열을 항상 생성', '첫 원소를 바로 반환', '문자열로만 변환']}
+  correctAnswer={1}
+  explanation="증가하는 인덱스로 고정 개수 조합 전부 확인이 문제 조건을 직접 해결합니다."
+  optionExplanations={['정답입니다. 핵심 조건에 맞는 선택입니다.', '핵심 조건이나 복잡도 기준과 맞지 않습니다.', '핵심 조건이나 복잡도 기준과 맞지 않습니다.', '핵심 조건이나 복잡도 기준과 맞지 않습니다.']}
+/>
+
+<Quiz
+  questionNumber={4}
+  question="대표 문제에서 반드시 확인할 경계 사례는?"
+  options={['배경색', '변수 이름 길이', '주석 개수', '값이 같아도 인덱스가 다르면 별도 조합']}
+  correctAnswer={4}
+  explanation="값이 같아도 인덱스가 다르면 별도 조합 조건을 별도로 점검해야 합니다."
+  optionExplanations={['핵심 조건이나 복잡도 기준과 맞지 않습니다.', '핵심 조건이나 복잡도 기준과 맞지 않습니다.', '핵심 조건이나 복잡도 기준과 맞지 않습니다.', '정답입니다. 핵심 조건에 맞는 선택입니다.']}
+/>
+
+<Quiz
+  questionNumber={5}
+  question="이 과정의 정답 코드가 지켜야 할 계약은?"
+  options={['직접 데이터를 읽는다', 'solution 함수에서 요구된 값을 return한다', '결과를 화면에만 출력한다', '전역 변수에 정답을 저장한다']}
+  correctAnswer={2}
+  explanation="채점기는 solution 함수의 반환값을 검사하므로 요구된 자료형을 return해야 합니다."
+  optionExplanations={['핵심 조건이나 복잡도 기준과 맞지 않습니다.', '정답입니다. 핵심 조건에 맞는 선택입니다.', '핵심 조건이나 복잡도 기준과 맞지 않습니다.', '핵심 조건이나 복잡도 기준과 맞지 않습니다.']}
+/>
+
+## 참고 자료
+
+- [프로그래머스 코딩테스트 고득점 Kit](https://school.programmers.co.kr/learn/challenges?tab=algorithm_practice_kit)
+- [MIT OpenCourseWare 6.006 Introduction to Algorithms](https://ocw.mit.edu/courses/6-006-introduction-to-algorithms-fall-2011/)
+- [MDN Array](https://developer.mozilla.org/ko/docs/Web/JavaScript/Reference/Global_Objects/Array)

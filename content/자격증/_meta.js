@@ -30,6 +30,7 @@ const meta = {
   적성검사_공통: {
     title: '적성검사 공통 (NCS·인적성)',
     type: 'page',
+    display: 'hidden',
   },
   정보보안기사_필기: {
     title: '정보보안기사 필기',

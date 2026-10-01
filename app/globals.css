@@ -35,12 +35,11 @@ html.dark {
 html {
   --nextra-navbar-height: 58px;
   max-width: 100%;
-  overflow-x: hidden;
   overflow-x: clip;
 }
 
 body {
-  overflow-x: hidden;
+  overflow-x: clip;
   max-width: 100%;
   background: var(--background);
   color: var(--foreground);

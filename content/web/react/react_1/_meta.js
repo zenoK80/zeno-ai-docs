@@ -1,7 +1,7 @@
 const meta = {
   '01_react-and-the-dom-problem': '01. React는 왜 필요한가',
   '02_jsx-syntax-basics': '02. JSX 문법',
-  '03_project-setup-with-vite': '03. Vite로 bookshelf 프로젝트 만들기',
+  '03_project-setup-with-vite': '03. Vite 기반 React 프로젝트 구조',
   '04_static-book-card': '04. JSX로 정적 책 카드 만들기',
   '05_component-props': '05. 컴포넌트 분리와 props',
   '06_book-list-and-keys': '06. 리스트와 key로 책 목록 렌더링',

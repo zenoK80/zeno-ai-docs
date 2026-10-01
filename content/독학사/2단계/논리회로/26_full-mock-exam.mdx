@@ -1,0 +1,112 @@
+---
+title: '26. 독학사 2단계 논리회로 실전 모의고사 (60분)'
+description: '진법·코드부터 불 대수·카르노맵·조합회로·플립플롭·카운터·레지스터·기억장치까지 전 범위를 실제 시험 형식(4지선다, 60분)으로 재구성한 실전 모의고사와 시간 배분 전략'
+---
+
+<Callout type="warning">
+  이 모의고사는 실제 독학사 기출문제를 그대로 옮긴 것이 아니라, 국가평생교육진흥원이 공개한 2단계 논리회로 **출제기준(평가영역)을 바탕으로 새로 재구성**한 예상 문제 25개다. 실제 시행 회차의 문항 수·배점·시간은 매년 공고에 따라 달라질 수 있으므로, 응시 전 반드시 최신 시행공고를 확인해야 한다. 이 문서는 23편(종합 예상 문제)과 구성 방식은 유사하지만, **60분 제한시간 안에 25문항을 실제 시험처럼 풀어 보는 실전 훈련용**이라는 점에서 다르다.
+</Callout>
+
+## 정답 위치 한눈에 보기
+
+아래 표는 채점 후 오답을 검토할 때, 어느 문항이 어느 영역·어느 편의 개념과 연결되는지 바로 찾아갈 수 있도록 정리한 대조표다. 문항을 다 풀고 채점한 뒤, 틀린 문항의 "관련 편"으로 돌아가 개념을 다시 확인하는 방식으로 복습한다.
+
+| 문항 | 출제 영역 | 관련 편 | 정답(보기 번호) |
+|------|-----------|---------|-------------------|
+| 1 | 진법 변환(10진→2진) | 05_number-systems | 2번 |
+| 2 | 진법 변환(8진→10진) | 05_number-systems | 2번 |
+| 3 | 진법 변환(16진→10진) | 05_number-systems | 2번 |
+| 4 | BCD 코드 | 06_codes-bcd-gray | 2번 |
+| 5 | 그레이 코드 | 06_codes-bcd-gray | 1번 |
+| 6 | 불 대수 간소화(분배법칙) | 08_boolean-algebra-basics | 1번 |
+| 7 | 드모르간 법칙 | 08_boolean-algebra-basics | 2번 |
+| 8 | 불 대수 간소화(흡수법칙) | 08_boolean-algebra-basics | 4번 |
+| 9 | 최소항의 합(SOP) | 09_standard-forms | 1번 |
+| 10 | 카르노맵 don't care | 11_k-map-advanced | 2번 |
+| 11 | 카르노맵 묶음과 변수 소거 | 10_karnaugh-map | 2번 |
+| 12 | 반가산기 합(S) | 14_adders-subtractors | 3번 |
+| 13 | 반가산기 자리올림(C) | 14_adders-subtractors | 3번 |
+| 14 | 3-to-8 디코더 | 15_comparators-encoders | 3번 |
+| 15 | 8-to-1 멀티플렉서 | 15_comparators-encoders | 2번 |
+| 16 | SR 래치 | 17_latches-flipflops | 2번 |
+| 17 | JK 플립플롭 | 17_latches-flipflops | 1번 |
+| 18 | D 플립플롭 | 17_latches-flipflops | 2번 |
+| 19 | T 플립플롭 | 17_latches-flipflops | 2번 |
+| 20 | 카운터 필요 플립플롭 개수 | 20_counters | 2번 |
+| 21 | 동기 카운터 상태 전이 | 20_counters | 2번 |
+| 22 | 동기·비동기 카운터 비교 | 20_counters | 2번 |
+| 23 | 시프트 레지스터(SISO) | 21_registers-shift | 3번 |
+| 24 | 기억장치 용량 계산 | 22_memory-overview | 2번 |
+| 25 | RAM과 ROM의 차이 | 22_memory-overview | 2번 |
+
+## 실전 모의고사
+
+<Quiz
+  questionNumber={1}
+  question={"십진수 187을 2진수로 옳게 변환한 것은?"}
+  options={["10111001","10111011","11011011","01111011"]}
+  correctAnswer={2}
+  explanation={"187을 2로 계속 나누며 나머지를 적으면 187÷2=93…1, 93÷2=46…1, 46÷2=23…0, 23÷2=11…1, 11÷2=5…1, 5÷2=2…1, 2÷2=1…0, 1÷2=0…1이다. 나머지를 마지막에서 처음 순서로(아래에서 위로) 읽으면 10111011이 된다."}
+/>
+
+<Quiz
+  questionNumber={7}
+  question={"드모르간 법칙에 따라 AB(A와 B의 곱) 전체의 부정을 옳게 나타낸 것은?"}
+  options={["A′ 그리고 B′","A′ 또는 B′","A 또는 B","AB"]}
+  correctAnswer={2}
+  explanation={"드모르간 법칙에 따르면 곱(AND) 전체의 부정은 각 항을 부정한 뒤 OR로 묶은 것과 같다. 즉 NOT(AB) = A′ 또는 B′이다."}
+/>
+
+<Quiz
+  questionNumber={15}
+  question={"8-to-1 멀티플렉서에서 선택선 S2S1S0=101일 때 출력으로 선택되는 입력은?"}
+  options={["I3","I5","I6","I7"]}
+  correctAnswer={2}
+  explanation={"선택선 S2S1S0=101을 십진수로 바꾸면 5이므로, 그 값에 대응하는 입력 I5가 출력으로 선택된다."}
+/>
+
+<Quiz
+  questionNumber={16}
+  question={"SR 래치에서 S=1, R=0일 때의 출력 상태는?"}
+  options={["0으로 리셋","1로 세트","이전 상태를 그대로 유지","부정(정의되지 않음)"]}
+  correctAnswer={2}
+  explanation={"SR 래치에서 S=1, R=0은 출력을 1로 만드는 세트(Set) 조건이다."}
+/>
+
+<Quiz
+  questionNumber={17}
+  question={"JK 플립플롭에서 J=0, K=1일 때 다음 상태 Q(t+1)로 옳은 것은?"}
+  options={["0","1","이전 상태 Q(t) 그대로 유지","이전 상태 Q(t)의 반전(토글)"]}
+  correctAnswer={1}
+  explanation={"JK 플립플롭은 J=0, K=1일 때 리셋(Reset)하도록 정의되어 있어, 이전 상태와 관계없이 다음 상태는 0이 된다."}
+/>
+
+<Quiz
+  questionNumber={18}
+  question={"D 플립플롭에서 D=1이 입력될 때 다음 상태 Q(t+1)로 옳은 것은?"}
+  options={["0","1","이전 상태 Q(t) 그대로 유지","이전 상태 Q(t)의 반전(토글)"]}
+  correctAnswer={2}
+  explanation={"D 플립플롭은 클록이 들어올 때 입력 D값을 그대로 다음 상태로 저장한다. D=1이므로 이전 상태와 관계없이 다음 상태는 1이 된다."}
+/>
+
+<Quiz
+  questionNumber={23}
+  question={"초기 상태가 0000인 4비트 SISO(직렬입력-직렬출력) 시프트 레지스터에, 매 클록마다 1, 0, 1, 1을 순서대로 직렬 입력한다(매 클록 오른쪽으로 1비트씩 시프트하고, 새 입력 비트는 왼쪽 끝(최상위 자리)에 들어간다). 4번째 클록 후 레지스터의 값으로 옳은 것은?"}
+  options={["1000","0101","1101","1011"]}
+  correctAnswer={3}
+  explanation={"클록 1: 0000에서 왼쪽 끝에 1이 들어가고 오른쪽으로 밀려 1000이 된다."}
+/>
+
+<Quiz
+  questionNumber={24}
+  question={"주소선이 12개, 데이터선이 8개인 기억장치의 용량을 옳게 나타낸 것은?"}
+  options={['2K x 8', '4K x 8', '4K x 4', '8K x 8']}
+  correctAnswer={2}
+  explanation={"주소선 12개이므로 워드 개수는 2의 12제곱=4096=4K개이고, 데이터선 8개이므로 워드 길이는 8비트다. 따라서 용량은 4K x 8이다."}
+/>
+
+## 참고 자료
+
+- [국가평생교육진흥원 독학학위제 - 전공분야/과목 시험안내](https://bdes.nile.or.kr/nile/exam/nExam2_1.do)
+- [국가평생교육진흥원 독학학위제 - 과목별 평가영역](https://bdes.nile.or.kr/nile/study/nStudy2_1.do)
+- [국가평생교육진흥원 독학학위제 - 출제방향/수준](https://bdes.nile.or.kr/nile/study/nStudy1_1.do)

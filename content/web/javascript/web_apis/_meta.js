@@ -2,7 +2,7 @@ const meta = {
   '01_web-platform-basics': '01. 브라우저 Web 플랫폼 지도',
   '02_rendering-pipeline': '02. 브라우저 렌더링 파이프라인',
   '03_http-json-basics': '03. HTTP와 JSON 기초',
-  '04_project-setup-and-dom-render': '04. 프로젝트 시작 — DOM 선택·생성으로 메모 목록 렌더',
+  '04_project-setup-and-dom-render': '04. DOM 생성과 목록 렌더링',
   '05_event-delegation-crud': '05. 이벤트 위임으로 추가·삭제·편집',
   '06_forms-and-validation': '06. 폼과 검증',
   '07_localstorage-persistence': '07. localStorage로 영구 저장',

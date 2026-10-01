@@ -1,6 +1,6 @@
 const meta = {
   '01_intermediate-typescript-preview': '01. 중급으로 넘어가기 전에',
-  '02_project-setup-continuing-expense-tracker': '02. 프로젝트 이어받기와 버전 업그레이드',
+  '02_project-setup-continuing-expense-tracker': '02. 버전 고정과 MSW의 역할',
   '03_conditional-types-and-infer': '03. 조건부 타입과 infer로 타입 추출하기',
   '04_template-literal-types-for-routes': '04. 템플릿 리터럴 타입으로 API 경로 만들기',
   '05_mapped-types-key-remapping': '05. 매핑된 타입 심화: 키 리매핑',

@@ -1,6 +1,6 @@
 const meta = {
   '01_what-typescript-solves': '01. TypeScript가 해결하는 문제',
-  '02_project-setup-vite-vanilla-ts': '02. 프로젝트 준비: Vite vanilla-ts로 시작하기',
+  '02_project-setup-vite-vanilla-ts': '02. Vite와 TypeScript 프로젝트 구조',
   '03_basic-types-and-inference': '03. 기본 타입과 추론',
   '04_object-types-and-functions': '04. 객체 타입과 함수 시그니처',
   '05_interfaces-vs-type-aliases': '05. interface와 type 별칭으로 모델 다듬기',

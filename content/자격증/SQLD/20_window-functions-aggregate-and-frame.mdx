@@ -3,17 +3,11 @@ title: '20. 윈도우 함수 2: 집계 함수와 프레임(ROWS/RANGE)'
 description: 'SUM·AVG 같은 집계 함수를 윈도우로 쓸 때 프레임 절이 계산 범위를 어떻게 좁히는지, LAG·LEAD·FIRST_VALUE·LAST_VALUE가 각각 무엇을 참조하는지, LAST_VALUE가 기본 프레임에서 왜 기대와 다르게 나오는지 정리한다'
 ---
 
-<Callout type="info">
-  **이번 문서의 목표:** 이 파일을 다 읽으면 `SUM() OVER`가 왜 행마다 다른 값을 내는지, `ROWS BETWEEN`으로 지정하는 프레임이 계산 범위를 어떻게 정하는지, 그리고 `LAST_VALUE`가 기본 설정에서 왜 "마지막 값"을 돌려주지 않는지를 근거를 들어 설명할 수 있게 된다.
-</Callout>
-
 ## 왜 집계 함수를 윈도우로 다시 쓰는가
 
 15편에서 `SUM`, `AVG` 같은 그룹 함수를 `GROUP BY`와 함께 배웠습니다. 이 함수들은 여러 행의 값을 하나로 뭉쳐 그룹당 한 숫자를 냅니다. 그런데 19편에서 확인했듯, 윈도우 함수의 핵심은 **행을 줄이지 않는 것**입니다.
 
 같은 `SUM`, `AVG`, `COUNT`, `MAX`, `MIN`을 `OVER` 절과 함께 쓰면, 각 행 옆에 "이 행이 속한 범위에서의 합계·평균"을 원본 행 개수 그대로 붙일 수 있습니다. 예를 들어 "각 직원의 급여와 함께, 그 부서 전체 급여 합계를 나란히 보여달라"는 요청은 `GROUP BY`로는 불가능하지만 윈도우 함수로는 자연스럽게 됩니다.
-
-> **쉽게 말하면:** 그룹 함수를 `OVER` 절과 함께 쓰면, "그룹으로 묶어서 요약하되 원본 행은 하나도 지우지 마라"는 뜻이 됩니다.
 
 ## 1. 집계 윈도우 함수 — SUM, AVG를 행마다 보여주기
 
@@ -55,8 +49,6 @@ FROM 직원;
 ## 2. 프레임 절 — 계산 범위를 더 좁게 지정하기
 
 `ORDER BY`를 추가하면 이야기가 달라집니다. `ORDER BY`가 있으면 "각 행 기준으로 어디부터 어디까지를 더할 것인가"라는 질문이 생기고, 이 범위를 정하는 것이 **프레임**(frame, 틀·범위라는 뜻) 절입니다.
-
-> **쉽게 말하면:** 프레임은 "지금 이 행을 계산할 때, 파티션 안의 몇 번째 행부터 몇 번째 행까지를 재료로 쓸 것인가"를 정하는 범위 지정자입니다.
 
 ### 프레임 문법
 
@@ -122,7 +114,7 @@ FROM 주문;
 | 3 | 1월 8일 | 300 | 900 |
 | 4 | 1월 12일 | 400 | 700 |
 
-**결과 해석**: 각 행의 이동합계는 "바로 앞 1행 + 현재 행 + 바로 뒤 1행"입니다. ID 1은 앞 행이 없어 100+200=300, ID 2는 100+200+300=600, ID 3은 200+300+400=900, ID 4는 뒤 행이 없어 300+400=700입니다. **프레임 경계 밖의 행은 존재하지 않는 것처럼 자동으로 제외**되기 때문에 첫 행과 마지막 행은 합산 대상이 자연히 줄어듭니다.
+**결과 해석**: 각 행의 이동합계는 "바로 앞 1행 + 현재 행 + 바로 뒤 1행"입니다. ID 1은 앞 행이 없어 100+200=300, ID 2는 100+200+300=600, ID 3은 200+300+400=900, ID 4는 뒤 행이 없어 300+400=700입니다.
 
 ### 프레임을 생략하면 어떻게 되는가
 
@@ -191,7 +183,7 @@ SELECT 이름, 급여,
 FROM 성적;
 ```
 
-`ORDER BY 급여`(오름차순)로 정렬하면 프레임의 시작은 항상 파티션의 첫 행(가장 작은 값)입니다. 프레임을 생략해도 기본 프레임인 `RANGE BETWEEN UNBOUNDED PRECEDING AND CURRENT ROW`가 이미 "맨 처음부터"를 포함하므로, `FIRST_VALUE`는 어느 행에서 보든 항상 같은 최소값 70을 반환합니다. 즉 기본 프레임에서도 `FIRST_VALUE`는 기대한 대로 동작합니다.
+`ORDER BY 급여`(오름차순)로 정렬하면 프레임의 시작은 항상 파티션의 첫 행(가장 작은 값)입니다. 프레임을 생략해도 기본 프레임인 `RANGE BETWEEN UNBOUNDED PRECEDING AND CURRENT ROW`가 이미 "맨 처음부터"를 포함하므로, `FIRST_VALUE`는 어느 행에서 보든 항상 같은 최소값 70을 반환합니다.
 
 ### LAST_VALUE가 함정인 이유
 
@@ -210,9 +202,7 @@ FROM 성적;
 | 이영희 | 90 | 90 |
 | 김철수 | 100 | 100 |
 
-**결과 해석**: 100(전체 최댓값)이 나올 것이라 기대했지만, 실제로는 **각 행 자신의 급여값**이 그대로 나옵니다. 이유는 기본 프레임이 `RANGE BETWEEN UNBOUNDED PRECEDING AND CURRENT ROW`, 즉 "맨 처음부터 **현재 행까지**"이기 때문입니다. `LAST_VALUE`는 "이 프레임 안에서 마지막 값"을 찾는데, 프레임의 끝이 바로 `CURRENT ROW`(현재 행)로 고정되어 있으니, 결국 그 프레임의 마지막 값은 언제나 **현재 행 자신**이 되어버립니다.
-
-> **비유:** `FIRST_VALUE`는 "지금까지 읽은 페이지 중 첫 페이지가 몇 쪽인가"를 묻는 것과 같아서 항상 1쪽으로 답이 고정됩니다. `LAST_VALUE`는 "지금까지 읽은 페이지 중 마지막 페이지가 몇 쪽인가"를 묻는 것인데, "지금까지"의 끝은 항상 **방금 읽은 그 페이지**이므로 매번 다른 답(현재 페이지 번호)이 나오는 것뿐입니다. 책 전체의 마지막 페이지를 물은 게 아니었던 겁니다.
+**결과 해석**: 100(전체 최댓값)이 나올 것이라 기대했지만, 실제로는 **각 행 자신의 급여값**이 그대로 나옵니다. 이유는 기본 프레임이 `RANGE BETWEEN UNBOUNDED PRECEDING AND CURRENT ROW`, 즉 "맨 처음부터 **현재 행까지**"이기 때문입니다.
 
 ### 올바른 사용법 — 프레임을 파티션 전체로 넓히기
 
@@ -240,44 +230,6 @@ FROM 성적;
   **자주 틀리는 점 (대표 함정)**: `LAST_VALUE`가 항상 파티션의 마지막(최댓값)을 반환한다고 착각하는 것이 SQLD에서 가장 자주 나오는 함정 중 하나입니다. `ORDER BY`만 쓰고 프레임을 생략하면 기본 프레임이 `... AND CURRENT ROW`로 끝나기 때문에, `LAST_VALUE`는 사실상 "현재 행 자신의 값"을 돌려주는 것과 같아집니다. 이 문제를 피하려면 ① 프레임을 `UNBOUNDED FOLLOWING`까지 명시적으로 넓히거나, ②애초에 `MAX() OVER`를 쓰는 두 가지 방법 중 하나를 선택해야 합니다.
 </Callout>
 
-## 직접 해보기
-
-<Callout type="info">
-  00편에서 만든 실습 환경에서 진행합니다. 아직 안 만들었다면 00편을 먼저 보세요. seed.sql의 성적 테이블(이름, 급여 컬럼)을 그대로 씁니다.
-</Callout>
-
-프레임 절이 없을 때와 명시했을 때 누적 합계가 정말 같은 값인지 나란히 조회해 확인한다.
-
-```sql
-SELECT 이름, 급여,
-       SUM(급여) OVER (ORDER BY 급여) AS 누적합계_기본프레임,
-       SUM(급여) OVER (
-         ORDER BY 급여
-         ROWS BETWEEN UNBOUNDED PRECEDING AND CURRENT ROW
-       ) AS 누적합계_명시프레임
-FROM 성적;
-```
-
-**무엇을 보아야 하나**: 두 컬럼 값이 실제로 행마다 똑같이 나오는지 확인한다. 기본 프레임 자체가 이 명시적 프레임과 같다는 뜻이다.
-
-## 직접 해보기 2
-
-이 편 최대 함정인 LAST_VALUE를 직접 실행해 눈으로 확인한다. 프레임 없이 한 번, 파티션 전체로 넓혀서 한 번 조회한다.
-
-```sql
-SELECT 이름, 급여,
-       LAST_VALUE(급여) OVER (ORDER BY 급여) AS 최대급여_함정,
-       LAST_VALUE(급여) OVER (
-         ORDER BY 급여
-         ROWS BETWEEN UNBOUNDED PRECEDING AND UNBOUNDED FOLLOWING
-       ) AS 최대급여_정상
-FROM 성적;
-```
-
-**무엇을 보아야 하나**: 첫 번째 컬럼(최대급여_함정)이 100이 아니라 매 행 자신의 급여값을 그대로 돌려주는지, 두 번째 컬럼(최대급여_정상)은 모든 행에서 100으로 똑같이 나오는지 확인한다.
-
-> **왜 이걸 해보나:** "LAST_VALUE는 항상 마지막(최댓값)을 돌려준다"는 착각이 이 편 기출의 대표 함정이다. 두 결과를 나란히 보면 프레임의 끝이 CURRENT ROW로 고정된다는 것이 무슨 뜻인지 확실해진다.
-
 ## 핵심 정리
 
 - 집계 함수를 `OVER`와 함께 쓰면 행을 줄이지 않고 그룹 단위 요약값을 각 행에 붙일 수 있다.
@@ -290,74 +242,26 @@ FROM 성적;
 
 <Quiz
   questionNumber={1}
-  question="ORDER BY만 사용하고 프레임 절을 생략했을 때 적용되는 기본 프레임은?"
-  options={['ROWS BETWEEN UNBOUNDED PRECEDING AND UNBOUNDED FOLLOWING', 'RANGE BETWEEN UNBOUNDED PRECEDING AND CURRENT ROW', 'ROWS BETWEEN CURRENT ROW AND UNBOUNDED FOLLOWING', 'RANGE BETWEEN 1 PRECEDING AND 1 FOLLOWING']}
+  question={"ORDER BY만 사용하고 프레임 절을 생략했을 때 적용되는 기본 프레임은?"}
+  options={["ROWS BETWEEN UNBOUNDED PRECEDING AND UNBOUNDED FOLLOWING","RANGE BETWEEN UNBOUNDED PRECEDING AND CURRENT ROW","ROWS BETWEEN CURRENT ROW AND UNBOUNDED FOLLOWING","RANGE BETWEEN 1 PRECEDING AND 1 FOLLOWING"]}
   correctAnswer={2}
-  explanation="ORDER BY만 있고 프레임을 명시하지 않으면 DBMS는 RANGE BETWEEN UNBOUNDED PRECEDING AND CURRENT ROW를 기본값으로 적용한다. 이는 파티션의 맨 처음부터 현재 행까지를 계산 범위로 삼는다는 뜻이며, 그 결과 집계 함수는 누적 계산처럼 동작한다."
-  optionExplanations={['이것은 파티션 전체를 프레임으로 잡는 지정이며 기본값이 아니다', '정답 — 이 기본값 때문에 누적 합계 동작이 나타난다', '이는 현재 행부터 끝까지 보는 역방향 누적으로 기본값이 아니다', '이것은 이동 구간 지정이며 기본값이 아니다']}
+  explanation={"ORDER BY만 있고 프레임을 명시하지 않으면 DBMS는 RANGE BETWEEN UNBOUNDED PRECEDING AND CURRENT ROW를 기본값으로 적용한다. 이는 파티션의 맨 처음부터 현재 행까지를 계산 범위로 삼는다는 뜻이며, 그 결과 집계 함수는 누적 계산처럼 동작한다."}
 />
 
 <Quiz
   questionNumber={2}
-  question="다음 중 ROWS BETWEEN 1 PRECEDING AND 1 FOLLOWING의 의미로 옳은 것은?"
-  options={['현재 행부터 마지막 행까지 모두 합산한다', '정렬 기준 값이 현재 값과 1 이내인 모든 행을 합산한다', '현재 행을 기준으로 바로 앞 1개 행, 현재 행, 바로 뒤 1개 행의 물리적 범위를 합산한다', '파티션의 첫 행부터 현재 행까지 누적 합산한다']}
+  question={"다음 중 ROWS BETWEEN 1 PRECEDING AND 1 FOLLOWING의 의미로 옳은 것은?"}
+  options={["현재 행부터 마지막 행까지 모두 합산한다","정렬 기준 값이 현재 값과 1 이내인 모든 행을 합산한다","현재 행을 기준으로 바로 앞 1개 행, 현재 행, 바로 뒤 1개 행의 물리적 범위를 합산한다","파티션의 첫 행부터 현재 행까지 누적 합산한다"]}
   correctAnswer={3}
-  explanation="ROWS는 물리적 행 개수로 범위를 정한다. 1 PRECEDING과 1 FOLLOWING이 지정되었으므로 앞 1행, 현재 행, 뒤 1행 최대 3개 행을 더하는 이동 합계가 된다."
-  optionExplanations={['이는 CURRENT ROW부터 UNBOUNDED FOLLOWING까지의 의미다', '이는 ROWS가 아니라 RANGE의 동작 방식이다', '정답 — 물리적으로 앞뒤 1행씩을 포함하는 이동 구간이다', '이는 UNBOUNDED PRECEDING AND CURRENT ROW의 의미다']}
+  explanation={"ROWS는 물리적 행 개수로 범위를 정한다. 1 PRECEDING과 1 FOLLOWING이 지정되었으므로 앞 1행, 현재 행, 뒤 1행 최대 3개 행을 더하는 이동 합계가 된다."}
 />
 
 <Quiz
   questionNumber={3}
-  question="ROWS와 RANGE의 근본적인 차이는?"
-  options={['ROWS는 물리적 행 개수로, RANGE는 정렬 기준 컬럼의 값 범위로 프레임을 정한다', 'ROWS는 PARTITION BY와 함께 쓸 수 없고 RANGE만 가능하다', 'ROWS는 오름차순에서만, RANGE는 내림차순에서만 사용할 수 있다', '둘은 문법만 다를 뿐 항상 동일한 결과를 낸다']}
+  question={"ROWS와 RANGE의 근본적인 차이는?"}
+  options={["ROWS는 물리적 행 개수로, RANGE는 정렬 기준 컬럼의 값 범위로 프레임을 정한다","ROWS는 PARTITION BY와 함께 쓸 수 없고 RANGE만 가능하다","ROWS는 오름차순에서만, RANGE는 내림차순에서만 사용할 수 있다","둘은 문법만 다를 뿐 항상 동일한 결과를 낸다"]}
   correctAnswer={1}
-  explanation="ROWS는 정렬 순서상 몇 번째 행인지(물리적 개수)로 범위를 정하고, RANGE는 정렬 기준 값이 현재 값과 얼마나 차이 나는지(값 범위)로 범위를 정한다. 정렬 기준에 동점 값이 여러 개 있으면 두 결과가 달라질 수 있다."
-  optionExplanations={['정답 — 물리적 개수 기준과 값 범위 기준의 차이다', '둘 다 PARTITION BY와 함께 쓸 수 있다', '정렬 방향과 무관하게 둘 다 사용 가능하다', '동점 값이 있으면 두 방식의 결과가 달라질 수 있다']}
-/>
-
-<Quiz
-  questionNumber={4}
-  question="LAG(급여) OVER (ORDER BY 급여)를 실행했을 때 첫 번째(가장 급여가 낮은) 행의 결과값은?"
-  options={['0', 'NULL', '자기 자신의 급여값', '가장 큰 급여값']}
-  correctAnswer={2}
-  explanation="LAG는 정렬 순서상 이전 행의 값을 가져온다. 정렬상 가장 앞선 첫 행은 참조할 이전 행이 없으므로 기본값을 지정하지 않았다면 NULL이 반환된다."
-  optionExplanations={['LAG는 참조할 행이 없을 때 기본적으로 0이 아니라 NULL을 반환한다', '정답 — 이전 행이 존재하지 않기 때문이다', 'LAG는 현재 행이 아니라 이전 행의 값을 가져오는 함수다', '이는 LAST_VALUE류의 결과와 혼동한 것이다']}
-/>
-
-<Quiz
-  questionNumber={5}
-  question="LAST_VALUE(급여) OVER (ORDER BY 급여)를 프레임 없이 실행하면 각 행에서 어떤 값이 나오는가?"
-  options={['파티션 전체의 최댓값이 모든 행에 동일하게 나온다', '항상 NULL이 나온다', '각 행 자신의 급여값이 그대로 나온다', '파티션의 최솟값이 모든 행에 동일하게 나온다']}
-  correctAnswer={3}
-  explanation="프레임을 생략하면 기본값은 UNBOUNDED PRECEDING부터 CURRENT ROW까지다. LAST_VALUE는 이 프레임의 마지막 값을 찾는데, 프레임의 끝이 항상 현재 행이므로 결국 각 행 자신의 값이 반환된다."
-  optionExplanations={['이 결과를 얻으려면 프레임을 UNBOUNDED FOLLOWING까지 넓혀야 한다', 'LAST_VALUE는 NULL을 반환하는 함수가 아니다', '정답 — 기본 프레임의 끝이 CURRENT ROW로 고정되어 있기 때문이다', '이는 FIRST_VALUE의 결과와 혼동한 것이다']}
-/>
-
-<Quiz
-  questionNumber={6}
-  question="LAST_VALUE로 파티션 전체의 진짜 마지막 값을 얻으려면 어떻게 해야 하는가?"
-  options={['PARTITION BY를 제거한다', 'ORDER BY를 제거한다', '프레임을 ROWS BETWEEN UNBOUNDED PRECEDING AND UNBOUNDED FOLLOWING으로 명시하거나 MAX() OVER를 대신 사용한다', 'LAST_VALUE 대신 ROW_NUMBER를 사용한다']}
-  correctAnswer={3}
-  explanation="기본 프레임의 끝이 CURRENT ROW로 고정된 것이 문제의 원인이므로, 프레임을 파티션 전체(UNBOUNDED FOLLOWING까지)로 넓혀 명시하거나, 처음부터 프레임 문제가 없는 MAX() OVER를 쓰는 것이 안전한 해결책이다."
-  optionExplanations={['PARTITION BY 제거는 문제의 원인과 무관하다', 'ORDER BY를 제거하면 정렬 기준 자체가 사라져 다른 문제가 생긴다', '정답 — 프레임 확장 또는 MAX() OVER 대체가 올바른 해결책이다', 'ROW_NUMBER는 값 조회가 아니라 순번을 매기는 함수라 무관하다']}
-/>
-
-<Quiz
-  questionNumber={7}
-  question="SUM(급여) OVER (PARTITION BY 부서)를 ORDER BY 없이 사용했을 때의 동작은?"
-  options={['각 행마다 다른 누적 합계가 계산된다', '같은 부서에 속한 모든 행이 그 부서 전체 합계라는 동일한 값을 갖는다', 'ORDER BY가 없으므로 문법 오류가 발생한다', '전체 테이블의 총합계가 모든 행에 나온다']}
-  correctAnswer={2}
-  explanation="ORDER BY가 없으면 프레임이라는 개념 자체가 의미를 갖지 않아 파티션 전체가 계산 범위가 된다. 따라서 같은 부서에 속한 행은 모두 그 부서의 총합계라는 동일한 값을 공유한다."
-  optionExplanations={['누적 합계는 ORDER BY가 있을 때 프레임 기본값에 의해 나타나는 동작이다', '정답 — PARTITION BY만 있으면 파티션 전체가 계산 범위가 된다', 'ORDER BY 생략은 문법 오류가 아니다', 'PARTITION BY가 있으므로 부서별로 나뉘어 계산된다']}
-/>
-
-<Quiz
-  questionNumber={8}
-  question="LAG와 LEAD의 차이를 올바르게 설명한 것은?"
-  options={['LAG는 다음 행, LEAD는 이전 행의 값을 가져온다', 'LAG는 이전 행, LEAD는 다음 행의 값을 가져온다', '둘 다 현재 행의 값을 가져오며 이름만 다르다', 'LAG는 파티션 전체 평균, LEAD는 파티션 전체 합계를 계산한다']}
-  correctAnswer={2}
-  explanation="LAG는 정렬 순서상 이전(앞) 행의 값을, LEAD는 다음(뒤) 행의 값을 가져온다. 정렬 방향을 바꾸면 이전과 다음의 실제 의미도 함께 뒤집히므로 ORDER BY 방향을 항상 함께 확인해야 한다."
-  optionExplanations={['설명이 정반대로 뒤바뀌었다', '정답 — LAG는 이전 행, LEAD는 다음 행을 참조한다', '둘 다 값을 그대로 가져오는 함수이지 현재 행 값을 반환하지 않는다', 'LAG와 LEAD는 집계 함수가 아니라 특정 행의 값을 참조하는 함수다']}
+  explanation={"ROWS는 정렬 순서상 몇 번째 행인지(물리적 개수)로 범위를 정하고, RANGE는 정렬 기준 값이 현재 값과 얼마나 차이 나는지(값 범위)로 범위를 정한다. 정렬 기준에 동점 값이 여러 개 있으면 두 결과가 달라질 수 있다."}
 />
 
 ## 참고 자료

@@ -3,19 +3,13 @@ title: '18. 집합 연산자: UNION, UNION ALL, INTERSECT, MINUS'
 description: '두 SELECT 결과를 합치고, 교집합만 남기고, 차집합을 구하는 집합 연산자 4종의 사용 조건과 정렬·중복 제거 차이를 표로 정리한다.'
 ---
 
-<Callout type="info">
-  **이번 문서의 목표:** 이 파일을 다 읽으면 UNION, UNION ALL, INTERSECT, MINUS(EXCEPT)의 결과 건수와 정렬 여부를 데이터로 직접 계산하고, 두 SELECT를 언제 결합할 수 있는지 판단할 수 있다.
-</Callout>
-
 ## 집합 연산자가 왜 필요한가
 
-16편·17편에서는 하나의 조인이나 서브쿼리로 여러 테이블의 정보를 옆으로 이어 붙였다. 그런데 때로는 이어 붙이는 것이 아니라, **서로 다른 두 SELECT 문의 결과를 위아래로 합치거나, 겹치는 부분만 남기거나, 한쪽에만 있는 것만 골라내야** 할 때가 있다. 예를 들어 "개발부 소속 사원 명단"과 "급여 4000 이상인 사원 명단"을 각각 조회한 뒤, 이 둘을 합집합·교집합·차집합처럼 다루고 싶은 상황이다.
+16편·17편에서는 하나의 조인이나 서브쿼리로 여러 테이블의 정보를 옆으로 이어 붙였다. 예를 들어 "개발부 소속 사원 명단"과 "급여 4000 이상인 사원 명단"을 각각 조회한 뒤, 이 둘을 합집합·교집합·차집합처럼 다루고 싶은 상황이다.
 
 이렇게 **두 개(또는 그 이상)의 SELECT 문 결과를 집합(set)처럼 다뤄 합치거나 비교하는 연산자**가 집합 연산자다. 수학 시간에 배운 합집합, 교집합, 차집합 개념을 SQL 문법으로 그대로 옮긴 것이라고 생각하면 된다.
 
-> **쉽게 말하면:** 집합 연산자는 두 조회 결과를 "합쳐라", "겹치는 것만 남겨라", "빼라"라고 시키는 명령이다.
-
-## 실습용 데이터 — 16, 17편의 EMP 테이블을 그대로 쓴다
+## 예시 데이터 — 16, 17편의 EMP 테이블을 그대로 쓴다
 
 17편에서 SALARY(급여)를 추가한 EMP 테이블을 그대로 사용한다.
 
@@ -152,63 +146,12 @@ SELECT NAME FROM EMP WHERE DEPT_ID = 20;
 
 이 표에서 가장 중요하게 봐야 할 두 축은 "중복을 제거하는가"와 "순서가 결과에 영향을 주는가"다. UNION ALL만 유일하게 중복을 제거하지 않아 처리 비용이 낮고, MINUS(EXCEPT)만 유일하게 두 SELECT의 순서를 바꾸면 결과가 달라진다.
 
-## 직접 해보기
-
-<Callout type="info">
-  00편에서 만든 실습 환경(Docker + Oracle + DBeaver)에서 진행합니다. 아직 안 만들었다면 00편을 먼저 보세요. 이 편 예제는 seed.sql의 EMP 테이블을 그대로 씁니다.
-</Callout>
-
-UNION과 UNION ALL이 실제로 몇 행을 돌려주는지 COUNT(*)로 직접 세어본다.
-
-```sql
-SELECT COUNT(*) FROM (
-  SELECT NAME FROM EMP WHERE DEPT_ID = 20
-  UNION
-  SELECT NAME FROM EMP WHERE SALARY >= 4000
-);
-
-SELECT COUNT(*) FROM (
-  SELECT NAME FROM EMP WHERE DEPT_ID = 20
-  UNION ALL
-  SELECT NAME FROM EMP WHERE SALARY >= 4000
-);
-```
-
-**무엇을 보아야 하나**: 두 COUNT(*) 값이 서로 다르게 나오는지, 그 차이가 정확히 중복된 행(이서연) 개수만큼인지 확인한다.
-
-> **왜 이걸 해보나:** UNION과 UNION ALL의 결과 건수를 암산으로 헷갈리는 것이 이 편 기출의 단골 함정이다. 직접 세어보면 계산 공식이 몸에 남는다.
-
-## 직접 해보기 2
-
-MINUS는 순서를 바꾸면 결과가 달라진다. 두 방향을 나란히 실행해 비교한다.
-
-```sql
-SELECT NAME FROM EMP WHERE DEPT_ID = 20
-MINUS
-SELECT NAME FROM EMP WHERE SALARY >= 4000;
-
-SELECT NAME FROM EMP WHERE SALARY >= 4000
-MINUS
-SELECT NAME FROM EMP WHERE DEPT_ID = 20;
-```
-
-**무엇을 보아야 하나**: 두 결과가 서로 다른 이름을 돌려주는지 확인한다. 여유가 있다면 아래처럼 컬럼 개수를 일부러 다르게 맞춰 INTERSECT를 실행해 어떤 오류가 나는지도 확인해보자.
-
-```sql
-SELECT NAME, SALARY FROM EMP WHERE DEPT_ID = 20
-INTERSECT
-SELECT NAME FROM EMP WHERE SALARY >= 4000;
-```
-
-> **왜 이걸 해보나:** "A MINUS B와 B MINUS A는 같다"는 착각, 그리고 집합 연산자에 컬럼 개수가 다른 SELECT를 섞는 실수는 둘 다 이 편 기출의 반복 함정이다.
-
 ## 자주 틀리는 점
 
 - **UNION과 UNION ALL의 결과 건수를 헷갈리는 경우**가 가장 많다. 중복된 행이 몇 개인지 먼저 세어보고, UNION은 그 중복분을 제외한 건수, UNION ALL은 단순히 두 결과 행 수를 더한 건수라고 계산하면 정확하다.
 - **MINUS의 순서를 바꿔도 결과가 같다고 착각하는 실수**가 잦다. 차집합은 뺄셈과 같아서 `A - B`와 `B - A`는 일반적으로 다른 결과를 낸다. 이 편의 예시처럼 순서를 바꾼 두 결과를 나란히 비교해보는 연습이 효과적이다.
 - **컬럼 개수나 타입이 다른 두 SELECT를 집합 연산자로 결합하려는 실수**도 나온다. 집합 연산자를 쓰기 전에는 항상 양쪽 SELECT 절의 컬럼 개수와 타입부터 맞춰야 한다.
 - **MINUS와 EXCEPT를 서로 다른 연산으로 착각**하는 경우가 있다. 둘은 이름만 다를 뿐 동작이 완전히 같은 차집합 연산이며, 어떤 DBMS를 쓰느냐에 따라 이름만 달라진다.
-- **INTERSECT를 조인과 혼동**하는 경우도 있다. INTERSECT는 컬럼 구조가 같은 두 결과 집합 사이의 행 단위 비교이고, 조인은 서로 다른 구조의 두 테이블을 컬럼 값 기준으로 옆으로 결합하는 것이라는 차이를 구분해야 한다.
 
 ## 핵심 정리
 
@@ -222,56 +165,26 @@ SELECT NAME FROM EMP WHERE SALARY >= 4000;
 
 <Quiz
   questionNumber={1}
-  question="쿼리 A가 2행, 쿼리 B가 3행을 반환하고 두 결과에 공통된 행이 1개 있을 때, A UNION B의 결과는 몇 행인가?"
-  options={['3행', '4행', '5행', '6행']}
+  question={"쿼리 A가 2행, 쿼리 B가 3행을 반환하고 두 결과에 공통된 행이 1개 있을 때, A UNION B의 결과는 몇 행인가?"}
+  options={["3행","4행","5행","6행"]}
   correctAnswer={2}
-  explanation="UNION은 두 결과를 합친 뒤 중복을 제거한다. 2행과 3행을 더한 5행에서 공통된 1행이 두 번 세어졌으므로 한 번을 빼면 4행이 남는다."
-  optionExplanations={['공통 행을 두 번 뺀 값으로, 중복 제거를 과도하게 적용한 계산이다', '정답. 5행에서 중복 1행만큼을 빼면 4행이 된다', 'UNION ALL의 결과 건수인 5행과 혼동한 값이다', '중복을 고려하지 않고 임의로 더 큰 값을 계산한 것으로 근거가 없다']}
+  explanation={"UNION은 두 결과를 합친 뒤 중복을 제거한다. 2행과 3행을 더한 5행에서 공통된 1행이 두 번 세어졌으므로 한 번을 빼면 4행이 남는다."}
 />
 
 <Quiz
   questionNumber={2}
-  question="같은 쿼리 A(2행), 쿼리 B(3행), 공통 행 1개 조건에서 A UNION ALL B의 결과는 몇 행인가?"
-  options={['4행', '5행', '6행', '1행']}
+  question={"같은 쿼리 A(2행), 쿼리 B(3행), 공통 행 1개 조건에서 A UNION ALL B의 결과는 몇 행인가?"}
+  options={["4행","5행","6행","1행"]}
   correctAnswer={2}
-  explanation="UNION ALL은 중복을 제거하지 않고 두 결과를 그대로 이어 붙이므로, 2행과 3행을 단순히 더한 5행이 그대로 결과가 된다."
-  optionExplanations={['중복을 제거한 UNION의 결과 건수와 혼동한 값이다', '정답. 중복 제거 없이 2행과 3행을 그대로 더한 값이다', '실제로 존재하지 않는 값을 임의로 더한 계산이다', '두 결과의 교집합인 INTERSECT의 결과 건수와 혼동한 값이다']}
+  explanation={"UNION ALL은 중복을 제거하지 않고 두 결과를 그대로 이어 붙이므로, 2행과 3행을 단순히 더한 5행이 그대로 결과가 된다."}
 />
 
 <Quiz
   questionNumber={3}
-  question="개발부 사원 명단(이서연, 박도윤)과 급여 4000 이상 사원 명단(김민준, 이서연, 정하은)에 대해 개발부 명단 MINUS 급여 명단을 실행한 결과는?"
-  options={['이서연', '박도윤', '김민준, 정하은', '이서연, 박도윤, 김민준, 정하은']}
+  question={"개발부 사원 명단(이서연, 박도윤)과 급여 4000 이상 사원 명단(김민준, 이서연, 정하은)에 대해 개발부 명단 MINUS 급여 명단을 실행한 결과는?"}
+  options={["이서연","박도윤","김민준, 정하은","이서연, 박도윤, 김민준, 정하은"]}
   correctAnswer={2}
-  explanation="MINUS는 첫 번째 결과에서 두 번째 결과와 겹치는 행을 제외한다. 개발부 명단(이서연, 박도윤)에서 급여 명단에도 있는 이서연을 빼면 박도윤만 남는다."
-  optionExplanations={['이서연은 두 명단에 모두 있으므로 MINUS 결과에서는 제외되는 대상이다', '정답. 개발부 명단에만 있고 급여 명단에는 없는 사람은 박도윤뿐이다', '김민준과 정하은은 급여 명단에만 있는 사람으로, 순서를 반대로(급여 명단 MINUS 개발부 명단) 했을 때 나오는 결과다', 'MINUS는 중복 제거된 합집합이 아니라 차집합이므로 이 값은 UNION의 결과에 해당한다']}
-/>
-
-<Quiz
-  questionNumber={4}
-  question="MINUS 연산에서 SELECT A MINUS SELECT B의 순서를 SELECT B MINUS SELECT A로 바꾸면 결과는 어떻게 되는가?"
-  options={['항상 완전히 동일한 결과가 나온다', '일반적으로 다른 결과가 나올 수 있다', '결과가 항상 0건이 된다', '에러가 발생해 실행되지 않는다']}
-  correctAnswer={2}
-  explanation="MINUS는 뺄셈과 같은 방향성을 가진 연산이라 A에서 B를 빼는 것과 B에서 A를 빼는 것은 일반적으로 다른 집합이 나온다. UNION이나 INTERSECT와 달리 순서가 결과에 영향을 준다."
-  optionExplanations={['MINUS는 UNION·INTERSECT와 달리 순서에 따라 결과가 달라지는 연산이므로 항상 같다는 설명은 틀렸다', '정답. 차집합은 방향성이 있어 A-B와 B-A는 일반적으로 다르다', '두 집합이 완전히 같지 않은 이상 결과가 항상 0건이 되는 것은 아니다', '컬럼 구조만 맞다면 순서를 바꿔도 정상적으로 실행되며 에러가 나지 않는다']}
-/>
-
-<Quiz
-  questionNumber={5}
-  question="쿼리 A(SELECT NAME, SALARY FROM EMP)와 쿼리 B(SELECT NAME FROM EMP)를 UNION으로 결합하려고 할 때 일어나는 일은?"
-  options={['정상적으로 실행되며 컬럼이 자동으로 맞춰진다', '컬럼 개수가 달라 에러가 발생한다', 'NAME 컬럼만 비교해서 결과를 만든다', 'SALARY 컬럼은 자동으로 NULL 처리되어 실행된다']}
-  correctAnswer={2}
-  explanation="집합 연산자를 쓰려면 두 SELECT의 컬럼 개수가 반드시 같아야 한다. 쿼리 A는 2개(NAME, SALARY), 쿼리 B는 1개(NAME) 컬럼을 반환하므로 개수가 맞지 않아 에러가 발생한다."
-  optionExplanations={['컬럼 개수가 다르면 자동으로 맞춰주는 기능은 없으며 에러가 발생한다', '정답. 컬럼 개수가 일치하지 않으므로 집합 연산자를 사용할 수 없다는 에러가 발생한다', '컬럼 개수가 다른 상태에서 일부만 비교하도록 자동으로 조정해주지 않는다', '누락된 컬럼을 NULL로 자동 채워 실행을 허용하는 기능은 없다']}
-/>
-
-<Quiz
-  questionNumber={6}
-  question="Oracle에서 사용하는 MINUS 연산자를 표준 SQL(및 SQL Server, PostgreSQL 등)에서는 어떤 이름으로 부르는가?"
-  options={['DIFFERENCE', 'EXCEPT', 'SUBTRACT', 'NOT IN']}
-  correctAnswer={2}
-  explanation="MINUS는 Oracle에서 쓰는 이름이고, 표준 SQL과 대부분의 다른 DBMS는 같은 차집합 연산을 EXCEPT라는 이름으로 제공한다. 동작 방식은 완전히 동일하다."
-  optionExplanations={['DIFFERENCE는 SQL 표준에서 쓰이는 이름이 아니다', '정답. 표준 SQL에서는 같은 차집합 연산을 EXCEPT로 부른다', 'SUBTRACT는 SQL 집합 연산자 이름으로 쓰이지 않는다', 'NOT IN은 서브쿼리에서 쓰는 다중행 연산자이지 집합 연산자가 아니다']}
+  explanation={"MINUS는 첫 번째 결과에서 두 번째 결과와 겹치는 행을 제외한다. 개발부 명단(이서연, 박도윤)에서 급여 명단에도 있는 이서연을 빼면 박도윤만 남는다."}
 />
 
 ## 참고 자료

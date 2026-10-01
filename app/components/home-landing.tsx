@@ -9,6 +9,7 @@ import { ScrollTrigger } from 'gsap/ScrollTrigger'
 import {
   SiC,
   SiCss,
+  SiDaisyui,
   SiHtml5,
   SiJavascript,
   SiLinux,
@@ -16,6 +17,8 @@ import {
   SiNextra,
   SiNodedotjs,
   SiReact,
+  SiShadcnui,
+  SiTailwindcss,
   SiTypescript,
 } from 'react-icons/si'
 import {
@@ -103,6 +106,7 @@ function groupLogo(title: string): { Icon: typeof SiHtml5; color: string } {
   if (title.includes('CSS')) return { Icon: SiCss, color: '#1572b6' }
   if (title.includes('JavaScript')) return { Icon: SiJavascript, color: '#d4a900' }
   if (title.includes('TypeScript')) return { Icon: SiTypescript, color: '#3178c6' }
+  if (title.includes('UI Libraries')) return { Icon: SiTailwindcss, color: '#06b6d4' }
   if (title.includes('React')) return { Icon: SiReact, color: '#149eca' }
   if (title.includes('독학사')) return { Icon: TbSchool, color: '#0b5fb2' }
   if (title.includes('AWS')) return { Icon: TbCloud, color: '#ff9900' }
@@ -157,6 +161,11 @@ const seriesLogos: Record<string, { Icon: typeof SiHtml5; color: string }> = {
   재즈피아노_중급: { Icon: TbPiano, color: '#7c3aed' },
   재즈피아노_고급: { Icon: TbPiano, color: '#7c3aed' },
   amplify_caching: { Icon: TbCloud, color: '#ff9900' },
+  typescript_2: { Icon: SiTypescript, color: '#3178c6' },
+  typescript_3: { Icon: SiTypescript, color: '#3178c6' },
+  tailwind_css: { Icon: SiTailwindcss, color: '#06b6d4' },
+  shadcn_ui: { Icon: SiShadcnui, color: '#151515' },
+  daisy_ui: { Icon: SiDaisyui, color: '#1ad1a5' },
   typescript_fundamentals: { Icon: SiTypescript, color: '#3178c6' },
   nextjs: { Icon: SiNextdotjs, color: '#151515' },
   coding_test: { Icon: TbCode, color: '#d4a900' },
@@ -255,7 +264,7 @@ export function HomeLanding() {
               <span>ZENO AI DOCS</span>
             </div>
             <h1 id="home-title">학습 자료 정리<br />개인 문서입니다.</h1>
-            <p>깊고 자세하게 구성했습니다.</p>
+            <p>핵심 개념을 짧고 분명하게 정리했습니다.</p>
             <div className={styles.actions}>
               <Link className={styles.primaryAction} href="#series">학습 시리즈 보기 <ArrowRightIcon aria-hidden="true" width="16" /></Link>
               <Link className={styles.secondaryAction} href={firstDocHref}>첫 문서 읽기</Link>

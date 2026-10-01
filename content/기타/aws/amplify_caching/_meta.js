@@ -1,7 +1,7 @@
 const meta = {
   '01_amplify-hosting-architecture-and-caching-map': '01. Amplify Hosting 구조와 캐싱 지도',
   '02_why-cache-diverges-across-instances': '02. 캐시가 인스턴스마다 따로 노는 이유',
-  '03_project-setup-and-seed-data': '03. 프로젝트 생성과 공지사항 시드 데이터',
+  '03_project-setup-and-seed-data': '03. Next.js 정적 데이터와 데이터 모델',
   '04_connect-github-and-deploy': '04. GitHub 연결과 Amplify Hosting 첫 배포',
   '05_cdn-cache-control-headers': '05. CDN 캐시와 Cache-Control 헤더 다루기',
   '06_fetch-data-cache': '06. fetch 데이터 캐시(force-cache/no-store)',

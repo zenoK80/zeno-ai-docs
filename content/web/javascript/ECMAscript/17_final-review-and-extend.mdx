@@ -3,19 +3,6 @@ title: '17. 종합 점검과 확장하기'
 description: 'todo-cli 전체 구조와 핵심 파일 최종 코드를 정리하고, README 작성과 확장 아이디어로 마무리합니다.'
 ---
 
-<Callout type="info">
-  **이번 편의 결과물:** `todo --help`로 전체 명령을 확인하고 `node --test`가 모두 통과합니다. README에 사용법을 정리하고 확장 아이디어를 설계합니다. · **다루는 개념:** 전체 명령 통합 점검, README 작성, 확장 아이디어 설계
-</Callout>
-
-## 이 편에서 만드는 파일
-
-```
-todo-cli/
-├── src/
-│   └── index.js   (~ --help 추가)
-└── README.md      (+)
-```
-
 ## todo-cli 정본 전체 파일 목록
 
 01편부터 16편까지 만든 `todo-cli`의 최종 구조입니다.
@@ -58,7 +45,7 @@ todo-cli/
 | 03–04 | 메모리 배열 기반 `add`/`list`, 필터·정렬 |
 | 05 | `Todo`/`TodoStore` 클래스로 리팩터링 |
 | 06 | `models/`, `store/`(→ `models/TodoStore.js`), `cli/`로 모듈 분리 |
-| 07 | 이벤트 루프 개념(실습 파일 없음) |
+| 07 | 이벤트 루프 개념(예제 파일 없음) |
 | 08 | `storage/fileStore.js`, 비동기 저장·로드 |
 | 09 | `TodoStore`가 이터러블, `list --page` 제너레이터 |
 | 10 | 태그를 `Map`/`Set`으로 관리, `tags` 명령 |
@@ -352,13 +339,6 @@ main();
 
 Node.js 22 기반 명령행 할 일 관리 CLI입니다.
 
-## 설치와 실행
-
-\`\`\`
-npm install
-node src/index.js --help
-\`\`\`
-
 ## 명령
 
 | 명령 | 설명 |
@@ -379,63 +359,6 @@ node --test
 \`\`\`
 ```
 
-## 확인
-
-<Steps>
-
-### 1. 전체 명령 점검
-
-```text
-node src/index.js --help
-```
-
-### 2. 전체 테스트 실행
-
-```text
-node --test
-```
-
-### 3. README 확인
-
-`README.md`를 열어 명령 표와 실행 방법이 실제 동작과 일치하는지 하나씩 대조합니다.
-
-</Steps>
-
-- `--help` 출력에 9개 명령(`add`, `list`, `done`, `remove`, `tags`, `search`, `stats`, `export`, `import`)이 모두 보입니다.
-- `node --test` 결과가 `# fail 0`입니다.
-
-## 직접 해보기
-
-1. `todo edit <id> "새 제목"` 명령을 새로 설계해봅니다. `TodoStore`에 `findById`가 이미 있으므로 찾은 항목의 `title`만 바꾸고, `index.js`에 `else if` 분기와 `saveTodos` 호출을 추가하면 됩니다.
-2. `data/todos.json` 대신 사용자 홈 디렉터리(`os.homedir()`)에 데이터를 저장하도록 `src/storage/fileStore.js`의 `DATA_PATH` 계산 방식을 바꿔봅니다. 여러 폴더에서 `todo` 명령을 실행해도 같은 목록을 보게 됩니다.
-
-<details>
-<summary>정답 보기(1번)</summary>
-
-```js
-// src/commands/edit.js
-import { TodoNotFoundError, InvalidArgumentError } from '../errors.js';
-
-export function runEdit(store, positional) {
-  const [idText, ...titleParts] = positional;
-  const id = Number(idText);
-  const newTitle = titleParts.join(' ');
-  if (!newTitle) {
-    throw new InvalidArgumentError('새 제목이 필요합니다: todo edit <id> "새 제목"');
-  }
-  const todo = store.findById(id);
-  if (!todo) {
-    throw new TodoNotFoundError(id);
-  }
-  todo.title = newTitle;
-  console.log(`수정됨: #${todo.id} ${todo.title}`);
-}
-```
-
-`index.js`에는 `} else if (command === 'edit') { runEdit(store, positional); await saveTodos(...); }`처럼 기존 분기와 같은 모양으로 추가합니다.
-
-</details>
-
 ## 자주 하는 실수
 
 | 증상 | 원인 | 고치는 법 |
@@ -448,38 +371,26 @@ export function runEdit(store, positional) {
 
 <Quiz
   questionNumber={1}
-  question="index.js에서 명령마다 처리 후 saveTodos를 호출하는 기준은?"
-  options={['모든 명령 뒤에 항상 호출한다', 'list·search·stats처럼 조회만 하는 명령을 뺀, 목록을 바꾸는 명령 뒤에만 호출한다', '프로그램 시작 시 한 번만 호출한다', '사용자가 --save를 붙였을 때만 호출한다']}
+  question={"index.js에서 명령마다 처리 후 saveTodos를 호출하는 기준은?"}
+  options={["모든 명령 뒤에 항상 호출한다","list·search·stats처럼 조회만 하는 명령을 뺀, 목록을 바꾸는 명령 뒤에만 호출한다","프로그램 시작 시 한 번만 호출한다","사용자가 --save를 붙였을 때만 호출한다"]}
   correctAnswer={2}
-  explanation="add·done·remove·import처럼 목록 내용을 바꾸는 명령만 처리 후 saveTodos를 호출해 파일에 반영합니다. list·search·stats·export는 목록을 바꾸지 않으므로 저장이 필요 없습니다."
-  optionExplanations={['조회 전용 명령까지 저장할 필요는 없습니다', '정답입니다', '명령마다 최신 상태를 저장해야 합니다', '그런 플래그는 없습니다']}
+  explanation={"add·done·remove·import처럼 목록 내용을 바꾸는 명령만 처리 후 saveTodos를 호출해 파일에 반영합니다. list·search·stats·export는 목록을 바꾸지 않으므로 저장이 필요 없습니다."}
 />
 
 <Quiz
   questionNumber={2}
-  question="TodoStore가 Symbol.iterator를 구현해서 얻는 이점은?"
-  options={['속도가 빨라진다', 'for...of와 스프레드([...store])로 순회할 수 있다', '자동으로 정렬된다', 'JSON으로 자동 변환된다']}
+  question={"TodoStore가 Symbol.iterator를 구현해서 얻는 이점은?"}
+  options={["속도가 빨라진다","for...of와 스프레드([...store])로 순회할 수 있다","자동으로 정렬된다","JSON으로 자동 변환된다"]}
   correctAnswer={2}
-  explanation="Symbol.iterator를 구현하면 TodoStore 인스턴스를 for...of 반복문이나 스프레드 문법으로 순회할 수 있는 이터러블이 됩니다."
-  optionExplanations={['속도 목적이 아닙니다', '정답입니다', '정렬은 list가 담당합니다', 'toJSON이 담당합니다']}
+  explanation={"Symbol.iterator를 구현하면 TodoStore 인스턴스를 for...of 반복문이나 스프레드 문법으로 순회할 수 있는 이터러블이 됩니다."}
 />
 
 <Quiz
   questionNumber={3}
-  question="README.md를 프로젝트에 두는 목적으로 가장 알맞은 것은?"
-  options={['테스트 실행 속도를 높이기 위해서다', '설치·실행·명령 사용법을 문서로 남겨 다른 사람(미래의 나 포함)이 참고하게 하기 위해서다', 'node --test가 README를 읽어서 실행하기 때문이다', 'package.json을 대체하기 위해서다']}
+  question={"README.md를 프로젝트에 두는 목적으로 가장 알맞은 것은?"}
+  options={["테스트 실행 속도를 높이기 위해서다","프로젝트의 목적·사용 조건·명령을 문서로 남기기 위해서다","node --test가 README를 읽어서 실행하기 때문이다","package.json을 대체하기 위해서다"]}
   correctAnswer={2}
-  explanation="README는 프로젝트를 처음 접하는 사람이 설치와 실행 방법, 명령 목록을 빠르게 파악하도록 돕는 문서입니다."
-  optionExplanations={['테스트 속도와 무관합니다', '정답입니다', 'node --test는 README를 읽지 않습니다', 'package.json을 대체하지 않습니다']}
-/>
-
-<Quiz
-  questionNumber={4}
-  question="새 명령(예: edit)을 추가할 때 함께 고려해야 할 것으로 옳지 않은 것은?"
-  options={['src/index.js의 if/else if 체인에 라우팅 추가', '목록을 바꾼다면 해당 분기에 saveTodos 호출 추가', '--help 출력과 README 갱신', 'node:test 러너를 새로 설치']}
-  correctAnswer={4}
-  explanation="node:test는 Node.js 내장 러너이므로 새 명령을 추가한다고 별도로 설치할 필요가 없습니다. 라우팅, 저장 호출, 문서 갱신만 신경 쓰면 됩니다."
-  optionExplanations={['실제로 필요한 작업입니다', '실제로 필요한 작업입니다', '실제로 필요한 작업입니다', '정답입니다(불필요한 작업)']}
+  explanation={"README는 프로젝트를 처음 접한 사람이 목적, 요구 조건, 주요 명령과 구조를 빠르게 파악하도록 돕습니다."}
 />
 
 ## 참고 자료

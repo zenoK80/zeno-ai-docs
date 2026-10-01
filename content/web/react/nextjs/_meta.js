@@ -1,7 +1,7 @@
 const meta = {
   '01_from-spa-to-app-router': '01. SPA에서 App Router로 — Next.js가 다르게 푸는 문제',
   '02_server-and-client-components': '02. 서버 컴포넌트와 클라이언트 컴포넌트 경계 짓기',
-  '03_project-setup-and-file-routing': '03. 프로젝트 생성과 파일 기반 라우팅',
+  '03_project-setup-and-file-routing': '03. App Router와 파일 기반 라우팅',
   '04_layouts-and-navigation': '04. 루트 레이아웃과 중첩 레이아웃, 내비게이션',
   '05_dynamic-routes-and-book-detail': '05. 동적 라우트로 만드는 책 상세 페이지',
   '06_loading-error-and-streaming-ui': '06. 로딩·에러 화면과 스트리밍',

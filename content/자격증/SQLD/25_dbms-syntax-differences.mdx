@@ -3,15 +3,9 @@ title: '25. DBMS별 문법 차이: Oracle vs MySQL vs 표준 SQL'
 description: 'Oracle과 MySQL의 행 제한, 날짜 변환, NULL 처리, 문자열 연결, DUAL과 AUTO_INCREMENT 문법 차이를 표로 정리해 실무 전환에 대비한다.'
 ---
 
-<Callout type="info">
-  **이번 문서의 목표:** 이 파일을 다 읽으면 SQLD 시험 범위인 Oracle 문법을 기준으로, 실무에서 자주 마주치는 MySQL과의 대표적인 문법 차이를 표로 정확히 대응시킬 수 있다.
-</Callout>
-
 ## 왜 필요한가: SQLD는 Oracle 기준, 그러나 현업은 그렇지 않다
 
-01편에서 언급했듯 SQLD는 공식적으로 특정 벤더에 종속되지 않는다고 표방하지만, 실제 출제 기준과 대부분의 학습 자료는 Oracle SQL을 표준으로 삼는다. 여기까지 배운 ROWNUM(22편), DECODE(23편), 계층형 질의(22편) 등이 모두 Oracle 고유 기능이다. 그런데 막상 실무에 나가면 MySQL, PostgreSQL 등 다른 DBMS(Database Management System, 데이터베이스 관리 시스템)를 쓰는 회사도 많다. Oracle에서 배운 지식을 그대로 다른 DBMS에 옮기면 문법 오류가 나거나 아예 존재하지 않는 기능을 찾아 헤매게 된다. 이 편은 공식 출제범위에는 없지만, 학습방향에서 밝혔듯 실무 전환 시 바로 부딪히는 문제이므로 보너스로 다룬다.
-
-> **쉽게 말하면:** Oracle과 MySQL은 같은 SQL이라는 언어를 쓰지만 사투리가 다른 두 지역이라, 같은 뜻을 표현하는 단어(문법)가 서로 다르다.
+01편에서 언급했듯 SQLD는 공식적으로 특정 벤더에 종속되지 않는다고 표방하지만, 실제 출제 기준과 대부분의 학습 자료는 Oracle SQL을 표준으로 삼는다. 여기까지 배운 ROWNUM(22편), DECODE(23편), 계층형 질의(22편) 등이 모두 Oracle 고유 기능이다.
 
 ## 행 제한: ROWNUM vs LIMIT
 
@@ -43,7 +37,7 @@ MySQL에는 `TO_DATE`가 없고, 같은 역할을 `STR_TO_DATE` 함수가 담당
 SELECT * FROM 결제내역 WHERE 결제일시 >= STR_TO_DATE('20251201', '%Y%m%d');
 ```
 
-반대로 날짜를 문자열로 바꾸는 함수도 이름이 다르다. Oracle의 `TO_CHAR(날짜, 'YYYY-MM-DD')`에 대응하는 MySQL 함수는 `DATE_FORMAT(날짜, '%Y-%m-%d')`다. 형식 코드 체계 자체가 다르므로, Oracle 형식 문자열을 MySQL에 그대로 옮기면 오류가 난다는 점에 특히 주의해야 한다.
+반대로 날짜를 문자열로 바꾸는 함수도 이름이 다르다. Oracle의 `TO_CHAR(날짜, 'YYYY-MM-DD')`에 대응하는 MySQL 함수는 `DATE_FORMAT(날짜, '%Y-%m-%d')`다.
 
 ## NULL 처리 함수: NVL vs IFNULL
 
@@ -57,7 +51,7 @@ SELECT NVL(보너스, 0) FROM 사원;
 SELECT IFNULL(보너스, 0) FROM 사원;
 ```
 
-두 함수 모두 "첫 번째 인자가 NULL이면 두 번째 인자로 대체하라"는 동일한 의미이며 인자 순서와 개수도 같다. 다만 이름만 다르므로 헷갈리기 쉽다. 참고로 Oracle에는 여러 인자를 순서대로 검사해 NULL이 아닌 첫 값을 반환하는 `COALESCE`도 있는데, 이 함수는 표준 SQL 함수라 MySQL에서도 이름 그대로 동일하게 쓸 수 있다.
+두 함수 모두 "첫 번째 인자가 NULL이면 두 번째 인자로 대체하라"는 동일한 의미이며 인자 순서와 개수도 같다. 참고로 Oracle에는 여러 인자를 순서대로 검사해 NULL이 아닌 첫 값을 반환하는 `COALESCE`도 있는데, 이 함수는 표준 SQL 함수라 MySQL에서도 이름 그대로 동일하게 쓸 수 있다.
 
 ## 문자열 연결: `||` vs CONCAT
 
@@ -79,7 +73,7 @@ SELECT CONCAT(성, 이름) AS 전체이름 FROM 사원;
 
 ## 더미 테이블: DUAL
 
-**DUAL**은 실제 데이터를 저장하는 목적이 아니라, "테이블 없이 값 하나만 계산하고 싶을 때" 형식상 필요한 `FROM` 절을 채워주는 더미(dummy, 가짜) 테이블이다. `SELECT 1+1;`처럼 `FROM` 없이 계산만 하고 싶어도 SQL 문법상 `FROM`이 필요한 경우가 많은데, 이때 `SELECT 1+1 FROM DUAL;`처럼 쓴다. DUAL은 컬럼 하나(`DUMMY`)와 행 하나(`'X'`라는 값)만 가진 시스템 테이블이며, `SELECT COUNT(*) FROM DUAL;`을 실행하면 항상 1이 나온다.
+**DUAL**은 실제 데이터를 저장하는 목적이 아니라, "테이블 없이 값 하나만 계산하고 싶을 때" 형식상 필요한 `FROM` 절을 채워주는 더미(dummy, 가짜) 테이블이다. `SELECT 1+1;`처럼 `FROM` 없이 계산만 하고 싶어도 SQL 문법상 `FROM`이 필요한 경우가 많은데, 이때 `SELECT 1+1 FROM DUAL;`처럼 쓴다.
 
 Oracle에서는 `FROM` 절이 문법상 필수이므로 DUAL을 자주 쓴다. MySQL은 `FROM` 절 자체를 생략할 수 있어 `SELECT 1+1;`처럼 바로 실행이 가능하다(다만 MySQL도 호환을 위해 DUAL을 지원하므로 `SELECT 1+1 FROM DUAL;`도 그대로 실행된다).
 
@@ -124,41 +118,6 @@ INSERT INTO 사원 (이름) VALUES ('김민준');
 
 > **자주 틀리는 점:** 시험 자체는 Oracle 기준으로 출제되므로 `LIMIT`이나 `IFNULL`, `STR_TO_DATE`, `CONCAT`, `AUTO_INCREMENT`를 Oracle 문법 문제의 보기로 섞어 놓고 "이 중 Oracle에서 사용할 수 없는 것은?"처럼 묻는 함정이 나올 수 있다. 표의 왼쪽(Oracle) 칼럼이 시험에서 실제로 쓰이는 문법이고, 오른쪽(MySQL) 칼럼은 실무 참고용이라는 우선순위를 명확히 기억해야 한다.
 
-## 직접 해보기 1: Oracle 전용 문법이 실제로 동작하는지 확인
-
-<Callout type="info">
-  00편에서 만든 환경에서 진행합니다. 아직 안 만들었다면 00편을 먼저 보세요.
-</Callout>
-
-이 편의 대조표에 나온 Oracle 전용 문법 네 가지를 `DUAL`로 하나씩 직접 실행해 본다.
-
-```sql
-SELECT SYSDATE FROM DUAL;
-SELECT NVL(NULL, '기본값') FROM DUAL;
-SELECT DECODE(1, 1, '일치', '불일치') FROM DUAL;
-SELECT ROWNUM FROM DUAL;
-```
-
-**무엇을 보아야 하나**: 네 문장 모두 오류 없이 값 하나씩을 돌려주는지 확인한다. `DUAL`은 행이 딱 하나뿐인 테이블이라 `ROWNUM`도 항상 1만 나온다는 점도 함께 눈여겨본다.
-
-> **왜 이걸 해보나:** 위 표에서 본 것처럼 `SYSDATE`·`NVL`·`DECODE`·`ROWNUM`·`DUAL`은 MySQL과 SQLite에는 아예 존재하지 않는다. 다른 DBMS로 연습했다면 이 네 문장 중 어느 것도 실행해 볼 수 없었을 것이다. Oracle 환경에서만 이 실습이 가능하다는 사실이 곧 "다른 DBMS로 연습하면 안 되는" 이유다.
-
-## 직접 해보기 2: 표준 문법과 Oracle 전용 문법 비교
-
-같은 목적(상위 2명 조회)을 표준 문법과 Oracle 전용 문법으로 각각 실행해 결과를 맞춰 본다.
-
-```sql
--- 표준 SQL: FETCH FIRST
-SELECT * FROM 사원 ORDER BY 급여 DESC FETCH FIRST 2 ROWS ONLY;
-
--- Oracle 전용: ROWNUM (정렬 후 값에 적용하려면 인라인뷰로 감싸야 한다)
-SELECT * FROM (SELECT * FROM 사원 ORDER BY 급여 DESC) WHERE ROWNUM <= 2;
-```
-
-**무엇을 보아야 하나**: 두 쿼리가 같은 2행을 돌려주는지 확인한다. 그리고 `ROWNUM` 쪽만 인라인뷰(서브쿼리)로 한 번 감싸야 했다는 차이를 실제 코드 모양으로 비교해 본다.
-
-> **왜 이걸 해보나:** `WHERE ROWNUM <= 2`를 인라인뷰 없이 `ORDER BY`와 나란히 쓰면 정렬 전 순서에서 잘려나가 원하는 결과가 안 나온다는 것이 22·25편의 단골 함정이다. 두 방식을 나란히 실행해 보면 왜 `ROWNUM`에는 인라인뷰가 필요하고 `FETCH FIRST`에는 필요 없는지가 훨씬 분명해진다.
-
 ## 핵심 정리
 
 - 상위 N개 추출은 Oracle이 ROWNUM(인라인뷰 필요) 또는 FETCH FIRST를, MySQL이 더 단순한 LIMIT을 쓴다.
@@ -172,56 +131,26 @@ SELECT * FROM (SELECT * FROM 사원 ORDER BY 급여 DESC) WHERE ROWNUM <= 2;
 
 <Quiz
   questionNumber={1}
-  question="Oracle에서 정렬 후 상위 5개 행만 안전하게 가져오려 할 때 흔히 사용하는 방법으로 옳지 않은 것은?"
-  options={['정렬을 먼저 끝낸 서브쿼리를 인라인뷰로 감싸고 바깥에서 ROWNUM <= 5 조건을 건다', 'ORDER BY 뒤에 FETCH FIRST 5 ROWS ONLY를 붙인다', 'ORDER BY와 같은 SELECT 레벨에 WHERE ROWNUM <= 5를 나란히 쓴다', 'OFFSET 0 ROWS FETCH FIRST 5 ROWS ONLY를 ORDER BY 뒤에 붙인다']}
+  question={"Oracle에서 정렬 후 상위 5개 행만 안전하게 가져오려 할 때 흔히 사용하는 방법으로 옳지 않은 것은?"}
+  options={["정렬을 먼저 끝낸 서브쿼리를 인라인뷰로 감싸고 바깥에서 ROWNUM <= 5 조건을 건다","ORDER BY 뒤에 FETCH FIRST 5 ROWS ONLY를 붙인다","ORDER BY와 같은 SELECT 레벨에 WHERE ROWNUM <= 5를 나란히 쓴다","OFFSET 0 ROWS FETCH FIRST 5 ROWS ONLY를 ORDER BY 뒤에 붙인다"]}
   correctAnswer={3}
-  explanation="ROWNUM은 WHERE 절이 ORDER BY보다 먼저 처리되는 논리적 실행 순서 때문에, 같은 SELECT 레벨에서 ORDER BY와 나란히 쓰면 정렬 전 임의 순서에서 행이 잘려나가 원하는 상위 5개를 보장하지 못한다."
-  optionExplanations={['정렬을 먼저 끝낸 뒤 ROWNUM을 적용하는 인라인뷰 방식은 22편에서 다룬 안전한 표준 방법이다', 'FETCH FIRST는 ORDER BY 다음 단계로 정의되어 있어 정렬 후 상위 n개를 안전하게 가져온다', '정답. WHERE는 ORDER BY보다 먼저 처리되므로 이 조합은 정렬 전 순서에서 행을 잘라내 원하는 결과를 보장하지 못한다', 'OFFSET 0은 아무것도 건너뛰지 않는다는 뜻이므로 FETCH FIRST 5 ROWS ONLY와 동일하게 안전하게 동작한다']}
+  explanation={"ROWNUM은 WHERE 절이 ORDER BY보다 먼저 처리되는 논리적 실행 순서 때문에, 같은 SELECT 레벨에서 ORDER BY와 나란히 쓰면 정렬 전 임의 순서에서 행이 잘려나가 원하는 상위 5개를 보장하지 못한다."}
 />
 
 <Quiz
   questionNumber={2}
-  question="MySQL에서 급여가 높은 순으로 정렬해 3번째부터 5번째까지(3건)의 행을 가져오려 할 때 올바른 절은?"
-  options={['ORDER BY 급여 DESC LIMIT 2, 3', 'ORDER BY 급여 DESC LIMIT 3, 2', 'WHERE ROWNUM BETWEEN 3 AND 5', 'FETCH FIRST 3 ROWS ONLY']}
+  question={"MySQL에서 급여가 높은 순으로 정렬해 3번째부터 5번째까지(3건)의 행을 가져오려 할 때 올바른 절은?"}
+  options={["ORDER BY 급여 DESC LIMIT 2, 3","ORDER BY 급여 DESC LIMIT 3, 2","WHERE ROWNUM BETWEEN 3 AND 5","FETCH FIRST 3 ROWS ONLY"]}
   correctAnswer={1}
-  explanation="MySQL의 LIMIT offset, count 문법은 앞의 offset개를 건너뛰고 그다음 count개를 가져온다. 3번째부터 5번째까지 3건을 가져오려면 앞의 2건(1, 2번째)을 건너뛰어야 하므로 LIMIT 2, 3이 올바르다."
-  optionExplanations={['정답. 앞의 2건을 건너뛰고(offset 2) 그다음 3건(count 3)을 가져와 3~5번째 행이 된다', 'LIMIT 3, 2는 앞의 3건을 건너뛰고 2건만 가져오므로 4~5번째 행만 나와 요구한 3건이 아니다', 'ROWNUM은 Oracle 전용 의사 컬럼으로 MySQL에는 존재하지 않는다', 'FETCH FIRST는 표준 SQL 및 Oracle 12c 이상 문법이며 MySQL의 기본 관용구는 LIMIT이다']}
+  explanation={"MySQL의 LIMIT offset, count 문법은 앞의 offset개를 건너뛰고 그다음 count개를 가져온다. 3번째부터 5번째까지 3건을 가져오려면 앞의 2건(1, 2번째)을 건너뛰어야 하므로 LIMIT 2, 3이 올바르다."}
 />
 
 <Quiz
   questionNumber={3}
-  question="Oracle의 TO_DATE 함수와 같은 역할을 하는 MySQL 함수와 그 형식 기호의 특징으로 옳은 것은?"
-  options={['MySQL은 TO_DATE를 이름 그대로 지원하며 형식 기호도 YYYYMMDD로 동일하다', 'MySQL은 STR_TO_DATE를 사용하며 형식 기호로 %Y, %m, %d처럼 퍼센트 기호를 쓴다', 'MySQL은 날짜 변환 함수를 지원하지 않아 문자열을 그대로 비교해야 한다', 'MySQL은 DATE_FORMAT으로 문자열을 날짜로 변환한다']}
+  question={"Oracle의 TO_DATE 함수와 같은 역할을 하는 MySQL 함수와 그 형식 기호의 특징으로 옳은 것은?"}
+  options={["MySQL은 TO_DATE를 이름 그대로 지원하며 형식 기호도 YYYYMMDD로 동일하다","MySQL은 STR_TO_DATE를 사용하며 형식 기호로 %Y, %m, %d처럼 퍼센트 기호를 쓴다","MySQL은 날짜 변환 함수를 지원하지 않아 문자열을 그대로 비교해야 한다","MySQL은 DATE_FORMAT으로 문자열을 날짜로 변환한다"]}
   correctAnswer={2}
-  explanation="MySQL에서 문자열을 날짜로 변환하는 함수는 STR_TO_DATE이며, Oracle의 YYYY·MM·DD 형식과 달리 %Y, %m, %d처럼 퍼센트 기호가 붙은 형식 코드를 사용한다."
-  optionExplanations={['MySQL에는 TO_DATE 함수가 존재하지 않으며 형식 기호 체계도 다르다', '정답. STR_TO_DATE 함수와 퍼센트 기호 형식(%Y, %m, %d)이 MySQL의 방식이다', 'MySQL도 STR_TO_DATE라는 전용 날짜 변환 함수를 명확히 지원한다', 'DATE_FORMAT은 반대로 날짜를 문자열로 변환하는 함수이며, 문자열을 날짜로 바꾸는 함수는 STR_TO_DATE다']}
-/>
-
-<Quiz
-  questionNumber={4}
-  question="보너스 컬럼 값이 NULL인 행에 대해 0으로 대체해서 조회하려 할 때, Oracle과 MySQL에서 각각 사용하는 함수의 짝으로 옳은 것은?"
-  options={['Oracle: IFNULL / MySQL: NVL', 'Oracle: NVL / MySQL: IFNULL', 'Oracle: COALESCE 전용 / MySQL: NVL 전용', 'Oracle과 MySQL 모두 ISNULL을 사용한다']}
-  correctAnswer={2}
-  explanation="NULL을 다른 값으로 대체하는 함수는 Oracle에서 NVL, MySQL에서 IFNULL이라는 이름을 쓴다. 인자 순서(대상값, 대체값)와 의미는 동일하지만 이름만 다르다."
-  optionExplanations={['이름이 반대로 서술되어 있다. NVL은 Oracle, IFNULL은 MySQL의 함수다', '정답. Oracle은 NVL, MySQL은 IFNULL을 사용하며 동작 방식은 동일하다', 'COALESCE는 표준 SQL 함수로 Oracle과 MySQL 양쪽에서 모두 사용할 수 있어 어느 한쪽 전용이 아니다', 'ISNULL은 SQL Server 계열에서 주로 쓰이는 함수이며 Oracle과 MySQL의 표준 함수 이름이 아니다']}
-/>
-
-<Quiz
-  questionNumber={5}
-  question="성과 이름 컬럼을 이어붙여 전체이름을 만들 때, MySQL에서 문자열 연결 연산자로 ||를 그대로 사용하면 기본 설정에서 어떤 문제가 생기는가?"
-  options={['오라클과 동일하게 정상적으로 문자열이 연결된다', '||가 기본적으로 논리 OR 연산자로 해석되어 의도한 문자열 연결이 되지 않는다', '문법 오류로 쿼리 자체가 파싱되지 않는다', 'CONCAT 함수가 자동으로 대신 호출된다']}
-  correctAnswer={2}
-  explanation="MySQL은 기본 SQL 모드에서 ||를 문자열 연결이 아니라 논리 OR 연산자로 해석하므로, 문자열을 이어붙이려면 CONCAT 함수를 명시적으로 사용해야 한다."
-  optionExplanations={['MySQL 기본 설정에서는 Oracle과 다르게 동작하므로 정상적으로 문자열이 연결되지 않는다', '정답. 기본 설정에서 ||는 논리 OR로 해석되어 문자열 연결이라는 의도와 다르게 동작한다', 'SQL 문법 자체는 유효하게 파싱되지만 의미가 OR 연산으로 바뀌는 것이 문제다', 'MySQL은 || 사용을 CONCAT으로 자동 대체해주지 않으며, 사용자가 직접 CONCAT을 호출해야 한다']}
-/>
-
-<Quiz
-  questionNumber={6}
-  question="Oracle의 SEQUENCE와 MySQL의 AUTO_INCREMENT의 차이로 가장 적절한 것은?"
-  options={['SEQUENCE는 테이블에 종속된 컬럼 속성이고, AUTO_INCREMENT는 테이블과 독립된 객체다', 'SEQUENCE는 테이블과 독립된 객체로 여러 테이블이 공유할 수 있지만, AUTO_INCREMENT는 그 컬럼이 속한 테이블에 종속된다', '두 방식 모두 값을 미리 조회(NEXTVAL 등)할 수 없고 INSERT 시점에만 값이 정해진다', 'AUTO_INCREMENT는 여러 테이블이 하나의 값을 공유하도록 설계된 기능이다']}
-  correctAnswer={2}
-  explanation="Oracle의 SEQUENCE는 테이블과 무관하게 독립적으로 생성·관리되는 객체라 여러 테이블이 하나의 시퀀스를 공유할 수 있는 반면, MySQL의 AUTO_INCREMENT는 특정 테이블의 특정 컬럼에 지정하는 속성이라 그 테이블에 종속된다."
-  optionExplanations={['설명이 반대로 되어 있다. 독립 객체는 SEQUENCE이고, 컬럼에 종속되는 쪽은 AUTO_INCREMENT다', '정답. SEQUENCE는 독립 객체로 공유 가능하고 AUTO_INCREMENT는 컬럼에 종속된다', 'Oracle의 SEQUENCE는 NEXTVAL을 미리 호출해 값을 얻어올 수 있으므로 이 설명은 틀렸다', 'AUTO_INCREMENT는 그 컬럼이 속한 하나의 테이블에만 종속되며 다른 테이블과 값을 공유하도록 설계되지 않았다']}
+  explanation={"MySQL에서 문자열을 날짜로 변환하는 함수는 STR_TO_DATE이며, Oracle의 YYYY·MM·DD 형식과 달리 %Y, %m, %d처럼 퍼센트 기호가 붙은 형식 코드를 사용한다."}
 />
 
 ## 참고 자료

@@ -3,19 +3,11 @@ title: '01. SPA에서 App Router로 — Next.js가 다르게 푸는 문제'
 description: 'react_3 bookshelf의 SPA 렌더링 한계와 Next.js App Router의 파일 기반 라우팅·파일 컨벤션을 정리하고 bookshelf-next의 청사진을 확정합니다'
 ---
 
-<Callout type="info">
-  **이번 편의 결과물:** 코드는 바꾸지 않습니다. `bookshelf-next`가 따를 렌더링 모델과 최종 라우트 구성을 확정합니다. · **다루는 개념:** SPA 렌더링 모델의 한계, 파일 기반 라우팅, App Router 파일 컨벤션(`page`/`layout`/`loading`/`error`), `bookshelf-next` 청사진
-</Callout>
-
-## 이 편에서 만드는 파일
-
-개념 편입니다. 새로 만들거나 고치는 파일이 없습니다. 03편부터 실제로 `bookshelf-next` 프로젝트를 만들며 이 편에서 정리한 구조를 그대로 적용합니다.
-
 ## 개념 정리
 
 ### react_3 bookshelf가 브라우저에서 하는 일
 
-`react_3`에서 완성한 `bookshelf`는 SPA(Single Page Application)입니다. 브라우저가 처음 받는 HTML은 빈 `div` 하나뿐이고, 화면은 자바스크립트 번들이 실행된 뒤에야 그려집니다. 책 목록도 컴포넌트가 마운트된 다음 `useQuery`가 mock API를 호출해야 나타납니다.
+브라우저가 처음 받는 HTML은 빈 `div` 하나뿐이고, 화면은 자바스크립트 번들이 실행된 뒤에야 그려집니다. 책 목록도 컴포넌트가 마운트된 다음 `useQuery`가 mock API를 호출해야 나타납니다.
 
 이 방식에는 세 가지 한계가 있습니다.
 
@@ -55,7 +47,7 @@ Next.js는 이 세 가지를 서버에서 먼저 렌더링하는 방식으로 �
 
 ### bookshelf-next 청사진
 
-`react_1~3`의 `bookshelf` 코드를 그대로 옮기지 않고, 같은 도메인(책 관리)을 App Router 구조로 새로 짭니다. 이후 편에서 하나씩 채울 라우트는 다음과 같습니다.
+이후 편에서 하나씩 채울 라우트는 다음과 같습니다.
 
 ```
 app/
@@ -73,22 +65,7 @@ app/
 
 ### 왜 서버 컴포넌트가 기본값인가
 
-App Router의 모든 컴포넌트는 별다른 표시가 없으면 **서버 컴포넌트**입니다. 서버 컴포넌트는 서버에서 실행되고 결과만 HTML과 최소한의 데이터로 브라우저에 전달됩니다. 상태나 이벤트 핸들러처럼 브라우저에서만 의미 있는 기능이 필요한 부분만 예외적으로 클라이언트 컴포넌트로 선언합니다. 이 경계를 어디에 그을지가 02편의 주제입니다.
-
-## 직접 해보기
-
-<details>
-<summary>react_3의 BookListPage가 화면에 나타나기까지 어떤 순서로 일이 벌어지는지 단계별로 적어보세요.</summary>
-
-1. 브라우저가 빈 `div#root`만 담긴 HTML을 받는다.
-2. 자바스크립트 번들을 내려받고 실행한다.
-3. React가 `BookListPage` 컴포넌트를 마운트한다.
-4. `useQuery`가 mock API에 요청을 보낸다.
-5. 응답이 오면 그제서야 책 목록이 화면에 그려진다.
-
-이 다섯 단계가 끝나기 전까지 사용자는 로딩 화면만 봅니다. Next.js는 3~5단계를 서버에서 먼저 처리해, 완성된 HTML을 1단계에서 바로 보냅니다.
-
-</details>
+App Router의 모든 컴포넌트는 별다른 표시가 없으면 **서버 컴포넌트**입니다. 서버 컴포넌트는 서버에서 실행되고 결과만 HTML과 최소한의 데이터로 브라우저에 전달됩니다.
 
 ## 자주 하는 실수
 
@@ -102,38 +79,26 @@ App Router의 모든 컴포넌트는 별다른 표시가 없으면 **서버 컴�
 
 <Quiz
   questionNumber={1}
-  question="react_3의 bookshelf(SPA)에서 책 목록이 화면에 보이기까지 반드시 거치는 과정은"
-  options={['서버가 완성된 HTML을 미리 보낸다', '브라우저가 자바스크립트 번들을 내려받아 실행한 뒤 데이터를 요청한다', 'CSS만 로드하면 바로 보인다', '브라우저 캐시에서 즉시 복원된다']}
+  question={"Next.js App Router가 라우트를 정의하는 방식은"}
+  options={["react-router처럼 코드로 라우트 목록을 선언한다","app 폴더 안의 폴더 구조로 라우트를 정의한다","설정 파일 하나에 모든 경로를 나열한다","데이터베이스에서 경로 목록을 읽는다"]}
   correctAnswer={2}
-  explanation="SPA는 빈 HTML을 받은 뒤 자바스크립트가 실행되고 나서야 데이터 요청과 렌더링이 시작됩니다."
-  optionExplanations={['이것이 Next.js가 다르게 푸는 부분입니다', '정답입니다', 'CSS만으로는 데이터가 채워지지 않습니다', '캐시 복원이 기본 동작은 아닙니다']}
+  explanation={"App Router는 폴더 구조 자체가 URL 세그먼트에 대응하는 파일 기반 라우팅입니다."}
 />
 
 <Quiz
   questionNumber={2}
-  question="Next.js App Router가 라우트를 정의하는 방식은"
-  options={['react-router처럼 코드로 라우트 목록을 선언한다', 'app 폴더 안의 폴더 구조로 라우트를 정의한다', '설정 파일 하나에 모든 경로를 나열한다', '데이터베이스에서 경로 목록을 읽는다']}
+  question={"app/books 폴더에 page.js가 없다면 어떻게 되는가"}
+  options={["/books는 여전히 접근 가능하다","/books는 URL로 접근할 수 없다","자동으로 404 페이지가 생성된다","layout.js가 대신 페이지 역할을 한다"]}
   correctAnswer={2}
-  explanation="App Router는 폴더 구조 자체가 URL 세그먼트에 대응하는 파일 기반 라우팅입니다."
-  optionExplanations={['react-router의 방식과 다릅니다', '정답입니다', '별도 설정 파일이 필요 없습니다', '데이터베이스와 무관합니다']}
+  explanation={"page.js가 없는 세그먼트는 폴더가 있어도 공개 라우트가 되지 않습니다."}
 />
 
 <Quiz
   questionNumber={3}
-  question="app/books 폴더에 page.js가 없다면 어떻게 되는가"
-  options={['/books는 여전히 접근 가능하다', '/books는 URL로 접근할 수 없다', '자동으로 404 페이지가 생성된다', 'layout.js가 대신 페이지 역할을 한다']}
+  question={"App Router에서 컴포넌트의 기본값은 무엇인가"}
+  options={["클라이언트 컴포넌트","서버 컴포넌트","둘 다 아님","설정에 따라 랜덤으로 정해짐"]}
   correctAnswer={2}
-  explanation="page.js가 없는 세그먼트는 폴더가 있어도 공개 라우트가 되지 않습니다."
-  optionExplanations={['page.js 없이는 접근할 수 없습니다', '정답입니다', '404는 not-found.js가 있을 때의 동작입니다', 'layout.js는 페이지를 대신하지 않습니다']}
-/>
-
-<Quiz
-  questionNumber={4}
-  question="App Router에서 컴포넌트의 기본값은 무엇인가"
-  options={['클라이언트 컴포넌트', '서버 컴포넌트', '둘 다 아님', '설정에 따라 랜덤으로 정해짐']}
-  correctAnswer={2}
-  explanation="별다른 표시가 없으면 모든 컴포넌트는 서버 컴포넌트로 취급됩니다."
-  optionExplanations={['클라이언트가 기본값이 아닙니다', '정답입니다', '기본값은 명확히 정해져 있습니다', '랜덤이 아니라 규칙입니다']}
+  explanation={"별다른 표시가 없으면 모든 컴포넌트는 서버 컴포넌트로 취급됩니다."}
 />
 
 ## 참고 자료

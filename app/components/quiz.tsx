@@ -12,7 +12,7 @@ type QuizProps = {
   options: string[]
   correctAnswer: number
   explanation: string
-  optionExplanations: string[]
+  optionExplanations?: string[]
 }
 
 export function Quiz({
@@ -97,17 +97,19 @@ export function Quiz({
           </p>
           <div className={styles.explanation}>{renderRichText(explanation, 'e')}</div>
 
-          <div className={styles.optionReview}>
-            <p className={styles.optionReviewTitle}>선택지 해설</p>
-            <ul>
-              {options.map((_, index) => (
-                <li key={index}>
-                  <strong>{choiceMarkers[index] ?? index + 1}</strong>{' '}
-                  {renderRichText(optionExplanations[index] ?? '', `x${index}`)}
-                </li>
-              ))}
-            </ul>
-          </div>
+          {optionExplanations?.length ? (
+            <div className={styles.optionReview}>
+              <p className={styles.optionReviewTitle}>선택지 해설</p>
+              <ul>
+                {options.map((_, index) => (
+                  <li key={index}>
+                    <strong>{choiceMarkers[index] ?? index + 1}</strong>{' '}
+                    {renderRichText(optionExplanations[index] ?? '', `x${index}`)}
+                  </li>
+                ))}
+              </ul>
+            </div>
+          ) : null}
 
           <button className={styles.retryButton} onClick={resetQuiz} type="button">
             다시 풀기

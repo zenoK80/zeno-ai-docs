@@ -3,29 +3,6 @@ title: '06. 인터페이스 IP 설정과 활성화'
 description: '라우터 인터페이스에 IP와 서브넷 마스크를 넣고 no shutdown으로 살리는 과정 전체 — 보조 IP, 상태 확인 명령, up/down 조합의 의미까지'
 ---
 
-<Callout type="info">
-  **이번 문서의 목표:** 이 파일을 다 읽으면 어떤 인터페이스에 어떤 IP를 넣으라는 문제를 받았을 때 프롬프트 단계부터 저장까지 한 번에 써내고, show 명령 출력의 up과 down 조합으로 상태를 진단할 수 있다.
-</Callout>
-
-## 0. 실기에서 가장 자주 나오는 라우터 문제
-
-기출 8회분에서 라우터 3문항 중 최소 한 문항은 거의 언제나 인터페이스 IP 설정입니다.
-
-| 회차 | 인터페이스 | 요구된 IP | 특이사항 |
-|------|-----------|----------|---------|
-| 2023-1 | FastEthernet 0/0 | 192.168.1.1 / 255.255.255.0 | 기본형 |
-| 2023-3 | FastEthernet 0/0 | 192.168.10.1 / 255.255.255.0 | 기본형 |
-| 2023-4 | GigabitEthernet 0/0 | 192.168.1.1 주 IP, 192.168.2.1 보조 IP | secondary |
-| 2024-2 | Serial 0/0 | 192.168.100.1 / 255.255.255.0 | 시리얼 포트 |
-| 2024-3 | FastEthernet 0/0 | 192.168.10.1/24 | 정적 라우팅과 결합 |
-| 2026-3 | FastEthernet 0/0 | 192.168.10.100 주, 192.168.10.101 보조 | secondary |
-
-이 표에서 세 가지 사실을 읽어야 합니다.
-
-1. **인터페이스 이름이 회차마다 다릅니다.** FastEthernet, GigabitEthernet, Serial이 번갈아 나옵니다.
-2. **보조 IP 문제가 두 번이나 나왔습니다.** `secondary` 키워드를 반드시 알아야 합니다.
-3. **모든 정답에 `no shutdown`과 저장 명령이 붙어 있습니다.**
-
 ## 1. 인터페이스 이름 읽는 법
 
 ### 이름은 속도와 위치를 담고 있다
@@ -46,8 +23,6 @@ description: '라우터 인터페이스에 IP와 서브넷 마스크를 넣고 n
 - `0/3/0` — 앞이 슬롯, 가운데가 **서브슬롯**(모듈 안의 카드 자리), 뒤가 포트
 
 2026년 3회 기출에 나온 `Serial 0/3/0`이 세 칸짜리 예입니다. 숫자를 하나라도 빼면 다른 포트가 되어 버립니다.
-
-> **쉽게 말하면:** 인터페이스 이름은 "몇 번 서랍, 몇 번 칸, 몇 번째 구멍"이라는 주소입니다. 하나만 틀려도 엉뚱한 구멍입니다.
 
 **자주 틀리는 점:** 문제지에 `GigabitEthernet 0/0`이라 되어 있는데 손에 익은 `fastethernet 0/0`을 입력하는 실수가 가장 흔합니다. **문제지의 이름을 눈으로 다시 확인**한 뒤 입력하십시오.
 
@@ -100,57 +75,6 @@ Router(config-if)# ip address 192.168.1.1 255.255.255.0
 
 ### 전체 명령 흐름
 
-<Steps>
-
-### 1단계 — 특권 모드로 올라간다
-
-```text
-Router> enable
-```
-
-### 2단계 — 전역 설정 모드로 들어간다
-
-```text
-Router# configure terminal
-```
-
-### 3단계 — 대상 인터페이스로 진입한다
-
-```text
-Router(config)# interface fastethernet 0/0
-```
-
-프롬프트가 `Router(config-if)#`로 바뀝니다. 이 변화를 답안에도 반영해야 합니다.
-
-### 4단계 — IP와 마스크를 넣는다
-
-```text
-Router(config-if)# ip address 192.168.1.1 255.255.255.0
-```
-
-### 5단계 — 인터페이스를 활성화한다
-
-```text
-Router(config-if)# no shutdown
-```
-
-이 줄이 없으면 IP는 설정되지만 포트가 꺼진 채로 남습니다.
-
-### 6단계 — 특권 모드로 복귀한다
-
-```text
-Router(config-if)# exit
-Router(config)# exit
-```
-
-### 7단계 — 저장한다
-
-```text
-Router# copy running-config startup-config
-```
-
-</Steps>
-
 전체를 이어 붙이면 이렇습니다. 2023년 1회 기출 16번의 정답 그대로입니다.
 
 ```text
@@ -169,8 +93,6 @@ Router# copy running-config startup-config
 ### 시스코 라우터의 기본값
 
 시스코 **라우터**의 인터페이스는 공장 초기 상태에서 **꺼져 있습니다**(shutdown). 반면 시스코 **스위치**의 포트는 기본적으로 켜져 있습니다. 이 차이가 실기 감점의 단골 원인입니다.
-
-> **쉽게 말하면:** 라우터의 포트는 기본이 "잠긴 문"입니다. IP를 붙여 놓아도 문이 잠겨 있으면 아무도 드나들 수 없습니다.
 
 왜 이렇게 만들었을까요? 라우터는 회사와 외부를 잇는 관문입니다. 설정이 끝나지 않은 포트가 저절로 켜져 외부와 연결되면 위험합니다. 그래서 **관리자가 명시적으로 켜라고 말할 때까지 꺼 둡니다.**
 
@@ -201,14 +123,6 @@ IOS에서 어떤 설정을 취소할 때는 그 명령 앞에 `no`를 붙입니�
 **자주 틀리는 점:** 이 로그가 입력 중인 명령 줄 사이에 끼어들어 화면이 지저분해집니다. 당황해서 명령을 다시 치면 오히려 꼬입니다. 엔터를 한 번 누르고 프롬프트를 확인한 뒤 이어가면 됩니다.
 
 ## 4. 보조 IP 설정 — secondary
-
-### 왜 필요한가
-
-한 인터페이스에 두 개 이상의 IP 대역을 붙여야 할 때가 있습니다. 예를 들어 한 층에 원래 `192.168.1.0/24`를 쓰던 사무실이 있는데, 주소가 모자라 `192.168.2.0/24`를 추가로 쓰고 싶지만 라우터 포트는 하나뿐인 상황입니다.
-
-이때 같은 물리 포트에 두 번째 대역을 얹는 것이 **보조 IP**(secondary IP)입니다.
-
-> **쉽게 말하면:** 한 대문에 두 개의 문패를 다는 것입니다. 어느 문패로 찾아와도 같은 집으로 들어옵니다.
 
 ### 문법과 순서
 
@@ -263,7 +177,7 @@ Router# copy running-config startup-config
 
 시리얼 회선은 두 라우터를 직접 잇는 WAN 링크로, 한쪽이 **박자를 만들어 줘야** 통신이 됩니다. 박자를 만드는 쪽을 **DCE**(Data Circuit-terminating Equipment), 받는 쪽을 **DTE**(Data Terminal Equipment)라고 합니다.
 
-실습 환경에서 케이블의 DCE 쪽에 연결된 라우터에는 이 명령이 필요합니다.
+검증 환경에서 케이블의 DCE 쪽에 연결된 라우터에는 이 명령이 필요합니다.
 
 ```text
 Router(config-if)# clock rate 64000
@@ -310,8 +224,6 @@ FastEthernet0/1        unassigned      YES unset  administratively down down
 | up | down | 선은 연결됐으나 2계층 협상 실패 | 캡슐화 방식 불일치, 시리얼의 clock rate 누락 |
 | down | down | 물리적 연결 없음 | 케이블 미연결, 케이블 불량, 상대 포트가 꺼짐 |
 | administratively down | down | 관리자가 꺼 놓음 | `no shutdown` 미실행. 실기 최대 감점 원인 |
-
-> **쉽게 말하면:** `administratively down`은 "고장이 아니라 사람이 꺼 놨다"는 뜻입니다. 이 글자를 보면 곧바로 `no shutdown`을 떠올리십시오.
 
 **Method** 열도 알아 두면 좋습니다. `manual`은 손으로 직접 설정했다는 뜻, `DHCP`는 자동으로 받았다는 뜻, `unset`은 아직 설정이 없다는 뜻입니다.
 
@@ -383,65 +295,26 @@ Router# copy running-config startup-config
 
 <Quiz
   questionNumber={1}
-  question="문제가 FastEthernet 0/0 에 192.168.10.1/24 를 설정하라고 했을 때 실제로 입력해야 할 명령은?"
-  options={['ip address 192.168.10.1/24', 'ip address 192.168.10.1 255.255.255.0', 'ip address 192.168.10.1 mask 24', 'ip address 192.168.10.1 255.255.0.0']}
+  question={"문제가 FastEthernet 0/0 에 192.168.10.1/24 를 설정하라고 했을 때 실제로 입력해야 할 명령은?"}
+  options={["ip address 192.168.10.1/24","ip address 192.168.10.1 255.255.255.0","ip address 192.168.10.1 mask 24","ip address 192.168.10.1 255.255.0.0"]}
   correctAnswer={2}
-  explanation="IOS 의 ip address 명령은 CIDR 표기를 받지 않으므로 슬래시 24 를 점 십진 표기 255.255.255.0 으로 변환해 입력해야 한다. 변환은 응시자가 직접 해야 한다."
-  optionExplanations={['슬래시 표기는 IOS 가 인식하지 못한다', '정답 — 24비트 마스크를 점 십진으로 푼 값이다', 'mask 라는 키워드는 이 명령에 존재하지 않는다', '255.255.0.0 은 16비트 마스크로 다른 값이다']}
+  explanation={"IOS 의 ip address 명령은 CIDR 표기를 받지 않으므로 슬래시 24 를 점 십진 표기 255.255.255.0 으로 변환해 입력해야 한다. 변환은 응시자가 직접 해야 한다."}
 />
 
 <Quiz
   questionNumber={2}
-  question="show ip interface brief 결과에서 Status 가 administratively down 으로 나왔다. 원인으로 가장 알맞은 것은?"
-  options={['케이블이 물리적으로 끊어졌다', 'no shutdown 명령을 실행하지 않았다', 'IP 주소가 중복되었다', '서브넷 마스크가 잘못되었다']}
+  question={"show ip interface brief 결과에서 Status 가 administratively down 으로 나왔다. 원인으로 가장 알맞은 것은?"}
+  options={["케이블이 물리적으로 끊어졌다","no shutdown 명령을 실행하지 않았다","IP 주소가 중복되었다","서브넷 마스크가 잘못되었다"]}
   correctAnswer={2}
-  explanation="administratively down 은 장애가 아니라 관리자가 인터페이스를 꺼 둔 상태를 뜻한다. 시스코 라우터 포트는 기본이 꺼짐이므로 no shutdown 을 실행해야 up 이 된다."
-  optionExplanations={['케이블 문제라면 그냥 down 으로 표시된다', '정답 — 실기에서 가장 흔한 감점 원인이다', 'IP 중복은 별도의 경고 메시지로 나타난다', '마스크 오류는 인터페이스 상태를 down 으로 만들지 않는다']}
+  explanation={"administratively down 은 장애가 아니라 관리자가 인터페이스를 꺼 둔 상태를 뜻한다."}
 />
 
 <Quiz
   questionNumber={3}
-  question="한 인터페이스에 주 IP 와 보조 IP 를 함께 설정할 때 두 번째 줄에 반드시 붙여야 하는 키워드는?"
-  options={['backup', 'secondary', 'alias', 'standby']}
+  question={"한 인터페이스에 주 IP 와 보조 IP 를 함께 설정할 때 두 번째 줄에 반드시 붙여야 하는 키워드는?"}
+  options={["backup","secondary","alias","standby"]}
   correctAnswer={2}
-  explanation="두 번째 ip address 명령 끝에 secondary 를 붙여야 보조 IP 로 추가된다. 붙이지 않으면 오류 없이 첫 번째 IP 를 덮어써 주 IP 가 사라진다."
-  optionExplanations={['backup 은 이 명령의 키워드가 아니다', '정답 — 보조 주소를 뜻하는 정식 키워드다', 'alias 는 다른 용도의 IOS 명령이다', 'standby 는 HSRP 이중화 설정에 쓰이는 키워드다']}
-/>
-
-<Quiz
-  questionNumber={4}
-  question="시스코 라우터 인터페이스의 기본 상태에 대한 설명으로 옳은 것은?"
-  options={['기본적으로 활성화되어 있어 IP 만 넣으면 바로 동작한다', '기본적으로 shutdown 상태여서 no shutdown 을 실행해야 한다', '전원을 켤 때마다 자동으로 활성화된다', 'IP 를 설정하면 자동으로 활성화된다']}
-  correctAnswer={2}
-  explanation="설정이 끝나지 않은 포트가 저절로 외부와 연결되는 것을 막기 위해 시스코 라우터 포트는 기본이 꺼짐이다. 반면 시스코 스위치 포트는 기본이 켜짐이라는 점도 함께 기억해야 한다."
-  optionExplanations={['그것은 스위치 포트의 동작이며 라우터는 다르다', '정답 — 명시적 활성화가 필요하다', '재부팅해도 startup-config 의 shutdown 상태가 유지된다', 'IP 설정과 활성화는 별개의 명령이다']}
-/>
-
-<Quiz
-  questionNumber={5}
-  question="Status 가 up 인데 Protocol 이 down 인 인터페이스에서 의심할 수 있는 원인은?"
-  options={['no shutdown 을 실행하지 않음', '케이블이 아예 연결되지 않음', '캡슐화 방식 불일치나 시리얼 구간의 clock rate 누락', '서브넷 마스크가 틀림']}
-  correctAnswer={3}
-  explanation="Status 는 1계층 Protocol 은 2계층 상태다. 1계층이 살아 있는데 2계층이 죽었다면 물리적 연결은 정상이나 프로토콜 협상이 실패한 것으로 캡슐화 불일치나 클럭 부재가 대표 원인이다."
-  optionExplanations={['그 경우 Status 가 administratively down 으로 표시된다', '케이블 미연결이면 Status 도 down 이 된다', '정답 — 1계층은 정상이고 2계층 협상만 실패한 상태다', 'IP 설정 오류는 인터페이스 상태 열에 반영되지 않는다']}
-/>
-
-<Quiz
-  questionNumber={6}
-  question="인터페이스 이름 Serial 0/3/0 에서 가운데 숫자 3 이 의미하는 것은?"
-  options={['포트 번호', '서브슬롯 번호', '속도 등급', 'VLAN 번호']}
-  correctAnswer={2}
-  explanation="세 칸짜리 표기에서는 앞이 슬롯 가운데가 서브슬롯 뒤가 포트 번호다. 숫자를 하나라도 빼거나 순서를 바꾸면 다른 포트를 가리키게 되어 오답이 된다."
-  optionExplanations={['포트 번호는 맨 뒤의 0 이다', '정답 — 모듈 안의 카드 자리를 뜻한다', '속도는 이름 앞부분인 Serial 이나 GigabitEthernet 이 나타낸다', 'VLAN 번호는 인터페이스 이름에 들어가지 않는다']}
-/>
-
-<Quiz
-  questionNumber={7}
-  question="다음 중 실기 답안으로 완결된 인터페이스 설정 순서로 옳은 것은?"
-  options={['configure terminal 다음 ip address 입력 후 종료', 'enable 다음 configure terminal 다음 interface 진입 다음 ip address 다음 no shutdown 다음 특권 모드 복귀 다음 copy running-config startup-config', 'enable 다음 ip address 다음 copy running-config startup-config', 'interface 진입 다음 ip address 다음 shutdown 다음 저장']}
-  correctAnswer={2}
-  explanation="특권 모드 진입, 전역 설정 모드 진입, 인터페이스 진입, IP 설정, 활성화, 특권 모드 복귀, 저장의 일곱 단계가 모두 갖춰져야 완결된 답안이다."
-  optionExplanations={['인터페이스 진입과 활성화 그리고 저장이 빠졌다', '정답 — 실기 채점이 요구하는 완전한 흐름이다', 'ip address 는 인터페이스 모드 명령이라 특권 모드에서 바로 칠 수 없다', 'shutdown 은 인터페이스를 끄는 명령이라 정반대다']}
+  explanation={"두 번째 ip address 명령 끝에 secondary 를 붙여야 보조 IP 로 추가된다. 붙이지 않으면 오류 없이 첫 번째 IP 를 덮어써 주 IP 가 사라진다."}
 />
 
 ## 참고 자료

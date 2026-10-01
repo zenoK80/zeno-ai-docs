@@ -3,21 +3,15 @@ title: '11. SQL 중급: 조인·중첩 질의·집합 연산'
 description: 'INNER/OUTER/CROSS JOIN, 스칼라·IN·EXISTS 서브쿼리, UNION/INTERSECT/MINUS 집합 연산과 시험에 자주 나오는 함정 유형을 예제 데이터로 직접 계산하며 정리한다'
 ---
 
-<Callout type="info">
-  **이번 문서의 목표:** 이 파일을 다 읽으면 여러 테이블에 흩어진 데이터를 조인으로 다시 합치고, 서브쿼리로 조건을 중첩하고, 두 질의 결과를 집합 연산으로 비교하는 SQL을 직접 작성·해석하고, "옳지 않은 것을 고르시오" 유형에서 자주 나오는 함정(NULL 처리, OUTER JOIN이 조건절 때문에 INNER JOIN으로 되돌아가는 현상)을 스스로 짚어낼 수 있게 된다.
-</Callout>
-
 ## 왜 조인·서브쿼리·집합 연산이 필요한가
 
-정규화(자세한 원리는 15·16편)를 거친 관계형 데이터베이스는 하나의 정보를 여러 테이블에 나누어 저장합니다. 학생 정보는 학생 테이블에, 과목 정보는 과목 테이블에, "누가 어떤 과목을 들었는지"는 수강 테이블에 따로 있습니다. 그런데 실제로 필요한 답("컴퓨터공학과 학생 중 데이터베이스 과목을 들은 사람은?")은 이 테이블들을 다시 이어 붙여야 나옵니다. 이 "다시 이어 붙이는" 연산이 **조인**(join)입니다. 조인만으로 표현하기 번거로운 조건(예: "한 번도 수강하지 않은 학생")은 **서브쿼리**(subquery, 중첩 질의)로 풀고, "두 조건을 모두 만족하는 것"이나 "한쪽에만 있는 것"은 **집합 연산**(set operation)으로 풉니다.
-
-> **쉽게 말하면:** 조인은 "테이블을 옆으로 이어 붙이기", 서브쿼리는 "질의 안에 또 다른 질의를 넣어 조건으로 쓰기", 집합 연산은 "두 질의 결과표를 위아래로 비교하기"입니다.
+정규화(자세한 원리는 13·14편)를 거친 관계형 데이터베이스는 하나의 정보를 여러 테이블에 나누어 저장합니다. 이 "다시 이어 붙이는" 연산이 **조인**(join)입니다.
 
 이 편의 SQL 예제는 이 사이트의 SQLD 과목과 문법을 맞추기 위해 **Oracle** 문법을 기준으로 씁니다. 표준 SQL과 이름이 다른 부분(대표적으로 `MINUS`)은 그때그때 짚어 드립니다.
 
 ## 예제로 쓸 세 테이블
 
-이 편과 다음 편(14편)에서 계속 사용할 예제 스키마입니다. 학번·과목코드에는 일부러 **정합성이 깨진 값**(존재하지 않는 과목코드를 참조하는 수강 기록)을 하나 심어 두었는데, 이는 OUTER JOIN과 `NOT IN`의 함정을 실제 데이터로 보여주기 위한 의도적 장치입니다(실제 시험 문제에서도 "다음 데이터가 주어졌을 때"라는 형태로 이런 예외 행을 넣어 이해도를 시험합니다).
+이 편과 다음 편(12편)에서 계속 사용할 예제 스키마입니다. 학번·과목코드에는 일부러 **정합성이 깨진 값**(존재하지 않는 과목코드를 참조하는 수강 기록)을 하나 심어 두었는데, 이는 OUTER JOIN과 `NOT IN`의 함정을 실제 데이터로 보여주기 위한 의도적 장치입니다(실제 시험 문제에서도 "다음 데이터가 주어졌을 때"라는 형태로 이런 예외 행을 넣어 이해도를 시험합니다).
 
 **STUDENT(학번, 이름, 학과)**
 
@@ -261,7 +255,7 @@ UNION
 SELECT 학번 FROM ENROLL WHERE 과목코드 = 'C001';
 ```
 
-**UNION**은 두 결과를 합치고 **중복을 제거**합니다. 결과는 `{S1, S2, S3, S4}` 4행입니다. 중복을 제거하지 않고 그대로 다 합치려면 **UNION ALL**을 쓰며, 이 경우 `S1`, `S2`가 두 번씩 나와 총 6행이 됩니다. `UNION`은 중복 제거를 위해 내부적으로 정렬·비교 작업을 하므로 `UNION ALL`보다 비용이 크며, 중복이 문제되지 않는 상황이라면 `UNION ALL`이 더 효율적입니다.
+**UNION**은 두 결과를 합치고 **중복을 제거**합니다. 결과는 `{S1, S2, S3, S4}` 4행입니다.
 
 ```sql
 SELECT 학번 FROM STUDENT WHERE 학과 = '컴퓨터공학'
@@ -304,56 +298,26 @@ SELECT 학번 FROM ENROLL WHERE 과목코드 = 'C001';
 
 <Quiz
   questionNumber={1}
-  question="ENROLL을 왼쪽, COURSE를 오른쪽에 두고 LEFT OUTER JOIN을 수행했을 때 결과에 대한 설명으로 옳은 것은?"
-  options={['COURSE에만 있는 과목(C004)이 결과에 포함된다', 'ENROLL에는 있지만 COURSE에 없는 과목코드(C005)를 가진 행도 NULL로 채워져 결과에 포함된다', 'ENROLL과 COURSE 양쪽에 모두 있는 행만 결과에 남는다', '결과 행 수는 항상 두 테이블 행 수의 곱과 같다']}
+  question={"ENROLL을 왼쪽, COURSE를 오른쪽에 두고 LEFT OUTER JOIN을 수행했을 때 결과에 대한 설명으로 옳은 것은?"}
+  options={["COURSE에만 있는 과목(C004)이 결과에 포함된다","ENROLL에는 있지만 COURSE에 없는 과목코드(C005)를 가진 행도 NULL로 채워져 결과에 포함된다","ENROLL과 COURSE 양쪽에 모두 있는 행만 결과에 남는다","결과 행 수는 항상 두 테이블 행 수의 곱과 같다"]}
   correctAnswer={2}
-  explanation="LEFT OUTER JOIN은 왼쪽 테이블(ENROLL)의 모든 행을 보존하므로, COURSE에 대응하는 값이 없는 S5·C005 행도 과목명이 NULL로 채워져 결과에 남는다."
-  optionExplanations={['오른쪽에만 있는 행은 LEFT JOIN에서 보존되지 않는다. 그 행을 보존하려면 RIGHT 또는 FULL OUTER JOIN이 필요하다', '정답 — LEFT OUTER JOIN은 왼쪽 테이블 전부를 보존하고 짝이 없는 오른쪽 컬럼을 NULL로 채운다', '양쪽 모두 짝이 있는 행만 남기는 것은 INNER JOIN의 특징이다', '조건 없이 모든 조합을 만드는 것은 CROSS JOIN의 특징이며, LEFT JOIN 행 수는 왼쪽 테이블 행 수와 같거나 그보다 많다']}
+  explanation={"LEFT OUTER JOIN은 왼쪽 테이블(ENROLL)의 모든 행을 보존하므로, COURSE에 대응하는 값이 없는 S5·C005 행도 과목명이 NULL로 채워져 결과에 남는다."}
 />
 
 <Quiz
   questionNumber={2}
-  question="다음 중 CROSS JOIN에 대한 설명으로 옳지 않은 것은?"
-  options={['조인 조건 없이 두 테이블의 모든 행 조합을 만든다', '결과 행 수는 두 테이블 행 수의 곱과 같다', '콤마로 테이블을 나열하고 WHERE 절에 조인 조건을 빠뜨리면 의도치 않게 CROSS JOIN이 될 수 있다', 'CROSS JOIN은 짝이 없는 행을 NULL로 채워 보존하는 조인이다']}
+  question={"다음 중 CROSS JOIN에 대한 설명으로 옳지 않은 것은?"}
+  options={["조인 조건 없이 두 테이블의 모든 행 조합을 만든다","결과 행 수는 두 테이블 행 수의 곱과 같다","콤마로 테이블을 나열하고 WHERE 절에 조인 조건을 빠뜨리면 의도치 않게 CROSS JOIN이 될 수 있다","CROSS JOIN은 짝이 없는 행을 NULL로 채워 보존하는 조인이다"]}
   correctAnswer={4}
-  explanation="NULL로 채워 짝이 없는 행을 보존하는 것은 OUTER JOIN의 특징이다. CROSS JOIN은 조건 자체가 없는 카티전 곱으로, '짝이 없다'는 개념 자체가 적용되지 않는다."
-  optionExplanations={['CROSS JOIN의 정의 그대로이며 옳은 설명이다', 'm행과 n행인 두 테이블을 CROSS JOIN하면 결과는 m×n행이 되므로 옳은 설명이다', '조건 없는 콤마 조인이 CROSS JOIN이 되는 대표적인 함정으로 옳은 설명이다', '정답 — NULL로 채워 보존하는 것은 OUTER JOIN의 특징이며, CROSS JOIN에는 짝의 개념이 없다']}
+  explanation={"NULL로 채워 짝이 없는 행을 보존하는 것은 OUTER JOIN의 특징이다. CROSS JOIN은 조건 자체가 없는 카티전 곱으로, '짝이 없다'는 개념 자체가 적용되지 않는다."}
 />
 
 <Quiz
   questionNumber={3}
-  question="ENROLL.학번에 NULL 값이 하나라도 포함되어 있을 때, 다음 질의의 실행 결과로 옳은 것은? — SELECT 이름 FROM STUDENT WHERE 학번 NOT IN (SELECT 학번 FROM ENROLL)"
-  options={['한 번도 수강하지 않은 학생 이름이 정상적으로 반환된다', '아무 행도 반환되지 않는다', '오류가 발생하여 질의 자체가 실행되지 않는다', 'STUDENT의 모든 학생 이름이 반환된다']}
+  question={"ENROLL.학번에 NULL 값이 하나라도 포함되어 있을 때, 다음 질의의 실행 결과로 옳은 것은? — SELECT 이름 FROM STUDENT WHERE 학번 NOT IN (SELECT 학번 FROM ENROLL)"}
+  options={["한 번도 수강하지 않은 학생 이름이 정상적으로 반환된다","아무 행도 반환되지 않는다","오류가 발생하여 질의 자체가 실행되지 않는다","STUDENT의 모든 학생 이름이 반환된다"]}
   correctAnswer={2}
-  explanation="NOT IN은 목록과의 비교를 AND로 묶어 판단하는데, 목록에 NULL이 섞이면 그 비교가 UNKNOWN이 되어 전체 조건이 참이 될 수 없다. 그 결과 NOT IN 질의는 예상과 달리 빈 결과를 반환한다."
-  optionExplanations={['NULL이 섞인 목록에 대한 NOT IN은 정상 동작하지 않고 빈 결과를 반환한다', '정답 — 목록에 NULL이 있으면 NOT IN 비교가 UNKNOWN이 되어 조건을 만족하는 행이 없다고 판정된다', 'SQL 문법 자체는 올바르므로 오류 없이 실행되지만 결과가 비어 있을 뿐이다', 'STUDENT 전체가 아니라 아무 행도 반환되지 않는 것이 NOT IN + NULL의 함정이다']}
-/>
-
-<Quiz
-  questionNumber={4}
-  question="IN 서브쿼리 대신 EXISTS 서브쿼리를 쓰는 것이 더 안전한 이유로 가장 적절한 것은?"
-  options={['EXISTS는 항상 IN보다 실행 속도가 빠르기 때문이다', 'EXISTS는 서브쿼리 결과 값 자체가 아니라 행의 존재 여부만 확인하므로 서브쿼리 결과에 NULL이 섞여도 영향을 받지 않기 때문이다', 'EXISTS는 여러 컬럼을 동시에 반환할 수 있기 때문이다', 'EXISTS는 상관 서브쿼리를 쓸 수 없기 때문이다']}
-  correctAnswer={2}
-  explanation="EXISTS는 서브쿼리가 행을 하나라도 반환하는지만 확인하는 연산자이므로, 서브쿼리 결과 값에 NULL이 섞여 있어도 NOT IN처럼 판정 자체가 흔들리지 않는다."
-  optionExplanations={['실행 속도는 옵티마이저와 인덱스 상황에 따라 달라지며 항상 EXISTS가 빠르다고 단정할 수 없다', '정답 — EXISTS는 값이 아니라 존재 여부만 확인하므로 NULL의 영향을 받지 않는다', 'EXISTS는 SELECT 1처럼 임의의 값을 넣어도 되며, 여러 컬럼 반환 여부와는 무관한 안전성 이유이다', 'EXISTS는 오히려 상관 서브쿼리(바깥 질의의 값을 참조하는 서브쿼리)와 함께 쓰이는 대표적인 연산자이다']}
-/>
-
-<Quiz
-  questionNumber={5}
-  question="컴퓨터공학과 학생 학번 집합 {S1, S2, S4}와 C001 수강생 학번 집합 {S1, S2, S3}이 있을 때, 두 질의를 MINUS(Oracle 기준)로 연결한 결과로 옳은 것은?"
-  options={['{S1, S2}', '{S3}', '{S4}', '{S1, S2, S3, S4}']}
-  correctAnswer={3}
-  explanation="MINUS는 첫 번째 결과에서 두 번째 결과에 있는 값을 뺀다. {S1, S2, S4} - {S1, S2, S3} = {S4}이므로 최지우(S4)만 남는다."
-  optionExplanations={['{S1, S2}는 두 집합의 교집합(INTERSECT) 결과이지 차집합 결과가 아니다', '{S3}는 두 번째 집합에서 첫 번째 집합을 뺀 결과이며, MINUS는 순서가 반대인 연산자이다', '정답 — 컴퓨터공학과 학생 중 C001을 듣지 않은 학생만 남으므로 S4(최지우)이다', '{S1, S2, S3, S4}는 두 집합의 합집합(UNION) 결과이다']}
-/>
-
-<Quiz
-  questionNumber={6}
-  question="UNION과 UNION ALL의 차이에 대한 설명으로 옳은 것은?"
-  options={['UNION ALL은 중복을 제거하고, UNION은 중복을 유지한다', 'UNION은 중복을 제거하고, UNION ALL은 중복을 유지한다', '두 연산 모두 항상 같은 결과를 반환한다', 'UNION ALL은 두 질의의 컬럼 개수가 달라도 사용할 수 있다']}
-  correctAnswer={2}
-  explanation="UNION은 두 결과를 합친 뒤 중복 행을 제거하고, UNION ALL은 중복 제거 과정 없이 그대로 모두 합친다."
-  optionExplanations={['UNION과 UNION ALL의 중복 처리 방식이 반대로 설명되어 있다', '정답 — UNION은 중복을 제거하고 UNION ALL은 중복을 유지한다', '중복되는 행이 있는 경우 두 연산의 결과 행 수가 달라지므로 항상 같은 결과라고 할 수 없다', '집합 연산은 두 질의의 컬럼 개수와 호환되는 자료형을 요구하며, UNION ALL도 예외가 아니다']}
+  explanation={"NOT IN은 목록과의 비교를 AND로 묶어 판단하는데, 목록에 NULL이 섞이면 그 비교가 UNKNOWN이 되어 전체 조건이 참이 될 수 없다."}
 />
 
 ## 참고 자료

@@ -2,7 +2,7 @@ const meta = {
   '01_server-state-vs-client-state': '01. 서버 상태는 왜 따로 다뤄야 하는가',
   '02_auth-token-and-guard-models': '02. 토큰을 어디에 보관할 것인가 — 인증 모델 개요',
   '03_test-pyramid-and-mocking-strategy': '03. 단위·통합·E2E는 각각 무엇을 검증하는가',
-  '04_tanstack-query-setup-and-first-query': '04. TanStack Query 설치와 첫 조회',
+  '04_tanstack-query-setup-and-first-query': '04. TanStack Query의 조회 모델',
   '05_mutations-and-cache-invalidation': '05. 뮤테이션과 캐시 무효화로 CRUD 연결',
   '06_optimistic-updates-and-pagination': '06. 낙관적 업데이트와 페이지네이션 캐시',
   '07_login-flow-and-token-storage': '07. 로그인 폼과 토큰 보관 구현',

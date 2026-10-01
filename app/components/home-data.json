@@ -1,5 +1,5 @@
 {
-  "generatedAt": "2026-09-24T12:20:26.920Z",
+  "generatedAt": "2026-10-01T13:13:00.061Z",
   "groupCount": 12,
   "seriesCount": 54,
   "groups": [
@@ -10,7 +10,7 @@
       "series": [
         {
           "title": "HTML 기본기",
-          "description": "웹 페이지가 HTML·CSS·JS로 나뉘는 이유를 정리하고, 포트폴리오 실습 폴더와 스타터 파일을 준비합니다",
+          "description": "웹 페이지에서 HTML·CSS·JavaScript가 맡는 역할과 HTML 요소의 기본 구조를 정리합니다.",
           "href": "/web/html/html_fundamentals/01_what-is-html-and-setup",
           "documentCount": 17,
           "preview": "code",
@@ -41,7 +41,7 @@
         },
         {
           "title": "모던 CSS",
-          "description": "css_fundamentals가 끝난 포트폴리오 파일 구조와 CSS 상태를 다시 확인하고, modern_css 실습 폴더를 만든다",
+          "description": "css_fundamentals가 끝난 포트폴리오 파일 구조와 CSS 상태를 다시 확인하고, modern_css 예제 폴더를 만든다",
           "href": "/web/css/modern_css/01_starting-point-and-project-tour",
           "documentCount": 18,
           "preview": "code",
@@ -56,7 +56,7 @@
       "series": [
         {
           "title": "ECMAScript",
-          "description": "빈 폴더에서 npm init으로 todo-cli 프로젝트를 만들고 ESM 진입점을 실행합니다.",
+          "description": "Node.js의 실행 방식과 package.json의 핵심 필드, ESM 진입점의 의미를 정리합니다.",
           "href": "/web/javascript/ECMAscript/01_node-and-project-setup",
           "documentCount": 17,
           "preview": "code",
@@ -122,15 +122,15 @@
           "href": "/web/react/react_1/01_react-and-the-dom-problem",
           "documentCount": 17,
           "preview": "code",
-          "accent": "blue"
+          "accent": "amber"
         },
         {
           "title": "React 중급",
-          "description": "react_1이 남긴 bookshelf 상태를 점검하고 이 과목에서 무엇이 달라지는지 확인합니다.",
+          "description": "라우팅, 커스텀 훅, 폼 검증, 성능 측정, 오류 처리, 상태 정규화가 서로 연결되는 구조를 정리합니다.",
           "href": "/web/react/react_2/01_starting-point-and-roadmap",
           "documentCount": 16,
           "preview": "code",
-          "accent": "green"
+          "accent": "red"
         },
         {
           "title": "React 실무",
@@ -138,7 +138,7 @@
           "href": "/web/react/react_3/01_server-state-vs-client-state",
           "documentCount": 20,
           "preview": "code",
-          "accent": "amber"
+          "accent": "blue"
         },
         {
           "title": "Next.js",
@@ -146,7 +146,7 @@
           "href": "/web/react/nextjs/01_from-spa-to-app-router",
           "documentCount": 17,
           "preview": "code",
-          "accent": "red"
+          "accent": "green"
         }
       ]
     },
@@ -161,7 +161,7 @@
           "href": "/독학사/1단계/영어/01_grammar-map",
           "documentCount": 27,
           "preview": "code",
-          "accent": "blue"
+          "accent": "amber"
         },
         {
           "title": "일반수학",
@@ -169,7 +169,7 @@
           "href": "/독학사/1단계/일반수학/01_math-language",
           "documentCount": 25,
           "preview": "sets",
-          "accent": "green"
+          "accent": "red"
         },
         {
           "title": "기초통계학",
@@ -177,7 +177,7 @@
           "href": "/독학사/1단계/기초통계학/01_math-review",
           "documentCount": 23,
           "preview": "chart",
-          "accent": "amber"
+          "accent": "blue"
         }
       ]
     },
@@ -192,7 +192,7 @@
           "href": "/독학사/2단계/C프로그래밍/01_c-syntax-basics",
           "documentCount": 26,
           "preview": "code",
-          "accent": "red"
+          "accent": "green"
         },
         {
           "title": "논리회로",
@@ -200,7 +200,7 @@
           "href": "/독학사/2단계/논리회로/01_math-basics",
           "documentCount": 26,
           "preview": "code",
-          "accent": "blue"
+          "accent": "amber"
         },
         {
           "title": "이산수학",
@@ -208,7 +208,7 @@
           "href": "/독학사/2단계/이산수학/01_basic-notation",
           "documentCount": 25,
           "preview": "sets",
-          "accent": "green"
+          "accent": "red"
         },
         {
           "title": "자료구조",
@@ -216,7 +216,7 @@
           "href": "/독학사/2단계/자료구조/01_prereq-data-structure-basics",
           "documentCount": 18,
           "preview": "code",
-          "accent": "amber"
+          "accent": "blue"
         },
         {
           "title": "웹프로그래밍",
@@ -224,7 +224,7 @@
           "href": "/독학사/2단계/웹프로그래밍/01_internet-and-web-basics",
           "documentCount": 18,
           "preview": "code",
-          "accent": "red"
+          "accent": "green"
         },
         {
           "title": "컴퓨터구조",
@@ -232,7 +232,7 @@
           "href": "/독학사/2단계/컴퓨터구조/01_number-system-basics",
           "documentCount": 20,
           "preview": "code",
-          "accent": "blue"
+          "accent": "amber"
         },
         {
           "title": "운영체제",
@@ -240,7 +240,7 @@
           "href": "/독학사/2단계/운영체제/01_os-terminology-map",
           "documentCount": 21,
           "preview": "code",
-          "accent": "green"
+          "accent": "red"
         },
         {
           "title": "머신러닝",
@@ -248,7 +248,7 @@
           "href": "/독학사/2단계/머신러닝/01_ml-basics",
           "documentCount": 23,
           "preview": "chart",
-          "accent": "amber"
+          "accent": "blue"
         }
       ]
     },
@@ -263,7 +263,7 @@
           "href": "/독학사/3단계/프로그래밍언어론/01_programming-language-vs-implementation",
           "documentCount": 28,
           "preview": "code",
-          "accent": "red"
+          "accent": "green"
         },
         {
           "title": "소프트웨어공학",
@@ -271,7 +271,7 @@
           "href": "/독학사/3단계/소프트웨어공학/01_software-engineering-overview",
           "documentCount": 22,
           "preview": "code",
-          "accent": "blue"
+          "accent": "amber"
         },
         {
           "title": "객체지향프로그래밍",
@@ -279,7 +279,7 @@
           "href": "/독학사/3단계/객체지향프로그래밍/01_java-baseline",
           "documentCount": 23,
           "preview": "code",
-          "accent": "green"
+          "accent": "red"
         },
         {
           "title": "컴퓨터그래픽스",
@@ -287,7 +287,7 @@
           "href": "/독학사/3단계/컴퓨터그래픽스/01_graphics-overview",
           "documentCount": 16,
           "preview": "code",
-          "accent": "amber"
+          "accent": "blue"
         },
         {
           "title": "컴퓨터네트워크",
@@ -295,7 +295,7 @@
           "href": "/독학사/3단계/컴퓨터네트워크/01_network-basics",
           "documentCount": 27,
           "preview": "browser",
-          "accent": "red"
+          "accent": "green"
         },
         {
           "title": "임베디드시스템",
@@ -303,7 +303,7 @@
           "href": "/독학사/3단계/임베디드시스템/01_embedded-prerequisites",
           "documentCount": 21,
           "preview": "code",
-          "accent": "blue"
+          "accent": "amber"
         },
         {
           "title": "정보보호",
@@ -311,7 +311,7 @@
           "href": "/독학사/3단계/정보보호/01_core-terms",
           "documentCount": 23,
           "preview": "code",
-          "accent": "green"
+          "accent": "red"
         },
         {
           "title": "딥러닝",
@@ -319,7 +319,7 @@
           "href": "/독학사/3단계/딥러닝/01_dl-terminology-map",
           "documentCount": 26,
           "preview": "chart",
-          "accent": "amber"
+          "accent": "blue"
         }
       ]
     },
@@ -334,7 +334,7 @@
           "href": "/독학사/4단계/알고리즘/01_math-basics",
           "documentCount": 23,
           "preview": "code",
-          "accent": "red"
+          "accent": "green"
         },
         {
           "title": "데이터베이스",
@@ -342,7 +342,7 @@
           "href": "/독학사/4단계/데이터베이스/01_db-basics-ansi-sparc",
           "documentCount": 24,
           "preview": "sql",
-          "accent": "blue"
+          "accent": "amber"
         },
         {
           "title": "통합프로그래밍",
@@ -350,7 +350,7 @@
           "href": "/독학사/4단계/통합프로그래밍/01_language-basics-bridging",
           "documentCount": 25,
           "preview": "code",
-          "accent": "green"
+          "accent": "red"
         },
         {
           "title": "통합컴퓨터시스템",
@@ -358,7 +358,7 @@
           "href": "/독학사/4단계/통합컴퓨터시스템/01_system-terminology-map",
           "documentCount": 23,
           "preview": "code",
-          "accent": "amber"
+          "accent": "blue"
         },
         {
           "title": "국어",
@@ -366,7 +366,7 @@
           "href": "/독학사/4단계/국어/01_linguistics-basics",
           "documentCount": 25,
           "preview": "code",
-          "accent": "red"
+          "accent": "green"
         },
         {
           "title": "국사",
@@ -374,7 +374,7 @@
           "href": "/독학사/4단계/국사/01_historical-framework",
           "documentCount": 22,
           "preview": "code",
-          "accent": "blue"
+          "accent": "amber"
         },
         {
           "title": "실용영어",
@@ -382,13 +382,13 @@
           "href": "/독학사/4단계/실용영어/01_core-terminology",
           "documentCount": 21,
           "preview": "code",
-          "accent": "green"
+          "accent": "red"
         }
       ]
     },
     {
       "title": "자격증",
-      "description": "10개 시리즈 · 문서 273편",
+      "description": "10개 시리즈 · 문서 271편",
       "order": "10",
       "series": [
         {
@@ -397,15 +397,15 @@
           "href": "/자격증/빅데이터분석기사_필기/01_basic-math-stats",
           "documentCount": 29,
           "preview": "chart",
-          "accent": "amber"
+          "accent": "blue"
         },
         {
           "title": "리눅스마스터 2급 1차",
-          "description": "Windows·macOS에 Docker Desktop을 설치하고 Rocky Linux 컨테이너로 리눅스 실습 환경을 만든다",
-          "href": "/자격증/리눅스마스터_2급_1차/00_practice-environment",
-          "documentCount": 30,
+          "description": "유닉스에서 리눅스로 이어진 흐름과 커널·배포판의 구분, GPL·LGPL·BSD·MIT 라이선스와 카피레프트 개념을 정리한다",
+          "href": "/자격증/리눅스마스터_2급_1차/01_linux-and-licenses",
+          "documentCount": 29,
           "preview": "code",
-          "accent": "red"
+          "accent": "green"
         },
         {
           "title": "네트워크관리사 2급 실기",
@@ -413,7 +413,7 @@
           "href": "/자격증/네트워크관리사_2급_실기/01_network-basics-for-practical-use",
           "documentCount": 13,
           "preview": "browser",
-          "accent": "blue"
+          "accent": "amber"
         },
         {
           "title": "PC정비사 2급 실기",
@@ -421,23 +421,23 @@
           "href": "/자격증/PC정비사_2급_실기/01_pc-parts-basics",
           "documentCount": 16,
           "preview": "code",
-          "accent": "green"
+          "accent": "red"
         },
         {
           "title": "SQLD",
-          "description": "Docker로 Oracle Database Free를 띄우고 DBeaver로 접속해 공통 실습 데이터 seed.sql을 적재하는 법을 처음부터 끝까지 안내한다",
-          "href": "/자격증/SQLD/00_practice-environment",
-          "documentCount": 31,
+          "description": "데이터베이스와 DBMS가 왜 필요한지부터, 관계형 모델의 테이블 구조, SQL이 하는 일, SQLD 시험의 과목·문항 구성까지 최소 배경을 잡는다",
+          "href": "/자격증/SQLD/01_sql-and-database-basics",
+          "documentCount": 30,
           "preview": "sql",
-          "accent": "amber"
+          "accent": "blue"
         },
         {
           "title": "ADsP",
-          "description": "R과 RStudio를 설치하고 콘솔·스크립트로 첫 코드를 실행하며 패키지 설치와 불러오기 개념까지 익힌다",
+          "description": "R과 RStudio의 차이, 콘솔과 스크립트, 패키지 설치와 불러오기의 개념을 정리한다.",
           "href": "/자격증/ADSP/01_adsp-exam-and-r-setup",
           "documentCount": 30,
           "preview": "code",
-          "accent": "red"
+          "accent": "green"
         },
         {
           "title": "서비스경험디자인기사 실기",
@@ -445,7 +445,7 @@
           "href": "/자격증/서비스경험디자인기사_실기/01_what-is-service-experience-design",
           "documentCount": 29,
           "preview": "code",
-          "accent": "blue"
+          "accent": "amber"
         },
         {
           "title": "적성검사 공통 (NCS·인적성)",
@@ -453,7 +453,7 @@
           "href": "/자격증/적성검사_공통/01_logic-symbols-and-venn-basics",
           "documentCount": 28,
           "preview": "code",
-          "accent": "green"
+          "accent": "red"
         },
         {
           "title": "정보보안기사 필기",
@@ -461,7 +461,7 @@
           "href": "/자격증/정보보안기사_필기/01_infosec-domain-map",
           "documentCount": 35,
           "preview": "code",
-          "accent": "amber"
+          "accent": "blue"
         },
         {
           "title": "정보통신기사 필기",
@@ -469,7 +469,7 @@
           "href": "/자격증/정보통신기사_필기/01_transmission-math-basics",
           "documentCount": 32,
           "preview": "code",
-          "accent": "red"
+          "accent": "green"
         }
       ]
     },
@@ -484,7 +484,7 @@
           "href": "/기타/피아노/재즈피아노_기초/01_keyboard-map-and-fingering",
           "documentCount": 21,
           "preview": "code",
-          "accent": "blue"
+          "accent": "amber"
         },
         {
           "title": "재즈피아노 중급",
@@ -492,7 +492,7 @@
           "href": "/기타/피아노/재즈피아노_중급/01_reading-tension-and-extended-chord-symbols",
           "documentCount": 23,
           "preview": "code",
-          "accent": "green"
+          "accent": "red"
         },
         {
           "title": "재즈피아노 고급",
@@ -500,7 +500,7 @@
           "href": "/기타/피아노/재즈피아노_고급/01_reading-chord-scale-notation",
           "documentCount": 26,
           "preview": "code",
-          "accent": "amber"
+          "accent": "blue"
         }
       ]
     },
@@ -515,7 +515,7 @@
           "href": "/기타/aws/amplify_caching/01_amplify-hosting-architecture-and-caching-map",
           "documentCount": 16,
           "preview": "code",
-          "accent": "red"
+          "accent": "green"
         }
       ]
     }

@@ -3,19 +3,13 @@ title: '16. 표준 조인: INNER, OUTER, CROSS, SELF'
 description: '조인의 원리부터 INNER·LEFT·RIGHT·FULL OUTER·CROSS·SELF JOIN까지, 같은 두 테이블로 실행 결과를 직접 세어가며 익힌다.'
 ---
 
-<Callout type="info">
-  **이번 문서의 목표:** 이 파일을 다 읽으면 두 테이블을 주고 조인 종류만 알려줬을 때 결과 행이 몇 개, 어떤 값으로 나오는지 손으로 직접 예측할 수 있다.
-</Callout>
-
 ## 조인이 왜 필요한가
 
-관계형 데이터베이스(Relational Database)는 08편에서 다뤘듯, 하나의 큰 표에 모든 정보를 다 넣지 않고 엔터티(entity, 관리 대상이 되는 사물이나 개념)별로 여러 테이블에 나눠 저장한다. 예를 들어 "사원이 어느 부서에 속하는가"라는 정보는 사원 테이블과 부서 테이블 두 곳에 걸쳐 있다. 사원 테이블은 자신이 속한 부서의 번호(외래키, foreign key — 다른 테이블의 기본키를 참조하는 컬럼)만 들고 있을 뿐, 그 부서의 이름은 부서 테이블에만 있다.
+관계형 데이터베이스(Relational Database)는 08편에서 다뤘듯, 하나의 큰 표에 모든 정보를 다 넣지 않고 엔터티(entity, 관리 대상이 되는 사물이나 개념)별로 여러 테이블에 나눠 저장한다. 예를 들어 "사원이 어느 부서에 속하는가"라는 정보는 사원 테이블과 부서 테이블 두 곳에 걸쳐 있다.
 
 그런데 "사원 이름과 그 사원이 속한 부서 이름을 나란히 보여줘"라는 질문에 답하려면, 결국 두 테이블을 어떤 기준으로 이어 붙여야 한다. 이렇게 **여러 테이블을 공통된 컬럼(주로 기본키와 외래키) 값을 기준으로 옆으로 이어 붙여 하나의 결과 집합으로 만드는 연산**이 조인(JOIN)이다.
 
-> **쉽게 말하면:** 조인은 "이 값이 같은 행끼리 옆으로 붙여라"는 명령이다.
-
-## 조인의 원리 — 실습용 테이블 두 개
+## 조인의 원리 — 예시 테이블 두 개
 
 앞으로 이 편과 다음 두 편(17. 서브쿼리, 18. 집합 연산자)에서 계속 재사용할 두 테이블을 정한다. 작은 테이블이지만 **NULL이 있는 행**과 **상대 테이블에 짝이 없는 행**을 일부러 넣어뒀다. 실제 기출에서 조인 결과 건수를 틀리게 만드는 함정이 바로 이 두 가지이기 때문이다.
 
@@ -62,11 +56,11 @@ INNER JOIN DEPT D ON E.DEPT_ID = D.DEPT_ID;
 | 이서연 | 개발부 |
 | 박도윤 | 개발부 |
 
-**결과가 3행인 이유를 하나씩 세어본다.** EMP는 5행이지만, 최지우는 DEPT_ID가 NULL이라 애초에 비교 대상 자체가 없어 탈락하고, 정하은은 DEPT_ID가 50인데 DEPT 테이블에 50이 없어 탈락한다. 남은 김민준(10→영업부), 이서연(20→개발부), 박도윤(20→개발부) 세 명만 짝이 맞아 결과에 남는다. 인사부와 마케팅부는 애초에 EMP 쪽에 DEPT_ID가 일치하는 행이 없으므로 등장하지 않는다.
+**결과가 3행인 이유를 하나씩 세어본다.** EMP는 5행이지만, 최지우는 DEPT_ID가 NULL이라 애초에 비교 대상 자체가 없어 탈락하고, 정하은은 DEPT_ID가 50인데 DEPT 테이블에 50이 없어 탈락한다. 남은 김민준(10→영업부), 이서연(20→개발부), 박도윤(20→개발부) 세 명만 짝이 맞아 결과에 남는다.
 
 ### NULL은 조인 조건에서 절대 매칭되지 않는다
 
-최지우의 사례가 바로 이 규칙을 보여준다. `NULL = 20`도, `NULL = NULL`조차도 SQL에서는 참(TRUE)이 아니라 알 수 없음(UNKNOWN)으로 평가된다. 09편에서 다뤘듯 NULL은 "값이 없다"는 상태이지 비교 가능한 값이 아니기 때문이다. 그래서 조인 조건에 쓰인 컬럼이 NULL이면, 그 값이 상대편의 어떤 값과도 절대 같아질 수 없고, INNER JOIN에서는 무조건 탈락한다. "NULL은 NULL끼리도 매칭되지 않는다"는 점을 반드시 기억한다.
+최지우의 사례가 바로 이 규칙을 보여준다. `NULL = 20`도, `NULL = NULL`조차도 SQL에서는 참(TRUE)이 아니라 알 수 없음(UNKNOWN)으로 평가된다.
 
 ## LEFT OUTER JOIN — 왼쪽 테이블은 무조건 다 살린다
 
@@ -86,7 +80,7 @@ LEFT OUTER JOIN DEPT D ON E.DEPT_ID = D.DEPT_ID;
 | 최지우 | (NULL) |
 | 정하은 | (NULL) |
 
-**5행이 나오는 이유.** EMP가 왼쪽 테이블이므로 EMP의 5행이 전부 보존된다. 그중 3행은 INNER JOIN과 똑같이 정상적으로 짝을 찾고, 짝을 못 찾은 최지우와 정하은은 DNAME 자리가 NULL인 채로 결과에 남는다. 왼쪽 테이블의 행 수만큼은 최소한 결과에 나온다는 점이 LEFT OUTER JOIN의 핵심이다(단, 오른쪽에서 한 행에 여러 개가 매칭되면 그만큼 늘어날 수도 있다).
+**5행이 나오는 이유.** EMP가 왼쪽 테이블이므로 EMP의 5행이 전부 보존된다. 그중 3행은 INNER JOIN과 똑같이 정상적으로 짝을 찾고, 짝을 못 찾은 최지우와 정하은은 DNAME 자리가 NULL인 채로 결과에 남는다.
 
 ## RIGHT OUTER JOIN — 이번엔 오른쪽 테이블을 무조건 다 살린다
 
@@ -106,7 +100,7 @@ RIGHT OUTER JOIN DEPT D ON E.DEPT_ID = D.DEPT_ID;
 | (NULL) | 인사부 |
 | (NULL) | 마케팅부 |
 
-**5행이 나오는 이유.** 이번엔 DEPT가 오른쪽 테이블이므로 DEPT의 4행(영업부, 개발부, 인사부, 마케팅부)이 전부 보존 대상이다. 영업부와 개발부는 사원이 있어 정상 매칭되고(개발부는 이서연·박도윤 2명과 매칭되어 2행이 된다), 인사부와 마케팅부는 소속 사원이 아예 없으므로 NAME 자리가 NULL인 채로 한 행씩 등장한다. 정하은의 DEPT_ID인 50은 DEPT 테이블에 없는 값이므로, DEPT를 기준으로 살리는 RIGHT OUTER JOIN에서는 애초에 등장할 자리가 없다는 점도 확인해두자.
+**5행이 나오는 이유.** 이번엔 DEPT가 오른쪽 테이블이므로 DEPT의 4행(영업부, 개발부, 인사부, 마케팅부)이 전부 보존 대상이다. 영업부와 개발부는 사원이 있어 정상 매칭되고(개발부는 이서연·박도윤 2명과 매칭되어 2행이 된다), 인사부와 마케팅부는 소속 사원이 아예 없으므로 NAME 자리가 NULL인 채로 한 행씩 등장한다.
 
 ## FULL OUTER JOIN — 양쪽 다 무조건 살린다
 
@@ -128,7 +122,7 @@ FULL OUTER JOIN DEPT D ON E.DEPT_ID = D.DEPT_ID;
 | (NULL) | 인사부 |
 | (NULL) | 마케팅부 |
 
-**7행이 나오는 이유를 세 부분으로 나눠 더한다.** ① 양쪽 다 짝을 찾은 매칭 행 3개(김민준, 이서연, 박도윤). ② EMP에만 있고 DEPT에는 짝이 없는 행 2개(최지우, 정하은) — LEFT OUTER JOIN에서 남았던 바로 그 행들이다. ③ DEPT에만 있고 EMP에는 짝이 없는 행 2개(인사부, 마케팅부) — RIGHT OUTER JOIN에서 남았던 바로 그 행들이다. 3 + 2 + 2 = 7행. **FULL OUTER JOIN 결과 건수는 INNER JOIN 매칭 건수에 양쪽 미매칭 건수를 모두 더한 값**이라는 공식으로 기억해두면, 실행 결과 예측 문항에서 검산하기 좋다.
+**7행이 나오는 이유를 세 부분으로 나눠 더한다.** ① 양쪽 다 짝을 찾은 매칭 행 3개(김민준, 이서연, 박도윤). ② EMP에만 있고 DEPT에는 짝이 없는 행 2개(최지우, 정하은) — LEFT OUTER JOIN에서 남았던 바로 그 행들이다.
 
 일부 DBMS(대표적으로 MySQL)는 FULL OUTER JOIN 문법을 직접 지원하지 않는다. 이 경우 LEFT OUTER JOIN 결과와 RIGHT OUTER JOIN 결과를 `UNION`으로 합쳐 흉내 낸다(집합 연산자 UNION은 18편에서 다룬다).
 
@@ -142,7 +136,7 @@ FROM EMP E
 CROSS JOIN DEPT D;
 ```
 
-EMP가 5행, DEPT가 4행이므로 결과는 5 곱하기 4, 즉 **20행**이다. 김민준은 영업부·개발부·인사부·마케팅부 4개 부서 모두와 한 번씩 짝지어지고, 나머지 사원 4명도 각각 4개 부서와 전부 조합된다. 조인 조건이 없으므로 NULL이든 존재하지 않는 DEPT_ID든 전혀 문제가 되지 않는다 — 애초에 조건 자체를 비교하지 않기 때문이다. `FROM EMP, DEPT`처럼 콤마로 두 테이블을 나열하고 WHERE 절에 조인 조건을 아예 안 붙인 경우도 결과적으로 CROSS JOIN과 같아진다는 점을 기출에서 자주 확인하니 기억해두자.
+EMP가 5행, DEPT가 4행이므로 결과는 5 곱하기 4, 즉 **20행**이다. 김민준은 영업부·개발부·인사부·마케팅부 4개 부서 모두와 한 번씩 짝지어지고, 나머지 사원 4명도 각각 4개 부서와 전부 조합된다.
 
 ## SELF JOIN — 자기 자신과 조인한다
 
@@ -161,7 +155,7 @@ JOIN EMP M ON E.MGR_ID = M.EMP_ID;
 | 최지우 | 이서연 |
 | 정하은 | 이서연 |
 
-EMP를 사원 역할(E)과 관리자 역할(M)로 두 번 참조했을 뿐, 실제로는 하나의 물리적 테이블이다. 김민준은 MGR_ID가 NULL(최상위 관리자라 자신의 위 상사가 없다는 뜻)이므로 INNER JOIN 조건에서 짝을 찾지 못해 "사원" 자리에는 등장하지 않는다(관리자 자리로는 등장한다). SELF JOIN도 결국 INNER JOIN이나 OUTER JOIN 중 하나로 동작하므로, 여기서도 NULL 미매칭 규칙이 똑같이 적용된다.
+EMP를 사원 역할(E)과 관리자 역할(M)로 두 번 참조했을 뿐, 실제로는 하나의 물리적 테이블이다. 김민준은 MGR_ID가 NULL(최상위 관리자라 자신의 위 상사가 없다는 뜻)이므로 INNER JOIN 조건에서 짝을 찾지 못해 "사원" 자리에는 등장하지 않는다(관리자 자리로는 등장한다).
 
 ## USING과 NATURAL JOIN — ON을 줄여 쓰는 두 가지 방법
 
@@ -183,51 +177,9 @@ SELECT E.NAME, D.DNAME
 FROM EMP E NATURAL JOIN DEPT D;
 ```
 
-EMP와 DEPT에 이름이 같은 컬럼이 DEPT_ID 하나뿐이라면 위 USING 예시와 결과가 같다. 다만 만약 두 테이블에 우연히 이름이 같은 컬럼이 하나 더 있다면(예: 둘 다 CREATED_AT을 갖고 있다면), NATURAL JOIN은 그 컬럼까지 자동으로 조인 조건에 포함시켜버려 의도치 않은 결과가 나올 수 있다. 그래서 실무에서는 NATURAL JOIN보다 USING이나 ON을 명시하는 방식을 더 권장한다.
+EMP와 DEPT에 이름이 같은 컬럼이 DEPT_ID 하나뿐이라면 위 USING 예시와 결과가 같다. 다만 만약 두 테이블에 우연히 이름이 같은 컬럼이 하나 더 있다면(예: 둘 다 CREATED_AT을 갖고 있다면), NATURAL JOIN은 그 컬럼까지 자동으로 조인 조건에 포함시켜버려 의도치 않은 결과가 나올 수 있다.
 
 **USING과 NATURAL JOIN은 ON과 함께 쓸 수 없다.** `NATURAL JOIN ... ON ...`처럼 두 방식을 동시에 쓰면 조인 조건을 지정하는 방법이 중복 지정되어 구문 오류가 발생한다. 조인 조건 지정 방법(ON, USING, NATURAL)은 셋 중 하나만 골라 쓴다는 원칙을 기억해두자.
-
-## 직접 해보기
-
-<Callout type="info">
-  00편에서 만든 환경에서 진행합니다. 아직 준비하지 않았다면 00편을 먼저 보세요.
-</Callout>
-
-### 직접 해보기 1: 조인 종류마다 행 수가 몇 개로 달라지는지 직접 세어보기
-
-같은 EMP·DEPT 두 테이블에 조인 종류만 바꿔가며 COUNT(*)로 결과 행 수를 비교한다. 실행하기 전에 본문 설명을 떠올리며 각 줄이 몇 행을 낼지 먼저 예상해보자.
-
-```sql
-SELECT COUNT(*) FROM EMP E INNER JOIN DEPT D ON E.DEPT_ID = D.DEPT_ID;
-SELECT COUNT(*) FROM EMP E LEFT OUTER JOIN DEPT D ON E.DEPT_ID = D.DEPT_ID;
-SELECT COUNT(*) FROM EMP E RIGHT OUTER JOIN DEPT D ON E.DEPT_ID = D.DEPT_ID;
-SELECT COUNT(*) FROM EMP E FULL OUTER JOIN DEPT D ON E.DEPT_ID = D.DEPT_ID;
-SELECT COUNT(*) FROM EMP E CROSS JOIN DEPT D;
-```
-
-**무엇을 보아야 하나**: 다섯 숫자가 서로 다르게 나오는지, 그리고 INNER JOIN이 가장 작고 CROSS JOIN이 가장 크다는 크기 순서가 본문에서 설명한 계산과 맞아떨어지는지 확인한다.
-
-> **왜 이걸 해보나:** 기출은 "이 두 테이블을 이 조인으로 합치면 몇 행이 나오는가"를 직접 계산하게 만든다. 다섯 조인을 한 번에 돌려 숫자로 비교해두면 공식을 외우지 않아도 감으로 맞힐 수 있게 된다.
-
-### 직접 해보기 2: NULL은 조인 조건에서 매칭되지 않는 것 확인하기
-
-최지우(EMP_ID 4)는 DEPT_ID가 NULL이다. 이 사원이 INNER JOIN 결과에 나오는지 직접 확인해본다.
-
-```sql
-SELECT * FROM EMP WHERE EMP_ID = 4;
-```
-
-```sql
--- 예상: 위 쿼리에서 최지우가 분명히 존재하는데, 이 쿼리에는 몇 행이 나올까?
-SELECT E.NAME, D.DNAME
-FROM EMP E
-INNER JOIN DEPT D ON E.DEPT_ID = D.DEPT_ID
-WHERE E.EMP_ID = 4;
-```
-
-**무엇을 보아야 하나**: 첫 쿼리는 최지우 행이 분명히 존재함을 보여준다. 두 번째 쿼리는 DEPT_ID가 NULL이라 어떤 부서와도 비교 자체가 성립하지 않아 결과가 어떻게 되는지 본다.
-
-> **왜 이걸 해보나:** "NULL은 NULL끼리도 매칭되지 않는다"는 규칙을 글로만 읽으면 잘 와닿지 않는다. 분명히 존재하는 행이 조인 결과에서 통째로 사라지는 것을 직접 보면 이 규칙이 확실히 남는다.
 
 ## 자주 틀리는 점
 
@@ -235,7 +187,6 @@ WHERE E.EMP_ID = 4;
 - **NULL이 조인 조건에 있으면 두 NULL끼리도 매칭되지 않는다**는 점을 놓치기 쉽다. "값이 같으면 매칭"이 아니라 "값이 존재하고 서로 같아야 매칭"이다.
 - **CROSS JOIN과 조인 조건 없는 콤마 나열(FROM A, B)이 결과적으로 같다**는 것을 모르고 지나치는 경우가 많다. 기출에서는 이 둘을 같은 개념으로 묶어 물어본다.
 - **NATURAL JOIN에 ON이나 USING을 덧붙이면 에러가 난다**는 점은 실행 결과 예측이 아니라 "에러가 발생하는 문장 찾기" 유형으로 자주 출제된다.
-- 이 단원은 정의를 묻기보다, **주어진 데이터로 결과 건수와 결과 값을 직접 계산해보라는 문항 비중이 압도적으로 높다.** 공식을 외우기보다 이 문서의 표처럼 손으로 하나씩 짝을 맞춰보는 연습이 가장 효과적이다.
 
 ## 핵심 정리
 
@@ -250,56 +201,26 @@ WHERE E.EMP_ID = 4;
 
 <Quiz
   questionNumber={1}
-  question="EMP 5행, DEPT 4행이고 EMP 중 2행이 DEPT와 짝을 찾지 못하며 DEPT 중 2행이 EMP와 짝을 찾지 못할 때, EMP와 DEPT를 FULL OUTER JOIN 한 결과는 몇 행인가?"
-  options={['5행', '7행', '9행', '20행']}
+  question={"EMP 5행, DEPT 4행이고 EMP 중 2행이 DEPT와 짝을 찾지 못하며 DEPT 중 2행이 EMP와 짝을 찾지 못할 때, EMP와 DEPT를 FULL OUTER JOIN 한 결과는 몇 행인가?"}
+  options={["5행","7행","9행","20행"]}
   correctAnswer={2}
-  explanation="매칭 건수는 EMP 5행 중 짝을 못 찾은 2행을 뺀 3행이다. FULL OUTER JOIN 결과는 매칭 3행에 양쪽 미매칭 각 2행씩을 더한 7행이 된다."
-  optionExplanations={['왼쪽 EMP 테이블의 행 수만 센 값으로, LEFT OUTER JOIN이라면 나올 수 있는 값이지만 FULL OUTER JOIN 결과는 아니다', '정답. 매칭 3행에 EMP 미매칭 2행, DEPT 미매칭 2행을 모두 더한 값이다', '매칭 건수를 3행이 아니라 5행으로 잘못 세고 더한 값이다', '두 테이블 행 수를 곱한 값으로, CROSS JOIN의 결과 건수다']}
+  explanation={"매칭 건수는 EMP 5행 중 짝을 못 찾은 2행을 뺀 3행이다. FULL OUTER JOIN 결과는 매칭 3행에 양쪽 미매칭 각 2행씩을 더한 7행이 된다."}
 />
 
 <Quiz
   questionNumber={2}
-  question="EMP 테이블의 한 행이 DEPT_ID 컬럼 값으로 NULL을 가지고 있다. 이 행을 EMP INNER JOIN DEPT ON EMP.DEPT_ID = DEPT.DEPT_ID 로 조회하면 어떻게 되는가?"
-  options={['DEPT_ID가 NULL인 DEPT 행과 매칭된다', '결과에서 제외된다', 'DEPT의 모든 행과 매칭된다', 'DNAME이 NULL로 채워져 결과에 포함된다']}
+  question={"EMP 테이블의 한 행이 DEPT_ID 컬럼 값으로 NULL을 가지고 있다. 이 행을 EMP INNER JOIN DEPT ON EMP.DEPT_ID = DEPT.DEPT_ID 로 조회하면 어떻게 되는가?"}
+  options={["DEPT_ID가 NULL인 DEPT 행과 매칭된다","결과에서 제외된다","DEPT의 모든 행과 매칭된다","DNAME이 NULL로 채워져 결과에 포함된다"]}
   correctAnswer={2}
-  explanation="NULL은 어떤 값과 비교해도, 심지어 NULL끼리 비교해도 참으로 평가되지 않고 알 수 없음(UNKNOWN)이 된다. 조인 조건을 만족하지 못하므로 INNER JOIN 결과에서 완전히 빠진다."
-  optionExplanations={['NULL은 NULL끼리도 같다고 판정되지 않으므로 이런 매칭은 일어나지 않는다', '정답. 조인 조건을 만족하는 상대가 없으므로 INNER JOIN에서는 결과에서 제외된다', '조인 조건이 없는 CROSS JOIN과 착각한 설명이다', 'DNAME이 NULL로 채워지는 것은 OUTER JOIN의 동작이지 INNER JOIN의 동작이 아니다']}
+  explanation={"NULL은 어떤 값과 비교해도, 심지어 NULL끼리 비교해도 참으로 평가되지 않고 알 수 없음(UNKNOWN)이 된다."}
 />
 
 <Quiz
   questionNumber={3}
-  question="A 테이블이 3행, B 테이블이 4행일 때 A CROSS JOIN B의 결과 행 수는?"
-  options={['3행', '4행', '7행', '12행']}
+  question={"A 테이블이 3행, B 테이블이 4행일 때 A CROSS JOIN B의 결과 행 수는?"}
+  options={["3행","4행","7행","12행"]}
   correctAnswer={4}
-  explanation="CROSS JOIN은 조인 조건 없이 두 테이블의 모든 행 조합을 만들어내므로, 결과 행 수는 두 테이블 행 수의 곱인 3 곱하기 4, 즉 12행이다."
-  optionExplanations={['A 테이블의 행 수만 센 값이다', 'B 테이블의 행 수만 센 값이다', '두 테이블 행 수를 곱하지 않고 더한 값으로, CROSS JOIN의 계산 방식이 아니다', '정답. 3행과 4행의 모든 조합이므로 3×4=12행이다']}
-/>
-
-<Quiz
-  questionNumber={4}
-  question="EMP 테이블에서 자기 자신을 관리자 별칭으로 한 번 더 참조해 사원과 그 관리자의 이름을 함께 조회하는 조인 방식은?"
-  options={['CROSS JOIN', 'NATURAL JOIN', 'SELF JOIN', 'FULL OUTER JOIN']}
-  correctAnswer={3}
-  explanation="같은 테이블을 서로 다른 별칭 두 개로 두 번 참조해서 조인하는 방식을 SELF JOIN이라고 부른다. 사원-관리자처럼 한 테이블 안의 계층 관계를 조회할 때 쓴다."
-  optionExplanations={['CROSS JOIN은 조인 조건 없이 모든 조합을 만드는 방식으로 관리자 관계 조회와는 무관하다', 'NATURAL JOIN은 이름이 같은 컬럼을 자동으로 조인 조건으로 쓰는 방식으로, 같은 테이블을 두 번 참조하는 것과는 다른 개념이다', '정답. 하나의 테이블을 두 개의 역할(사원, 관리자)로 나눠 조인하는 것이 SELF JOIN이다', 'FULL OUTER JOIN은 양쪽 테이블의 행을 모두 보존하는 조인 방향을 나타낼 뿐, 같은 테이블을 두 번 참조하는 것과는 다른 개념이다']}
-/>
-
-<Quiz
-  questionNumber={5}
-  question="EMP 테이블(DEPT_ID 컬럼 포함)과 DEPT 테이블(DEPT_ID 컬럼 포함)의 조인 조건을 지정하는 방법으로 옳지 않은 것은?"
-  options={['FROM EMP JOIN DEPT ON EMP.DEPT_ID = DEPT.DEPT_ID', 'FROM EMP JOIN DEPT USING (DEPT_ID)', 'FROM EMP NATURAL JOIN DEPT', 'FROM EMP NATURAL JOIN DEPT USING (DEPT_ID)']}
-  correctAnswer={4}
-  explanation="NATURAL JOIN은 이름이 같은 컬럼을 자동으로 조인 조건에 사용하므로 USING이나 ON을 함께 명시하면 조인 조건 지정 방법이 중복되어 구문 오류가 발생한다."
-  optionExplanations={['ON으로 직접 조건을 지정하는 가장 기본적이고 옳은 방식이다', 'USING으로 공통 컬럼명을 지정하는 옳은 방식이다', 'NATURAL JOIN만 단독으로 쓰는 것은 옳은 방식이다', '정답(옳지 않음). NATURAL JOIN은 USING과 동시에 쓸 수 없어 오류가 발생한다']}
-/>
-
-<Quiz
-  questionNumber={6}
-  question="DEPT 테이블에 소속 사원이 한 명도 없는 부서가 2개 있다. EMP RIGHT OUTER JOIN DEPT ON EMP.DEPT_ID = DEPT.DEPT_ID 로 조회하면 이 두 부서는 결과에서 어떻게 나오는가?"
-  options={['결과에서 완전히 제외된다', 'NAME 컬럼이 NULL인 채로 한 행씩 나온다', '두 부서가 하나의 행으로 합쳐져 나온다', 'DEPT_ID가 NULL로 바뀌어 나온다']}
-  correctAnswer={2}
-  explanation="RIGHT OUTER JOIN은 오른쪽 테이블인 DEPT의 모든 행을 보존한다. 매칭되는 EMP 행이 없더라도 DEPT 행 자체는 살아남고, EMP 쪽에서 가져올 컬럼(NAME 등)만 NULL로 채워진다."
-  optionExplanations={['RIGHT OUTER JOIN은 오른쪽 테이블 행을 제외하지 않고 보존하는 것이 핵심이므로 이 설명은 틀렸다', '정답. 오른쪽 테이블의 행은 무조건 보존되고 왼쪽에서 가져올 컬럼만 NULL로 채워진다', '서로 다른 두 부서를 하나의 행으로 합칠 근거가 없으며 실제로도 각각 별도 행으로 나온다', 'DEPT_ID는 DEPT 테이블 자신의 컬럼이므로 그대로 유지되고 NULL로 바뀌는 것은 EMP 쪽 컬럼이다']}
+  explanation={"CROSS JOIN은 조인 조건 없이 두 테이블의 모든 행 조합을 만들어내므로, 결과 행 수는 두 테이블 행 수의 곱인 3 곱하기 4, 즉 12행이다."}
 />
 
 ## 참고 자료

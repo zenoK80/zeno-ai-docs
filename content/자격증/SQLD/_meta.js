@@ -1,6 +1,5 @@
 const meta = {
-  '00_practice-environment': '00. 부록: 실습 환경 만들기 (Docker + Oracle + DBeaver)',
-  '01_sql-and-database-basics': '01. SQL과 관계형 데이터베이스, 시험이 요구하는 최소 배경',
+  '01_sql-and-database-basics': '01. SQL과 관계형 데이터베이스 기초',
   '02_notation-and-terms-map': '02. ERD 표기법과 용어 지도',
   '03_entity-attribute-relationship': '03. 엔터티, 속성, 관계의 정의',
   '04_identifiers-candidate-primary-alternate': '04. 식별자: 후보키, 기본키, 대체키, 복합키',

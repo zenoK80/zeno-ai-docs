@@ -1,5 +1,5 @@
 const meta = {
-  '01_node-and-project-setup': '01. Node.js 실행 환경과 프로젝트 시작',
+  '01_node-and-project-setup': '01. Node.js와 package.json',
   '02_values-types-and-cli-args': '02. 값과 타입, 명령 인자 파싱',
   '03_arrays-objects-destructuring': '03. 배열·객체와 구조 분해로 할 일 목록 관리',
   '04_functions-closures-higher-order': '04. 함수·클로저·고차 함수로 필터링·정렬',

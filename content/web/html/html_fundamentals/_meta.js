@@ -1,5 +1,5 @@
 const meta = {
-  '01_what-is-html-and-setup': '01. HTML이란 무엇인가: 역할 분담과 시작 준비',
+  '01_what-is-html-and-setup': '01. HTML의 역할과 요소 구조',
   '02_tags-attributes-and-skeleton': '02. 태그·속성 문법과 문서 뼈대',
   '03_semantic-sectioning-three-pages': '03. 시맨틱 섹셔닝으로 3페이지 골격 세우기',
   '04_text-semantics-about-section': '04. 텍스트 시맨틱스로 자기소개 채우기',

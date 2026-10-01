@@ -3,17 +3,11 @@ title: '11. DML: INSERT, UPDATE, DELETE, MERGE'
 description: 'INSERT UPDATE DELETE MERGE 네 문장의 형식과 동작, WHERE 없는 DELETE의 위험, MERGE의 UPSERT 원리를 실행 전후 비교로 정리한다'
 ---
 
-<Callout type="info">
-  **이번 문서의 목표:** INSERT·UPDATE·DELETE·MERGE 네 가지 DML 문장의 정확한 문법을 쓸 수 있고, WHERE 절이 빠졌을 때 벌어지는 위험을 설명하며, MERGE가 조건에 따라 UPDATE와 INSERT를 자동으로 나눠 실행하는 원리를 이해한다.
-</Callout>
-
 ## 1. DML이란 — 테이블 안의 데이터를 다루는 명령어
 
-10편에서 DDL(CREATE·ALTER·DROP·TRUNCATE)이 테이블이라는 그릇 자체를 다룬다고 배웠습니다. 이번 편의 **DML**(Data Manipulation Language, 데이터 조작어)은 그 그릇 **안에 담긴 데이터(행)를 넣고, 고치고, 지우는** 명령어입니다. SELECT도 DML에 포함되지만, SELECT는 데이터를 조회만 할 뿐 변경하지 않으므로 이 편에서는 데이터를 실제로 변경하는 INSERT·UPDATE·DELETE·MERGE 네 문장만 다룹니다.
+10편에서 DDL(CREATE·ALTER·DROP·TRUNCATE)이 테이블이라는 그릇 자체를 다룬다고 배웠습니다. 이번 편의 **DML**(Data Manipulation Language, 데이터 조작어)은 그 그릇 **안에 담긴 데이터(행)를 넣고, 고치고, 지우는** 명령어입니다.
 
-> **쉽게 말하면:** DDL이 밥그릇을 굽는 일이라면, DML은 그 그릇에 밥을 담고(INSERT), 반찬을 바꾸고(UPDATE), 밥을 비우는(DELETE) 일상적인 손길입니다.
-
-DML이 DDL과 결정적으로 다른 점은 **자동 커밋되지 않는다**는 것입니다. 10편에서 DDL은 실행 즉시 자동으로 커밋되어 롤백이 불가능하다고 배웠습니다. 반면 INSERT·UPDATE·DELETE·MERGE는 실행해도 곧바로 확정되지 않고, 직접 `COMMIT`을 입력하기 전까지는 `ROLLBACK`으로 취소할 수 있는 **대기 상태**로 남습니다. 트랜잭션과 COMMIT·ROLLBACK의 정확한 의미는 다음 12편에서 자세히 다루지만, 이번 편의 모든 예시에서 "아직 COMMIT하지 않았다면 되돌릴 수 있다"는 전제를 계속 사용합니다.
+DML이 DDL과 결정적으로 다른 점은 **자동 커밋되지 않는다**는 것입니다. 10편에서 DDL은 실행 즉시 자동으로 커밋되어 롤백이 불가능하다고 배웠습니다.
 
 ## 2. INSERT — 새 행 추가하기
 
@@ -77,7 +71,7 @@ UPDATE 회원 SET 등급 = 'VIP' WHERE 회원번호 = 1;
 | 1 | 김민준 | VIP |
 | 10 | 한지민 | 일반 |
 
-여러 컬럼을 한 번에 바꾸려면 쉼표로 나열합니다: `UPDATE 회원 SET 등급 = 'VIP', 나이 = 26 WHERE 회원번호 = 1;`. `WHERE` 절을 생략하면 어떻게 될까요? **테이블의 모든 행이 조건 없이 한꺼번에 바뀝니다.** 예를 들어 `UPDATE 회원 SET 등급 = 'VIP';`를 실행하면 회원 테이블의 모든 회원이 다 VIP 등급으로 바뀝니다. UPDATE에서 WHERE를 빠뜨리는 실수는 DELETE만큼이나 위험하므로, 다음 절에서 DELETE와 함께 자세히 다룹니다.
+여러 컬럼을 한 번에 바꾸려면 쉼표로 나열합니다: `UPDATE 회원 SET 등급 = 'VIP', 나이 = 26 WHERE 회원번호 = 1;`. **테이블의 모든 행이 조건 없이 한꺼번에 바뀝니다.** 예를 들어 `UPDATE 회원 SET 등급 = 'VIP';`를 실행하면 회원 테이블의 모든 회원이 다 VIP 등급으로 바뀝니다.
 
 ## 4. DELETE — 행 삭제하기, WHERE 없는 DELETE의 위험
 
@@ -167,40 +161,9 @@ WHEN NOT MATCHED THEN
 
 ## 6. DML과 트랜잭션의 관계
 
-이번 편에서 실행한 모든 INSERT·UPDATE·DELETE·MERGE 예시는 전부 "아직 COMMIT하지 않은 상태"를 전제로 설명했습니다. 이는 우연이 아니라 DML의 근본적인 성질입니다. **DML은 실행한다고 즉시 데이터베이스에 영구 반영되는 것이 아니라, COMMIT을 만나야 비로소 확정됩니다.** 그전까지는 같은 세션(session, 현재 접속해 작업 중인 연결)에서 임시로 반영된 것처럼 보일 뿐이며, 언제든 ROLLBACK으로 취소할 수 있습니다.
+이번 편에서 실행한 모든 INSERT·UPDATE·DELETE·MERGE 예시는 전부 "아직 COMMIT하지 않은 상태"를 전제로 설명했습니다. **DML은 실행한다고 즉시 데이터베이스에 영구 반영되는 것이 아니라, COMMIT을 만나야 비로소 확정됩니다.** 그전까지는 같은 세션(session, 현재 접속해 작업 중인 연결)에서 임시로 반영된 것처럼 보일 뿐이며, 언제든 ROLLBACK으로 취소할 수 있습니다.
 
 반대로 10편에서 다룬 DDL은 실행되는 순간 자동으로 커밋됩니다. 그래서 "DELETE는 되돌릴 수 있지만 TRUNCATE는 되돌릴 수 없다"는 차이가 생기는 것입니다. COMMIT과 ROLLBACK이 정확히 무엇을 확정하고 취소하는지, 그리고 SAVEPOINT로 일부만 되돌리는 방법은 다음 12편에서 이어서 다룹니다.
-
-## 직접 해보기
-
-<Callout type="info">
-  00편에서 만든 실습 환경(Docker + Oracle + DBeaver)에서 진행합니다. 아직 만들지 않았다면 00편을 먼저 보세요.
-</Callout>
-
-**seed의 원본 `사원` 테이블은 절대 건드리지 않는다.** 원본이 바뀌면 다른 편의 예제가 이 문서와 다른 결과를 낸다. 대신 아래처럼 복제본을 만들어 그 위에서만 INSERT·UPDATE·DELETE를 연습한다.
-
-```sql
-CREATE TABLE 연습 AS SELECT * FROM 사원;
-
-INSERT INTO 연습 (사원번호, 사원명, 커미션) VALUES (200, '신입사원', NULL);
-SELECT * FROM 연습 WHERE 사원번호 = 200;
-
-UPDATE 연습 SET 커미션 = 999 WHERE 사원번호 = 100;
-SELECT * FROM 연습 WHERE 사원번호 = 100;
-
-DELETE FROM 연습 WHERE 사원번호 = 103;
-SELECT * FROM 연습;
-```
-
-**무엇을 보아야 하나**: 각 문장 실행 직후의 SELECT 결과가 방금 실행한 INSERT·UPDATE·DELETE와 정확히 일치하는지 확인한다. 마지막 `SELECT * FROM 연습;`에는 몇 행이 남아야 하는지 미리 계산해 보고 맞춰 본다.
-
-> **왜 이걸 해보나:** DML은 결과를 눈으로 확인하지 않으면 "됐겠지" 하고 넘어가기 쉽다. 매번 SELECT로 확인하는 습관이 실무에서 실수를 줄인다.
-
-실습이 끝나면 복제본을 정리한다.
-
-```sql
-DROP TABLE 연습;
-```
 
 ## 핵심 정리
 
@@ -214,56 +177,26 @@ DROP TABLE 연습;
 
 <Quiz
   questionNumber={1}
-  question="INSERT 문에서 컬럼 목록을 생략하고 VALUES만 나열할 때 반드시 지켜야 하는 것은?"
-  options={['값의 개수만 맞으면 순서는 상관없다', '테이블에 정의된 컬럼 순서와 개수를 그대로 따라야 한다', 'NOT NULL 컬럼의 값만 입력하면 된다', 'DEFAULT가 지정된 컬럼은 반드시 생략해야 한다']}
+  question={"INSERT 문에서 컬럼 목록을 생략하고 VALUES만 나열할 때 반드시 지켜야 하는 것은?"}
+  options={["값의 개수만 맞으면 순서는 상관없다","테이블에 정의된 컬럼 순서와 개수를 그대로 따라야 한다","NOT NULL 컬럼의 값만 입력하면 된다","DEFAULT가 지정된 컬럼은 반드시 생략해야 한다"]}
   correctAnswer={2}
-  explanation="컬럼 목록을 생략하면 테이블에 정의된 컬럼의 순서와 개수에 정확히 맞춰 값을 나열해야 한다. 순서가 어긋나면 엉뚱한 컬럼에 값이 들어가거나 오류가 발생한다."
-  optionExplanations={['개수만 맞고 순서가 다르면 값이 엉뚱한 컬럼에 들어가므로 오답이다', '컬럼 생략 시 정의된 순서와 개수를 그대로 따라야 한다는 것이 정확한 설명이다', 'NOT NULL 컬럼만 입력하는 방식이 아니라 모든 컬럼 순서에 맞춰 값을 나열해야 해서 오답이다', 'DEFAULT가 지정된 컬럼도 값 목록에 포함시켜야 하므로 오답이다']}
+  explanation={"컬럼 목록을 생략하면 테이블에 정의된 컬럼의 순서와 개수에 정확히 맞춰 값을 나열해야 한다. 순서가 어긋나면 엉뚱한 컬럼에 값이 들어가거나 오류가 발생한다."}
 />
 
 <Quiz
   questionNumber={2}
-  question="WHERE 절 없이 DELETE FROM 주문; 을 실행했을 때의 결과로 옳은 것은?"
-  options={['아무 일도 일어나지 않고 오류가 발생한다', '주문 테이블의 모든 행이 삭제된다', '주문 테이블의 구조까지 함께 삭제된다', '가장 최근에 삽입된 한 행만 삭제된다']}
+  question={"WHERE 절 없이 DELETE FROM 주문; 을 실행했을 때의 결과로 옳은 것은?"}
+  options={["아무 일도 일어나지 않고 오류가 발생한다","주문 테이블의 모든 행이 삭제된다","주문 테이블의 구조까지 함께 삭제된다","가장 최근에 삽입된 한 행만 삭제된다"]}
   correctAnswer={2}
-  explanation="WHERE 절이 없으면 조건이 없다는 뜻이므로 테이블의 모든 행이 삭제 대상이 되어 전부 삭제된다. 단, DELETE는 DML이므로 COMMIT 전이라면 ROLLBACK으로 되살릴 수 있다."
-  optionExplanations={['WHERE 생략은 문법 오류가 아니라 전체 행을 대상으로 삼는 정상 동작이라 오답이다', 'WHERE가 없으면 조건 없이 모든 행이 삭제되는 것이 정확한 동작이다', 'DELETE는 행만 삭제할 뿐 테이블 구조는 그대로 남아, 구조까지 삭제된다는 설명은 오답이다', '최근 한 행만 삭제되는 것이 아니라 조건이 없으므로 전체 행이 대상이 되어 오답이다']}
+  explanation={"WHERE 절이 없으면 조건이 없다는 뜻이므로 테이블의 모든 행이 삭제 대상이 되어 전부 삭제된다. 단, DELETE는 DML이므로 COMMIT 전이라면 ROLLBACK으로 되살릴 수 있다."}
 />
 
 <Quiz
   questionNumber={3}
-  question={"다음 두 문장의 차이로 옳은 것은?\n\n```sql\nDELETE FROM 주문;\nTRUNCATE TABLE 주문;\n```"}
-  options={['DELETE는 COMMIT 전이면 ROLLBACK으로 되돌릴 수 있지만 TRUNCATE는 자동 커밋되어 되돌릴 수 없다', '두 명령 모두 DDL로 분류되어 동작이 완전히 같다', 'TRUNCATE만 WHERE 조건을 사용할 수 있다', 'DELETE는 테이블 구조까지 삭제하지만 TRUNCATE는 행만 삭제한다']}
+  question={"다음 두 문장의 차이로 옳은 것은?\\n\\n```sql\\nDELETE FROM 주문;\\nTRUNCATE TABLE 주문;\\n```"}
+  options={["DELETE는 COMMIT 전이면 ROLLBACK으로 되돌릴 수 있지만 TRUNCATE는 자동 커밋되어 되돌릴 수 없다","두 명령 모두 DDL로 분류되어 동작이 완전히 같다","TRUNCATE만 WHERE 조건을 사용할 수 있다","DELETE는 테이블 구조까지 삭제하지만 TRUNCATE는 행만 삭제한다"]}
   correctAnswer={1}
-  explanation="DELETE는 DML이라 COMMIT 전까지 ROLLBACK으로 취소할 수 있지만, TRUNCATE는 DDL이라 실행 즉시 자동 커밋되어 ROLLBACK으로 되돌릴 수 없다. 이 자동 커밋 여부의 차이가 두 명령의 핵심 차이다."
-  optionExplanations={['DML(DELETE)과 DDL(TRUNCATE)의 롤백 가능 여부 차이를 정확히 설명한 정답이다', 'DELETE는 DML, TRUNCATE는 DDL로 서로 다른 분류이며 동작도 다르므로 오답이다', 'WHERE 조건을 사용할 수 있는 쪽은 오히려 DELETE이며 TRUNCATE는 사용할 수 없어 오답이다', '테이블 구조까지 제거하는 것은 DROP의 동작이며, DELETE와 TRUNCATE 모두 구조는 유지하므로 오답이다']}
-/>
-
-<Quiz
-  questionNumber={4}
-  question="MERGE 문의 WHEN MATCHED와 WHEN NOT MATCHED에 대한 설명으로 옳은 것은?"
-  options={['WHEN MATCHED는 대응 행이 없을 때 INSERT를 실행한다', 'WHEN NOT MATCHED는 대응 행이 있을 때 UPDATE를 실행한다', 'WHEN MATCHED는 대응 행이 있을 때 UPDATE, WHEN NOT MATCHED는 없을 때 INSERT를 실행한다', 'MERGE는 항상 WHEN MATCHED와 WHEN NOT MATCHED를 둘 다 작성해야만 실행된다']}
-  correctAnswer={3}
-  explanation="MERGE는 ON 조건으로 대응 행을 찾아, 대응 행이 있으면(WHEN MATCHED) UPDATE를, 없으면(WHEN NOT MATCHED) INSERT를 실행한다."
-  optionExplanations={['WHEN MATCHED는 대응 행이 있을 때 실행되는 절이라 설명이 반대로 되어 있어 오답이다', 'WHEN NOT MATCHED는 대응 행이 없을 때 실행되는 절이라 설명이 반대로 되어 있어 오답이다', 'WHEN MATCHED는 UPDATE, WHEN NOT MATCHED는 INSERT를 실행한다는 것이 정확한 설명이다', 'WHEN MATCHED나 WHEN NOT MATCHED 중 하나만 작성해도 문법적으로 사용할 수 있어 오답이다']}
-/>
-
-<Quiz
-  questionNumber={5}
-  question="재고 테이블에 상품코드 A001(수량 10)만 있고, 입고내역에 A001(입고수량 3)과 A003(입고수량 7)이 있다. 앞서 예시로 든 MERGE 문을 실행한 뒤 재고 테이블의 A001, A003 수량으로 옳은 것은?"
-  options={['A001은 3, A003은 7', 'A001은 13, A003은 7', 'A001은 10, A003은 삽입되지 않는다', 'A001과 A003 모두 변화가 없다']}
-  correctAnswer={2}
-  explanation="A001은 재고에 이미 있으므로 WHEN MATCHED가 실행되어 기존 수량 10에 입고수량 3이 더해져 13이 된다. A003은 재고에 없으므로 WHEN NOT MATCHED가 실행되어 입고수량 7 그대로 새 행이 삽입된다."
-  optionExplanations={['A001의 수량은 입고수량으로 덮어써지는 것이 아니라 기존 수량에 더해지므로 오답이다', 'MATCHED된 A001은 10+3=13으로 갱신되고, NOT MATCHED된 A003은 7로 새로 삽입되는 것이 정확한 결과다', 'A003도 대응 행이 없으므로 WHEN NOT MATCHED에 따라 정상적으로 삽입되어 오답이다', 'MERGE는 조건에 맞는 행을 실제로 갱신·삽입하므로 변화가 없다는 설명은 오답이다']}
-/>
-
-<Quiz
-  questionNumber={6}
-  question="UPDATE 회원 SET 등급 = 'VIP'; 를 WHERE 없이 실행했을 때의 결과는?"
-  options={['오류가 발생해 실행되지 않는다', '기본키가 가장 작은 한 행만 VIP로 바뀐다', '회원 테이블의 모든 행이 VIP 등급으로 바뀐다', '이미 VIP인 행만 다시 VIP로 갱신된다']}
-  correctAnswer={3}
-  explanation="UPDATE에서 WHERE를 생략하면 DELETE와 마찬가지로 조건 없이 테이블의 모든 행이 대상이 되어, 회원 테이블의 모든 행의 등급이 VIP로 바뀐다."
-  optionExplanations={['WHERE 생략은 문법 오류가 아니라 전체 행을 대상으로 하는 정상 동작이라 오답이다', 'WHERE가 없으면 특정 한 행이 아니라 조건 없이 전체 행이 대상이 되어 오답이다', 'WHERE 조건이 없으므로 등급과 무관하게 모든 행이 갱신 대상이 되는 것이 정확한 동작이다', '조건이 없으므로 이미 VIP인 행뿐 아니라 다른 등급의 행도 모두 VIP로 바뀌어 오답이다']}
+  explanation={"DELETE는 DML이라 COMMIT 전까지 ROLLBACK으로 취소할 수 있지만, TRUNCATE는 DDL이라 실행 즉시 자동 커밋되어 ROLLBACK으로 되돌릴 수 없다. 이 자동 커밋 여부의 차이가 두 명령의 핵심 차이다."}
 />
 
 ## 참고 자료

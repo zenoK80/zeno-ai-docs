@@ -1,7 +1,7 @@
 const meta = {
-  '01_starting-point-and-roadmap': '01. 출발점 점검과 중급 로드맵',
+  '01_starting-point-and-roadmap': '01. React 중급 개념 지도',
   '02_client-side-routing-concepts': '02. 클라이언트 사이드 라우팅 개념',
-  '03_router-setup-and-list-page': '03. 라우터 설치와 목록 페이지 분리',
+  '03_router-setup-and-list-page': '03. React Router의 데이터 라우터 구조',
   '04_detail-route-nested-and-loader': '04. 상세 페이지, 중첩 라우트, 로더',
   '05_new-book-route-and-actions': '05. 추가 페이지와 폼 액션',
   '06_extract-use-local-storage': '06. 커스텀 훅 추출: useLocalStorage',

@@ -19,9 +19,9 @@ const meta = {
   '18_web-front-basic': '18. 웹 프로그래밍 ①: HTML·CSS·JavaScript 기초와 폼 처리',
   '19_web-jsp-servlet': '19. 웹 프로그래밍 ②: JSP·Servlet과 MVC 구조',
   '20_network-socket': '20. 네트워크 프로그래밍 기초: 소켓·프로토콜·간단 통신 코드',
-  '21_integrated-practice-1': '21. 통합 실습 ①: C·자료구조·알고리즘 연계 손코딩',
-  '22_integrated-practice-2': '22. 통합 실습 ②: Java·웹·DB·네트워크 연계 손코딩',
-  '23_past-questions-style': '23. 기출 분석 ①: 평가영역·문항 유형·난이도 흐름 읽기',
+  '21_integrated-practice-1': '21. 통합 문제 풀이 ①: C·자료구조·알고리즘 연계 손코딩',
+  '22_integrated-practice-2': '22. 통합 문제 풀이 ②: Java·웹·DB·네트워크 연계 손코딩',
+  '23_past-questions-style': '23. C·Java·자료구조·웹·DB 종합 연습',
   '24_past-questions-c-java': '24. 기출·모의 ②: C·Java 핵심 문법·실행 결과·오류 찾기',
   '25_past-questions-web-db-network': '25. 기출·모의 ③: 웹·DB·네트워크·자료구조 연동 문제',
 }

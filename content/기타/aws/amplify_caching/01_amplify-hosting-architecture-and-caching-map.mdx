@@ -3,14 +3,6 @@ title: '01. Amplify Hosting 구조와 캐싱 지도'
 description: 'CloudFront에서 컴퓨트, 원본으로 이어지는 Amplify Hosting 요청 경로와 Next.js 캐시 4층을 정리하고 notice-board의 최종 청사진을 확정합니다'
 ---
 
-<Callout type="info">
-  **이번 편의 결과물:** 코드는 바꾸지 않습니다. Amplify Hosting이 요청을 처리하는 경로와 Next.js 캐시 4층의 이름·역할을 정리하고, `notice-board`가 16편까지 갖출 최종 상태를 확정합니다. · **다루는 개념:** Amplify Hosting 아키텍처(CloudFront → 컴퓨트 → 원본), 지원 Next.js 버전(15)과 컴퓨트 런타임, Next.js 캐시 4층 개요, `notice-board` 청사진
-</Callout>
-
-## 이 편에서 만드는 파일
-
-개념 편입니다. 새로 만들거나 고치는 파일이 없습니다. 03편부터 실제로 `notice-board` 프로젝트를 만들며 이 편에서 정리한 구조를 그대로 적용합니다.
-
 ## 개념 정리
 
 ### Amplify Hosting이 요청을 처리하는 경로
@@ -33,7 +25,7 @@ flowchart LR
 | 컴퓨트 | Next.js 서버 코드를 실제로 실행하는 단위. 정적 페이지가 아니라 요청마다 렌더링이 필요한 SSR 페이지·Route Handler를 처리한다 |
 | 원본 | 빌드 결과물(정적 파일과 SSR 실행 코드)이 저장된 곳. 컴퓨트가 필요할 때 여기서 읽는다 |
 
-CloudFront가 캐시를 갖고 있으면(HIT) 컴퓨트까지 요청이 도달하지 않습니다. 캐시가 없으면(MISS) 컴퓨트가 실행되고, 그 결과가 다시 CloudFront에 저장됩니다. 이 과목에서 응답 헤더로 관찰할 `x-cache`(HIT/MISS 여부)와 `age`(캐시가 만들어진 뒤 지난 시간)는 바로 이 CloudFront 계층의 상태를 보여줍니다.
+CloudFront가 캐시를 갖고 있으면(HIT) 컴퓨트까지 요청이 도달하지 않습니다. 캐시가 없으면(MISS) 컴퓨트가 실행되고, 그 결과가 다시 CloudFront에 저장됩니다.
 
 ### 이 과목이 다루는 Next.js 버전과 컴퓨트 런타임
 
@@ -86,15 +78,6 @@ notice-board/
 
 이 트리는 목표 지점을 미리 보여주는 스케치입니다. 실제로는 03편부터 한 단계씩 만듭니다.
 
-## 직접 해보기
-
-<details>
-<summary>지금까지 정리한 내용만으로, "서버에 있는 캐시"와 "브라우저에 있는 캐시"를 하나씩 짝지어보세요.</summary>
-
-서버에 있는 캐시는 요청 메모이제이션, 데이터 캐시, 전체 라우트 캐시(ISR) 세 가지입니다. 브라우저에 있는 캐시는 라우터 캐시 하나입니다. CloudFront의 CDN 캐시는 이 넷과 별개로, Next.js 밖에서 Amplify가 관리하는 층입니다.
-
-</details>
-
 ## 자주 하는 실수
 
 | 증상 | 원인 | 고치는 법 |
@@ -107,38 +90,26 @@ notice-board/
 
 <Quiz
   questionNumber={1}
-  question="Amplify Hosting compute가 2026년 9월 기준 공식 지원하는 Next.js 버전 범위는"
-  options={['11까지', '12부터 15까지', '16 이상만', '버전 제한이 없다']}
+  question={"Amplify Hosting compute가 2026년 9월 기준 공식 지원하는 Next.js 버전 범위는"}
+  options={["11까지","12부터 15까지","16 이상만","버전 제한이 없다"]}
   correctAnswer={2}
-  explanation="AWS 공식 문서는 Amplify Hosting compute가 Next.js 12부터 15까지를 완전히 관리형으로 지원한다고 명시합니다."
-  optionExplanations={['11까지는 이전 Classic SSR 제공자의 범위입니다', '정답입니다', '16 지원은 아직 문서에 없습니다', '지원 범위는 명확히 제한되어 있습니다']}
+  explanation={"AWS 공식 문서는 Amplify Hosting compute가 Next.js 12부터 15까지를 완전히 관리형으로 지원한다고 명시합니다."}
 />
 
 <Quiz
   questionNumber={2}
-  question="요청이 CloudFront에서 캐시 MISS로 처리될 때 벌어지는 일은"
-  options={['요청이 그대로 실패한다', '컴퓨트가 실행되어 응답을 만들고 그 결과가 다시 CloudFront에 저장된다', '항상 사용자에게 에러 화면이 보인다', 'CloudFront가 요청을 무시한다']}
+  question={"요청이 CloudFront에서 캐시 MISS로 처리될 때 벌어지는 일은"}
+  options={["요청이 그대로 실패한다","컴퓨트가 실행되어 응답을 만들고 그 결과가 다시 CloudFront에 저장된다","항상 사용자에게 에러 화면이 보인다","CloudFront가 요청을 무시한다"]}
   correctAnswer={2}
-  explanation="캐시 MISS는 CloudFront에 유효한 캐시가 없다는 뜻이며, 이때 컴퓨트가 실행되어 새 응답을 만들고 이후 요청을 위해 캐시에 저장됩니다."
-  optionExplanations={['실패가 아니라 정상적인 처리 경로입니다', '정답입니다', '에러가 아니라 정상 응답입니다', '무시하지 않고 컴퓨트로 전달합니다']}
+  explanation={"캐시 MISS는 CloudFront에 유효한 캐시가 없다는 뜻이며, 이때 컴퓨트가 실행되어 새 응답을 만들고 이후 요청을 위해 캐시에 저장됩니다."}
 />
 
 <Quiz
   questionNumber={3}
-  question="Next.js 캐시 4층 중 브라우저 메모리에 저장되는 것은"
-  options={['요청 메모이제이션', '데이터 캐시', '전체 라우트 캐시(ISR)', '라우터 캐시']}
+  question={"Next.js 캐시 4층 중 브라우저 메모리에 저장되는 것은"}
+  options={["요청 메모이제이션","데이터 캐시","전체 라우트 캐시(ISR)","라우터 캐시"]}
   correctAnswer={4}
-  explanation="라우터 캐시만 클라이언트(브라우저) 메모리에 저장되고, 나머지 세 층은 서버에 있습니다."
-  optionExplanations={['서버의 렌더 1회 동안만 유지됩니다', '서버에 영구적으로 저장됩니다', '서버에 영구적으로 저장됩니다', '정답입니다']}
-/>
-
-<Quiz
-  questionNumber={4}
-  question="Amplify Hosting compute가 더 이상 지원하지 않는 Node.js 런타임은"
-  options={['20', '22', '18', '24']}
-  correctAnswer={3}
-  explanation="Amplify Hosting은 Node.js 14, 16, 18 런타임 지원을 중단했고 20, 22, 24만 지원합니다."
-  optionExplanations={['지원 대상입니다', '지원 대상입니다', '정답입니다', '지원 대상입니다']}
+  explanation={"라우터 캐시만 클라이언트(브라우저) 메모리에 저장되고, 나머지 세 층은 서버에 있습니다."}
 />
 
 ## 참고 자료

@@ -17,7 +17,7 @@ const meta = {
   '16_logic-circuits-basics': '16. 논리회로와 부울식: 게이트와 카르노 맵 기초',
   '17_induction-advanced': '17. 수학적 귀납법 심화와 조합·점화 응용',
   '18_integrated-proofs-counting-graphs': '18. 세기·그래프·점화가 얽힌 종합 증명·계산',
-  '19_past-exam-patterns': '19. 최신 기출로 보는 출제 경향과 단원별 포인트',
+  '19_past-exam-patterns': '19. 이산수학 핵심 개념 비교와 반례 연습',
   '20_practice-logic-sets-relations': '20. 논리·집합·관계·함수 종합 연습문제',
   '21_practice-counting-number-theory': '21. 세기·조합·정수론 종합 연습문제',
   '22_practice-recurrence-graphs-trees': '22. 점화식·그래프·트리 계산·증명 연습문제',

@@ -1,6 +1,6 @@
 const meta = {
   '01_migration-strategy-and-react19-typescript-overview': '01. JS 앱을 왜, 어떻게 TypeScript로 옮기는가',
-  '02_project-setup-vite-react-ts-and-baseline-migration': '02. 프로젝트 준비: Vite react-ts로 시작하기',
+  '02_project-setup-vite-react-ts-and-baseline-migration': '02. React TypeScript 구조와 점진적 이식',
   '03_monorepo-and-workspace-basics': '03. 모노레포란 무엇이고 왜 나누는가',
   '04_component-props-typing-basics': '04. 컴포넌트 Props 타이핑 첫걸음',
   '05_events-and-forms-typing': '05. 이벤트와 폼 타이핑',
@@ -18,7 +18,7 @@ const meta = {
   '17_ui-library-package-extraction': '17. UI 컴포넌트 라이브러리 패키지 추출',
   '18_tsdown-build-and-declaration-files': '18. tsdown으로 라이브러리 빌드와 d.ts 생성',
   '19_npm-publish-workflow': '19. npm 배포 절차',
-  '20_typescript-eslint-monorepo-setup': '20. typescript-eslint로 모노레포 린트 설정',
+  '20_typescript-eslint-monorepo-setup': '20. typescript-eslint 모노레포 규칙 설계',
   '21_ci-typecheck-build-test-with-github-actions': '21. GitHub Actions로 타입 체크·빌드·테스트 CI 구성',
   '22_final-review-and-cleanup': '22. 최종 점검과 정리',
 }

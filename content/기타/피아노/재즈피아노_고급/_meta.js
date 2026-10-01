@@ -14,7 +14,7 @@ const meta = {
   '13_bebop-phrasing-enclosures-chromatic-approach': '13. 비밥 프레이징: 인클로저와 크로매틱 접근음',
   '14_bebop-line-construction-chord-tones': '14. 비밥 라인 만들기: 코드톤 중심 8분음표 라인',
   '15_transcription-methodology': '15. 트랜스크립션 방법론: 듣고 채보하는 절차',
-  '16_transcription-practice-short-phrase': '16. 트랜스크립션 실습: 짧은 프레이즈 채보하고 적용하기',
+  '16_transcription-practice-short-phrase': '16. 트랜스크립션: 짧은 프레이즈 채보하고 적용하기',
   '17_solo-piano-arranging-1-walking-plus-voicing': '17. 솔로 피아노 어레인지 1: 왼손 워킹+오른손 보이싱 동시 연주',
   '18_solo-piano-arranging-2-stride-elements': '18. 솔로 피아노 어레인지 2: 스트라이드 요소 가미',
   '19_solo-piano-arranging-3-intro-and-ending': '19. 솔로 피아노 어레인지 3: 인트로·엔딩(태그) 만들기',

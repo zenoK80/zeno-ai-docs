@@ -3,19 +3,9 @@ title: '13. 예외 처리 심화와 사용자 정의 예외'
 description: '여러 catch 블록의 매칭 우선순위, 예외 재던지기, 사용자 정의 예외 클래스 설계, try-with-resources를 이용한 리소스 정리 패턴을 코드 추적으로 완전히 익힌다'
 ---
 
-<Callout type="info">
-  **이번 문서의 목표:** 이 파일을 다 읽으면 여러 catch 블록이 있을 때 어떤 순서로 매칭되는지, 예외를 잡았다가 다시 던지는 상황과 사용자 정의 예외를 언제 어떻게 설계하는지, 리소스를 안전하게 정리하는 패턴까지 코드로 정확히 설명할 수 있다.
-</Callout>
-
-## 왜 이 주제가 중요한가
-
-13편에서 예외 계층과 기본 try-catch-finally 실행 순서를 다졌다. 그런데 실제 시험 문제는 여기서 한 단계 더 들어가, catch 블록이 **여러 개** 있을 때 어느 것이 먼저 실행되는지, 잡은 예외를 그대로 던지거나 다른 예외로 바꿔 던지면 어떻게 되는지, 특정 상황에 맞는 **사용자 정의 예외**를 어떻게 설계하는지를 묻는다. 이 편에서는 다중 catch의 매칭 규칙, 예외 재던지기(rethrow), 사용자 정의 예외 클래스, 그리고 파일·네트워크 자원을 안전하게 정리하는 패턴을 코드 추적으로 끝까지 파고든다.
-
 ## 여러 catch 블록: 위에서부터 순서대로, 첫 매칭에서 멈춘다
 
-> **쉽게 말하면:** catch 블록이 여러 개 있으면 Java는 위에서부터 차례로 "이 예외가 이 catch 타입에 맞는가"를 검사하다가, 처음으로 맞는 catch 하나만 실행하고 나머지는 모두 건너뛴다.
-
-09편에서 다형성을 배울 때 다뤘던 "부모 타입 참조가 자식 타입 객체를 가리킬 수 있다"는 원리가 catch 매칭에도 그대로 적용된다. `catch` 블록은 지정한 예외 타입 자신뿐 아니라 그 **자손 타입**의 예외까지 모두 잡는다. 따라서 여러 catch를 나열할 때는 **더 구체적인(자손) 타입을 먼저, 더 포괄적인(조상) 타입을 나중에** 배치해야 한다.
+08편에서 다형성을 배울 때 다뤘던 "부모 타입 참조가 자식 타입 객체를 가리킬 수 있다"는 원리가 catch 매칭에도 그대로 적용된다. 따라서 여러 catch를 나열할 때는 **더 구체적인(자손) 타입을 먼저, 더 포괄적인(조상) 타입을 나중에** 배치해야 한다.
 
 ```java
 public class MultiCatch {
@@ -38,7 +28,7 @@ public class MultiCatch {
 1. 배열 범위 예외: Index 10 out of bounds for length 3
 ```
 
-**한 줄씩 실행 추적**: 실제로 발생한 예외는 `ArrayIndexOutOfBoundsException`이다. 이 클래스는 `IndexOutOfBoundsException`을 거쳐 `RuntimeException`, 다시 `Exception`을 상속하는 자손이므로, 세 catch 모두 이론상 이 예외를 잡을 수 있는 타입이다. 하지만 Java는 **위에서부터 순서대로 검사**하다가 첫 번째로 매칭되는 `catch (ArrayIndexOutOfBoundsException e)`에서 멈춘다. 두 번째, 세 번째 catch는 애초에 검사조차 되지 않고 건너뛴다.
+**한 줄씩 실행 추적**: 실제로 발생한 예외는 `ArrayIndexOutOfBoundsException`이다. 이 클래스는 `IndexOutOfBoundsException`을 거쳐 `RuntimeException`, 다시 `Exception`을 상속하는 자손이므로, 세 catch 모두 이론상 이 예외를 잡을 수 있는 타입이다.
 
 만약 순서를 반대로 뒤집어 `Exception`을 가장 위에 둔다면 어떻게 될까?
 
@@ -68,8 +58,6 @@ public class MultiCatchWrongOrder {
 
 ## 예외 재던지기: 잡았다가 다시 던지기
 
-> **쉽게 말하면:** catch 블록에서 예외를 일단 붙잡아 로그를 남기거나 뒷정리를 한 다음, "이 문제는 나보다 상위에서 처리해야 한다"고 판단되면 같은 예외 혹은 다른 예외로 다시 던질 수 있다.
-
 ```java
 public class RethrowExample {
 
@@ -98,7 +86,7 @@ public class RethrowExample {
 main에서 최종 처리: Index 5 out of bounds for length 2
 ```
 
-**한 줄씩 실행 추적**: `파일처리` 메서드는 예외를 `catch`로 일단 붙잡아 로그(`"파일처리에서 1차 로그: ..."`)를 남긴 뒤, `throw e;`로 같은 예외 객체를 **다시 던진다**. 이 메서드는 `throws Exception`을 선언했으므로 재던지기가 허용된다. 다시 던져진 예외는 `파일처리`를 호출한 `main`으로 전파되고, `main`의 `catch (Exception e)`에서 최종적으로 처리된다.
+**한 줄씩 실행 추적**: `파일처리` 메서드는 예외를 `catch`로 일단 붙잡아 로그(`"파일처리에서 1차 로그: ..."`)를 남긴 뒤, `throw e;`로 같은 예외 객체를 **다시 던진다**. 이 메서드는 `throws Exception`을 선언했으므로 재던지기가 허용된다.
 
 ### 예외를 다른 타입으로 감싸서 던지기: 예외 전환
 
@@ -132,13 +120,11 @@ public class ExceptionWrapping {
 원래 원인: java.lang.ArrayIndexOutOfBoundsException: Index 5 out of bounds for length 2
 ```
 
-`new RuntimeException(메시지, e)`처럼 두 번째 인자로 원래 예외를 넘기면, `getCause()`(예외의 근본 원인을 반환)로 나중에 원래 문제(배열 범위 초과)를 그대로 추적할 수 있다. 이는 "배열 구현이 바뀌어도 호출자는 여전히 의미 있는 예외 메시지를 받는다"는 캡슐화(06편)의 원리를 예외 처리에 적용한 것이다.
+`new RuntimeException(메시지, e)`처럼 두 번째 인자로 원래 예외를 넘기면, `getCause()`(예외의 근본 원인을 반환)로 나중에 원래 문제(배열 범위 초과)를 그대로 추적할 수 있다. 이는 "배열 구현이 바뀌어도 호출자는 여전히 의미 있는 예외 메시지를 받는다"는 캡슐화(05편)의 원리를 예외 처리에 적용한 것이다.
 
 ## 사용자 정의 예외: 도메인에 맞는 예외 클래스 만들기
 
-> **쉽게 말하면:** Java가 기본으로 제공하는 예외만으로는 "잔액 부족", "나이 제한 위반" 같은 우리 프로그램만의 특수한 오류 상황을 표현하기 어려우므로, 직접 예외 클래스를 만들어 쓴다.
-
-사용자 정의 예외는 `Exception`(checked 예외로 만들고 싶을 때) 또는 `RuntimeException`(unchecked 예외로 만들고 싶을 때)을 상속해 정의한다. 대부분 필드 없이 생성자만 오버로딩(08편)해, 부모 클래스의 생성자를 `super`(05편)로 호출하는 짧은 구조를 갖는다.
+사용자 정의 예외는 `Exception`(checked 예외로 만들고 싶을 때) 또는 `RuntimeException`(unchecked 예외로 만들고 싶을 때)을 상속해 정의한다. 대부분 필드 없이 생성자만 오버로딩(07편)해, 부모 클래스의 생성자를 `super`(04편)로 호출하는 짧은 구조를 갖는다.
 
 ```java
 class 잔액부족예외 extends Exception {
@@ -181,7 +167,7 @@ public class CustomExceptionExample {
 출금 실패: 잔액 7000원보다 20000원을 더 많이 출금할 수 없습니다.
 ```
 
-**한 줄씩 실행 추적**: `잔액부족예외`는 `Exception`을 상속해 checked 예외로 만들었으므로, `출금` 메서드는 반드시 `throws 잔액부족예외`를 선언해야 하고 호출자인 `main`도 반드시 `try-catch`로 처리해야 한다. 첫 번째 `출금(3000)`은 잔액(10000원)이 충분해 정상 실행되어 잔액이 7000원으로 줄어든다. 두 번째 `출금(20000)`은 잔액(7000원)보다 큰 금액을 요청하므로 `조건문`이 참이 되어 `잔액부족예외`를 생성해 던진다. 이 예외는 `main`의 catch에서 잡혀 `e.getMessage()`로 미리 담아둔 상세 메시지를 그대로 꺼내 볼 수 있다.
+**한 줄씩 실행 추적**: `잔액부족예외`는 `Exception`을 상속해 checked 예외로 만들었으므로, `출금` 메서드는 반드시 `throws 잔액부족예외`를 선언해야 하고 호출자인 `main`도 반드시 `try-catch`로 처리해야 한다. 첫 번째 `출금(3000)`은 잔액(10000원)이 충분해 정상 실행되어 잔액이 7000원으로 줄어든다.
 
 <Callout type="warning">
   시험 함정: 사용자 정의 예외가 `Exception`을 상속하면 checked, `RuntimeException`을 상속하면 unchecked가 된다는 규칙은 **사용자 정의 예외에도 그대로 적용**된다. "사용자가 직접 만든 예외는 항상 unchecked다"라는 설명은 틀린 문장이다.
@@ -189,9 +175,7 @@ public class CustomExceptionExample {
 
 ## 리소스 정리 패턴: try-with-resources
 
-> **쉽게 말하면:** 파일이나 네트워크 연결처럼 다 쓰고 나면 반드시 닫아야 하는 자원을, 예외가 발생하든 안 하든 자동으로 닫아 주는 문법이다.
-
-13편에서 `finally`가 예외 발생 여부와 무관하게 항상 실행된다는 점을 배웠다. 전통적으로는 파일 같은 자원을 다 쓴 뒤 닫는 코드를 `finally` 블록에 직접 작성했다.
+12편에서 `finally`가 예외 발생 여부와 무관하게 항상 실행된다는 점을 배웠다. 전통적으로는 파일 같은 자원을 다 쓴 뒤 닫는 코드를 `finally` 블록에 직접 작성했다.
 
 ```java
 import java.io.FileReader;
@@ -258,7 +242,6 @@ public class TryWithResourcesExample {
 - 예외를 재던질 때 `throws` 선언을 메서드 시그니처에 빠뜨려 컴파일 오류를 낸다.
 - 사용자 정의 예외가 어떤 클래스를 상속했는지 확인하지 않고, "직접 만든 예외이니 무조건 unchecked"라고 단정한다.
 - 예외를 감싸 던질 때(`new RuntimeException(msg, e)`) 원래 원인 `e`를 넘기지 않아, 나중에 `getCause()`로 근본 원인을 추적할 수 없게 만든다.
-- try-with-resources 괄호 안에 `AutoCloseable`을 구현하지 않은 일반 객체를 넣으려 해 컴파일 오류가 나는 경우를 놓친다.
 
 ## 핵심 정리
 
@@ -288,125 +271,26 @@ public class Q1 {
 
 <Quiz
   questionNumber={1}
-  question="위 코드를 실행했을 때 출력되는 값은?"
-  options={['1', '2', '3', '아무것도 출력되지 않는다']}
+  question={"위 코드를 실행했을 때 출력되는 값은?"}
+  options={["1","2","3","아무것도 출력되지 않는다"]}
   correctAnswer={2}
-  explanation="String 객체를 Integer로 강제 형변환하면 ClassCastException이 발생한다. 여러 catch 중 타입이 정확히 일치하는 두 번째 catch (ClassCastException e)가 실행되어 2가 출력된다."
-  optionExplanations={['NullPointerException이 아니라 형변환 오류이므로 이 catch는 매칭되지 않는다', '정답. String을 Integer로 형변환하면 ClassCastException이 발생한다', 'RuntimeException도 잡을 수 있는 타입이지만 더 구체적인 두 번째 catch가 먼저 매칭된다', '예외가 발생하고 반드시 어느 한 catch에서 잡힌다']}
+  explanation={"String 객체를 Integer로 강제 형변환하면 ClassCastException이 발생한다. 여러 catch 중 타입이 정확히 일치하는 두 번째 catch (ClassCastException e)가 실행되어 2가 출력된다."}
 />
-
-```java
-class A extends Exception {}
-class B extends A {}
-
-public class Q2 {
-    static void m() throws A {
-        throw new B();
-    }
-    public static void main(String[] args) {
-        try {
-            m();
-        } catch (B e) {
-            System.out.println("B에서 잡힘");
-        } catch (A e) {
-            System.out.println("A에서 잡힘");
-        }
-    }
-}
-```
 
 <Quiz
   questionNumber={2}
-  question="위 코드를 컴파일하고 실행하면 어떻게 되는가?"
-  options={['정상 컴파일되며 "B에서 잡힘"이 출력된다', '정상 컴파일되며 "A에서 잡힘"이 출력된다', 'catch 순서가 잘못되어 컴파일 오류가 발생한다', 'm()이 throws A만 선언했으므로 B를 던질 수 없어 컴파일 오류가 발생한다']}
+  question={"위 코드를 컴파일하고 실행하면 어떻게 되는가?"}
+  options={["정상 컴파일되며 \"B에서 잡힘\"이 출력된다","정상 컴파일되며 \"A에서 잡힘\"이 출력된다","catch 순서가 잘못되어 컴파일 오류가 발생한다","m()이 throws A만 선언했으므로 B를 던질 수 없어 컴파일 오류가 발생한다"]}
   correctAnswer={1}
-  explanation="B는 A의 자손이므로 catch (B e)가 catch (A e)보다 먼저(더 구체적으로) 배치되어 있어 순서가 올바르다. throw new B()로 B 타입 예외가 발생하면 첫 번째로 매칭되는 catch (B e)가 실행된다. B는 A의 자손이므로 throws A 선언으로도 B를 던질 수 있다."
-  optionExplanations={['정답. 자손 타입 B가 먼저 매칭되어 잡힌다', '순서상 B가 먼저 검사되므로 A에서 잡히지 않는다', '자손 타입을 조상 타입보다 먼저 적었으므로 올바른 순서다', 'B는 A의 자손이므로 throws A 선언 범위에 포함된다']}
+  explanation={"B는 A의 자손이므로 catch (B e)가 catch (A e)보다 먼저(더 구체적으로) 배치되어 있어 순서가 올바르다. throw new B()로 B 타입 예외가 발생하면 첫 번째로 매칭되는 catch (B e)가 실행된다. B는 A의 자손이므로 throws A 선언으로도 B를 던질 수 있다."}
 />
-
-```java
-class 재고부족예외 extends RuntimeException {
-    public 재고부족예외(String message) {
-        super(message);
-    }
-}
-
-public class Q3 {
-    static void 주문(int 재고, int 요청) {
-        if (요청 > 재고) {
-            throw new 재고부족예외("재고 부족: 남은 수량 " + 재고);
-        }
-        System.out.println("주문 성공");
-    }
-    public static void main(String[] args) {
-        주문(5, 10);
-    }
-}
-```
 
 <Quiz
   questionNumber={3}
-  question="위 코드에 대한 설명으로 옳은 것은?"
-  options={['재고부족예외는 checked 예외이므로 main에서 반드시 try-catch로 처리해야 컴파일된다', '재고부족예외는 RuntimeException을 상속했으므로 unchecked 예외이며, try-catch 없이도 컴파일은 되지만 실행 시 예외로 종료된다', '주문 메서드가 throws를 선언하지 않았으므로 컴파일 오류가 발생한다', '요청(10)이 재고(5)보다 크므로 예외 없이 "주문 성공"이 출력된다']}
+  question={"위 코드에 대한 설명으로 옳은 것은?"}
+  options={["재고부족예외는 checked 예외이므로 main에서 반드시 try-catch로 처리해야 컴파일된다","재고부족예외는 RuntimeException을 상속했으므로 unchecked 예외이며, try-catch 없이도 컴파일은 되지만 실행 시 예외로 종료된다","주문 메서드가 throws를 선언하지 않았으므로 컴파일 오류가 발생한다","요청(10)이 재고(5)보다 크므로 예외 없이 \"주문 성공\"이 출력된다"]}
   correctAnswer={2}
-  explanation="재고부족예외는 RuntimeException을 상속했으므로 unchecked 예외다. 따라서 throws 선언이나 try-catch 처리 없이도 컴파일은 정상적으로 통과한다. 실행 시 요청(10)이 재고(5)보다 크므로 예외가 발생해 프로그램이 비정상 종료된다."
-  optionExplanations={['RuntimeException 상속이므로 checked가 아니라 unchecked 예외다', '정답. unchecked 예외이므로 처리 여부와 무관하게 컴파일되고, 실행 시 조건을 만족해 예외가 발생한다', 'unchecked 예외는 throws 선언이 강제되지 않는다', '요청이 재고보다 크므로 조건문이 참이 되어 예외가 발생한다']}
-/>
-
-<Quiz
-  questionNumber={4}
-  question="예외를 다른 타입으로 감싸 던질 때(exception wrapping) 원래 예외를 두 번째 생성자 인자로 함께 넘기는 이유로 가장 적절한 것은?"
-  options={['프로그램 실행 속도를 높이기 위해', '원래 예외 객체를 원인(cause)으로 보존해 getCause()로 근본 원인을 나중에 추적할 수 있게 하기 위해', '컴파일 오류를 방지하기 위해 문법상 반드시 필요하기 때문에', '원래 예외를 자동으로 삭제해 메모리를 절약하기 위해']}
-  correctAnswer={2}
-  explanation="new RuntimeException(message, e)처럼 원래 예외 e를 원인으로 함께 넘기면, 상위 예외를 잡은 코드가 getCause()를 호출해 근본 원인이 된 원래 예외를 그대로 확인할 수 있다. 이는 문법상 필수가 아니라 디버깅과 원인 추적을 위한 관례다."
-  optionExplanations={['실행 속도와는 무관하다', '정답. getCause()로 근본 원인을 잃지 않고 추적하기 위함이다', '원인을 넘기지 않아도 컴파일 오류는 발생하지 않는다', '원인 예외가 삭제되는 것이 아니라 보존되는 것이 목적이다']}
-/>
-
-<Quiz
-  questionNumber={5}
-  question="try-with-resources 구문에 대한 설명으로 옳지 않은 것은?"
-  options={['try 괄호 안에서 선언한 자원은 try 블록을 벗어날 때 자동으로 close()가 호출된다', 'AutoCloseable 인터페이스를 구현한 클래스의 객체만 try 괄호 안에 선언할 수 있다', '자원을 닫는 코드를 finally 블록에 직접 작성할 필요가 없어진다', '예외가 발생하지 않고 정상 종료될 때만 자원이 닫히고, 예외 발생 시에는 자원이 닫히지 않는다']}
-  correctAnswer={4}
-  explanation="try-with-resources로 선언한 자원은 정상 종료든 예외 발생이든 상관없이 try 블록을 벗어나는 시점에 항상 자동으로 close()가 호출된다. 예외 발생 시에도 닫히지 않는다는 설명은 명백히 틀렸다."
-  optionExplanations={['옳은 설명이다', '옳은 설명이다', '옳은 설명이다', '정답(옳지 않은 설명). 예외 발생 여부와 무관하게 항상 자동으로 닫힌다']}
-/>
-
-```java
-class 계좌 {
-    private int 잔액 = 1000;
-    void 출금(int 금액) {
-        try {
-            if (금액 > 잔액) {
-                throw new IllegalArgumentException("잔액 부족");
-            }
-            잔액 -= 금액;
-        } catch (IllegalArgumentException e) {
-            System.out.println("1차 처리: " + e.getMessage());
-            throw new RuntimeException("출금 실패", e);
-        }
-    }
-}
-
-public class Q6 {
-    public static void main(String[] args) {
-        계좌 acc = new 계좌();
-        try {
-            acc.출금(5000);
-        } catch (RuntimeException e) {
-            System.out.println("2차 처리: " + e.getMessage());
-            System.out.println("원인: " + e.getCause().getMessage());
-        }
-    }
-}
-```
-
-<Quiz
-  questionNumber={6}
-  question="위 코드를 실행했을 때 출력되는 세 줄의 순서와 내용으로 옳은 것은?"
-  options={['"2차 처리: 출금 실패", "원인: 잔액 부족", "1차 처리: 잔액 부족" 순서로 출력된다', '"1차 처리: 잔액 부족", "2차 처리: 출금 실패", "원인: 잔액 부족" 순서로 출력된다', '"1차 처리: 잔액 부족"만 출력되고 프로그램이 종료된다', 'IllegalArgumentException이 잡히지 않아 컴파일 오류가 발생한다']}
-  correctAnswer={2}
-  explanation="출금 메서드 안에서 IllegalArgumentException이 발생해 먼저 catch되어 1차 로그가 출력된다. 이후 이를 RuntimeException으로 감싸 재던지며, 이 예외는 main의 catch에서 잡혀 2차 처리 메시지와 getCause()로 얻은 원래 원인 메시지가 차례로 출력된다."
-  optionExplanations={['1차 처리가 항상 2차 처리보다 먼저 실행된다', '정답. 발생 순서대로 1차 처리 후 재던지기, main에서 2차 처리와 원인 확인이 이어진다', 'catch에서 잡은 뒤 재던지기가 있으므로 main에서도 처리가 이어진다', 'IllegalArgumentException은 RuntimeException의 자손으로 catch (IllegalArgumentException e)가 정상적으로 잡는다']}
+  explanation={"재고부족예외는 RuntimeException을 상속했으므로 unchecked 예외다. 실행 시 요청(10)이 재고(5)보다 크므로 예외가 발생해 프로그램이 비정상 종료된다."}
 />
 
 ## 참고 자료

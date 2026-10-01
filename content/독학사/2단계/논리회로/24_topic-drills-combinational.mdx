@@ -1,0 +1,64 @@
+---
+title: '24. 조합논리·카르노맵 집중 기출·유형 풀이'
+description: '수 체계·불 대수부터 카르노맵(5변수·무관항·POS 포함)·퀴인-맥클러스키·가산기·비교기·인코더·디코더·MUX·ROM까지 조합논리 전 범위를 계산 전 과정으로 재구성한 25문항'
+---
+
+<Callout type="warning">
+  이 문서의 문제는 실제 독학사 기출문제를 그대로 옮긴 것이 아니라, 국가평생교육진흥원이 공개한 2단계 논리회로 **출제기준(평가영역)을 바탕으로 새로 재구성**한 유형 문제다. 05~16편(수 체계·코드·불 대수·카르노맵·퀴인-맥클러스키·조합논리회로)의 계산 유형을 집중적으로 모았으며, 실제 회차별 문항 수·난이도는 매년 시행공고에 따라 달라질 수 있으므로 최신 공고를 함께 확인해야 한다.
+</Callout>
+
+## 마무리 복습
+
+<Quiz
+  questionNumber={1}
+  question={"십진수 187을 16진수로 옳게 변환한 것은?"}
+  options={["CB","BB","AB","DB"]}
+  correctAnswer={2}
+  explanation={"187을 16으로 나누면 몫 11, 나머지 11이다. 몫과 나머지 모두 16진수로 B이므로 187 = BB(16)이다."}
+/>
+
+<Quiz
+  questionNumber={8}
+  question={"드모르간 법칙에 따라 (A′+BC)′을 옳게 전개한 것은?"}
+  options={["A′(B′+C′)","A(B+C)","A(B′+C′)","A′BC"]}
+  correctAnswer={3}
+  explanation={"(A′+BC)′ = (A′)′·(BC)′ = A·(B′+C′)이다. OR 전체의 부정은 각 항을 부정해 AND로 묶고, 그중 BC의 부정은 다시 드모르간 법칙으로 B′+C′가 된다."}
+/>
+
+<Quiz
+  questionNumber={18}
+  question={"전가산기(Full Adder)에 A=1, B=1, Cin=1이 입력되었을 때 합(S)과 자리올림(Cout)으로 옳은 것은?"}
+  options={["S=0, Cout=1","S=1, Cout=0","S=1, Cout=1","S=0, Cout=0"]}
+  correctAnswer={3}
+  explanation={"합은 세 입력의 XOR이다. 1 XOR 1 XOR 1은 1의 개수가 3개(홀수)이므로 S=1이다."}
+/>
+
+<Quiz
+  questionNumber={19}
+  question={"4비트 리플 캐리 가산기에서 A=1001, B=0111을 더한 결과(S, Cout)로 옳은 것은?"}
+  options={['S=1111, Cout=0', 'S=0000, Cout=1', 'S=0001, Cout=1', 'S=0000, Cout=0']}
+  correctAnswer={2}
+  explanation={"9(1001)와 7(0111)을 더하면 16이며, 4비트로는 0000까지만 표현되고 나머지 16(2의 4제곱)은 최종 캐리로 넘어간다. 자리별로 계산하면 S=0000, Cout=1이다."}
+/>
+
+<Quiz
+  questionNumber={23}
+  question={"8-to-3 인코더에 I5(다섯 번째 입력선)만 1일 때 출력 Y2Y1Y0으로 옳은 것은?"}
+  options={["110","101","011","100"]}
+  correctAnswer={2}
+  explanation={"인코더는 활성화된 입력선의 번호를 2진수로 압축해 출력한다. I5가 활성화되었으므로 5를 2진수로 바꾼 101이 출력된다."}
+/>
+
+<Quiz
+  questionNumber={25}
+  question={"8-to-1 멀티플렉서에서 선택선 S2S1S0=101일 때 출력되는 입력으로 옳은 것은?"}
+  options={["I4","I6","I3","I5"]}
+  correctAnswer={4}
+  explanation={"선택선 S2S1S0=101을 십진수로 바꾸면 5이므로, 그 값에 대응하는 입력 I5가 출력으로 선택된다."}
+/>
+
+## 참고 자료
+
+- [국가평생교육진흥원 독학학위제 - 전공분야/과목 시험안내](https://bdes.nile.or.kr/nile/exam/nExam2_1.do)
+- [국가평생교육진흥원 독학학위제 - 과목별 평가영역](https://bdes.nile.or.kr/nile/study/nStudy2_1.do)
+- [IEEE Standards Association](https://standards.ieee.org)

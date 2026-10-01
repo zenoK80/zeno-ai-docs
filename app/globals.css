@@ -34,20 +34,36 @@ html.dark {
 
 html {
   --nextra-navbar-height: 58px;
+  max-width: 100%;
+  overflow-x: hidden;
+  overflow-x: clip;
 }
 
 body {
   overflow-x: hidden;
+  max-width: 100%;
   background: var(--background);
   color: var(--foreground);
   font-family: Montserrat, Pretendard, Arial, sans-serif;
 }
 
 /* 코드블록·테이블은 컨테이너 안에서만 가로 스크롤 */
-article pre,
-article table {
+article pre {
+  display: block;
+  width: 100%;
   overflow-x: auto;
   max-width: 100%;
+  overscroll-behavior-inline: contain;
+  -webkit-overflow-scrolling: touch;
+}
+
+article table {
+  display: block;
+  width: 100%;
+  overflow-x: auto;
+  max-width: 100%;
+  overscroll-behavior-inline: contain;
+  -webkit-overflow-scrolling: touch;
 }
 
 /* 긴 수식 블록은 페이지를 밀지 않고 자기 영역 안에서만 가로 스크롤 */
@@ -56,6 +72,8 @@ article .katex-display {
   overflow-y: hidden;
   max-width: 100%;
   padding: 0.25rem 0;
+  overscroll-behavior-inline: contain;
+  -webkit-overflow-scrolling: touch;
 }
 
 article .katex-display > .katex {
@@ -63,8 +81,31 @@ article .katex-display > .katex {
 }
 
 /* 본문 컨테이너가 자식 때문에 화면보다 넓어지지 않게 */
+main,
+main > div,
 article {
   min-width: 0;
+  max-width: 100%;
+}
+
+article img,
+article video,
+article iframe,
+article canvas {
+  max-width: 100%;
+}
+
+article :not(pre) > code {
+  overflow-wrap: anywhere;
+  word-break: break-word;
+}
+
+article .mermaid,
+article .abc-score {
+  max-width: 100%;
+  overflow-x: auto;
+  overscroll-behavior-inline: contain;
+  -webkit-overflow-scrolling: touch;
 }
 
 /* 표 셀은 단어 중간에서 끊지 않는다 */

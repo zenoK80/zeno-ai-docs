@@ -16,6 +16,7 @@ concurrency:
 jobs:
   build:
     runs-on: ubuntu-latest
+    timeout-minutes: 60
 
     steps:
       - uses: actions/checkout@v4
@@ -25,10 +26,18 @@ jobs:
           node-version: 22
           cache: npm
 
+      - name: Add swap space for the MDX build
+        run: |
+          sudo fallocate -l 8G /swapfile
+          sudo chmod 600 /swapfile
+          sudo mkswap /swapfile
+          sudo swapon /swapfile
+          free -h
+
       - run: npm ci
 
       # 비공개 저장소용 표준 러너의 물리 메모리를 넘지 않도록 Node 힙에 여유를 둔다.
-      # Turbopack과 단일 정적 생성 워커로 대규모 MDX 빌드의 최대 메모리를 낮춘다.
+      # Turbopack·단일 정적 생성 워커·스왑으로 대규모 MDX 빌드의 메모리를 관리한다.
       - run: npm run build
         env:
           NODE_OPTIONS: --max-old-space-size=6144

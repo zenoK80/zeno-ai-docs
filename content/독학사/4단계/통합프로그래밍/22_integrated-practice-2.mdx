@@ -231,37 +231,13 @@ Member m = (point >= 500) ? (가) : new Member(name, point);
   explanation={"try-with-resources는 괄호 안에서 선언한 자원들을 try 블록 종료 시(정상이든 예외든) 자동으로 close()하는 문법이다. 예외 처리 자체가 필요 없어지는 것은 아니다."}
 />
 
-<Quiz
-  questionNumber={4}
-  question={"ResultSet의 next() 메서드에 대한 설명으로 옳은 것은?"}
-  options={["현재 행의 첫 번째 컬럼 값을 반환한다","커서를 다음 행으로 이동시키고, 이동할 행이 있으면 true, 없으면 false를 반환한다","조회 결과 전체 행 개수를 반환한다","SQL 쿼리를 실행하고 그 결과를 ResultSet으로 반환한다"]}
-  correctAnswer={2}
-  explanation={"ResultSet.next()는 커서를 다음 행으로 이동시키는 메서드로, 이동할 다음 행이 존재하면 true, 더 이상 없으면 false를 반환한다. while(rs.next())는 이 반환값을 이용해 모든 행을 순회하는 관용구다."}
-/>
 
-<Quiz
-  questionNumber={5}
-  question={"MemberListServlet의 doGet() 메서드가 브라우저의 GET 요청 시 자동으로 호출되는 근거로 옳은 것은?"}
-  options={["개발자가 main() 메서드에서 doGet()을 직접 호출하도록 코드를 작성했기 때문이다","서블릿 컨테이너가 서블릿의 생명주기에 따라 HTTP 메서드(GET/POST)에 맞는 메서드를 자동으로 호출하기 때문이다","JSP 파일이 doGet()을 직접 호출하기 때문이다","doGet()이 static 메서드로 선언되어 있기 때문이다"]}
-  correctAnswer={2}
-  explanation={"서블릿은 컨테이너가 관리하는 생명주기를 가지며, 요청의 HTTP 메서드가 GET이면 doGet(), POST면 doPost()를 컨테이너가 자동으로 호출한다. 개발자가 직접 호출하지 않는다."}
-/>
 
-<Quiz
-  questionNumber={6}
-  question={"notifyBranchServer 메서드에서 new Socket(host, port) 호출 시 서버가 꺼져 있을 때 발생할 수 있는 예외로 옳은 것은?"}
-  options={["NullPointerException","ArrayIndexOutOfBoundsException","IOException","ClassNotFoundException"]}
-  correctAnswer={3}
-  explanation={"소켓 연결이 실패하면(서버 미실행, 포트 닫힘 등) IOException 계열의 예외가 발생한다. Socket 생성자와 관련 스트림 메서드는 모두 IOException을 던질 수 있는 검사 예외 시그니처를 가진다."}
-/>
 
-<Quiz
-  questionNumber={7}
-  question={"point가 500 이상이면 new VipMember(name, point)를, 그렇지 않으면 new Member(name, point)를 대입해 Member m을 만드는 삼항 연산자 문장에서, VipMember 객체를 Member 타입 변수에 대입하는 것에 대한 설명으로 옳은 것은?"}
-  options={["다운캐스팅이며 명시적 형변환이 반드시 필요하다","업캐스팅이며 자식 타입을 부모 타입 참조 변수에 대입하는 것이라 별도 형변환 없이 허용된다","타입이 다르므로 컴파일 오류가 발생한다","VipMember가 Member를 상속하지 않는 한 실행 시 예외가 발생한다"]}
-  correctAnswer={2}
-  explanation={"자식 클래스(VipMember)의 객체를 부모 클래스(Member) 타입의 참조 변수에 대입하는 것은 업캐스팅이며, 항상 안전하므로 명시적 형변환 없이 자동으로 허용된다."}
-/>
+
+
+
+
 
 ## 참고 자료
 

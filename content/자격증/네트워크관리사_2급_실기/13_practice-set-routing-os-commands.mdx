@@ -519,125 +519,35 @@ $ dig +short www.icqa.or.kr
   explanation={"ip route 는 목적지 네트워크 주소 목적지의 서브넷 마스크 다음 홉 주소를 순서대로 받는다. 프리픽스 표기는 문법 오류이며 목적지와 다음 홉의 순서를 바꾸면 전혀 다른 경로가 된다."}
 />
 
-<Quiz
-  questionNumber={4}
-  question={"R1 에만 지사로 가는 정적 경로를 넣었더니 ping 이 실패했다. 가장 유력한 원인은?"}
-  options={["R1 의 경로 문법이 틀렸다","R2 에 본사로 돌아오는 반대 방향 경로가 없다","ping 명령의 옵션이 잘못되었다","정적 라우팅은 원래 양방향을 자동 생성한다"]}
-  correctAnswer={2}
-  explanation={"정적 경로는 한 방향만 정의한다. 요청은 지사에 도착해도 응답이 돌아올 경로가 없으면 사용자에게는 실패로 보인다. R2 에도 ip route 210.100.50.128 255.255.255.224 10.10.10.1 이 필요하다."}
-/>
 
-<Quiz
-  questionNumber={5}
-  question={"라우팅 테이블에 없는 모든 목적지를 10.10.10.2 로 보내는 기본 경로 명령은?"}
-  options={["ip route 0.0.0.0 0.0.0.0 10.10.10.2","ip route 255.255.255.255 0.0.0.0 10.10.10.2","ip default-network 10.10.10.2","ip route any any 10.10.10.2"]}
-  correctAnswer={1}
-  explanation={"목적지와 마스크를 모두 0.0.0.0 으로 두면 어떤 주소와도 일치하는 경로가 된다. 라우터는 더 자세히 일치하는 경로를 우선하므로 구체적 경로가 있으면 그쪽이 선택된다."}
-/>
 
-<Quiz
-  questionNumber={6}
-  question={"OSPF 에서 172.30.8.0/22 를 포함시킬 때 network 문에 쓸 와일드카드 마스크는?"}
-  options={["255.255.252.0","0.0.3.255","0.0.0.255","0.0.255.255"]}
-  correctAnswer={2}
-  explanation={"와일드카드 마스크는 서브넷 마스크의 각 토막을 255 에서 뺀 값이다. 255.255.252.0 에서 세 번째 토막은 255 빼기 252 로 3 네 번째는 255 빼기 0 으로 255 가 된다."}
-/>
 
-<Quiz
-  questionNumber={7}
-  question={"OSPF 의 프로세스 ID 와 Area ID 에 대한 설명으로 옳은 것은?"}
-  options={["둘 다 이웃 라우터와 반드시 같아야 한다","프로세스 ID 는 장비 내부용이라 달라도 되고 Area ID 는 같아야 인접 관계가 맺어진다","둘 다 달라도 아무 문제가 없다","Area ID 는 장비 내부용이고 프로세스 ID 를 맞춰야 한다"]}
-  correctAnswer={2}
-  explanation={"프로세스 ID 는 한 장비 안에서 여러 OSPF 인스턴스를 구분하는 지역 값이라 이웃과 달라도 된다. 반면 같은 구간의 Area ID 가 다르면 인접 관계가 형성되지 않는다."}
-/>
 
-<Quiz
-  questionNumber={8}
-  question={"FastEthernet 0/1 을 VLAN 10 의 액세스 포트로 지정하는 명령 조합으로 옳은 것은?"}
-  options={["switchport mode trunk 다음 switchport access vlan 10","switchport mode access 다음 switchport access vlan 10","vlan 10 다음 switchport trunk allowed vlan 10","ip address 로 VLAN 10 주소를 부여"]}
-  correctAnswer={2}
-  explanation={"인터페이스를 액세스 모드로 지정한 뒤 소속 VLAN 번호를 지정한다. 트렁크 모드는 여러 VLAN 을 함께 나르는 스위치 간 링크에 쓰므로 단말 포트에는 맞지 않는다."}
-/>
 
-<Quiz
-  questionNumber={9}
-  question={"show vlan brief 결과에 트렁크로 설정한 FastEthernet 0/24 가 보이지 않는다. 올바른 판단은?"}
-  options={["설정이 실패했으므로 다시 입력한다","트렁크 포트는 특정 VLAN 에 속하지 않아 이 목록에 나타나지 않으며 show interfaces trunk 로 확인한다","포트가 비활성 상태다","VLAN 번호를 지정하지 않아 생긴 오류다"]}
-  correctAnswer={2}
-  explanation={"show vlan brief 는 각 VLAN 에 속한 액세스 포트를 보여준다. 트렁크 포트는 여러 VLAN 을 함께 나르므로 특정 VLAN 소속이 아니어서 목록에 표시되지 않는다."}
-/>
 
-<Quiz
-  questionNumber={10}
-  question={"ipconfig 결과가 169.254.88.12 이고 기본 게이트웨이 칸이 비어 있다. 원인은?"}
-  options={["공인 IP 를 정상적으로 할당받은 상태","DHCP 서버 응답이 없어 윈도우가 임시로 부여한 APIPA 주소","서브넷 마스크를 잘못 입력한 상태","루프백 주소가 잘못 설정된 상태"]}
-  correctAnswer={2}
-  explanation={"169.254 로 시작하는 대역은 APIPA 로 DHCP 서버를 찾지 못했을 때 자동 부여된다. 게이트웨이가 비는 것도 같은 이유이며 이 주소로는 외부 통신이 되지 않는다."}
-/>
 
-<Quiz
-  questionNumber={11}
-  question={"게이트웨이 ping 은 성공하는데 8.8.8.8 로 보낸 ping 이 모두 시간 초과다. 가장 먼저 의심할 곳은?"}
-  options={["PC 의 랜 케이블 단선","DNS 서버 설정","라우터의 기본 경로 누락이나 상위 구간 장애","PC 의 서브넷 마스크"]}
-  correctAnswer={3}
-  explanation={"게이트웨이까지 정상 응답이므로 물리 연결 마스크 게이트웨이 설정은 모두 문제가 없다. 그 너머로 나가지 못하는 것이므로 라우터의 외부 경로를 확인해야 한다."}
-/>
 
-<Quiz
-  questionNumber={12}
-  question={"ping 응답의 TTL 이 255 로 표시되었다. 응답한 장비로 가장 유력한 것은?"}
-  options={["윈도우 PC","리눅스 서버","네트워크 장비(라우터·스위치)","판단 근거가 없다"]}
-  correctAnswer={3}
-  explanation={"초기 TTL 은 리눅스 계열이 64 윈도우가 128 네트워크 장비가 255 인 경우가 많다. 255 에 가까운 값이면 중간 라우터를 거의 지나지 않은 네트워크 장비의 응답으로 추정한다."}
-/>
 
-<Quiz
-  questionNumber={13}
-  question={"리눅스에서 ping 을 실행했더니 connect: Network is unreachable 이 즉시 출력되었다. 이 메시지가 뜻하는 것은?"}
-  options={["패킷을 보냈으나 응답이 오지 않았다","보낼 경로 자체가 라우팅 테이블에 없어 패킷을 내보내지도 못했다","목적지 방화벽이 ICMP 를 차단했다","DNS 이름 해석에 실패했다"]}
-  correctAnswer={2}
-  explanation={"Network is unreachable 은 커널이 해당 목적지로 갈 경로를 찾지 못해 전송 자체를 포기한 상태다. 보냈으나 답이 없는 경우는 시간 초과로 표시되므로 두 상황을 구분해야 한다."}
-/>
 
-<Quiz
-  questionNumber={14}
-  question={"ip route 출력에 직접 연결 대역 한 줄만 있고 default 줄이 없다. 필요한 조치 명령은?"}
-  options={["ip addr add 192.168.70.50/24 dev eth0","ip route add default via 192.168.70.1","ip link set eth0 up","ip neigh flush all"]}
-  correctAnswer={2}
-  explanation={"기본 경로가 없으면 다른 대역으로 나갈 수 없다. 게이트웨이를 다음 홉으로 하는 default 경로를 추가해야 하며 이 설정은 메모리에만 남으므로 영구 적용은 설정 파일에 기록해야 한다."}
-/>
 
-<Quiz
-  questionNumber={15}
-  question={"복수 개의 VLAN 프레임을 함께 전송할 수 있으며 주로 스위치 간을 연결할 때 사용하는 링크를 무엇이라 하는가?"}
-  options={["액세스 링크","트렁크 링크","루프백 링크","롤오버 링크"]}
-  correctAnswer={2}
-  explanation={"트렁크는 VLAN 번호 태그를 붙여 여러 VLAN 의 프레임을 한 링크로 함께 나른다. 액세스 링크는 하나의 VLAN 만 담당하며 단말 연결에 쓴다."}
-/>
 
-<Quiz
-  questionNumber={16}
-  question={"링크 상태 알고리즘을 사용하며 코스트를 메트릭으로 삼아 최단 경로를 계산하는 라우팅 프로토콜은?"}
-  options={["RIP","OSPF","IGRP","BGP"]}
-  correctAnswer={2}
-  explanation={"OSPF 는 링크 상태 방식으로 전체 지도를 만들고 대역폭 기반 코스트로 최단 경로를 계산한다. RIP 는 거리 벡터에 홉 수 IGRP 는 시스코 전용 거리 벡터 BGP 는 사업자 간 경로 벡터 프로토콜이다."}
-/>
 
-<Quiz
-  questionNumber={17}
-  question={"Discover Offer Request Ack 4단계 메시지 교환으로 클라이언트에 IP 를 자동 할당하는 프로토콜은?"}
-  options={["DNS","DHCP","ARP","NAT"]}
-  correctAnswer={2}
-  explanation={"DHCP 의 DORA 4 단계다. DNS 는 이름을 IP 로 바꾸고 ARP 는 IP 로 MAC 을 알아내며 NAT 는 사설 주소를 공인 주소로 바꾼다."}
-/>
 
-<Quiz
-  questionNumber={18}
-  question={"라우터에서 설정과 조회를 마친 뒤 저장하지 않고 시험을 끝냈다. 결과는?"}
-  options={["running-config 에 남아 있으므로 정상 채점된다","startup-config 에 반영되지 않아 저장을 요구한 문제는 오답 처리된다","조회 명령은 저장이 필요 없으므로 문제없다","자동으로 저장된다"]}
-  correctAnswer={2}
-  explanation={"기출 자료 전 회차가 특권 모드에서 copy running-config startup-config 를 실행해야 정답 처리된다고 명시한다. 조회만 하는 문제에도 저장을 지시하는 경우가 많으므로 문제 문장을 그대로 따라야 한다."}
-/>
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 ## 참고 자료
 

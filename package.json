@@ -6,7 +6,7 @@
     "predev": "node scripts/gen-home-data.js",
     "dev": "next dev",
     "prebuild": "node scripts/gen-home-data.js",
-    "build": "next build",
+    "build": "next build --turbopack",
     "start": "next start",
     "postbuild": "pagefind --site .next/server/app --output-path out/_pagefind && node scripts/export-legacy-redirects.js",
     "lint": "eslint"

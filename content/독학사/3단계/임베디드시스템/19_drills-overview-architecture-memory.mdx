@@ -33,93 +33,27 @@ description: '임베디드 시스템 개요, MPU/MCU와 ARM 아키텍처, 레지
   explanation={"Cortex-M 계열은 저비용·저전력 임베디드 제어를 목표로 설계된 마이크로컨트롤러용 코어이며, 고성능 서버·데스크톱 운영체제 구동은 Cortex-A 계열이 담당하는 영역이다."}
 />
 
-<Quiz
-  questionNumber={6}
-  question={"Cortex-M의 동작 모드에 대한 설명으로 옳은 것은?"}
-  options={["Thread 모드에서만 예외 처리를 수행할 수 있다","Handler 모드는 예외(인터럽트 포함) 처리 중에 진입하는 모드이고, Thread 모드는 일반 애플리케이션 코드 실행 모드다","Thread 모드와 Handler 모드는 완전히 동일해 구분할 필요가 없다","Handler 모드에서는 항상 비특권(unprivileged) 수준으로만 동작한다"]}
-  correctAnswer={2}
-  explanation={"Cortex-M은 일반 코드를 실행하는 Thread 모드와, 예외나 인터럽트가 발생했을 때 진입하는 Handler 모드를 구분한다. Handler 모드는 항상 특권(privileged) 수준으로 동작한다."}
-/>
 
-<Quiz
-  questionNumber={8}
-  question={"Cortex-M에서 예외(인터럽트)가 발생했을 때 자동으로 스택에 저장(스태킹)되는 레지스터 묶음으로 가장 옳은 것은?"}
-  options={["R4~R11만 자동으로 저장된다","R0~R3, R12, LR, PC, PSR이 자동으로 저장된다","모든 범용 레지스터 R0~R12가 예외 없이 전부 자동 저장된다","스택에는 아무 레지스터도 자동으로 저장되지 않는다"]}
-  correctAnswer={2}
-  explanation={"Cortex-M은 예외 진입 시 하드웨어가 자동으로 R0~R3, R12, LR, PC(반환 주소), PSR을 스택에 저장(스태킹)해 ISR이 이 레지스터들을 자유롭게 사용할 수 있게 하고, 예외 복귀 시 자동으로 복원한다."}
-/>
 
-<Quiz
-  questionNumber={9}
-  question={"인터럽트 벡터 테이블(interrupt vector table)에 대한 설명으로 가장 옳은 것은?"}
-  options={["각 인터럽트 번호에 대응하는 ISR의 시작 주소를 모아 둔 표다","인터럽트가 발생한 횟수를 누적해서 기록하는 통계 표다","인터럽트 우선순위를 텍스트로 설명해 둔 매뉴얼이다","ISR 내부에서 사용하는 지역 변수를 모아 둔 표다"]}
-  correctAnswer={1}
-  explanation={"인터럽트 벡터 테이블은 각 인터럽트(예외) 번호에 해당하는 ISR(인터럽트 서비스 루틴)의 시작 주소를 메모리의 정해진 위치에 순서대로 모아 둔 표로, 예외 발생 시 프로세서가 이 표를 참조해 해당 ISR로 분기한다."}
-/>
 
-<Quiz
-  questionNumber={10}
-  question={"다음 조건에서 인터럽트 지연시간(interrupt latency)을 사이클 수로 계산하면 얼마인가? 조건: 예외 진입 스태킹에 12사이클, 파이프라인 재적재에 3사이클, 현재 실행 중이던 명령의 완료 대기에 최대 2사이클이 필요하다."}
-  options={["15사이클","17사이클","12사이클","19사이클"]}
-  correctAnswer={2}
-  explanation={"인터럽트 지연시간은 예외 진입에 필요한 각 단계의 사이클을 모두 더한 값이다."}
-/>
 
-<Quiz
-  questionNumber={11}
-  question={"문제 10과 같은 조건(지연시간 17사이클)에서 클럭 주파수가 48MHz일 때, 인터럽트 지연시간을 시간(마이크로초)으로 환산하면 약 얼마인가?"}
-  options={['약 0.354마이크로초', '약 3.54마이크로초', '약 35.4마이크로초', '약 0.0354마이크로초']}
-  correctAnswer={1}
-  explanation={"한 사이클의 시간은 1을 클럭 주파수로 나눈 값이다. 48MHz에서 한 사이클은 1/48,000,000초이므로 17사이클은 17/48,000,000초이며, 이를 계산하면 약 0.354마이크로초(3.54×10^-7초)가 된다."}
-/>
 
-<Quiz
-  questionNumber={15}
-  question={"메모리 맵드 I/O(memory-mapped I/O)에 대한 설명으로 옳은 것은?"}
-  options={["주변장치의 레지스터에 별도의 전용 명령어 집합으로만 접근할 수 있게 하는 방식이다","주변장치의 레지스터를 일반 메모리와 같은 주소 공간에 배치해 일반 메모리 접근 명령으로 읽고 쓸 수 있게 하는 방식이다","주변장치는 항상 CPU와 물리적으로 같은 칩에 내장되어야만 사용할 수 있는 방식이다","ROM 영역에만 적용되는 개념이며 SRAM에는 적용할 수 없다"]}
-  correctAnswer={2}
-  explanation={"메모리 맵드 I/O는 주변장치의 제어·상태 레지스터를 CPU의 일반 메모리 주소 공간 안에 특정 주소로 배치해, 별도의 전용 명령어 없이 일반적인 메모리 읽기·쓰기 명령으로 주변장치를 제어할 수 있게 하는 방식이다."}
-/>
 
-<Quiz
-  questionNumber={16}
-  question={"다음 중 Memory Protection Unit(MPU, 메모리 보호 장치)에 대한 설명으로 옳은 것은?"}
-  options={["가상 주소를 물리 주소로 변환하는 페이지 테이블 기반 주소 변환 기능을 제공한다","메모리 영역별로 접근 권한(읽기·쓰기·실행)을 설정해 잘못된 접근을 감지하고 차단하는 기능을 제공한다","메모리 용량을 물리적으로 확장하는 하드웨어 장치다","CPU의 연산 속도를 높이기 위한 캐시 메모리의 다른 이름이다"]}
-  correctAnswer={2}
-  explanation={"이 문제에서 MPU는 Memory Protection Unit(메모리 보호 장치)을 가리킨다. MPU는 메모리를 여러 영역으로 나누고 각 영역에 읽기·쓰기·실행 권한을 설정해, 허용되지 않은 접근이 일어나면 예외를 발생시켜 차단하는 기능을 한다."}
-/>
 
-<Quiz
-  questionNumber={18}
-  question={"임베디드 시스템의 메모리 계층을 휘발성과 비휘발성으로 구분할 때, 다음 중 성격이 다른 하나는?"}
-  options={["SRAM","Flash 메모리","ROM","EEPROM"]}
-  correctAnswer={1}
-  explanation={"SRAM은 전원이 꺼지면 내용이 사라지는 휘발성 메모리인 반면, Flash·ROM·EEPROM은 전원이 꺼져도 내용이 유지되는 비휘발성 메모리다."}
-/>
 
-<Quiz
-  questionNumber={19}
-  question={"NVIC(Nested Vectored Interrupt Controller)의 역할에 대한 설명으로 가장 옳은 것은?"}
-  options={["여러 인터럽트의 우선순위를 관리하고 우선순위가 높은 인터럽트가 낮은 인터럽트 처리 중에도 끼어들 수 있게(중첩) 지원한다","인터럽트를 발생시키는 각 주변장치의 전원 공급을 직접 제어한다","CPU 코어의 파이프라인 단계 수를 동적으로 조절한다","프로그램 코드를 컴파일 시점에 최적화하는 도구다"]}
-  correctAnswer={1}
-  explanation={"NVIC는 Cortex-M에 내장된 인터럽트 컨트롤러로, 여러 인터럽트 소스에 우선순위를 부여하고 관리하며, 이름의 Nested(중첩)가 뜻하듯 우선순위가 높은 인터럽트가 처리 중인 낮은 우선순위 인터럽트에 끼어들 수 있도록 지원한다."}
-/>
 
-<Quiz
-  questionNumber={20}
-  question={"Cortex-M의 MSP(Main Stack Pointer)와 PSP(Process Stack Pointer)에 대한 설명으로 옳은 것은?"}
-  options={["MSP와 PSP는 완전히 동일한 스택을 가리키는 중복된 이름이다","일반적으로 Handler 모드와 초기 부팅은 MSP를 사용하고, RTOS 환경의 태스크 코드는 PSP를 사용하도록 구분해 스택을 분리할 수 있다","PSP는 하드웨어 예외 진입 시 자동으로만 사용되고 소프트웨어가 선택할 수 없다","MSP는 인터럽트 벡터 테이블의 저장 위치를 가리키는 레지스터다"]}
-  correctAnswer={2}
-  explanation={"Cortex-M은 두 개의 스택 포인터(MSP, PSP)를 두어, Handler 모드와 초기 부팅 코드는 MSP를, RTOS의 각 태스크 실행 코드는 PSP를 사용하도록 구분할 수 있다. 이렇게 하면 커널 스택과 태스크 스택을 분리해 관리할 수 있다."}
-/>
 
-<Quiz
-  questionNumber={22}
-  question={"임베디드 시스템의 개요와 아키텍처에 대한 설명 중 옳지 않은 것은?"}
-  options={["MCU는 코어·메모리·주변장치를 하나의 칩에 통합해 원가와 전력 면에서 유리하다","하버드 구조는 명령어와 데이터 버스를 분리해 폰노이만 구조보다 동시 접근성이 높다","소프트 실시간 시스템은 마감을 놓쳐도 시스템이 즉시 안전 문제로 이어지지 않는 경우가 많다","Cortex-M 계열은 항상 MMU를 내장해 완전한 가상 메모리 관리 기능을 제공한다"]}
-  correctAnswer={4}
-  explanation={"Cortex-M 계열은 일반적으로 MMU가 아니라 더 단순한 MPU(Memory Protection Unit)를 옵션으로 제공하며, 완전한 가상 메모리 관리를 위한 MMU는 일반적으로 Cortex-A 계열에서 지원한다."}
-/>
+
+
+
+
+
+
+
+
+
+
+
 
 ## 참고 자료
 

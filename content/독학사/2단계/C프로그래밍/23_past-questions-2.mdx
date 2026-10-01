@@ -242,157 +242,43 @@ int main(void) {
   explanation={"문자열 리터럴 Hi로 배열을 초기화하면 문자 H, i 두 개에 문자열의 끝을 표시하는 널 문자(널 종료 문자, NUL)가 자동으로 추가되어 배열 크기는 3바이트가 된다. sizeof는 배열 전체의 바이트 수를 반환하므로 3이 출력된다."}
 />
 
-<Quiz
-  questionNumber={4}
-  question={"위 코드를 실행했을 때 출력되는 값은?"}
-  options={["2 10","10 2","2 2","10 10"]}
-  correctAnswer={1}
-  explanation={"strlen은 문자열의 실제 내용 길이(널 문자를 제외한 문자 개수)를 세므로 Hi는 2를 반환한다. sizeof(str)는 배열을 선언할 때 지정한 전체 크기인 10을 그대로 반환하며, 배열에 실제로 몇 글자가 들어 있는지와 무관하다."}
-/>
 
-<Quiz
-  questionNumber={5}
-  question={"위 코드를 실행했을 때 출력되는 값은?"}
-  options={["0","5","72","오류가 발생한다"]}
-  correctAnswer={1}
-  explanation={"Hello는 H, e, l, l, o 다섯 글자이며, str[5] 위치에는 문자열의 끝을 나타내는 널 문자(NUL)가 자동으로 채워진다. 널 문자의 아스키(ASCII) 코드 값은 0이므로, 정수로 출력하면 0이 나온다."}
-/>
 
-<Quiz
-  questionNumber={6}
-  question={"64비트 환경(포인터 크기 8바이트)에서 위 코드를 실행했을 때 출력되는 값은?"}
-  options={["10 8","10 10","8 8","5 5"]}
-  correctAnswer={1}
-  explanation={"main 함수 안의 str은 실제 배열이므로 sizeof(str)은 선언된 크기인 10을 그대로 반환한다. 하지만 배열을 함수의 매개변수로 선언하면 컴파일러는 이를 배열의 첫 원소를 가리키는 포인터로 취급(배열의 포인터 붕괴, decay)한다. 따라서 printSize 함수 안의 arr은 실제로는 포인터이므로, sizeof(arr)은 배열 전체 크기가 아니라 포인터 하나의 크기인 8을 반환한다."}
-/>
 
-<Quiz
-  questionNumber={7}
-  question={"다음 중 컴파일 오류가 발생하는 코드로 옳은 것은?"}
-  options={["strcpy(b, a);","b = a;","printf(\"%s\", a);","int len = strlen(a);"]}
-  correctAnswer={2}
-  explanation={"배열은 포인터와 달리 이름 자체가 상수처럼 취급되어(수정할 수 없는 값, non-modifiable lvalue) 다른 배열을 통째로 대입할 수 없다. b = a;처럼 배열끼리 직접 대입 연산자를 사용하려고 하면 컴파일 오류가 발생하며, 배열 내용을 복사하려면 반드시 strcpy 같은 함수를 사용해야 한다."}
-/>
 
-<Quiz
-  questionNumber={8}
-  question={"위 코드를 실행했을 때 출력되는 값은?"}
-  options={["20 20","10 20","20 10","10 10"]}
-  correctAnswer={1}
-  explanation={"p는 x의 주소를 저장하는 포인터이므로 *p는 x가 저장된 메모리를 가리킨다. *p = 20;은 그 메모리에 20을 저장하는 것과 같아서 x 자체의 값도 20으로 바뀐다. 따라서 x와 *p 모두 20이 출력된다."}
-/>
 
-<Quiz
-  questionNumber={9}
-  question={"위 코드를 실행했을 때 출력되는 값은?"}
-  options={["40 13","13 40","43 40","40 43"]}
-  correctAnswer={1}
-  explanation={"배열 이름 arr은 첫 원소를 가리키는 포인터로 자동 변환되어 p에 저장된다. *(p + 3)은 p가 가리키는 주소에서 int 세 칸 뒤로 이동한 위치를 역참조하는 것으로 arr[3]과 완전히 같은 의미이며 값은 40이다. 반면 *p + 3은 연산자 우선순위상 역참조(*)가 덧셈보다 먼저 적용되어 *p, 즉 arr[0]인 10을 먼저 구한 뒤 3을 더하므로 13이 된다."}
-/>
 
-<Quiz
-  questionNumber={10}
-  question={"위 코드를 실행했을 때 출력되는 값은?"}
-  options={["100","5","0","컴파일 오류가 발생한다"]}
-  correctAnswer={1}
-  explanation={"pp는 p의 주소를 저장하는 이중 포인터(포인터를 가리키는 포인터)다. *pp는 p, 즉 x의 주소를 의미하고, **pp는 그 주소를 다시 역참조해 x 자체를 가리킨다. 따라서 **pp = 100;은 x에 직접 100을 대입하는 것과 같다."}
-/>
 
-<Quiz
-  questionNumber={11}
-  question={"int arr[5]와 int *p가 이미 선언되어 있다고 할 때, 다음 중 컴파일 오류가 발생하는 코드로 옳은 것은?"}
-  options={["p = arr;","arr[2] = 5;","arr = p;","p = arr + 2;"]}
-  correctAnswer={3}
-  explanation={"배열 이름 arr은 그 배열의 시작 주소를 나타내는 값으로 취급되지만, 포인터 변수처럼 다른 주소를 다시 대입할 수 있는 저장 공간이 아니다. 즉 arr은 수정할 수 없는 값(non-modifiable lvalue)이므로 arr = p;처럼 배열 이름에 새로운 주소를 대입하려고 하면 컴파일 오류가 발생한다."}
-/>
 
-<Quiz
-  questionNumber={12}
-  question={"다음 중 정의되지 않은 동작(undefined behavior)을 일으킬 가능성이 가장 큰 것은?"}
-  options={["초기화하지 않은 포인터 변수를 선언한 직후 곧바로 역참조해 값을 읽는다","어떤 변수의 주소를 담은 포인터를 역참조해 그 변수의 값을 읽는다","배열의 유효한 인덱스 범위 안에서 원소에 접근한다","유효한 주소를 가리키는 포인터를 통해 새로운 값을 대입한다"]}
-  correctAnswer={1}
-  explanation={"포인터를 선언만 하고 초기화하지 않으면 그 포인터는 어떤 유효한 메모리 주소를 가리키는지 전혀 보장할 수 없는 쓰레기 값을 담고 있다. 이런 포인터를 역참조하면 프로그램이 접근해서는 안 되는 메모리를 건드리게 되어 충돌이나 예측할 수 없는 동작으로 이어질 수 있다."}
-/>
 
-<Quiz
-  questionNumber={13}
-  question={"위 코드를 실행했을 때 출력되는 값은?"}
-  options={["2 1","1 2","1 1","2 2"]}
-  correctAnswer={1}
-  explanation={"swap 함수는 x와 y의 주소를 매개변수로 받아, 그 주소가 가리키는 실제 메모리의 값을 서로 맞바꾼다. a와 b는 각각 x와 y를 가리키는 포인터이므로, *a와 *b를 통한 값 교환은 main의 x, y에도 그대로 반영된다. 따라서 x는 2, y는 1이 된다."}
-/>
 
-<Quiz
-  questionNumber={14}
-  question={"위 코드를 실행했을 때 출력되는 값은?"}
-  options={["2 3 4","1 2 3","3 4 5","0 1 2"]}
-  correctAnswer={1}
-  explanation={"배열을 함수 인자로 넘기면 배열 전체가 복사되는 것이 아니라 첫 원소의 주소(포인터)가 전달된다. 따라서 addOne 함수 안에서 arr[i]를 수정하면 main의 nums 배열과 동일한 메모리를 수정하는 것이므로, 함수 호출이 끝난 뒤에도 변경 사항이 그대로 유지된다."}
-/>
 
-<Quiz
-  questionNumber={15}
-  question={"다음 중 포인터가 가리키는 대상의 값은 바꿀 수 있지만, 포인터 자신이 다른 주소를 가리키도록 다시 대입할 수는 없는 선언은?"}
-  options={["const int *p;","int * const p;","const int * const p;","int *p;"]}
-  correctAnswer={2}
-  explanation={"const의 위치가 핵심이다. int * const p;는 포인터 p 자신이 상수(const)이므로 다른 주소로 재대입할 수 없지만, p가 가리키는 int 값은 자유롭게 바꿀 수 있다. 반대로 const int *p;는 포인터가 가리키는 대상이 상수라 그 값은 바꿀 수 없지만, p 자신은 다른 주소를 가리키도록 재대입할 수 있다."}
-/>
 
-<Quiz
-  questionNumber={16}
-  question={"위 함수에 대한 설명으로 가장 적절한 것은?"}
-  options={["지역 변수 local의 주소를 반환하지만, 함수가 끝나면 그 메모리 공간은 더 이상 유효하지 않아 위험한 코드다","지역 변수를 반환했으므로 항상 안전하게 10이라는 값을 사용할 수 있다","이 코드는 반드시 컴파일 오류를 일으켜 실행 파일이 만들어지지 않는다","local을 static으로 선언하지 않아도 함수가 끝난 뒤에도 값이 계속 유지된다"]}
-  correctAnswer={1}
-  explanation={"local은 함수 안에서 선언된 지역 변수이므로 스택(stack) 영역에 저장되며, 함수 실행이 끝나면 그 메모리 공간은 더 이상 유효한 것으로 보장되지 않는다. 이 함수는 이미 해제된 스택 공간의 주소를 반환하는 것이므로, 이렇게 반환된 포인터를 역참조하면 예측할 수 없는 값을 읽거나 프로그램이 비정상 종료될 수 있는 댕글링 포인터(dangling pointer) 문제가 발생한다."}
-/>
 
-<Quiz
-  questionNumber={17}
-  question={"위 코드를 실행했을 때 출력되는 값은?"}
-  options={["81","9","729","18"]}
-  correctAnswer={1}
-  explanation={"square 함수는 호출될 때마다 새로운 스택 프레임이 생성되어, 그 호출에서만 유효한 매개변수 n과 지역변수 result를 갖는다. 첫 번째 호출 square(a)는 n=3으로 시작해 result=9를 반환하고 b에 대입된다. 두 번째 호출 square(b)는 n=9로 시작해 result=81을 반환하고 c에 대입되어, 최종적으로 c인 81이 출력된다."}
-/>
 
-<Quiz
-  questionNumber={18}
-  question={"char dest[5];가 선언되어 있다고 할 때, 다음 중 버퍼 오버플로(buffer overflow) 위험이 있는 코드로 가장 적절한 것은?"}
-  options={["strcpy(dest","Hi\");'","strcpy(dest","Hello\");'","strcpy(dest","\");'","strcpy(dest","OK\");'"]}
-  correctAnswer={2}
-  explanation={"dest는 5바이트 크기의 배열이다. 문자열 Hello는 H, e, l, l, o 다섯 글자에 문자열의 끝을 표시하는 널 종료 문자(NUL)까지 더해 총 6바이트가 필요하다. 이는 dest의 크기 5바이트를 초과하므로, strcpy는 그 초과분을 dest 뒤의 다른 메모리 영역에 덮어써 버퍼 오버플로를 일으킬 수 있다."}
-/>
 
-<Quiz
-  questionNumber={19}
-  question={"위 코드를 실행했을 때 strncmp가 반환하는 값에 대한 설명으로 가장 적절한 것은?"}
-  options={["0을 반환한다","양수 값을 반환한다","음수 값을 반환한다","컴파일 오류가 발생한다"]}
-  correctAnswer={1}
-  explanation={"strncmp는 두 문자열의 앞에서부터 최대 n개의 문자만 비교한다. a의 전체 apple(5글자)과 b의 앞 5글자 apple은 완전히 같으므로, 5글자까지만 비교하는 strncmp(a, b, 5)는 두 문자열이 같다고 판단해 0을 반환한다. b의 나머지 부분인 sauce는 비교 대상에 포함되지 않는다."}
-/>
 
-<Quiz
-  questionNumber={20}
-  question={"위 코드를 실행했을 때 출력되는 값은?"}
-  options={["FooBar","Foo Bar","BarFoo","Foo"]}
-  correctAnswer={1}
-  explanation={"strcat은 dest 문자열의 끝, 즉 널 종료 문자가 있던 위치부터 두 번째 인자의 내용을 이어 붙인다. Foo의 널 문자 위치에서부터 Bar를 이어 붙이면 FooBar가 되고, 그 뒤에 새로운 널 문자가 추가된다."}
-/>
 
-<Quiz
-  questionNumber={21}
-  question={"strcmp 함수의 반환값에 대한 설명으로 옳지 않은 것은?"}
-  options={["두 문자열의 내용이 완전히 같으면 정확히 0을 반환한다","C 표준은 반환값의 부호(양수, 음수, 0)만 보장하고, 정확한 크기는 구현에 따라 다를 수 있다","첫 번째 문자열이 사전순으로 두 번째 문자열보다 앞서면 항상 -1을 반환한다고 표준에 정해져 있다","첫 번째 문자열이 사전순으로 두 번째 문자열보다 뒤서면 0보다 큰 값을 반환한다"]}
-  correctAnswer={3}
-  explanation={"문자열이 같으면 0을 반환한다는 것, 표준이 반환값의 정확한 크기가 아니라 부호만 보장한다는 것, 뒤서는 경우 양수를 반환한다는 것은 모두 옳다. 문제는 3번이다. C 표준은 앞서는 경우 0보다 작은 값을 반환한다고만 규정할 뿐, 그 값이 항상 -1이라고 정하지 않는다. 실제 반환값은 비교한 문자의 아스키 코드 차이 등 구현에 따라 다른 음수 값이 나올 수 있다."}
-/>
 
-<Quiz
-  questionNumber={22}
-  question={"위 코드를 실행했을 때 출력되는 값은?"}
-  options={["Hello","HelloWorld","Hell","알 수 없는 값이 출력된다"]}
-  correctAnswer={1}
-  explanation={"strncpy(dest, HelloWorld, 5)는 원본 문자열의 앞 5글자인 Hello만 dest에 복사한다. 다만 strncpy는 복사한 문자 수가 지정한 n(5)과 같을 때 널 종료 문자를 자동으로 추가하지 않는다는 특징이 있어, 이 코드에서는 다음 줄인 dest[5] = 0;으로 직접 널 문자를 채워 문자열을 안전하게 마무리했다. 따라서 printf로 출력하면 Hello까지만 출력된다."}
-/>
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 ## 참고 자료
 

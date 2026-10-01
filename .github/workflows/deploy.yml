@@ -27,11 +27,11 @@ jobs:
 
       - run: npm ci
 
-      # 문서가 300편을 넘으면서 Node 기본 힙 상한(약 4GB)에 걸려 빌드가 OOM으로 죽었다.
-      # 러너 메모리는 16GB이므로 상한만 올려 준다. (891편에서 8GB도 초과해 12GB로 상향)
+      # 비공개 저장소용 표준 러너의 물리 메모리를 넘지 않도록 Node 힙에 여유를 둔다.
+      # Turbopack과 단일 정적 생성 워커로 대규모 MDX 빌드의 최대 메모리를 낮춘다.
       - run: npm run build
         env:
-          NODE_OPTIONS: --max-old-space-size=12288
+          NODE_OPTIONS: --max-old-space-size=6144
 
       - uses: actions/upload-pages-artifact@v3
         with:

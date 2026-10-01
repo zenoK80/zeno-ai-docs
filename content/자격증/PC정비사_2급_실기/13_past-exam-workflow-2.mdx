@@ -288,125 +288,35 @@ graph TD
   explanation={"이 연습의 이진 단위 조건에서 500 × 1024 = 512000이다."}
 />
 
-<Quiz
-  questionNumber={4}
-  question={"디스크 관리 콘솔을 실행하는 명령어는?"}
-  options={['devmgmt.msc', 'diskmgmt.msc', 'services.msc', 'secpol.msc']}
-  correctAnswer={2}
-  explanation={"디스크 관리는 diskmgmt.msc입니다. devmgmt는 장치 관리자, services는 서비스, secpol은 로컬 보안 정책입니다."}
-/>
 
-<Quiz
-  questionNumber={5}
-  question={"여러 기기를 오가며 4GB가 넘는 대용량 파일을 옮겨야 하는 외장 저장장치에 가장 적합한 파일 시스템은?"}
-  options={["FAT32","exFAT","ReFS","ext4"]}
-  correctAnswer={2}
-  explanation={"FAT32는 단일 파일 4GB 미만이라는 제약이 있고 NTFS는 다른 운영체제와의 쓰기 호환이 제한적입니다. exFAT은 크기 제약을 해소하면서 호환성이 넓어 기기 간 교환용으로 적합합니다."}
-/>
 
-<Quiz
-  questionNumber={6}
-  question={"NTFS가 FAT32나 exFAT과 달리 제공하는 기능으로 옳은 것은?"}
-  options={["더 빠른 포맷 속도","파일 단위 접근 권한과 저널링","더 작은 최소 파티션 크기","리눅스에서의 완전한 기본 지원"]}
-  correctAnswer={2}
-  explanation={"NTFS는 사용자별 접근 권한, 압축, 암호화와 함께 변경 내용을 미리 기록해 두는 저널링을 지원합니다. 이 때문에 전원 차단 시 손상 복구에 유리합니다."}
-/>
 
-<Quiz
-  questionNumber={7}
-  question={"새 단순 볼륨 마법사에서 볼륨 레이블 칸을 비워 둔 채 진행하면?"}
-  options={["볼륨이 생성되지 않는다","기본 이름인 새 볼륨이 들어가 지정된 이름과 다르게 된다","드라이브 문자가 할당되지 않는다","파일 시스템이 RAW가 된다"]}
-  correctAnswer={2}
-  explanation={"레이블을 비우면 기본값이 적용됩니다. 문제가 볼륨 이름을 지정했다면 그 항목이 오답 처리되므로 반드시 직접 입력해야 합니다."}
-/>
 
-<Quiz
-  questionNumber={8}
-  question={"폴더 옵션에서 파일 확장명을 화면에 표시되게 하려면?"}
-  options={["알려진 파일 형식의 파일 확장명 숨기기 항목을 체크한다","알려진 파일 형식의 파일 확장명 숨기기 항목의 체크를 해제한다","검색 탭에서 확장명 표시를 켠다","일반 탭에서 확장명 표시를 켠다"]}
-  correctAnswer={2}
-  explanation={"화면의 항목 문구가 숨기기라는 부정형이므로 표시하려면 체크를 해제해야 합니다. 이 항목은 보기 탭에 있습니다."}
-/>
 
-<Quiz
-  questionNumber={9}
-  question={"확장명을 표시하도록 설정하는 것이 보안상 권장되는 이유는?"}
-  options={["파일 크기를 알 수 있어서","보고서.pdf.exe 같은 파일이 문서로 위장되는 것을 알아챌 수 있어서","검색 속도가 빨라져서","디스크 용량이 절약되어서"]}
-  correctAnswer={2}
-  explanation={"확장명이 숨겨지면 마지막 확장명이 보이지 않아 실행 파일이 문서처럼 표시됩니다. 이는 악성 파일 유포에 흔히 쓰이는 수법이므로 확장명 표시를 켜 두는 것이 안전합니다."}
-/>
 
-<Quiz
-  questionNumber={10}
-  question={"UEFI에 대한 설명으로 옳지 않은 것은?"}
-  options={["시큐어 부트로 서명되지 않은 부트로더 실행을 차단할 수 있다","32비트 운영체제만 지원한다","PXE 네트워크 부팅을 지원한다","마우스를 사용하는 그래픽 설정 화면을 제공할 수 있다"]}
-  correctAnswer={2}
-  explanation={"UEFI는 오히려 64비트 환경이 표준이며 64비트 펌웨어는 64비트 부트로더를 요구합니다. 32비트 전용이라는 설명은 대표적인 오답 보기입니다."}
-/>
 
-<Quiz
-  questionNumber={11}
-  question={"MBR 파티션 방식에서 약 2.2TB라는 용량 한계가 생기는 근본 원인은?"}
-  options={["파티션을 4개까지만 만들 수 있어서","섹터 번호를 32비트로 기록하기 때문에 표현 가능한 섹터 수가 제한되기 때문","부트 섹터의 크기가 512바이트라서","BIOS가 16비트로 동작하기 때문"]}
-  correctAnswer={2}
-  explanation={"MBR은 파티션의 시작 위치와 크기를 32비트 섹터 번호로 저장합니다. 최대 약 42억 섹터에 섹터당 512바이트를 곱하면 약 2.2TB가 되며 GPT는 이를 64비트로 확장해 해소합니다."}
-/>
 
-<Quiz
-  questionNumber={12}
-  question={"Windows 설치 화면에서 선택한 디스크에 MBR 파티션 테이블이 있다는 메시지가 나올 때 가장 먼저 확인할 것은?"}
-  options={["메모리 용량","현재 부팅 모드가 UEFI인지 레거시인지","그래픽 드라이버 버전","네트워크 연결 상태"]}
-  correctAnswer={2}
-  explanation={"이 메시지는 부팅 모드와 디스크 파티션 방식이 어긋났다는 뜻입니다. UEFI 부팅이면 GPT, 레거시 부팅이면 MBR이어야 하므로 부팅 모드부터 확인합니다."}
-/>
 
-<Quiz
-  questionNumber={13}
-  question={"GPT가 MBR과 달리 갖는 특징으로 옳은 것은?"}
-  options={["주 파티션을 4개까지만 만들 수 있다","파티션 표의 백업 사본을 디스크 끝에 유지한다","레거시 BIOS 전용이다","저널링 파일 시스템을 강제한다"]}
-  correctAnswer={2}
-  explanation={"GPT는 디스크 앞부분의 파티션 표와 동일한 사본을 디스크 끝에도 유지해 손상 시 복구할 수 있게 합니다. 주 파티션은 일반적으로 128개까지 지원합니다."}
-/>
 
-<Quiz
-  questionNumber={14}
-  question={"DirectX 진단 도구를 실행하는 명령어와 그 도구로 확인할 수 있는 정보의 조합으로 옳은 것은?"}
-  options={["msconfig, 시작 프로그램 목록","dxdiag, GPU 모델명과 드라이버 버전 및 사운드 장치","regedit, 레지스트리 키","cmd, IP 주소"]}
-  correctAnswer={2}
-  explanation={"dxdiag는 시스템 탭에서 OS와 CPU, 메모리를, 디스플레이 탭에서 GPU와 드라이버 버전을, 사운드 탭에서 오디오 장치를 한 번에 보여 줍니다. 드라이버 설치 후 확인 절차로 자주 쓰입니다."}
-/>
 
-<Quiz
-  questionNumber={15}
-  question={"macOS의 파일 시스템 APFS의 공간 공유 기능을 바르게 설명한 것은?"}
-  options={["여러 디스크를 하나로 묶는 기능","한 컨테이너 안의 여러 볼륨이 빈 공간을 미리 나누지 않고 필요할 때 함께 사용하는 기능","파일을 자동으로 압축하는 기능","네트워크로 볼륨을 공유하는 기능"]}
-  correctAnswer={2}
-  explanation={"기존 파티션 방식은 크기를 미리 정해야 해서 한쪽이 남고 한쪽이 모자라는 문제가 있었습니다. 공간 공유는 컨테이너의 빈 공간을 볼륨들이 유연하게 나눠 쓰게 합니다."}
-/>
 
-<Quiz
-  questionNumber={16}
-  question={"디스크 관리에서 작업 대상 디스크 번호를 반드시 먼저 확인해야 하는 이유는?"}
-  options={["번호가 클수록 속도가 빠르기 때문","다른 디스크에 볼륨을 만들면 기존 데이터 영역을 건드리게 되어 되돌리기 어렵기 때문","번호에 따라 파일 시스템이 달라지기 때문","드라이브 문자가 번호로 정해지기 때문"]}
-  correctAnswer={2}
-  explanation={"파티션 작업은 되돌리기 어려운 조작입니다. 지시된 디스크가 아닌 곳에 볼륨을 만들거나 삭제하면 기존 데이터가 손상되며 실기에서도 큰 감점 사유입니다."}
-/>
 
-<Quiz
-  questionNumber={17}
-  question={"폴더 옵션의 탭 구성과 담당 영역의 연결로 옳은 것은?"}
-  options={["일반 탭 - 숨김 파일 표시","보기 탭 - 폴더 표시 방식과 확장명","검색 탭 - 탐색기 시작 위치","일반 탭 - 색인되지 않은 위치 검색"]}
-  correctAnswer={2}
-  explanation={"일반 탭은 탐색기 시작 위치와 항목 열기 방식을, 보기 탭은 표시 방식과 숨김 파일 및 확장명을, 검색 탭은 색인과 검색 방식을 담당합니다."}
-/>
 
-<Quiz
-  questionNumber={18}
-  question={"Advanced BIOS Features에서 Video BIOS Cacheable 대신 System BIOS Cacheable을 활성화했다면?"}
-  options={["같은 기능이므로 정답으로 인정된다","대상이 메인보드의 시스템 BIOS이므로 지정 항목과 달라 오답이다","부팅이 되지 않는다","그래픽카드가 인식되지 않는다"]}
-  correctAnswer={2}
-  explanation={"두 항목은 캐싱 대상이 다릅니다. Video는 그래픽카드의 비디오 BIOS를, System은 메인보드의 시스템 BIOS를 대상으로 하며 채점은 항목명 단위로 이루어집니다."}
-/>
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 ## 참고 자료
 

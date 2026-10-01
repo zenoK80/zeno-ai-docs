@@ -44,13 +44,7 @@ SQLD는 2과목(데이터 모델링의 이해 / SQL 기본 및 활용) 50문항,
   explanation={"업무에서 직접 발생해 입력되는 가입일자는 기본속성, 모델링 편의를 위해 인위적으로 정의한 코드성 속성인 회원등급코드는 설계속성, 다른 데이터를 계산해 만든 총구매금액은 파생속성이다."}
 />
 
-<Quiz
-  questionNumber={10}
-  question={"트랜잭션의 4대 특성(ACID) 중 하나에 대한 설명이다. 트랜잭션에 포함된 작업들이 모두 반영되거나, 하나라도 실패하면 전혀 반영되지 않아야 한다는 특성은?"}
-  options={["원자성","일관성","고립성","지속성"]}
-  correctAnswer={1}
-  explanation={"트랜잭션 안의 여러 작업이 부분적으로만 반영되는 상태를 허용하지 않고, 전부 성공하거나 전부 취소되어야 한다는 all-or-nothing 원칙이 원자성이다."}
-/>
+
 
 **사원 테이블**
 
@@ -67,21 +61,9 @@ SQLD는 2과목(데이터 모델링의 이해 / SQL 기본 및 활용) 50문항,
 | 2 |
 | NULL |
 
-<Quiz
-  questionNumber={32}
-  question={"위 두 테이블에 대해 다음 SQL을 실행했을 때 결과로 옳은 것은? 쿼리: SELECT 사번 FROM 사원 WHERE 사번 NOT IN (SELECT 사번 FROM 휴직자);"}
-  options={["사번 1만 조회된다.","사번 1과 3이 조회된다.","사번 3만 조회된다.","한 건도 조회되지 않는다(공집합)."]}
-  correctAnswer={4}
-  explanation={"휴직자 서브쿼리의 결과 집합에 NULL이 포함되어 있다."}
-/>
 
-<Quiz
-  questionNumber={33}
-  question={"스칼라 서브쿼리(SELECT 절 등에서 단일 값을 반환하는 서브쿼리)에 대한 설명으로 옳지 않은 것은?"}
-  options={['원칙적으로 하나의 행과 하나의 컬럼만 반환해야 한다.', 'SELECT 절에 사용하면 메인쿼리가 반환하는 행마다 반복 평가될 수 있다.', '서브쿼리의 실행 결과가 0건이면 오류가 발생한다.', '서브쿼리가 2건 이상의 행을 반환하면 오류가 발생한다.']}
-  correctAnswer={3}
-  explanation={"스칼라 서브쿼리는 결과가 0건이면 오류가 아니라 NULL을 반환한다. 오류가 발생하는 경우는 결과가 2건 이상일 때뿐이다."}
-/>
+
+
 
 **시험 테이블**
 
@@ -92,13 +74,7 @@ SQLD는 2과목(데이터 모델링의 이해 / SQL 기본 및 활용) 50문항,
 | 서연 | 80 |
 | 하늘 | 70 |
 
-<Quiz
-  questionNumber={37}
-  question={"점수를 내림차순으로 정렬해 RANK와 DENSE_RANK를 각각 매길 때, 점수가 70점인 하늘 행의 RANK 값과 DENSE_RANK 값을 순서대로 나열한 것은?"}
-  options={["4, 3","3, 3","4, 4","3, 4"]}
-  correctAnswer={1}
-  explanation={"내림차순 정렬 시 90점 두 명이 공동 1위가 된다. RANK는 공동 순위 다음에 순위를 건너뛰므로 80점은 3위, 70점은 4위가 된다."}
-/>
+
 
 **사원 테이블**
 
@@ -110,61 +86,19 @@ SQLD는 2과목(데이터 모델링의 이해 / SQL 기본 및 활용) 50문항,
 | B | 400 |
 | B | 200 |
 
-<Quiz
-  questionNumber={38}
-  question={"부서별로 급여를 내림차순 정렬해 RANK() OVER(PARTITION BY 부서 ORDER BY 급여 내림차순)를 계산할 때, 부서 B에서 급여 200인 행의 순위는?"}
-  options={['1', '2', '3', '4']}
-  correctAnswer={3}
-  explanation={"부서 B 안에서 급여를 내림차순 정렬하면 400, 400, 200 순이다. 400 두 건이 공동 1위가 되고, RANK는 동점 다음 순위를 건너뛰므로 200은 3위가 된다."}
-/>
 
-<Quiz
-  questionNumber={45}
-  question="사원 테이블에서 급여 상위 3명을 정확히 조회하려고 한다. 다음 중 의도한 결과를 얻지 못하는 SQL은?"
-  options={['정렬을 먼저 마친 결과를 감싼 뒤 바깥에서 ROWNUM이 3 이하인 행만 선택한다.', '정렬이 적용되지 않은 원본 테이블에 바로 ROWNUM이 3 이하라는 조건을 걸고 정렬을 덧붙인다.', '급여 내림차순으로 정렬한 뒤 FETCH FIRST 3 ROWS ONLY를 사용한다.', '정렬을 먼저 마친 결과를 감싼 뒤 바깥에서 ROWNUM이 1과 3 사이인 행만 선택한다.']}
-  correctAnswer={2}
-  explanation={"ROWNUM은 정렬이 적용되기 전, 즉 데이터가 테이블에서 읽히는 순서대로 먼저 부여된다. 원본 테이블에 곧바로 ROWNUM 조건을 걸고 나중에 ORDER BY를 붙이면, 정렬 전 임의의 3행을 먼저 뽑은 뒤에야 정렬하는 셈이 되어 실제 급여 상위 3명과 다른 결과가 나온다."}
-/>
 
-<Quiz
-  questionNumber={46}
-  question="사원 테이블은 사번과 상사사번(관리자의 사번을 참조)을 가진다. 최상위 관리자부터 아래 방향으로 조직도를 전개하려고 할 때, 다음 중 빈칸에 들어갈 조건으로 옳은 것은? 쿼리: START WITH 상사사번 IS NULL CONNECT BY 빈칸"
-  options={['PRIOR 사번 = 상사사번', 'PRIOR 상사사번 = 사번', '사번 = 상사사번', 'PRIOR 사번 = PRIOR 상사사번']}
-  correctAnswer={1}
-  explanation={"위에서 아래로(상위에서 하위로) 전개하려면 부모 행의 사번이 자식 행의 상사사번과 같아야 하므로, PRIOR를 부모 쪽 컬럼인 사번에 붙여 PRIOR 사번 = 상사사번으로 작성해야 한다."}
-/>
 
-<Quiz
-  questionNumber={47}
-  question="계층형 질의에서 사용하는 의사컬럼 LEVEL에 대한 설명으로 옳은 것은?"
-  options={['LEVEL은 루트 노드에서 0부터 시작해 하위로 내려갈수록 1씩 증가한다.', 'LEVEL은 루트 노드에서 1부터 시작해 하위로 내려갈수록 1씩 증가한다.', 'LEVEL은 리프 노드에서 1부터 시작해 위로 올라갈수록 증가한다.', 'LEVEL은 형제 노드 사이의 정렬 순서를 나타낸다.']}
-  correctAnswer={2}
-  explanation={"LEVEL은 계층 구조에서 루트 노드를 1로 두고, 자식으로 한 단계씩 내려갈 때마다 값이 1씩 증가하는 깊이를 나타내는 의사컬럼이다."}
-/>
 
-<Quiz
-  questionNumber={48}
-  question="사원 테이블(부서, 직급, 연봉)의 데이터를 부서를 행으로 두고 직급을 열로 펼쳐 직급별 연봉 합계를 교차표로 조회하려고 한다. 빈칸에 들어갈 구문으로 옳은 것은? 쿼리: SELECT * FROM 사원 빈칸"
-  options={['PIVOT(SUM(연봉) FOR 직급 IN 직급값목록)', 'PIVOT(직급 FOR SUM(연봉) IN 직급값목록)', 'UNPIVOT(SUM(연봉) FOR 직급 IN 직급값목록)', 'GROUP BY 부서, 직급']}
-  correctAnswer={1}
-  explanation={"PIVOT 구문은 PIVOT(집계함수 FOR 회전기준컬럼 IN (펼칠 값 목록)) 형태다. 여기서 집계 대상은 연봉의 합계이므로 SUM(연봉)이 먼저 오고, 열로 펼칠 기준은 직급이므로 FOR 직급이 뒤따라야 한다."}
-/>
 
-<Quiz
-  questionNumber={49}
-  question="다음 DCL 명령이 순서대로 실행되었다. 순서: 1. DBA가 U1에게 테이블 T의 SELECT와 UPDATE 권한을 부여, 2. DBA가 U2에게 SELECT 권한을 재위임 가능하도록 부여, 3. U2가 U3에게 SELECT 권한을 부여, 4. DBA가 U1의 UPDATE 권한만 회수. 이후 테이블 T에 대해 SELECT 권한을 가진 사용자를 모두 고르면?"
-  options={['DBA, U1', 'DBA, U1, U2, U3', 'DBA, U2, U3', 'DBA만']}
-  correctAnswer={2}
-  explanation={"U1은 UPDATE만 회수되었을 뿐 SELECT는 그대로 유지한다. U2는 재위임 가능한 SELECT 권한을 받았고 회수되지 않았다."}
-/>
 
-<Quiz
-  questionNumber={50}
-  question="WITH GRANT OPTION에 대한 설명으로 가장 적절한 것은?"
-  options={['권한을 부여받은 사용자가 그 권한을 다른 사용자에게 다시 부여할 수 있게 한다.', '권한을 부여받은 사용자가 해당 객체를 삭제할 수 있게 한다.', 'GRANT 문 없이도 모든 사용자가 자동으로 권한을 갖게 한다.', 'REVOKE 명령을 사용하지 못하도록 제한한다.']}
-  correctAnswer={1}
-  explanation={"WITH GRANT OPTION을 붙여 권한을 부여하면, 그 권한을 받은 사용자는 자신도 다른 사용자에게 같은 권한을 재부여(위임)할 수 있게 된다."}
-/>
+
+
+
+
+
+
+
 
 ## 채점 후 복습 동선
 

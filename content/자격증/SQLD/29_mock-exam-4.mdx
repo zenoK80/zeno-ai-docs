@@ -107,381 +107,99 @@ HAVING SUM(금액) > 500;
   explanation={"엔터티는 대부분 다른 엔터티와 관계를 맺지만, 이것이 모든 엔터티에 예외 없이 적용되는 절대적 요건은 아니다. 모델링 초기 단계나 독립적으로 관리되는 코드성 엔터티처럼 관계가 나중에 부여되거나 약하게만 존재하는 경우도 있어, 예외 없이 반드시 관계를 맺어야 한다는 단정적 서술은 옳지 않다."}
 />
 
-<Quiz
-  questionNumber={4}
-  question={"한 상품에는 여러 개의 리뷰가 달릴 수 있고, 하나의 리뷰는 반드시 하나의 상품에만 속한다. 상품과 리뷰 사이 관계의 카디널리티로 옳은 것은?"}
-  options={["1대1","상품 1 대 리뷰 N","상품 N 대 리뷰 1","N대M"]}
-  correctAnswer={2}
-  explanation={"하나의 상품에 여러 리뷰가 달릴 수 있고 하나의 리뷰는 하나의 상품에만 속하므로, 상품 쪽이 1, 리뷰 쪽이 N인 1대N 관계다."}
-/>
 
-<Quiz
-  questionNumber={5}
-  question={"[장바구니항목] 엔터티의 기본키가 (고객번호, 상품번호) 복합키로 구성되고, 고객번호는 [고객] 엔터티의 기본키를 그대로 물려받은 것이다. 이 관계에 대한 설명으로 가장 적절한 것은?"}
-  options={["이는 식별관계로, 고객 없이는 장바구니항목이 존재할 수 없다","이는 비식별관계로, 장바구니항목은 고객과 무관하게 독립적으로 존재할 수 있다","고객번호는 외래키가 아니라 그냥 일반 속성이다","이 구조에서는 장바구니항목이 부모 엔터티가 된다"]}
-  correctAnswer={1}
-  explanation={"부모(고객)의 기본키가 자식(장바구니항목)의 기본키 일부로 상속된 구조는 식별관계다. 식별관계에서 자식은 부모의 존재를 전제로만 존재할 수 있으므로, 고객 없이는 장바구니항목이 존재할 수 없다."}
-/>
 
-<Quiz
-  questionNumber={6}
-  question={"[주문상세] 테이블의 기본키는 (주문번호, 상품번호) 복합키이다. 이 테이블의 상품명 컬럼은 상품번호만으로 결정되고 주문번호와는 무관하다. 이 상태를 해결하기 위해 수행해야 하는 정규화 단계는?"}
-  options={["제1정규화","제2정규화","제3정규화","BCNF"]}
-  correctAnswer={2}
-  explanation={"복합키 중 일부 속성(상품번호)에만 종속되고 나머지 키 속성(주문번호)과는 무관한 종속을 부분 함수 종속이라 한다. 이를 제거하는 단계가 제2정규화이며, 상품번호와 상품명을 별도 엔터티로 분리해야 한다."}
-/>
 
-<Quiz
-  questionNumber={7}
-  question={"BCNF(보이스-코드 정규형)에 대한 설명으로 가장 적절한 것은?"}
-  options={["결정자이면서 후보키가 아닌 함수 종속을 제거하는 정규형이다","원자값이 아닌 속성을 제거하는 정규형이다","이행적 함수 종속만을 제거하는 정규형이다","부분 함수 종속만을 제거하는 정규형이다"]}
-  correctAnswer={1}
-  explanation={"BCNF는 모든 결정자가 후보키가 되도록, 결정자이면서 후보키가 아닌 함수 종속을 제거하는 정규형이다. 3NF보다 더 엄격한 조건을 요구한다."}
-/>
 
-<Quiz
-  questionNumber={8}
-  question={"다음 중 반정규화(De-normalization) 기법에 해당하지 않는 것은?"}
-  options={["자주 조회하는 집계값을 별도 컬럼으로 미리 저장해두는 테이블 추가","자주 함께 조회되는 두 테이블을 하나로 병합","이력 데이터를 기간별로 나누어 별도 테이블로 분리하는 테이블 분할","후보키 중 하나를 선택해 기본키로 지정하는 것"]}
-  correctAnswer={4}
-  explanation={"후보키 중 하나를 기본키로 선정하는 것은 정규화·모델링 단계에서 이루어지는 일반적인 식별자 선정 절차이지, 조회 성능을 위해 정규화 결과를 일부 되돌리는 반정규화 기법이 아니다."}
-/>
 
-<Quiz
-  questionNumber={9}
-  question={"관계형 데이터베이스에서 NULL에 대한 설명으로 옳지 않은 것은?"}
-  options={["NULL은 값이 아직 정해지지 않았거나 알 수 없음을 의미하며 0이나 공백 문자열과 다르다","숫자 컬럼에 NULL이 있으면 SUM이나 AVG 계산에서 그 행은 계산 대상에서 제외된다","NULL은 항상 다른 NULL과 비교했을 때 같다고 판정된다","기본키를 구성하는 컬럼에는 NULL이 올 수 없다"]}
-  correctAnswer={3}
-  explanation={"NULL은 값을 알 수 없는 상태이므로 NULL과 NULL을 비교해도 참(TRUE)이 아니라 알 수 없음(UNKNOWN)이 된다. NULL끼리 항상 같다고 판정된다는 설명은 옳지 않다."}
-/>
 
-<Quiz
-  questionNumber={10}
-  question={"다음 중 DCL(데이터 제어어)에 대한 설명으로 옳은 것은?"}
-  options={["GRANT와 REVOKE가 DCL에 속하며, COMMIT과 ROLLBACK은 TCL에 속한다","DCL은 테이블 구조를 정의하는 명령어 그룹이다","WITH GRANT OPTION을 붙이면 권한을 부여받은 사용자는 그 권한을 다른 사용자에게 다시 부여할 수 없다","REVOKE를 실행하면 자동으로 데이터가 물리 디스크에 영구 저장된다"]}
-  correctAnswer={1}
-  explanation={"SQL 명령어는 DDL(CREATE, ALTER, DROP), DML(SELECT, INSERT, UPDATE, DELETE), DCL(GRANT, REVOKE), TCL(COMMIT, ROLLBACK, SAVEPOINT)로 분류된다. GRANT와 REVOKE는 DCL, COMMIT과 ROLLBACK은 TCL이다."}
-/>
 
-<Quiz
-  questionNumber={11}
-  question={"다음 중 CHECK 제약조건에 대한 설명으로 옳은 것은?"}
-  options={["컬럼 값이 지정한 조건식을 만족하는지 검사하며, 조건을 위반하는 값은 입력할 수 없다","다른 테이블의 기본키 값만 참조할 수 있도록 강제하는 제약조건이다","컬럼에 NULL이 입력되는 것을 막는 것이 유일한 기능이다","한 테이블에는 최대 하나의 CHECK 제약조건만 정의할 수 있다"]}
-  correctAnswer={1}
-  explanation={"CHECK 제약조건은 컬럼 값이 지정한 조건식(예: 가격이 0보다 커야 한다)을 만족하는지 검사해, 위반하는 값의 입력 자체를 막는다."}
-/>
 
-<Quiz
-  questionNumber={12}
-  question={"[상품] 테이블의 재고 컬럼이 DEFAULT 0으로 정의되어 있을 때, 위 INSERT 문을 실행한 뒤 재고 컬럼 값으로 옳은 것은?"}
-  options={["NULL","0","오류가 발생한다","공백 문자열"]}
-  correctAnswer={2}
-  explanation={"INSERT 문에서 컬럼을 생략하면 해당 컬럼에 정의된 DEFAULT 값이 자동으로 채워진다. 재고 컬럼이 DEFAULT 0이므로 0이 저장된다."}
-/>
 
-<Quiz
-  questionNumber={13}
-  question={"다음 순서로 실행했다. 재고 수량을 1 줄이는 UPDATE 실행, 곧이어 COMMIT 실행, 그 다음 ROLLBACK 실행. 이 ROLLBACK의 효과로 옳은 것은?"}
-  options={["COMMIT 이후 실행한 ROLLBACK은 이미 커밋된 변경을 취소한다","COMMIT 이후 실행한 ROLLBACK은 되돌릴 이전 시점이 없어 사실상 아무 효과가 없다","COMMIT 자체가 실패하고 변경사항이 저장되지 않는다","COMMIT 이후에는 ROLLBACK 명령을 아예 실행할 수 없다"]}
-  correctAnswer={2}
-  explanation={"COMMIT은 트랜잭션을 확정해 되돌릴 수 없는 상태로 만든다. 그 이후에 실행한 ROLLBACK은 새 트랜잭션 범위에서 아직 반영되지 않은 변경이 없으므로 되돌릴 대상이 없어 사실상 아무 효과가 없다."}
-/>
 
-<Quiz
-  questionNumber={14}
-  question={"[상품] 테이블에 텀블러, 머그컵, 유리컵받침, 볼펜이라는 상품명이 있을 때, 위 SQL의 실행 결과로 옳은 것은?"}
-  options={["머그컵, 유리컵받침","머그컵","유리컵받침","텀블러, 볼펜"]}
-  correctAnswer={1}
-  explanation={"LIKE 연산자의 % 와일드카드는 임의 길이의 문자열을 대신한다. 컵이라는 글자를 포함하는 모든 상품명을 찾으므로, 머그컵과 유리컵받침이 결과에 포함된다."}
-/>
 
-<Quiz
-  questionNumber={15}
-  question={"주문ID 1001의 배송완료일이 NULL일 때, 위 SQL의 실행 결과로 옳은 것은?"}
-  options={["배송완료","배송중","NULL","오류가 발생한다"]}
-  correctAnswer={2}
-  explanation={"NVL2(대상, 값1, 값2)는 대상이 NULL이 아니면 값1을, NULL이면 값2를 반환한다. 배송완료일이 NULL이므로 값2인 배송중이 반환된다."}
-/>
 
-<Quiz
-  questionNumber={16}
-  question={"위 SQL을 실행했을 때 전체와 쿠폰사용 값으로 옳은 것은?"}
-  options={["전체 4, 쿠폰사용 4","전체 4, 쿠폰사용 2","전체 2, 쿠폰사용 2","전체 4, 쿠폰사용 0"]}
-  correctAnswer={2}
-  explanation={"COUNT(*)는 NULL 여부와 관계없이 전체 행 수를 세므로 4다. COUNT(컬럼)은 그 컬럼 값이 NULL이 아닌 행만 세므로, 쿠폰ID가 NULL인 두 행을 제외한 2가 된다."}
-/>
 
-<Quiz
-  questionNumber={17}
-  question={"위 SQL을 실행했을 때 평균과 평균2 값으로 옳은 것은?"}
-  options={["평균 4, 평균2 3","평균 3, 평균2 4","평균 4, 평균2 4","평균 3, 평균2 3"]}
-  correctAnswer={1}
-  explanation={"AVG는 NULL을 제외하고 평균을 계산하므로 5, 3, 4 세 값의 평균인 4가 된다. 반면 SUM(평점)은 NULL을 무시해 5+3+4=12를 반환하지만, COUNT(*)는 NULL 행까지 포함해 4를 세므로 12를 4로 나눈 3이 된다. 두 식은 분모가 달라 서로 다른 값이 나온다."}
-/>
 
-<Quiz
-  questionNumber={18}
-  question={"위 SQL을 실행했을 때 생성되는 그룹의 개수는?"}
-  options={["2개 그룹","3개 그룹","4개 그룹","NULL 행은 그룹에서 제외되어 3건만 집계된다"]}
-  correctAnswer={2}
-  explanation={"GROUP BY는 NULL도 하나의 값으로 취급해 별도 그룹을 만든다. 배송방법 값은 일반, 새벽, NULL 세 종류이므로 그룹은 3개(일반 2건, 새벽 1건, NULL 1건)가 만들어진다."}
-/>
 
-<Quiz
-  questionNumber={19}
-  question={"다음 중 문법 오류가 발생하는 SQL로 옳은 것은?"}
-  options={["`SELECT 카테고리, COUNT(*) FROM 상품 GROUP BY 카테고리 HAVING COUNT(*) > 5`","`SELECT 카테고리, COUNT(*) FROM 상품 WHERE COUNT(*) > 5 GROUP BY 카테고리`","`SELECT 카테고리, COUNT(*) FROM 상품 GROUP BY 카테고리`","`SELECT 카테고리 FROM 상품 WHERE 재고 > 0`"]}
-  correctAnswer={2}
-  explanation={"WHERE 절은 GROUP BY로 그룹을 만들기 전, 개별 행 단위로 평가되는 절이라 집계 함수인 COUNT(*)를 조건으로 쓸 수 없다. 집계 함수로 조건을 걸려면 GROUP BY 뒤에 오는 HAVING 절을 사용해야 한다."}
-/>
 
-<Quiz
-  questionNumber={20}
-  question={"위 SQL을 실행했을 때 반환되는 결과로 옳은 것은?"}
-  options={["가전 2건만 나온다","가전 2건, 의류 2건이 나온다","결과가 없다","가전 2건, 의류 2건, 도서 1건이 나온다"]}
-  correctAnswer={1}
-  explanation={"WHERE 금액이 오만원 이상인 조건은 그룹을 만들기 전에 개별 행을 먼저 걸러낸다. 오만원 이상인 행은 가전 50만원, 가전 10만원 두 건뿐이라 의류와 도서는 이 시점에 이미 제외된다. 남은 두 행을 카테고리로 묶으면 가전 그룹 하나(2건)만 남고, HAVING 절의 건수 2 이상 조건도 만족해 가전 2건이 결과로 나온다."}
-/>
 
-<Quiz
-  questionNumber={21}
-  question={"위 INNER JOIN(JOIN) SQL을 실행했을 때 반환되는 행의 개수는?"}
-  options={["2개","3개","4개","5개"]}
-  correctAnswer={2}
-  explanation={"INNER JOIN은 양쪽 테이블에 모두 대응하는 행이 있을 때만 결과에 포함한다. 고객1은 주문 2건과, 고객2는 주문 1건과 매칭되어 총 3행이 남는다. 고객3은 대응하는 주문이 없어 제외되고, 고객ID 9인 주문 104는 대응하는 고객이 없어 역시 제외된다."}
-/>
 
-<Quiz
-  questionNumber={22}
-  question={"위와 같은 [고객], [주문] 테이블에 LEFT OUTER JOIN을 실행하면 반환되는 행의 개수는?"}
-  options={["3개","4개","5개","6개"]}
-  correctAnswer={2}
-  explanation={"LEFT OUTER JOIN은 왼쪽 테이블(고객)의 모든 행을 보존한다. 고객1은 주문 2건과 매칭되어 2행, 고객2는 1건과 매칭되어 1행, 고객3은 대응 주문이 없어 주문ID가 NULL인 1행이 되어 2+1+1=4행이다. 고객ID 9인 주문104는 고객 테이블에 없는 값이라 왼쪽 기준 조인에는 나타나지 않는다."}
-/>
 
-<Quiz
-  questionNumber={23}
-  question={"위와 같은 [고객], [주문] 테이블에 RIGHT OUTER JOIN을 실행하면 반환되는 행의 개수는?"}
-  options={["3개","4개","5개","6개"]}
-  correctAnswer={2}
-  explanation={"RIGHT OUTER JOIN은 오른쪽 테이블(주문)의 모든 행을 보존한다. 주문 테이블에는 101, 102, 103, 104 네 건이 있으므로, 고객ID 9처럼 대응하는 고객이 없어도 그 주문 행은 그대로 남고 고객 쪽 컬럼만 NULL이 된다. 반대로 주문이 없는 고객3은 오른쪽 기준 조인이라 결과에 나타나지 않는다."}
-/>
 
-<Quiz
-  questionNumber={24}
-  question={"위와 같은 [고객], [주문] 테이블에 FULL OUTER JOIN을 실행하면 반환되는 행의 개수는?"}
-  options={["3개","4개","5개","6개"]}
-  correctAnswer={3}
-  explanation={"FULL OUTER JOIN은 양쪽 테이블 각각에서 대응하지 못한 행까지 모두 NULL로 채워 남긴다. 고객1(2건)과 고객2(1건)의 정상 매칭 3행에, 대응 주문이 없는 고객3의 1행과 대응 고객이 없는 주문104의 1행을 더하면 3+1+1=5행이다."}
-/>
 
-<Quiz
-  questionNumber={25}
-  question={"위 SQL을 실행했을 때 결과로 옳은 것은?"}
-  options={["고객ID 1, 3","결과가 없다(공집합)","고객ID 1, 2, 3 모두 나온다","고객ID 3만 나온다"]}
-  correctAnswer={2}
-  explanation={"NOT IN의 서브쿼리 결과에 NULL이 하나라도 포함되면, 어떤 값과 비교해도 그 비교가 알 수 없음(UNKNOWN)이 되어 조건 전체가 참이 될 수 없다. 블랙리스트 서브쿼리가 2와 NULL을 반환하므로, 고객1이나 고객3처럼 2와 일치하지 않는 값도 NULL과의 비교 때문에 조건을 만족하지 못해 결과는 공집합이 된다."}
-/>
 
-<Quiz
-  questionNumber={26}
-  question={"같은 [고객], [블랙리스트] 테이블에 NOT IN 대신 NOT EXISTS를 사용한 위 SQL을 실행하면 결과로 옳은 것은?"}
-  options={["고객ID 1, 3","결과가 없다(공집합)","고객ID 1, 2, 3 모두 나온다","고객ID 2만 나온다"]}
-  correctAnswer={1}
-  explanation={"NOT EXISTS는 상관 서브쿼리가 실제로 일치하는 행을 반환하는지만 확인하며, NULL 값 자체는 어떤 고객ID와도 같다고 비교되지 않아 매칭에 영향을 주지 않는다. 블랙리스트의 실제 값인 2와 일치하는 고객2만 서브쿼리가 참이 되어 제외되고, 고객1과 고객3은 결과에 남는다."}
-/>
 
-<Quiz
-  questionNumber={27}
-  question={"위 SQL을 실행했을 때 결과로 옳은 것은?"}
-  options={["상품ID 1, 3","상품ID 1, 2, 3, 4","상품ID 2, 4","상품ID 1만"]}
-  correctAnswer={1}
-  explanation={"서브쿼리는 상품ID가 1인 행의 카테고리 값인 가전을 반환한다. 바깥 쿼리는 카테고리가 가전인 상품을 모두 찾으므로, 상품ID 1과 3이 결과로 나온다."}
-/>
 
-<Quiz
-  questionNumber={28}
-  question={"[상품] 테이블에서 각 카테고리 내 평균 가격보다 비싼 상품만 조회하려 한다. 이를 구현하는 방법으로 가장 적절한 것은?"}
-  options={["바깥 쿼리의 각 행마다 같은 카테고리 상품들의 평균 가격을 다시 계산해 비교하는 상관 서브쿼리를 WHERE 절에 사용한다","전체 상품의 평균 가격 하나만 계산하는 서브쿼리를 WHERE 절에 사용한다","GROUP BY 없이 HAVING 절만으로 해결한다","서브쿼리 없이 ORDER BY만으로 해결한다"]}
-  correctAnswer={1}
-  explanation={"카테고리별 기준으로 비교하려면 바깥 쿼리의 각 행이 속한 카테고리를 서브쿼리 조건에 다시 참조해야 한다. 이렇게 바깥 쿼리의 값을 서브쿼리 안에서 참조하는 구조를 상관 서브쿼리라 하며, 행마다 서브쿼리가 반복 실행되어 카테고리별 평균과 비교할 수 있다."}
-/>
 
-<Quiz
-  questionNumber={29}
-  question={"위 UNION SQL을 실행했을 때 반환되는 값의 개수는?"}
-  options={["3개","4개","6개","7개"]}
-  correctAnswer={2}
-  explanation={"UNION은 두 결과 집합을 합치면서 중복된 값을 제거한다. A의 1, 2, 3과 B의 2, 3, 4를 합치면 서로 다른 값은 1, 2, 3, 4 네 가지뿐이다."}
-/>
 
-<Quiz
-  questionNumber={30}
-  question={"위와 같은 [A], [B] 테이블에 UNION 대신 UNION ALL을 사용하면 반환되는 행의 개수는?"}
-  options={["3개","4개","6개","7개"]}
-  correctAnswer={3}
-  explanation={"UNION ALL은 중복 제거 과정 없이 두 결과 집합을 그대로 이어 붙인다. A의 3행과 B의 3행을 단순히 합치면 3+3=6행이 되며, 2와 3처럼 겹치는 값도 중복된 채로 그대로 남는다."}
-/>
 
-<Quiz
-  questionNumber={31}
-  question={"위와 같은 [A], [B] 테이블(A의 고객ID는 1, 2, 3이고 B의 고객ID는 2, 3, 4)에 대해 A MINUS B를 실행했을 때 결과로 옳은 것은?"}
-  options={["고객ID 1","고객ID 2, 3","고객ID 4","고객ID 1, 2, 3, 4"]}
-  correctAnswer={1}
-  explanation={"MINUS(EXCEPT)는 첫 번째 결과 집합에서 두 번째 결과 집합에도 존재하는 행을 제외한 차집합을 반환한다. A의 1, 2, 3 중에서 B에도 있는 2, 3을 제외하면 1만 남는다."}
-/>
 
-<Quiz
-  questionNumber={32}
-  question={"위 SQL을 실행했을 때 박(점수 80)의 RANK 값과 DENSE_RANK 값으로 옳은 것은?"}
-  options={["RANK 2, DENSE_RANK 2","RANK 3, DENSE_RANK 2","RANK 3, DENSE_RANK 3","RANK 2, DENSE_RANK 3"]}
-  correctAnswer={2}
-  explanation={"김과 이가 90점으로 공동 1위다. RANK는 동점자 수만큼 다음 순위를 건너뛰므로 그다음 순위는 2가 아니라 3이 되어 박의 RANK는 3이다. DENSE_RANK는 건너뛰지 않으므로 공동 1위 다음은 곧바로 2가 되어 박의 DENSE_RANK는 2다."}
-/>
 
-<Quiz
-  questionNumber={33}
-  question={"위와 같은 [성적] 테이블의 RANK() OVER (ORDER BY 점수 DESC) 결과에서, RANK 값이 1인 학생은 모두 몇 명인가?"}
-  options={["1명","2명","3명","4명"]}
-  correctAnswer={2}
-  explanation={"90점으로 동점인 김과 이 두 학생이 공동 1위가 되어 둘 다 RANK 값 1을 받는다."}
-/>
 
-<Quiz
-  questionNumber={34}
-  question={"위 SQL을 Oracle에서 실행했을 때 결과로 옳은 것은?"}
-  options={["상품ID 2, 3, 4가 나온다","상품ID 1만 나온다","결과가 없다(공집합)","오류가 발생한다"]}
-  correctAnswer={3}
-  explanation={"ROWNUM은 결과 행이 하나씩 반환될 때마다 1부터 순서대로 부여되는 값이다. 첫 번째 후보 행은 ROWNUM 1을 받는데 조건이 1보다 커야 참이라 이 조건을 만족하지 못해 탈락한다. 한 번 탈락하면 그 행은 ROWNUM을 그대로 소비해 버려서, 다음 후보 행도 다시 처음부터 1을 받아 똑같이 탈락하는 일이 모든 행에 대해 반복된다. 그 결과 어떤 행도 조건을 통과하지 못해 결과는 항상 공집합이 된다."}
-/>
 
-<Quiz
-  questionNumber={35}
-  question={"가격이 높은 상위 2개 상품만 뽑으려 할 때, 다음 중 옳은 방법은?"}
-  options={["SELECT * FROM 상품 WHERE ROWNUM <= 2 ORDER BY 가격 DESC 처럼 먼저 ROWNUM으로 제한한 뒤 정렬한다","가격 내림차순으로 먼저 정렬한 서브쿼리를 만들고, 바깥 쿼리에서 그 결과에 ROWNUM <= 2 조건을 건다","ORDER BY 절 뒤에 WHERE ROWNUM <= 2를 이어서 작성한다","GROUP BY 가격 DESC 뒤에 LIMIT 2를 붙인다"]}
-  correctAnswer={2}
-  explanation={"ROWNUM은 정렬(ORDER BY)이 적용되기 전, 데이터베이스가 행을 읽어오는 순서대로 먼저 부여된다. 정렬 전 임의의 순서로 뽑힌 2개 행에 나중에 ORDER BY를 적용하면 가격이 실제로 가장 높은 2개라는 보장이 없다. 따라서 먼저 서브쿼리로 가격 순 정렬을 끝낸 뒤, 그 정렬된 결과에 바깥 쿼리에서 ROWNUM 조건을 걸어야 진짜 상위 2개를 얻을 수 있다."}
-/>
 
-<Quiz
-  questionNumber={36}
-  question={"다음 중 표준 SQL(Oracle 12c 이상)에서 정렬 후 상위 3개 행만 가져오는 구문으로 옳은 것은?"}
-  options={["ROWNUM <= 3 조건만 사용할 수 있으며 다른 방법은 없다","ORDER BY로 정렬한 뒤 FETCH FIRST 3 ROWS ONLY를 사용한다","LIMIT 3을 사용한다","SELECT 뒤에 TOP 3을 붙인다"]}
-  correctAnswer={2}
-  explanation={"Oracle 12c부터는 표준 SQL의 OFFSET/FETCH 구문을 지원해, ORDER BY로 정렬한 뒤 FETCH FIRST n ROWS ONLY로 상위 n개 행을 가져올 수 있다. ROWNUM 방식과 달리 정렬이 먼저 적용된 뒤 행 수를 제한하므로 실수가 적다."}
-/>
 
-<Quiz
-  questionNumber={37}
-  question={"위 SQL을 실행했을 때 2일자 행의 이동평균 값은?"}
-  options={["90","100","80","120"]}
-  correctAnswer={2}
-  explanation={"ROWS BETWEEN 1 PRECEDING AND 1 FOLLOWING은 현재 행 기준 바로 앞 1행과 바로 뒤 1행까지를 포함하는 프레임이다. 2일자를 기준으로 하면 1일(100), 2일(80), 3일(120)이 모두 포함되어 평균은 (100+80+120)/3=100이다."}
-/>
 
-<Quiz
-  questionNumber={38}
-  question={"위 SQL을 실행했을 때 반환되는 행의 개수는?"}
-  options={["2개","3개","4개","1개"]}
-  correctAnswer={2}
-  explanation={"GROUPING SETS(카테고리, ())는 카테고리별 소계와 전체 총계를 각각 만든다. 카테고리는 가전, 의류 두 종류이므로 소계 2행에 총계 1행을 더해 총 3행이 된다."}
-/>
 
-<Quiz
-  questionNumber={39}
-  question={"CONNECT BY 절에 NOCYCLE 옵션을 사용하는 이유로 가장 적절한 것은?"}
-  options={["데이터에 순환 참조가 있어도 무한 루프에 빠지지 않고 질의를 완료시키기 위해서다","정렬 순서를 역순으로 바꾸기 위해서다","LEVEL 값을 0부터 시작하게 만들기 위해서다","START WITH 절을 생략할 수 있게 해주기 위해서다"]}
-  correctAnswer={1}
-  explanation={"계층 데이터에 A가 B의 부모이면서 동시에 B가 A의 부모가 되는 것처럼 순환 참조가 있으면 CONNECT BY는 무한 루프에 빠질 수 있다. NOCYCLE 옵션을 붙이면 순환이 감지된 지점에서 더 이상 내려가지 않고 질의를 정상적으로 완료한다."}
-/>
 
-<Quiz
-  questionNumber={40}
-  question={"다음 중 GRANT 문에 대한 설명으로 옳은 것은?"}
-  options={["GRANT는 DML 명령어로 데이터 변경 권한만 부여할 수 있다","WITH GRANT OPTION을 붙이면 권한을 받은 사용자가 그 권한을 제3자에게 다시 부여할 수 있다","GRANT로 부여한 권한은 REVOKE로 회수할 수 없다","GRANT는 반드시 DBA 계정으로만 실행할 수 있다"]}
-  correctAnswer={2}
-  explanation={"GRANT에 WITH GRANT OPTION을 붙이면, 권한을 부여받은 사용자가 그 권한을 다시 다른 사용자에게 위임(재부여)할 수 있게 된다."}
-/>
 
-<Quiz
-  questionNumber={41}
-  question={"저장 프로시저, 사용자 정의 함수, 트리거의 개념적 차이에 대한 설명으로 옳지 않은 것은?"}
-  options={["함수는 반드시 하나의 값을 RETURN해야 하며 SELECT 문 안에서 호출할 수 있다","프로시저는 반환값이 없어도 되며 CALL이나 EXECUTE로 명시적으로 실행한다","트리거는 특정 이벤트(INSERT, UPDATE, DELETE 등)가 발생할 때 자동으로 실행된다","트리거는 사용자가 명시적으로 EXECUTE 문으로 호출해야만 실행된다"]}
-  correctAnswer={4}
-  explanation={"트리거는 사용자가 직접 호출하는 것이 아니라, 지정된 이벤트(INSERT, UPDATE, DELETE 등)가 발생하면 데이터베이스가 자동으로 실행한다. 명시적으로 EXECUTE 문을 통해서만 실행된다는 설명은 트리거의 핵심 특징에 어긋난다."}
-/>
 
-<Quiz
-  questionNumber={42}
-  question={"행 개수를 제한하는 구문에 대한 설명으로 옳지 않은 것은?"}
-  options={["Oracle은 ROWNUM 의사컬럼이나 FETCH FIRST 절로 행을 제한한다","MySQL은 LIMIT 절로 행을 제한한다","표준 SQL의 FETCH FIRST 절은 Oracle에서는 지원되지 않고 MySQL 전용 문법이다","LIMIT은 Oracle 표준 문법에는 존재하지 않는다"]}
-  correctAnswer={3}
-  explanation={"FETCH FIRST n ROWS ONLY는 표준 SQL 구문이며 Oracle 12c 이상에서도 지원된다. MySQL 전용이라는 설명은 옳지 않다. 오히려 MySQL은 FETCH FIRST 대신 LIMIT을 주로 사용한다."}
-/>
 
-<Quiz
-  questionNumber={43}
-  question={"다음 중 문자열을 날짜로 변환하는 함수의 DBMS별 짝으로 옳은 것은?"}
-  options={["Oracle은 TO_DATE, MySQL은 STR_TO_DATE를 사용한다","Oracle과 MySQL 모두 STR_TO_DATE만 사용한다","Oracle은 STR_TO_DATE, MySQL은 TO_DATE를 사용한다","두 함수는 모든 DBMS에서 이름과 문법이 완전히 동일하다"]}
-  correctAnswer={1}
-  explanation={"Oracle은 문자열을 날짜로 변환할 때 TO_DATE 함수를 사용하고, MySQL은 같은 목적으로 STR_TO_DATE 함수를 사용한다."}
-/>
 
-<Quiz
-  questionNumber={44}
-  question={"PIVOT 구문의 역할로 가장 적절한 것은?"}
-  options={["행으로 저장된 값을 열로 바꿔 요약 형태로 재구성한다","여러 테이블을 하나로 합치는 조인 연산을 수행한다","중복된 행을 제거한다","컬럼의 데이터 타입을 변환한다"]}
-  correctAnswer={1}
-  explanation={"PIVOT은 행 형태로 저장된 데이터를 특정 값 기준으로 열로 펼쳐, 카테고리별 집계를 한눈에 보기 좋은 요약 표 형태로 재구성하는 구문이다."}
-/>
 
-<Quiz
-  questionNumber={45}
-  question={"위 SQL을 실행했을 때 주문ID 3의 상태명 값은?"}
-  options={["준비중","완료","기타","NULL"]}
-  correctAnswer={3}
-  explanation={"CASE 식은 WHEN 절과 일치하는 값이 없으면 ELSE 절의 값을 반환한다. 상태코드 X는 P, C 어느 것과도 일치하지 않으므로 ELSE에 정의된 기타가 반환된다."}
-/>
 
-<Quiz
-  questionNumber={46}
-  question={"다음 중 정규표현식 조건 REGEXP_LIKE(전화번호, 0으로 시작해 010 뒤에 하이픈과 숫자 4자리, 다시 하이픈과 숫자 4자리가 오는 패턴)에 매칭되는 전화번호로 옳은 것은?"}
-  options={["010-1234-5678","02-1234-5678","010-123-5678","0101234-5678"]}
-  correctAnswer={1}
-  explanation={"패턴은 010으로 시작하고, 하이픈과 숫자 4자리, 다시 하이픈과 숫자 4자리로 끝나는 형식을 요구한다. 010-1234-5678은 이 형식을 정확히 만족한다."}
-/>
 
-<Quiz
-  questionNumber={47}
-  question={"위 SQL을 실행하면 어떤 결과가 나오는가? ([고객]은 고객ID, 이름 두 컬럼을 SELECT하고 [상품]은 상품ID 한 컬럼만 SELECT했다)"}
-  options={["정상적으로 실행되어 두 결과가 합쳐진다","컬럼 개수가 서로 달라 오류가 발생한다","첫 번째 SELECT 결과만 반환된다","두 번째 SELECT 결과만 반환된다"]}
-  correctAnswer={2}
-  explanation={"집합 연산자로 결합하는 두 SELECT 문은 컬럼 개수가 반드시 같아야 한다. 첫 번째는 두 컬럼(고객ID, 이름), 두 번째는 한 컬럼(상품ID)만 조회해 컬럼 개수가 일치하지 않으므로 문법 오류가 발생한다."}
-/>
 
-<Quiz
-  questionNumber={48}
-  question={"위 SQL을 실행했을 때 고객ID 2의 주문건수 값은?"}
-  options={["0","NULL","오류가 발생한다","1"]}
-  correctAnswer={1}
-  explanation={"COUNT(*)는 대응하는 행이 하나도 없어도 0을 반환하는 집계 함수다. 고객2에 대응하는 주문이 없어도 스칼라 서브쿼리 안의 COUNT(*)는 NULL이 아니라 0을 반환한다."}
-/>
 
-<Quiz
-  questionNumber={49}
-  question={"다음 Oracle 전통 조인 문법에 대한 설명으로 옳은 것은? WHERE A.고객ID = B.고객ID(+) 형태로 B 쪽 컬럼에 플러스 기호를 붙였다."}
-  options={["플러스 기호가 붙지 않은 A 테이블의 모든 행이 보존되고, 플러스 기호가 붙은 B 쪽에 대응 행이 없으면 NULL로 채워진다","플러스 기호가 붙은 B 테이블의 모든 행이 보존된다","플러스 기호는 두 컬럼 값이 반드시 같아야 한다는 강한 제약을 추가하는 것이다","플러스 기호는 ANSI 표준 SQL 문법으로 모든 DBMS에서 동일하게 지원된다"]}
-  correctAnswer={1}
-  explanation={"Oracle의 (+) 표기는 그 기호가 붙은 쪽을 아우터(선택적) 쪽으로 지정한다. 기호가 붙지 않은 A 테이블의 모든 행이 기준으로 보존되고, B 쪽에 대응하는 행이 없으면 그 자리는 NULL로 채워진다. 이는 표준 SQL의 LEFT OUTER JOIN과 같은 의미다."}
-/>
 
-<Quiz
-  questionNumber={50}
-  question={"위 SQL을 실행했을 때 고객ID 1 행의 건수와 합계 값으로 옳은 것은?"}
-  options={["건수 2, 합계 1000","건수 1, 합계 1000","건수 2, 합계 NULL","건수 2, 합계 0"]}
-  correctAnswer={1}
-  explanation={"COUNT(*)는 금액이 NULL인 행도 행 자체는 존재하므로 그대로 세어 2가 된다. SUM(금액)은 NULL 값을 계산에서 제외하고 더하므로 1000만 남아 결과는 1000이다. 1000은 500보다 커서 HAVING 조건도 만족한다."}
-/>
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 ## 참고 자료
 

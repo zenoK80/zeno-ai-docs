@@ -40,181 +40,49 @@ description: '서브네팅·VLSM·수퍼네팅 계산, HSRP·VRRP·GLBP 같은 �
   explanation={"100대를 수용하려면 사용 가능한 호스트 수가 100 이상이어야 한다."}
 />
 
-<Quiz
-  questionNumber={4}
-  question={"10.20.30.45/28 주소가 속한 서브넷의 브로드캐스트 주소는?"}
-  options={['10.20.30.31', '10.20.30.47', '10.20.30.63', '10.20.30.255']}
-  correctAnswer={2}
-  explanation={"프리픽스가 28이면 호스트 비트가 4개 남아 서브넷 하나의 크기는 2를 4번 곱한 16이다. 네 번째 옥텟은 0, 16, 32, 48 단위로 서브넷 경계가 나뉘므로 45는 32에서 47 사이의 서브넷에 속하고, 그 서브넷의 마지막 주소인 47이 브로드캐스트 주소가 된다."}
-/>
 
-<Quiz
-  questionNumber={5}
-  question={"ARP(주소 결정 프로토콜, Address Resolution Protocol)의 기능으로 옳은 것은?"}
-  options={["IP 주소를 이용해 같은 네트워크 안 장치의 MAC 주소를 알아낸다","도메인 이름을 IP 주소로 변환한다","사설 IP 주소를 공인 IP 주소로 변환한다","전송 중 발생한 오류를 상대에게 알린다"]}
-  correctAnswer={1}
-  explanation={"ARP는 같은 네트워크 안에서 상대의 IP 주소는 알지만 MAC 주소를 모를 때, 네트워크 전체에 브로드캐스트로 질의를 보내 해당 IP 주소를 가진 장치의 MAC 주소를 응답받는 프로토콜이다."}
-/>
 
-<Quiz
-  questionNumber={6}
-  question={"DHCP를 통해 단말이 IP 주소를 자동으로 할당받는 과정을 순서대로 나열한 것은?"}
-  options={["Discover, Offer, Request, Acknowledge","Request, Discover, Offer, Acknowledge","Offer, Discover, Acknowledge, Request","Acknowledge, Offer, Discover, Request"]}
-  correctAnswer={1}
-  explanation={"단말이 먼저 IP 주소가 필요하다고 네트워크 전체에 알리는 Discover 메시지를 브로드캐스트하고, DHCP 서버가 사용 가능한 IP 주소를 제안하는 Offer로 응답하며, 단말이 그 제안을 받아들이겠다고 Request를 보내면, 서버가 최종 확인 메시지인 Acknowledge를 보내 할당이 완료된다."}
-/>
 
-<Quiz
-  questionNumber={7}
-  question={"TCP와 UDP를 비교한 설명으로 옳지 않은 것은?"}
-  options={["TCP는 연결을 맺은 뒤 데이터를 주고받는 연결지향형 프로토콜이다","UDP는 연결 설정 없이 데이터를 보내는 비연결형 프로토콜이다","UDP는 순서 제어와 재전송을 통해 TCP보다 더 높은 신뢰성을 보장한다","TCP는 흐름 제어와 오류 제어 기능을 갖추고 있어 신뢰성이 필요한 전송에 적합하다"]}
-  correctAnswer={3}
-  explanation={"순서 제어와 재전송으로 신뢰성을 보장하는 쪽은 TCP다. UDP는 이런 절차를 생략해 오버헤드를 줄이는 대신 신뢰성을 포기한 프로토콜이므로, UDP가 TCP보다 신뢰성이 높다는 설명은 정의를 반대로 뒤집은 것이다."}
-/>
 
-<Quiz
-  questionNumber={8}
-  question={"유선 이더넷의 CSMA/CD와 무선랜의 CSMA/CA를 비교한 설명으로 옳지 않은 것은?"}
-  options={["CSMA/CD는 충돌이 발생한 것을 감지한 뒤 대응하는 방식이다","CSMA/CA는 충돌 발생 자체를 미리 피하려는 방식이다","무선매체는 유선매체와 달리 송신 중 자신의 신호와 충돌을 동시에 감지하기 어려워 CD 대신 CA 방식을 쓴다","CSMA/CD는 무선랜에서, CSMA/CA는 유선 이더넷에서 주로 사용된다"]}
-  correctAnswer={4}
-  explanation={"CSMA/CD(충돌 감지)는 유선 이더넷에서, CSMA/CA(충돌 회피)는 무선랜에서 주로 사용된다. 이 설명은 두 방식이 쓰이는 매체를 서로 뒤바꿔 놓았으므로 옳지 않다."}
-/>
 
-<Quiz
-  questionNumber={9}
-  question={"어떤 통신장비의 MTBF(평균고장간격)가 970시간, MTTR(평균수리시간)이 30시간이다. 이 장비의 가용도(availability)는 몇 퍼센트인가?"}
-  options={["97퍼센트","90퍼센트","99퍼센트","70퍼센트"]}
-  correctAnswer={1}
-  explanation={"가용도는 전체 운용 시간 중 실제로 정상 작동한 시간의 비율로, MTBF를 MTBF와 MTTR의 합으로 나누어 구한다."}
-/>
 
-<Quiz
-  questionNumber={10}
-  question={"정보통신기자재 관련 인증제도에 대한 설명으로 옳지 않은 것은?"}
-  options={['KC(국가통합인증)마크는 전기용품의 안전성과 전자파적합성 등을 확인하는 인증이다', 'TTA인증은 한국정보통신기술협회가 통신기기의 상호운용성과 성능을 시험해 부여하는 인증이다', 'GS인증은 소프트웨어 제품의 품질을 시험해 부여하는 인증이다', 'KC·TTA·GS 세 인증은 발급 목적과 시험 항목이 모두 동일한 사실상 하나의 제도다']}
-  correctAnswer={4}
-  explanation={"KC는 전기·전자 제품의 안전성을 확인하는 강제 인증, TTA인증은 통신기기의 상호운용성·성능 시험 인증, GS인증은 소프트웨어 품질 인증으로 대상과 목적이 서로 다르다. 세 제도를 동일한 제도로 서술한 것이 옳지 않다."}
-/>
 
-<Quiz
-  questionNumber={11}
-  question={"스위치 네트워크에서 표준 STP(Spanning Tree Protocol)보다 빠른 컨버전스(수렴) 속도로 루프를 방지하도록 개선된 프로토콜은?"}
-  options={["VTP","RSTP","HSRP","GLBP"]}
-  correctAnswer={2}
-  explanation={"RSTP(Rapid Spanning Tree Protocol)는 표준 STP의 느린 포트 상태 전이 절차를 개선해 훨씬 빠른 시간 안에 루프 없는 토폴로지로 수렴하도록 만든 프로토콜이다."}
-/>
 
-<Quiz
-  questionNumber={12}
-  question={"여러 스위치에 걸쳐 VLAN 구성 정보를 자동으로 배포하고 동기화하는 시스코 독자 프로토콜은?"}
-  options={["STP","VTP","RSTP","HSRP"]}
-  correctAnswer={2}
-  explanation={"VTP(VLAN Trunking Protocol)는 하나의 관리 도메인 안에서 VLAN을 생성·삭제·수정하면 그 정보를 트렁크로 연결된 다른 스위치들에 자동으로 전파해 VLAN 구성을 일치시키는 시스코 독자 프로토콜이다."}
-/>
 
-<Quiz
-  questionNumber={13}
-  question={"라우팅 프로토콜 분류에 대한 설명으로 옳지 않은 것은?"}
-  options={["Static 라우팅은 관리자가 경로를 직접 입력하는 방식이다","Dynamic 라우팅은 라우터끼리 정보를 교환해 경로를 자동으로 계산한다","OSPF는 자율시스템(AS) 내부에서 사용하는 IGP(내부 게이트웨이 프로토콜)에 속한다","BGP는 자율시스템 내부에서만 사용되도록 설계된 IGP에 속한다"]}
-  correctAnswer={4}
-  explanation={"BGP(Border Gateway Protocol)는 서로 다른 자율시스템 사이에서 경로 정보를 교환하는 EGP(외부 게이트웨이 프로토콜)다. 자율시스템 내부에서만 쓰인다고 서술한 것은 IGP와 EGP의 구분을 뒤바꾼 것이다."}
-/>
 
-<Quiz
-  questionNumber={14}
-  question={"게이트웨이 이중화 프로토콜인 HSRP·VRRP·GLBP에 대한 설명으로 옳지 않은 것은?"}
-  options={["HSRP는 시스코 독자 프로토콜이고 VRRP는 개방형 표준 프로토콜이다","HSRP와 VRRP는 평상시 하나의 라우터만 트래픽을 실제로 전달한다","GLBP는 HSRP·VRRP와 마찬가지로 항상 하나의 라우터만 트래픽을 전달하도록 설계되었다","GLBP는 여러 대의 라우터가 동시에 트래픽을 처리하도록 부하를 분산할 수 있다"]}
-  correctAnswer={3}
-  explanation={"GLBP(Gateway Load Balancing Protocol)는 HSRP·VRRP와 달리 여러 대의 라우터가 동시에 활성 상태로 트래픽을 나누어 처리하도록 설계된 프로토콜이다. 항상 하나의 라우터만 전달한다고 서술한 것은 GLBP의 핵심 특징과 반대다."}
-/>
 
-<Quiz
-  questionNumber={15}
-  question={"HSRP와 VRRP의 공통점으로 가장 적절한 것은?"}
-  options={["가상의 게이트웨이 IP 주소를 두고 평상시 한 대의 라우터만 트래픽을 전달한다","두 프로토콜 모두 여러 라우터가 항상 동시에 트래픽을 전달한다","두 프로토콜 모두 스위치 사이의 VLAN 정보를 동기화하는 데 쓰인다","두 프로토콜 모두 광케이블 구간의 신호 손실을 측정하는 데 쓰인다"]}
-  correctAnswer={1}
-  explanation={"HSRP와 VRRP는 모두 가상의 게이트웨이 IP 주소를 여러 라우터가 공유하고, 평상시에는 그중 하나(액티브 또는 마스터)만 실제 트래픽을 전달하다가 장애가 나면 다른 라우터가 그 역할을 넘겨받는 구조라는 공통점이 있다."}
-/>
 
-<Quiz
-  questionNumber={16}
-  question={"PON(수동광가입자망, Passive Optical Network)에 대한 설명으로 가장 적절한 것은?"}
-  options={["국사에 설치된 OLT 하나가 전력 공급 없는 광분배기(스플리터)를 거쳐 다수의 ONU·ONT와 신호를 주고받는 점대다중점 구조다","가입자 자택마다 별도의 능동 전원 증폭 장비를 두어 신호를 재생하는 구조다","기존 전화선의 구리 회선을 그대로 사용하는 비대칭 디지털 가입자 회선 기술이다","동축케이블과 광케이블을 혼합해 방송 신호를 분배하는 케이블TV 전용 기술이다"]}
-  correctAnswer={1}
-  explanation={"PON은 국사(중앙국)의 OLT(광선로종단장치) 하나가 전력이 필요 없는 수동형 광분배기를 거쳐 여러 가입자의 ONU·ONT(광네트워크종단장치)와 신호를 주고받는 점대다중점 구조로, 분배기에 전원이 필요 없다는 점이 핵심이다."}
-/>
 
-<Quiz
-  questionNumber={17}
-  question={"다음 설명에 해당하는 인터넷 접속 기술은? 기존 전화선의 구리 회선을 그대로 사용하며, 다운로드 속도가 업로드 속도보다 빠른 비대칭 구조를 갖는다"}
-  options={["ADSL","FTTH","HFC","PON"]}
-  correctAnswer={1}
-  explanation={"ADSL(Asymmetric Digital Subscriber Line, 비대칭 디지털 가입자 회선)은 기존 전화선의 구리 회선을 그대로 이용하면서 다운로드와 업로드 속도를 다르게(비대칭) 구성해 일반 가입자의 인터넷 사용 패턴에 맞춘 xDSL 계열 기술이다."}
-/>
 
-<Quiz
-  questionNumber={18}
-  question={"CWDM과 DWDM을 비교한 설명으로 옳지 않은 것은?"}
-  options={["DWDM은 채널 간격이 매우 좁아 CWDM보다 훨씬 많은 파장 채널을 하나의 광섬유에 실을 수 있다","CWDM은 DWDM보다 채널 간격이 넓어 상대적으로 적은 수의 채널만 수용한다","CWDM은 채널 간격이 좁아 더 많은 채널을 수용하므로 장거리 백본망에 주로 쓰인다","DWDM은 광증폭기를 활용한 장거리 전송에 적합해 통신사의 장거리 백본망에 주로 쓰인다"]}
-  correctAnswer={3}
-  explanation={"채널 간격이 좁아 많은 채널을 수용하고 장거리 백본망에 주로 쓰이는 쪽은 DWDM이다. CWDM은 채널 간격이 넓어 상대적으로 적은 채널만 수용하며 주로 근거리·중거리 구간에 저비용으로 쓰인다."}
-/>
 
-<Quiz
-  questionNumber={19}
-  question={"IPTV와 OTT(Over The Top) 서비스를 비교한 설명으로 가장 적절한 것은?"}
-  options={['IPTV는 통신사업자가 관리하는 폐쇄형 네트워크를 통해 제공되고, OTT는 공중 인터넷망을 통해 제공된다', 'IPTV와 OTT는 모두 동축케이블 기반 방송망을 통해서만 서비스된다', 'OTT는 반드시 통신사업자의 셋톱박스를 거쳐야만 콘텐츠를 재생할 수 있다', 'IPTV는 사업자 구분 없이 어떤 인터넷 회선에서도 동일한 화질이 보장된다']}
-  correctAnswer={1}
-  explanation={"IPTV는 통신사업자가 품질을 관리하는 폐쇄형(관리형) IP망을 통해 제공되어 안정적인 화질을 보장하는 반면, OTT는 특정 사업자의 망에 묶이지 않고 공중 인터넷망을 통해 다양한 기기에서 콘텐츠를 제공한다는 점이 핵심 차이다."}
-/>
 
-<Quiz
-  questionNumber={20}
-  question={"네트워크에 연결되어 파일 단위로 데이터를 여러 사용자와 공유하는 저장장치 방식은?"}
-  options={["DAS","NAS","SAN","RAID"]}
-  correctAnswer={2}
-  explanation={"NAS(Network Attached Storage, 네트워크 결합 스토리지)는 이더넷 등 일반 네트워크에 직접 연결되어 여러 사용자가 파일 단위로 자료를 공유할 수 있게 해 주는 저장장치다."}
-/>
 
-<Quiz
-  questionNumber={21}
-  question={"2테라바이트 하드디스크 5개로 RAID5를 구성했을 때 실제로 사용 가능한 총 저장 용량은?"}
-  options={["10테라바이트","8테라바이트","6테라바이트","4테라바이트"]}
-  correctAnswer={2}
-  explanation={"RAID5는 디스크 하나 분량의 용량을 패리티(오류 복구 정보) 저장에 분산해서 사용하므로, 사용 가능한 총 용량은 디스크 개수에서 1을 뺀 값에 디스크 한 개의 용량을 곱해서 구한다. 디스크 5개에서 1을 뺀 4에 2테라바이트를 곱하면 8테라바이트가 된다."}
-/>
 
-<Quiz
-  questionNumber={22}
-  question={"하이퍼바이저 방식 가상화와 컨테이너 방식 가상화를 비교한 설명으로 옳지 않은 것은?"}
-  options={["하이퍼바이저 방식은 가상머신마다 별도의 완전한 게스트 운영체제를 포함한다","컨테이너는 호스트 운영체제의 커널을 여러 컨테이너가 함께 공유한다","컨테이너는 각각 별도의 게스트 운영체제를 완전히 포함하므로 하이퍼바이저 방식보다 자원 소모가 크다","컨테이너는 하이퍼바이저 방식보다 시작 속도가 빠르고 자원 오버헤드가 작은 편이다"]}
-  correctAnswer={3}
-  explanation={"컨테이너는 호스트 운영체제의 커널을 공유하고 별도의 게스트 운영체제를 포함하지 않기 때문에 하이퍼바이저 방식보다 자원 소모가 오히려 작다. 게스트 운영체제를 완전히 포함해 자원 소모가 크다고 서술한 것은 하이퍼바이저 방식에 대한 설명을 컨테이너에 잘못 붙인 것이다."}
-/>
 
-<Quiz
-  questionNumber={23}
-  question={"네트워크 장비 간 시각을 서로 동기화하기 위해 사용하는 프로토콜은?"}
-  options={["NTP","SNMP","ICMP","ARP"]}
-  correctAnswer={1}
-  explanation={"NTP(Network Time Protocol, 네트워크 시각 동기화 프로토콜)는 계층화된 시각 기준(스트라텀)을 이용해 네트워크에 연결된 장비들의 시계를 서로 맞추는 데 쓰인다. 로그 분석이나 인증서 검증처럼 여러 장비의 시각이 일치해야 하는 작업에 필수적이다."}
-/>
 
-<Quiz
-  questionNumber={24}
-  question={"무정전전원공급장치(UPS)를 구내통신 설비에 두는 주된 목적은?"}
-  options={["정전이 발생해도 일정 시간 동안 안정적으로 전원을 공급해 장비의 갑작스러운 중단을 막는다","실내 온도와 습도를 일정하게 유지해 장비 과열을 막는다","외부에서 들어오는 통신 회선을 이중으로 구성해 장애에 대비한다","데이터를 암호화해 저장 매체의 도난에 대비한다"]}
-  correctAnswer={1}
-  explanation={"UPS(Uninterruptible Power Supply, 무정전전원공급장치)는 정전이 발생한 순간부터 예비 전원(배터리 등)으로 전환해 서버·통신장비가 갑자기 꺼지지 않도록 일정 시간 전원을 공급하는 설비다."}
-/>
 
-<Quiz
-  questionNumber={25}
-  question={"다음 설명에 해당하는 공격 기법은? 공격자가 자신의 출발지 주소를 실제와 다른 값으로 위조해 다른 시스템인 것처럼 속인다"}
-  options={["스니핑","스푸핑","APT","DDoS"]}
-  correctAnswer={2}
-  explanation={"스푸핑(spoofing)은 IP 주소, MAC 주소, 이메일 발신자 등 출발지 정보를 위조해 자신을 다른 신뢰할 수 있는 대상으로 속이는 공격 기법이다."}
-/>
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 ## 참고 자료
 

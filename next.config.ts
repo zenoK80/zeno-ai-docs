@@ -7,6 +7,13 @@ const withNextra = nextra({
 
 const nextConfig: NextConfig = {
   output: 'export',
+  experimental: {
+    cpus: 1,
+    parallelServerBuildTraces: false,
+    parallelServerCompiles: false,
+    webpackBuildWorker: true,
+    webpackMemoryOptimizations: true,
+  },
   images: {
     unoptimized: true,
   },

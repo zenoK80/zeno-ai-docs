@@ -39,173 +39,47 @@ description: '독학사 2단계 이산수학 출제기준을 기반으로 재구
   explanation={"분배법칙은 곱셈(AND)이 덧셈(OR) 안의 각 항에 고르게 나뉘어 적용된다는 법칙이다. A(B+C)=AB+AC이다."}
 />
 
-<Quiz
-  questionNumber={4}
-  question={"드모르간 법칙에 따르면, AB(A와 B를 AND한 값)의 부정과 같은 것은?"}
-  options={["A의 부정과 B의 부정을 OR한 것","A의 부정과 B의 부정을 AND한 것","A와 B를 그대로 OR한 것","A와 B를 그대로 AND한 것"]}
-  correctAnswer={1}
-  explanation={"드모르간 법칙에 따르면 AND의 부정은 각 항을 부정한 뒤 OR로 묶는다. AB의 부정은 A의 부정과 B의 부정을 OR한 것과 같다."}
-/>
 
-<Quiz
-  questionNumber={5}
-  question={"부울식 A+AB(A와 B를 AND한 것을 A에 OR한 것)를 간소화하면?"}
-  options={["A","B","AB","A+B"]}
-  correctAnswer={1}
-  explanation={"흡수법칙에 따르면 A+AB=A가 성립한다. A=1이면 AB의 값과 무관하게 전체가 1이고, A=0이면 AB도 항상 0이 되어 전체가 0이 되므로, 이 식은 A의 값과 정확히 일치한다."}
-/>
 
-<Quiz
-  questionNumber={6}
-  question={"부울식 A(A+B)(A와 (A+B)를 AND한 것)를 간소화하면?"}
-  options={["A","B","A+B","0"]}
-  correctAnswer={1}
-  explanation={"흡수법칙의 다른 형태로 A(A+B)=A가 성립한다. A=1이면 (A+B)는 항상 1이 되어 전체가 1이고, A=0이면 전체가 자동으로 0이 되므로, 이 식은 A의 값과 정확히 일치한다."}
-/>
 
-<Quiz
-  questionNumber={7}
-  question={"항등법칙(identity law)에 해당하는 것으로 옳은 것은?"}
-  options={["A+0=A, A×1=A","A+1=A, A×0=A","A+A=1, A×A=0","A+A의 부정=A, A×A의 부정=A"]}
-  correctAnswer={1}
-  explanation={"항등법칙은 OR의 항등원 0, AND의 항등원 1을 연산해도 값이 그대로 유지된다는 법칙이다. A+0=A, A×1=A가 항등법칙이다."}
-/>
 
-<Quiz
-  questionNumber={8}
-  question={"여원법칙(complement law)에 해당하는 것으로 옳은 것은?"}
-  options={["A+A의 부정=1, A×A의 부정=0","A+0=A, A×1=A","A+A=A, A×A=A","A+1=1, A×0=0"]}
-  correctAnswer={1}
-  explanation={"여원법칙은 어떤 값과 그 부정을 OR하면 항상 참(1)이 되고, AND하면 항상 거짓(0)이 된다는 법칙이다. A와 A의 부정은 항상 서로 반대 값이므로 둘 중 하나는 반드시 1이고 다른 하나는 반드시 0이기 때문이다."}
-/>
 
-<Quiz
-  questionNumber={9}
-  question={"부울식 AB+A(NOT B)를 간소화하면?"}
-  options={["A","B","A+B","AB"]}
-  correctAnswer={1}
-  explanation={"분배법칙으로 A를 앞으로 묶어내면 A(B+NOT B)가 되고, 여원법칙에 따라 B+NOT B=1이므로 전체 식은 A×1=A가 된다."}
-/>
 
-<Quiz
-  questionNumber={10}
-  question={"부울식 A+(NOT A)B를 간소화하면?"}
-  options={["A+B","A","B","AB"]}
-  correctAnswer={1}
-  explanation={"흡수법칙의 변형에 따라 A+(NOT A)B=A+B가 성립한다. A=0일 때는 NOT A=1이므로 전체 식이 B와 같아지고, A=1일 때는 앞항만으로 이미 1이 되며 A+B도 1이 되어 두 식이 모든 경우에 일치한다."}
-/>
 
-<Quiz
-  questionNumber={11}
-  question={"부울식 (A+B)(A+NOT B)를 간소화하면?"}
-  options={["A","B","A+B","AB"]}
-  correctAnswer={1}
-  explanation={"분배법칙을 역으로 적용하면 (A+B)(A+NOT B)=A+B×NOT B이고, 여원법칙에 따라 B×NOT B=0이므로 전체 식은 A+0=A가 된다."}
-/>
 
-<Quiz
-  questionNumber={12}
-  question={"부울식 (NOT A)(NOT B)+A(NOT B)를 간소화하면?"}
-  options={["NOT B","NOT A","A+B","AB"]}
-  correctAnswer={1}
-  explanation={"NOT B를 공통으로 묶어내면 (NOT A+A)×NOT B가 되고, 여원법칙에 따라 NOT A+A=1이므로 전체 식은 1×NOT B=NOT B가 된다."}
-/>
 
-<Quiz
-  questionNumber={13}
-  question={"부울식 AB+(NOT A)C+BC를 간소화할 때, 세 항 중 결과에 영향을 주지 않아 제거할 수 있는 항은?"}
-  options={["BC(합의 정리, consensus theorem에 의해 중복된다)","AB","(NOT A)C","세 항 모두 반드시 필요하다"]}
-  correctAnswer={1}
-  explanation={"합의 정리(consensus theorem)에 따르면, AB와 (NOT A)C가 이미 있을 때 BC 항은 AB와 (NOT A)C가 이미 커버하는 경우를 중복해서 표현할 뿐이라 결과에 영향을 주지 않고 제거할 수 있다. 최종 간소화 결과는 AB+(NOT A)C이다."}
-/>
 
-<Quiz
-  questionNumber={14}
-  question={"문제 9의 간소화(AB+A(NOT B)=A)를 A=1, B=0을 대입해 검산한 결과로 옳은 것은?"}
-  options={["좌변: 1×0+1×1=1, 우변: A=1로 서로 일치한다","좌변: 1×0+1×1=0, 우변: A=1로 서로 다르다","좌변: 1×1+1×0=1, 우변: A=0으로 서로 다르다","좌변과 우변 모두 0이 나와 일치한다"]}
-  correctAnswer={1}
-  explanation={"A=1, B=0이므로 NOT B=1이다. 좌변을 계산하면 AB=1×0=0이고 A×NOT B=1×1=1이므로 AB+A×NOT B=0+1=1이다. 우변은 A=1이다. 좌변과 우변이 모두 1로 일치해 간소화가 옳았음을 검산할 수 있다."}
-/>
 
-<Quiz
-  questionNumber={15}
-  question={"만능 게이트(universal gate)에 대한 설명으로 옳은 것은?"}
-  options={["NAND나 NOR 하나만으로 AND, OR, NOT을 모두 구현할 수 있는 게이트를 가리킨다","AND, OR, NOT을 동시에 갖춘 복합 게이트를 가리킨다","XOR과 XNOR을 함께 부르는 이름이다","입력이 무한히 많은 게이트를 가리킨다"]}
-  correctAnswer={1}
-  explanation={"만능 게이트는 그 게이트 하나만 반복 조합해도 AND, OR, NOT 세 가지 기본 연산을 모두 만들어낼 수 있는 게이트를 말한다. NAND와 NOR이 각각 이 성질을 갖는 대표적인 만능 게이트다."}
-/>
 
-<Quiz
-  questionNumber={16}
-  question={"회로가 F=AB+(NOT A)C로 표현될 때, A=0, B=1, C=1을 대입한 F의 값은?"}
-  options={["0","1","2","알 수 없다"]}
-  correctAnswer={2}
-  explanation={"A=0이므로 AB=0×1=0이고, NOT A=1이므로 (NOT A)C=1×1=1이다. 따라서 F=0+1=1이다."}
-/>
 
-<Quiz
-  questionNumber={17}
-  question={"어떤 게이트의 진리표가 입력이 같으면 0, 입력이 다르면 1을 출력할 때, 이 게이트는?"}
-  options={["XOR","AND","OR","NAND"]}
-  correctAnswer={1}
-  explanation={"입력이 서로 다를 때만 1을 출력하는 것이 XOR(배타적 논리합)의 정의다."}
-/>
 
-<Quiz
-  questionNumber={18}
-  question={"NOR 게이트의 두 입력에 같은 신호 A를 동시에 넣으면 어떤 게이트와 같은 동작을 하는가?"}
-  options={["NOT 게이트","AND 게이트","OR 게이트","XOR 게이트"]}
-  correctAnswer={1}
-  explanation={"NOR(A,A)는 (A+A)의 부정이다. A+A=A(멱등법칙)이므로 NOR(A,A)=A의 부정이 되어 NOT 게이트와 동일하게 동작한다."}
-/>
 
-<Quiz
-  questionNumber={19}
-  question={"부울식 AB+C를 기본 게이트(AND, OR)로 구현할 때 필요한 최소 게이트 개수는?"}
-  options={["2개(AND 1개, OR 1개)","1개(OR 1개)","3개(AND 2개, OR 1개)","4개(AND 2개, OR 2개)"]}
-  correctAnswer={1}
-  explanation={"AB를 만드는 데 AND 게이트 1개가 필요하고, 그 결과와 C를 더하는 데 OR 게이트 1개가 필요하다. 따라서 최소 2개의 게이트로 구현할 수 있다."}
-/>
 
-<Quiz
-  questionNumber={20}
-  question={"함수 F(A,B)에서 F(0,0)=1, F(1,0)=1이고 나머지(F(0,1), F(1,1))는 0일 때, 카르노 맵으로 간소화한 결과는?"}
-  options={["NOT B(B의 부정)","B","NOT A(A의 부정)","A"]}
-  correctAnswer={1}
-  explanation={"B=0 열의 두 칸(A=0,B=0과 A=1,B=0)이 모두 1이고 세로로 인접하므로 하나로 묶인다. 이 묶음에서 A는 0과 1이 섞여 소거되고 B는 두 칸 모두 0이므로 그대로 남아, 결과는 B의 부정(NOT B)이 된다."}
-/>
 
-<Quiz
-  questionNumber={21}
-  question={"함수 F(A,B,C)=시그마m(1,3,5,7)(최소항 번호가 1, 3, 5, 7일 때 F=1)을 간소화하면?"}
-  options={["C","A","B","AB"]}
-  correctAnswer={1}
-  explanation={"최소항 번호는 (A,B,C)를 이진수로 읽은 값이다. m1=(0,0,1), m3=(0,1,1), m5=(1,0,1), m7=(1,1,1)로, 이 네 최소항 모두 C=1이라는 공통점을 갖는다. A와 B는 0과 1이 고르게 섞여 있어 소거되고, C만 항상 1로 고정되어 남으므로 F=C이다."}
-/>
 
-<Quiz
-  questionNumber={22}
-  question={"카르노 맵에서 하나의 묶음(group) 크기로 나올 수 없는 것은?"}
-  options={["3칸","2칸","4칸","8칸"]}
-  correctAnswer={1}
-  explanation={"카르노 맵의 묶음 크기는 항상 2의 거듭제곱(1, 2, 4, 8, ...)이어야 한다. 3칸은 2의 거듭제곱이 아니므로 하나의 묶음으로 인정되지 않는다."}
-/>
 
-<Quiz
-  questionNumber={23}
-  question={"카르노 맵의 구조에 대한 설명으로 옳은 것은?"}
-  options={["맨 왼쪽 열과 맨 오른쪽 열, 맨 위 행과 맨 아래 행이 원통처럼 서로 인접한 것으로 취급된다","표의 가장자리에 있는 칸은 다른 어떤 칸과도 인접하지 않는다","행과 열은 항상 보통의 이진수 순서(00, 01, 10, 11)로 배열해야 한다","변수가 늘어나도 표의 칸 수는 항상 동일하게 유지된다"]}
-  correctAnswer={1}
-  explanation={"카르노 맵은 평면 위의 표처럼 보이지만 실제로는 원통(또는 도넛) 구조로 이어져 있다고 취급한다. 맨 왼쪽 열과 맨 오른쪽 열, 맨 위 행과 맨 아래 행이 서로 인접한 것으로 보고 묶음을 만들 수 있다."}
-/>
 
-<Quiz
-  questionNumber={24}
-  question={"카르노 맵으로 간소화할 때 항상 가능한 가장 큰 묶음부터 찾아야 하는 이유는?"}
-  options={["묶음이 클수록 소거되는 변수가 많아져 최종 논리식의 항 개수와 각 항의 변수 개수를 최소화할 수 있기 때문이다","묶음이 클수록 계산 시간이 절대적으로 줄어들기 때문이다","작은 묶음부터 찾으면 진리표 자체가 바뀌기 때문이다","가장 큰 묶음이 항상 유일하게 하나만 존재하기 때문이다"]}
-  correctAnswer={1}
-  explanation={"묶음의 크기가 2의 k제곱일 때 k개의 변수가 소거된다. 가능한 가장 큰 묶음을 먼저 찾으면 그만큼 많은 변수가 한 번에 소거되어, 최종적으로 얻는 논리식의 항 개수와 각 항에 남는 변수 개수가 최소가 되는 최소 SOP(sum of products, 곱의 합) 형태에 더 가까워진다."}
-/>
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 ## 참고 자료
 

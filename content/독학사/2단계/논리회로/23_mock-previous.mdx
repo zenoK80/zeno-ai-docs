@@ -33,173 +33,47 @@ description: '진법·코드, 불 대수·카르노맵, 조합회로, 플립플�
   explanation={"그레이 코드는 최상위 비트를 그대로 두고, 그 아래 비트는 바로 왼쪽(상위) 이진수 비트와 XOR한다. G3=B3=1, G2=B3 XOR B2=1 XOR 0=1, G1=B2 XOR B1=0 XOR 1=1, G0=B1 XOR B0=1 XOR 1=0이므로 1110이다."}
 />
 
-<Quiz
-  questionNumber={4}
-  question={"8비트 체계에서 십진수 -37을 2의 보수로 옳게 표현한 것은?"}
-  options={["11011010","11011011","11011001","00100101"]}
-  correctAnswer={2}
-  explanation={"37=00100101이며, 1의 보수는 11011010이고, 여기에 1을 더하면 2의 보수 11011011이 된다."}
-/>
 
-<Quiz
-  questionNumber={5}
-  question={"8비트 2의 보수 체계에서 -70과 -80을 더하면 발생하는 현상은?"}
-  options={["오버플로 발생, 두 음수를 더했는데 결과가 양수로 나타난다","오버플로 없음, 정상적으로 -150이 표현된다","오버플로 발생하지만 결과는 여전히 정확한 음수다","이 조합은 계산 자체가 불가능하다"]}
-  correctAnswer={1}
-  explanation={"실제 합 -150은 8비트 2의 보수 표현 범위(-128~127)를 벗어난다. 두 피연산자가 모두 음수인데 결과 비트열의 부호 비트가 0(양수)으로 나오는 것이 오버플로의 전형적인 증상이다."}
-/>
 
-<Quiz
-  questionNumber={6}
-  question={"데이터 10110에 짝수 패리티(even parity)를 적용할 때 추가해야 할 패리티 비트는?"}
-  options={["0","1","2","추가할 필요가 없다"]}
-  correctAnswer={2}
-  explanation={"10110에서 1의 개수는 3개(홀수)다. 짝수 패리티는 전체 1의 개수를 짝수로 맞추는 것이 목표이므로, 1비트를 추가해 1의 개수를 4개(짝수)로 만들어야 한다."}
-/>
 
-<Quiz
-  questionNumber={7}
-  question={"논리식 A + (NOT A 그리고 B)를 불 대수 법칙으로 간소화한 결과로 옳은 것은?"}
-  options={["A","B","A+B","AB"]}
-  correctAnswer={3}
-  explanation={"흡수 법칙에 따라 A + (A의 여)B = A + B로 간소화된다. 분배법칙으로 풀면 (A + A의 여)(A + B) = 1 × (A + B) = A + B와 동일한 결과가 나온다."}
-/>
 
-<Quiz
-  questionNumber={8}
-  question={"드모르간 법칙에 따라 A OR B 전체의 부정을 옳게 나타낸 것은?"}
-  options={["A′ 그리고 B′","A′ 또는 B′","A 그리고 B","A 또는 B"]}
-  correctAnswer={1}
-  explanation={"드모르간 법칙에 따르면 OR 전체의 부정은 각 항을 부정한 뒤 AND로 묶은 것과 같다. 즉 NOT(A OR B) = (NOT A) AND (NOT B)다."}
-/>
 
-<Quiz
-  questionNumber={9}
-  question={"3변수 함수 F(A,B,C)에서 F=1인 행이 A=1,B=0,C=1과 A=0,B=1,C=1뿐일 때, 최소항의 합(SOP)으로 옳은 것은?"}
-  options={["AB′C 또는 A′BC","ABC","A′B′C′","AB′C′ 또는 A′BC′"]}
-  correctAnswer={1}
-  explanation={"A=1,B=0,C=1은 AB′C, A=0,B=1,C=1은 A′BC에 대응한다. 이 두 최소항을 OR로 묶은 것이 SOP 표현이다."}
-/>
 
-<Quiz
-  questionNumber={10}
-  question={"카르노맵에서 인접한 두 칸(2칸)을 하나로 묶으면 몇 개의 변수가 소거되는가?"}
-  options={["0개","1개","2개","변수 개수에 따라 다르다"]}
-  correctAnswer={2}
-  explanation={"카르노맵에서 2^k개의 칸을 묶으면 k개의 변수가 소거된다. 2칸(2^1) 묶음은 정확히 1개의 변수를 소거한다."}
-/>
 
-<Quiz
-  questionNumber={11}
-  question={"퀴인-맥클러스키(Quine-McCluskey) 방법에서 두 항을 결합할 수 있는 조건은?"}
-  options={["두 항의 모든 비트가 같을 때","두 항이 정확히 한 비트만 다르고 나머지는 모두 같을 때","두 항의 1의 개수가 다를 때","두 항이 서로 다른 변수 개수를 가질 때"]}
-  correctAnswer={2}
-  explanation={"퀴인-맥클러스키 방법은 1의 개수가 1개 차이 나는 그룹끼리 비교해, 정확히 한 비트만 다르고 나머지가 모두 같은 두 항을 하나로 결합해 그 비트를 무관 항으로 처리한다."}
-/>
 
-<Quiz
-  questionNumber={12}
-  question={"조합논리회로 설계 절차의 올바른 순서는?"}
-  options={["회로도 작성 → 진리표 작성 → 간소화 → 사양 정의","사양(입출력) 정의 → 진리표 작성 → 불 함수 간소화 → 회로도 작성","간소화 → 사양 정의 → 진리표 작성 → 회로도 작성","진리표 작성 → 회로도 작성 → 사양 정의 → 간소화"]}
-  correctAnswer={2}
-  explanation={"조합논리회로 설계는 먼저 입출력 사양을 정의하고, 그 관계를 진리표로 정리한 뒤, 불 함수를 간소화하고, 마지막으로 그 결과를 게이트로 구현한 회로도를 그리는 순서로 진행한다."}
-/>
 
-<Quiz
-  questionNumber={13}
-  question={"전가산기(Full Adder)의 합(S) 출력에 대한 논리식으로 옳은 것은?"}
-  options={["A AND B AND Cin","A XOR B XOR Cin","A OR B OR Cin","(A AND B) OR Cin"]}
-  correctAnswer={2}
-  explanation={"전가산기의 합(S)은 세 입력(A, B, 이전 자리올림 Cin) 중 1의 개수가 홀수일 때 1이 되므로, 세 입력을 모두 XOR로 묶은 식과 같다."}
-/>
 
-<Quiz
-  questionNumber={14}
-  question={"전가산기(Full Adder)의 캐리 출력(Cout)에 대한 논리식으로 옳은 것은?"}
-  options={["AB 또는 BCin 또는 ACin","A XOR B XOR Cin","AB 그리고 BCin 그리고 ACin","A OR B OR Cin"]}
-  correctAnswer={1}
-  explanation={"세 입력 A, B, Cin 중 두 개 이상이 1이면 캐리가 발생한다. 이를 논리식으로 쓰면 AB, BCin, ACin 중 하나라도 1이면 1이 되는 OR 결합, 즉 AB+BCin+ACin이다."}
-/>
 
-<Quiz
-  questionNumber={15}
-  question={"8비트 2의 보수 체계에서 25-40을 감산기(2의 보수를 이용한 뺄셈)로 계산한 결과는?"}
-  options={["11110001(-15)","00001111(15)","11101111(-17)","00010101(21)"]}
-  correctAnswer={1}
-  explanation={"25=00011001이고 40의 2의 보수는 11011000이다. 두 값을 더하면 00011001+11011000=11110001이며, 이를 다시 2의 보수로 해석하면 -15가 되어 25-40=-15와 일치한다."}
-/>
 
-<Quiz
-  questionNumber={16}
-  question={"4비트 크기 비교기에 A=1010, B=1001이 입력되었을 때 옳은 출력은?"}
-  options={["A>B","A<B","A=B","판단할 수 없다"]}
-  correctAnswer={1}
-  explanation={"A=1010은 십진수 10, B=1001은 십진수 9이므로 A가 B보다 크다."}
-/>
 
-<Quiz
-  questionNumber={17}
-  question={"3-to-8 디코더에 101이 입력되었을 때 활성화되는 출력선은?"}
-  options={["Y3","Y5","Y6","Y7"]}
-  correctAnswer={2}
-  explanation={"입력 101을 십진수로 바꾸면 5이므로, 그 값에 대응하는 출력선 Y5가 활성화된다."}
-/>
 
-<Quiz
-  questionNumber={18}
-  question={"4-to-1 멀티플렉서에서 선택선 S1S0=10일 때 출력되는 입력은?"}
-  options={["I0","I1","I2","I3"]}
-  correctAnswer={3}
-  explanation={"선택선 S1S0=10을 십진수로 바꾸면 2이므로, 그 값에 대응하는 입력 I2가 출력으로 선택된다."}
-/>
 
-<Quiz
-  questionNumber={19}
-  question={"주소선이 10개, 데이터선이 4개인 ROM의 용량을 옳게 나타낸 것은?"}
-  options={["1K x 4","4K x 1","1K x 8","512 x 4"]}
-  correctAnswer={1}
-  explanation={"주소선 10개이므로 워드 개수는 2^10=1024=1K개이고, 데이터선 4개이므로 워드 길이는 4비트다. 따라서 용량은 1K x 4다."}
-/>
 
-<Quiz
-  questionNumber={20}
-  question={"SR 래치에서 S=0, R=0일 때의 출력 상태는?"}
-  options={["0으로 리셋","1로 세트","이전 상태를 그대로 유지","부정(정의되지 않음)"]}
-  correctAnswer={3}
-  explanation={"S=0, R=0은 SR 래치에서 아무 동작도 요청하지 않는 조합이므로, 이전에 저장되어 있던 상태를 그대로 유지한다."}
-/>
 
-<Quiz
-  questionNumber={21}
-  question={"JK 플립플롭에서 J=1, K=1일 때 다음 상태 Q(t+1)로 옳은 것은?"}
-  options={["0","1","이전 상태 Q(t) 그대로 유지","이전 상태 Q(t)의 반전(토글)"]}
-  correctAnswer={4}
-  explanation={"JK 플립플롭은 J=1, K=1일 때 토글(현재 상태를 반전)하도록 정의되어 있다."}
-/>
 
-<Quiz
-  questionNumber={22}
-  question={"순차회로의 Mealy 모델과 Moore 모델의 차이에 대한 설명으로 옳은 것은?"}
-  options={["Moore는 출력이 현재 상태에만 의존하고, Mealy는 현재 상태와 입력 모두에 의존한다","Moore는 입력에만 의존하고 Mealy는 상태에만 의존한다","Moore와 Mealy는 출력을 결정하는 방식이 완전히 동일하다","Moore는 클록이 없고 Mealy는 클록이 있다"]}
-  correctAnswer={1}
-  explanation={"Moore 머신은 출력이 오직 현재 상태에 의해서만 결정되고, Mealy 머신은 현재 상태뿐 아니라 그 순간의 입력값에도 함께 의존해 출력이 결정된다."}
-/>
 
-<Quiz
-  questionNumber={23}
-  question={"0부터 5까지 6개의 상태를 순환하는 mod-6 카운터를 만들 때 필요한 최소 플립플롭 개수는?"}
-  options={["2개","3개","4개","6개"]}
-  correctAnswer={2}
-  explanation={"6개의 상태를 표현하려면 2^n &gt;= 6을 만족하는 최소 n이 필요하다. 2비트로는 2^2=4개 상태밖에 만들 수 없어 부족하고, 3비트면 2^3=8개 상태로 6개를 모두 표현할 수 있다."}
-/>
 
-<Quiz
-  questionNumber={24}
-  question={"주소선이 11개, 데이터선이 8개인 기억장치의 용량을 옳게 나타낸 것은?"}
-  options={["2K x 8","1K x 8","2K x 4","4K x 8"]}
-  correctAnswer={1}
-  explanation={"주소선 11개이므로 워드 개수는 2^11=2048=2K개이고, 데이터선 8개이므로 워드 길이는 8비트다. 따라서 용량은 2K x 8이다."}
-/>
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 ## 참고 자료
 

@@ -45,341 +45,89 @@ description: '기본 명령어와 옵션 식별 문항을 강화한 예상 모�
   explanation={"마운트 포인트는 특정 파티션(파일시스템)을 리눅스의 단일 디렉터리 트리 안의 한 지점에 연결해, 그 디렉터리를 통해 해당 파티션에 접근할 수 있게 해 주는 통로다."}
 />
 
-<Quiz
-  questionNumber={6}
-  question={"다음 중 UEFI 방식 부팅에서 부트로더 관련 파일이 저장되는 위치로 알맞은 것은?"}
-  options={["/boot/efi","/etc/efi","/var/efi","/home/efi"]}
-  correctAnswer={1}
-  explanation={"UEFI 방식으로 부팅하는 시스템에서는 EFI 시스템 파티션이 보통 /boot/efi에 마운트되어 부트로더 관련 파일을 저장한다."}
-/>
 
-<Quiz
-  questionNumber={7}
-  question={"다음 중 시스템을 즉시 재부팅하는 명령으로 알맞은 것은?"}
-  options={["shutdown -h now","reboot","halt","init 0"]}
-  correctAnswer={2}
-  explanation={"reboot 명령은 시스템을 종료했다가 즉시 다시 켜는(재부팅) 동작을 수행한다."}
-/>
 
-<Quiz
-  questionNumber={8}
-  question={"다음 중 로그인 셸의 종류를 확인할 수 있는 파일로 알맞은 것은?"}
-  options={["/etc/shells","/etc/hosts","/etc/fstab","/etc/group"]}
-  correctAnswer={1}
-  explanation={"/etc/shells에는 시스템에서 로그인 셸로 사용할 수 있도록 허용된 셸 경로 목록이 나열되어 있다."}
-/>
 
-<Quiz
-  questionNumber={9}
-  question={"다음 중 이미 존재하는 디렉터리 안에 여러 단계의 하위 디렉터리를 한 번에 생성할 때 사용하는 mkdir 옵션으로 알맞은 것은?"}
-  options={["mkdir -p a/b/c","mkdir -r a/b/c","mkdir -R a/b/c","mkdir -m a/b/c"]}
-  correctAnswer={1}
-  explanation={"mkdir의 -p 옵션은 중간 경로에 있는 디렉터리가 없어도 필요한 상위 디렉터리까지 한꺼번에 만들어 준다."}
-/>
 
-<Quiz
-  questionNumber={10}
-  question={"다음 중 rm 명령으로 디렉터리와 그 내용을 확인 절차 없이 강제로 모두 삭제하는 옵션 조합으로 알맞은 것은?"}
-  options={["rm -i","rm -rf","rm -l","rm -v"]}
-  correctAnswer={2}
-  explanation={"rm -rf는 -r(재귀적으로 하위 내용까지 삭제)과 -f(확인 절차 없이 강제 삭제)를 함께 적용해, 디렉터리와 그 안의 모든 내용을 묻지 않고 삭제한다."}
-/>
 
-<Quiz
-  questionNumber={11}
-  question={"다음 중 ls 명령에서 파일 크기를 사람이 읽기 쉬운 단위(K, M, G)로 함께 보여주는 옵션으로 알맞은 것은?"}
-  options={["ls -a","ls -l","ls -lh","ls -R"]}
-  correctAnswer={3}
-  explanation={"ls -lh는 상세 정보를 보여주는 -l 옵션에 사람이 읽기 쉬운 단위로 크기를 표시하는 -h 옵션을 더한 조합이다."}
-/>
 
-<Quiz
-  questionNumber={12}
-  question={"다음 중 심볼릭 링크에 대한 설명으로 옳지 않은 것은?"}
-  options={["원본 파일과 다른 inode 번호를 가진다","원본 파일이 삭제되면 깨진 링크(dangling link)가 된다","서로 다른 파일시스템(파티션) 사이에도 만들 수 있다","원본 파일과 동일한 inode 번호를 공유해 하드 링크와 동일하게 동작한다"]}
-  correctAnswer={4}
-  explanation={"심볼릭 링크는 원본과는 별개의 새 inode를 가지며, 그 안에 원본의 경로 문자열만 담아 두는 방식으로 동작한다. 두 방식을 뒤바꾼 이 설명이 정답이다']}"}
-/>
 
-<Quiz
-  questionNumber={11}
-  question={"다음 중 ls 명령에서 파일 크기를 사람이 읽기 쉬운 단위(K, M, G)로 함께 보여주는 옵션으로 알맞은 것은?"}
-  options={["ls -a","ls -l","ls -lh","ls -R"]}
-  correctAnswer={3}
-  explanation={"ls -lh는 상세 정보를 보여주는 -l 옵션에 사람이 읽기 쉬운 단위로 크기를 표시하는 -h 옵션을 더한 조합이다."}
-/>
 
-<Quiz
-  questionNumber={15}
-  question={"다음 중 파일 내용을 화면 크기 단위로 나눠 보여주며 스페이스바로 다음 페이지, b 키로 이전 페이지 이동이 가능한 명령으로 알맞은 것은?"}
-  options={["cat","head","less","tail"]}
-  correctAnswer={3}
-  explanation={"less는 파일 내용을 화면 단위로 나눠 보여주면서 스페이스바로 다음 페이지, b 키로 이전 페이지로 이동하는 등 자유로운 페이지 탐색을 지원하는 명령이다."}
-/>
 
-<Quiz
-  questionNumber={16}
-  question={"다음 중 명령어 wc의 옵션에 대한 설명으로 옳지 않은 것은?"}
-  options={["wc -l은 줄 수를 센다","wc -w는 단어 수를 센다","wc -c는 바이트 수를 센다","wc -a는 파일의 모든 숨김 정보를 센다"]}
-  correctAnswer={4}
-  explanation={"wc에는 -a라는 옵션이 존재하지 않는다. wc가 지원하는 대표 옵션은 줄 수(-l), 단어 수(-w), 바이트 수(-c) 정도이며, 존재하지 않는 옵션에 대한 이 설명이 틀린 설명이다."}
-/>
 
-<Quiz
-  questionNumber={17}
-  question={"다음 중 /var 디렉터리에 대한 설명으로 알맞은 것은?"}
-  options={["커널 소스와 헤더 파일이 저장된다","로그, 메일 스풀 등 시스템 운영 중 크기가 변하는 가변 데이터가 저장된다","사용자 홈 디렉터리가 저장된다","부트로더 파일이 저장된다"]}
-  correctAnswer={2}
-  explanation={"/var는 variable의 줄임말로, 로그 파일이나 메일 스풀처럼 시스템이 운영되는 동안 계속 크기가 변하는 데이터가 저장되는 디렉터리다."}
-/>
 
-<Quiz
-  questionNumber={18}
-  question={"다음 중 마운트되어 있는 파일시스템을 안전하게 분리(해제)하는 명령으로 알맞은 것은?"}
-  options={["mount","umount","df","du"]}
-  correctAnswer={2}
-  explanation={"umount 명령은 마운트되어 있는 파일시스템을 디렉터리 트리에서 안전하게 분리한다."}
-/>
 
-<Quiz
-  questionNumber={19}
-  question={"다음 중 파일시스템 오류를 검사하고 복구하는 명령으로 알맞은 것은?"}
-  options={["fsck","mkfs","mount","blkid"]}
-  correctAnswer={1}
-  explanation={"fsck(file system check)는 파일시스템의 오류를 검사하고 가능하면 복구해 주는 명령이다."}
-/>
 
-<Quiz
-  questionNumber={20}
-  question={"umask 값이 0077인 사용자가 mkdir로 새 디렉터리를 만들면 생성되는 권한을 8진수로 구하면?"}
-  options={["700","755","070","777"]}
-  correctAnswer={1}
-  explanation={"디렉터리가 가질 수 있는 기본 최대 권한은 777(rwxrwxrwx)이다. umask 077은 그룹과 기타 사용자 자리에서 각각 7(rwx 전체)을 빼겠다는 뜻이므로, 777에서 077을 자릿수별로 빼면 700이 된다."}
-/>
 
-<Quiz
-  questionNumber={21}
-  question={"다음 명령을 순서대로 실행했을 때(chmod 644 file.txt, chmod o-r file.txt, chmod u+x file.txt) file.txt의 최종 권한을 심볼릭 표기로 구하면?"}
-  options={["rwxr-----","rw-r-----","rwxr--r--","rw-r--r--"]}
-  correctAnswer={1}
-  explanation={"chmod 644 file.txt로 rw-r--r--이 된다. 마지막으로 chmod u+x file.txt로 소유자에게 실행 권한을 더하면 rwxr-----이 된다."}
-/>
 
-<Quiz
-  questionNumber={22}
-  question={"다음 중 디렉터리에 실행(x) 권한이 없을 때 나타나는 현상으로 알맞은 것은?"}
-  options={["디렉터리 목록을 볼 수는 있지만 그 안으로 들어가거나 파일에 접근할 수 없다","디렉터리를 삭제할 수 없게 될 뿐 다른 기능은 정상이다","아무 영향이 없다","디렉터리 안의 파일을 읽기만 가능하고 쓰기는 무관하다"]}
-  correctAnswer={1}
-  explanation={"디렉터리의 실행(x) 권한은 그 디렉터리 안으로 들어가거나(cd) 그 안의 파일에 실제로 접근하기 위해 반드시 필요하다. x 권한이 없으면 ls로 목록을 볼 수는 있어도 그 안의 파일을 열거나 그 디렉터리로 들어갈 수 없다."}
-/>
 
-<Quiz
-  questionNumber={23}
-  question={"다음 중 사용자 계정을 삭제하면서 홈 디렉터리까지 함께 제거하는 명령으로 알맞은 것은?"}
-  options={["userdel user1","userdel -r user1","usermod -d user1","groupdel user1"]}
-  correctAnswer={2}
-  explanation={"userdel -r은 계정을 삭제하면서 그 사용자의 홈 디렉터리와 메일 스풀까지 함께 제거한다."}
-/>
 
-<Quiz
-  questionNumber={24}
-  question={"다음 중 백그라운드에서 실행되며 사용자 요청을 기다리는 지속 실행 프로세스로 알맞은 것은?"}
-  options={["좀비 프로세스","데몬(daemon)","고아 프로세스","포그라운드 프로세스"]}
-  correctAnswer={2}
-  explanation={"데몬은 사용자와 직접 상호작용하지 않고 백그라운드에서 계속 실행되며 특정 서비스 요청을 기다렸다가 처리하는 프로세스를 가리킨다."}
-/>
 
-<Quiz
-  questionNumber={25}
-  question={"다음 중 & 없이 실행 중이던 포그라운드 명령을 정지(stopped) 상태로 만들고 다시 프롬프트로 돌아오는 키 조합으로 알맞은 것은?"}
-  options={["Ctrl+C","Ctrl+Z","Ctrl+D","Ctrl+L"]}
-  correctAnswer={2}
-  explanation={"Ctrl+Z는 실행 중인 포그라운드 프로세스를 완전히 종료시키지 않고 정지(stopped) 상태로 만들어 셸 프롬프트로 돌아오게 한다. 이후 bg나 fg로 다시 실행을 이어갈 수 있다."}
-/>
 
-<Quiz
-  questionNumber={26}
-  question={"다음 jobs 명령 결과에서 정지된 2번 작업을 백그라운드에서 계속 실행시키는 명령으로 알맞은 것은?"}
-  options={["fg %2","bg %2","kill %2","jobs %2"]}
-  correctAnswer={2}
-  explanation={"bg %2는 정지된 2번 작업을 백그라운드에서 계속 실행되도록 재개시킨다."}
-/>
 
-<Quiz
-  questionNumber={27}
-  question={"다음 중 프로세스 이름으로 여러 프로세스를 한꺼번에 종료할 때 사용하는 명령으로 알맞은 것은?"}
-  options={["kill httpd","killall httpd","ps httpd","top httpd"]}
-  correctAnswer={2}
-  explanation={"killall은 프로세스 이름을 인자로 받아, 그 이름으로 실행 중인 모든 프로세스에 시그널을 보내 종료시킨다."}
-/>
 
-<Quiz
-  questionNumber={28}
-  question={"다음 중 vi에서 문서 전체 범위에서 old라는 문자열을 new로 모두 치환하는 명령으로 알맞은 것은?"}
-  options={["치환 명령 :%s/old/new/g","치환 명령 :s/old/new/g","검색 명령 /old/new/g","전역 명령 :g/old/new"]}
-  correctAnswer={1}
-  explanation={"vi의 치환 명령은 :범위s/찾을문자열/바꿀문자열/옵션 형태다. 앞의 범위를 %로 지정하면 문서 전체를 뜻하고, 끝의 g 옵션은 한 줄에 여러 번 나타나도 전부 치환하라는 뜻이다."}
-/>
 
-<Quiz
-  questionNumber={29}
-  question={"다음 중 vi에서 저장하지 않고 강제로 종료하는 명령으로 알맞은 것은?"}
-  options={[":wq",":q!",":x",":w"]}
-  correctAnswer={2}
-  explanation={":q!는 변경 사항을 저장하지 않고 강제로 편집기를 종료하는 명령이다. 느낌표는 경고를 무시하고 강제로 실행하라는 뜻이다."}
-/>
 
-<Quiz
-  questionNumber={30}
-  question={"다음 중 GNOME 데스크톱 환경에서 사용되는 그래픽 텍스트 편집기로 알맞은 것은?"}
-  options={["vi","emacs","gedit","nano"]}
-  correctAnswer={3}
-  explanation={"gedit는 GNOME 데스크톱 환경에서 널리 쓰이는 그래픽 기반 텍스트 편집기다."}
-/>
 
-<Quiz
-  questionNumber={31}
-  question={"다음 중 rpm 명령으로 이미 설치된 모든 패키지 목록을 조회하는 옵션으로 알맞은 것은?"}
-  options={["rpm -qa","rpm -ivh","rpm -e","rpm -qf"]}
-  correctAnswer={1}
-  explanation={"rpm -qa는 현재 시스템에 설치된 모든 패키지 목록을 조회(query all)하는 옵션이다."}
-/>
 
-<Quiz
-  questionNumber={32}
-  question={"다음 중 yum 명령으로 설치된 nmap 패키지를 삭제하는 명령으로 알맞은 것은?"}
-  options={["yum -e nmap","yum delete nmap","yum remove nmap","yum uninstall nmap"]}
-  correctAnswer={3}
-  explanation={"yum에서 패키지를 삭제하는 서브커맨드는 remove이다. yum remove nmap은 nmap 패키지를 시스템에서 제거한다."}
-/>
 
-<Quiz
-  questionNumber={33}
-  question={"다음 중 tar로 묶이고 gzip으로 압축된 백업파일 backup.tar.gz의 압축을 풀어 실제로 파일을 추출하는 옵션 조합으로 알맞은 것은?"}
-  options={["tar -xzvf backup.tar.gz","tar -cvf backup.tar.gz","tar -tvf backup.tar.gz","tar -qzvf backup.tar.gz"]}
-  correctAnswer={1}
-  explanation={"x는 추출(extract), z는 gzip 압축 해제, v는 진행 과정 출력, f는 뒤에 파일명이 온다는 뜻이다. 이 네 옵션을 조합한 tar -xzvf backup.tar.gz가 실제로 압축을 풀고 파일을 꺼내는 명령이다."}
-/>
 
-<Quiz
-  questionNumber={34}
-  question={"다음 중 USB 저장장치를 리눅스에 연결했을 때 자동으로 장치명을 할당해 관리해 주는 시스템으로 알맞은 것은?"}
-  options={["udev","cron","systemd-journald","NetworkManager"]}
-  correctAnswer={1}
-  explanation={"udev는 커널에서 하드웨어 인식 이벤트를 전달받아 장치 파일을 동적으로 생성하고 관리하는 시스템으로, USB 저장장치를 꽂으면 자동으로 /dev/sdb1 같은 장치명을 할당해 준다."}
-/>
 
-<Quiz
-  questionNumber={35}
-  question={"다음 중 현재 로그인한 사용자명이 저장된 환경변수로 알맞은 것은?"}
-  options={["USER","PATH","SHELL","PS1"]}
-  correctAnswer={1}
-  explanation={"USER 환경변수에는 현재 로그인한 사용자의 계정명이 저장된다."}
-/>
 
-<Quiz
-  questionNumber={36}
-  question={"다음 중 alias와 export의 차이를 설명한 것으로 알맞은 것은?"}
-  options={["alias는 명령어의 별명을 만들고, export는 변수를 자식 프로세스에서도 사용할 수 있게 내보낸다","alias와 export는 완전히 같은 기능을 한다","export는 명령어 별명을 만드는 기능이다","alias로 만든 별명은 자동으로 모든 사용자에게 적용된다"]}
-  correctAnswer={1}
-  explanation={"alias는 자주 쓰는 명령을 짧은 별명으로 등록하는 기능이고, export는 셸 변수를 환경변수로 승격시켜 그 셸에서 실행되는 자식 프로세스에서도 값을 물려받아 쓸 수 있게 해 준다."}
-/>
 
-<Quiz
-  questionNumber={37}
-  question={"다음 중 표준출력과 표준에러를 모두 result.log 파일 하나에 저장하는 방법으로 알맞은 것은?"}
-  options={["command > result.log","command 2> result.log","command > result.log 2>&1","command < result.log"]}
-  correctAnswer={3}
-  explanation={"먼저 표준출력(1번)을 result.log로 재지정한 뒤, 표준에러(2번)를 표준출력이 가리키는 곳으로 합치는 표기를 뒤에 붙여야 같은 파일로 합쳐져 두 출력이 모두 한 파일에 기록된다."}
-/>
 
-<Quiz
-  questionNumber={38}
-  question={"다음 셸 스크립트를 sh script.sh args1 args2로 실행했을 때 $1이 가리키는 값으로 알맞은 것은?"}
-  options={["script.sh","args1","args2","sh"]}
-  correctAnswer={2}
-  explanation={"셸 스크립트에서 $0은 스크립트 자신의 이름, $1은 첫 번째 인자, $2는 두 번째 인자를 가리킨다. sh script.sh args1 args2로 실행했으므로 $1은 첫 번째 인자인 args1이다."}
-/>
 
-<Quiz
-  questionNumber={40}
-  question={"다음 crontab 항목이 실행되는 시점을 해석하면?"}
-  options={["매월 1일 오전 2시 15분","매주 1요일(월요일) 오전 2시 15분","매일 2시 1분","1월 매일 2시 15분"]}
-  correctAnswer={1}
-  explanation={"crontab의 다섯 필드는 분 시 일 월 요일 순서다. 15 2 1 * *는 분이 15, 시가 2, 일(day-of-month)이 1, 월과 요일은 매월·매요일이므로, 매월 1일 오전 2시 15분에 실행된다는 뜻이다."}
-/>
 
-<Quiz
-  questionNumber={42}
-  question={"다음 중 윈도 매니저(Window Manager)의 역할로 알맞은 것은?"}
-  options={["디스플레이 하드웨어를 직접 제어하고 그리기 명령을 처리한다","창의 테두리, 이동, 크기 조절 등 창 배치와 꾸밈을 담당한다","사용자 로그인 인증 화면을 제공한다","네트워크를 통해 원격 클라이언트를 인증한다"]}
-  correctAnswer={2}
-  explanation={"윈도 매니저는 X 서버 위에서 창의 테두리를 그리고, 창을 옮기거나 크기를 조절하는 등 창 배치와 꾸밈을 담당하는 프로그램이다."}
-/>
 
-<Quiz
-  questionNumber={43}
-  question={"다음 중 KDE 데스크톱 환경이 기반으로 하는 GUI 라이브러리로 알맞은 것은?"}
-  options={["GTK+","Qt","FLTK","Motif"]}
-  correctAnswer={2}
-  explanation={"KDE는 Qt 라이브러리를 기반으로 만들어진 데스크톱 환경이다."}
-/>
 
-<Quiz
-  questionNumber={44}
-  question={"IP 주소 10.20.30.40, 서브넷 마스크 255.255.0.0으로 설정된 호스트가 속한 네트워크 주소를 구하면?"}
-  options={["10.20.0.0","10.0.0.0","10.20.30.0","10.20.30.40"]}
-  correctAnswer={1}
-  explanation={"서브넷 마스크 255.255.0.0은 앞 두 옥텟(255.255)만 네트워크 부분이고 뒤 두 옥텟은 호스트 부분이라는 뜻이다. 따라서 호스트 부분인 뒤 두 옥텟을 0으로 바꾼 10.20.0.0이 네트워크 주소가 된다."}
-/>
 
-<Quiz
-  questionNumber={45}
-  question={"다음 중 게이트웨이(gateway)의 역할로 알맞은 것은?"}
-  options={["도메인 이름을 IP 주소로 변환한다","다른 네트워크 대역으로 나가는 패킷을 중계하는 출입구 역할을 한다","같은 네트워크 안에서 IP 주소를 자동으로 할당한다","물리적으로 케이블 신호를 증폭한다"]}
-  correctAnswer={2}
-  explanation={"게이트웨이는 자신이 속한 네트워크에서 다른 네트워크(주로 인터넷)로 나가는 패킷을 중계해 주는 출입구 역할을 하는 장치(주로 라우터)의 주소다."}
-/>
 
-<Quiz
-  questionNumber={46}
-  question={"다음 중 도메인 이름에 대응하는 IP 주소를 조회하는 명령으로 알맞은 것은?"}
-  options={["ping","nslookup","netstat","ifconfig"]}
-  correctAnswer={2}
-  explanation={"nslookup은 지정한 도메인 이름에 대응하는 IP 주소를 DNS 서버에 물어 확인하는 명령이다."}
-/>
 
-<Quiz
-  questionNumber={47}
-  question={"다음 중 HTTP 서비스가 기본으로 사용하는 포트 번호로 알맞은 것은?"}
-  options={["21","25","80","443"]}
-  correctAnswer={3}
-  explanation={"HTTP는 기본적으로 80번 포트를 사용한다. 암호화된 버전인 HTTPS는 443번 포트를 사용한다."}
-/>
 
-<Quiz
-  questionNumber={48}
-  question={"다음 중 현재 시스템에서 열려 있는 포트와 연결 상태를 확인하는 명령으로 알맞은 것은?"}
-  options={["netstat -an","ping -c 4","traceroute","dig"]}
-  correctAnswer={1}
-  explanation={"netstat -an은 현재 시스템의 소켓(포트) 상태와 연결 정보를 숫자 형태로 모두 보여준다."}
-/>
 
-<Quiz
-  questionNumber={49}
-  question={"다음 중 안드로이드 운영체제와 리눅스의 관계를 설명한 것으로 알맞은 것은?"}
-  options={["안드로이드는 리눅스 커널과 무관한 독자 커널을 사용한다","안드로이드는 리눅스 커널을 기반으로 모바일 환경에 맞게 수정한 운영체제이다","안드로이드는 윈도 커널 위에서 동작한다","안드로이드는 서버 전용 운영체제이다"]}
-  correctAnswer={2}
-  explanation={"안드로이드는 리눅스 커널을 기반으로 모바일 기기에 맞게 수정을 가한 운영체제로, 리눅스가 모바일 분야로 확장된 대표적인 응용분야다."}
-/>
 
-<Quiz
-  questionNumber={50}
-  question={"다음 중 여러 개의 리눅스 컨테이너를 자동으로 배포·확장·관리해 주는 오케스트레이션 도구로 알맞은 것은?"}
-  options={["Docker","Kubernetes","Vim","GRUB"]}
-  correctAnswer={2}
-  explanation={"Kubernetes는 여러 대의 서버에 걸쳐 다수의 컨테이너를 자동으로 배포·확장·관리해 주는 컨테이너 오케스트레이션 도구다."}
-/>
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 ## 채점 후 복습 동선표
 

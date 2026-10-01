@@ -275,157 +275,43 @@ role 속성은 ARIA(Accessible Rich Internet Applications, 접근 가능한 리�
   explanation={"required는 별도의 자바스크립트 없이도 브라우저가 값이 비어 있는 채로 제출되는 것을 막아주는 표준 검증 속성이다. pattern에 지정한 정규식은 문자 종류(영문자·숫자)와 길이(4자 이상 12자 이하)를 동시에 검사하며, 이 검증은 서버 전송 이전 브라우저 단계에서 즉시 이루어진다."}
 />
 
-<Quiz
-  questionNumber={4}
-  question={"위 video 요소에 대한 설명으로 옳은 것은?"}
-  options={["controls 속성이 있으면 재생·일시정지·볼륨 조절 같은 기본 재생 컨트롤 UI가 표시된다","autoplay 속성은 muted 여부와 관계없이 항상 소리와 함께 자동 재생을 보장한다","controls 속성을 빼면 그 어떤 방법으로도 영상을 재생할 수 없다","video 요소는 반드시 controls와 autoplay를 동시에 지정해야만 동작한다"]}
-  correctAnswer={1}
-  explanation={"controls 속성은 브라우저가 기본으로 제공하는 재생 컨트롤 막대(재생·정지·볼륨 등)를 표시해 준다. 많은 브라우저는 사용자 경험을 해치는 소리 있는 자동 재생을 차단하기 때문에, autoplay가 실제로 동작하려면 muted를 함께 지정하는 경우가 많다. controls가 없어도 자바스크립트의 play 메서드 등으로 재생을 제어할 수 있으며, controls와 autoplay는 각각 독립적으로 지정 가능한 속성이다."}
-/>
 
-<Quiz
-  questionNumber={5}
-  question={"div·span과 시맨틱 태그의 차이에 대한 설명으로 옳은 것은?"}
-  options={["div와 span은 그 자체로는 특별한 의미를 담지 않는 범용 컨테이너이고, section이나 article 같은 시맨틱 태그는 담긴 내용의 역할을 드러낸다","div는 인라인 요소이고 span은 블록 요소라는 점이 시맨틱 태그와의 유일한 차이다","시맨틱 태그를 쓰면 브라우저 렌더링 속도가 항상 큰 폭으로 빨라진다","div와 span은 최신 표준에서 사용이 금지된 태그다"]}
-  correctAnswer={1}
-  explanation={"div와 span은 각각 블록·인라인 성격의 범용 컨테이너로 그 자체에는 의미가 없고, CSS나 자바스크립트로 묶어서 다룰 때 주로 쓰인다. 반면 section, article, nav 같은 시맨틱 태그는 담긴 내용이 어떤 역할을 하는지 태그 이름 자체로 드러낸다. div는 블록, span은 인라인 요소로 오히려 설명이 반대이며, 시맨틱 태그가 항상 렌더링 속도를 크게 높이는 것은 아니고, div·span은 지금도 표준에서 널리 쓰이는 유효한 태그다."}
-/>
 
-<Quiz
-  questionNumber={6}
-  question={"위 두 규칙에서 자손 결합자(공백)와 자식 결합자(부등호)의 차이로 옳은 것은?"}
-  options={["자손 결합자는 몇 단계든 하위에 있는 모든 li를 선택하지만, 자식 결합자는 바로 한 단계 아래의 li만 선택한다","자식 결합자는 자손 결합자보다 항상 더 넓은 범위의 요소를 선택한다","자손 결합자와 자식 결합자는 이 예제에서 항상 동일한 요소 집합을 선택한다","부등호 기호는 형제 요소를 선택할 때 사용하는 결합자다"]}
-  correctAnswer={1}
-  explanation={"자손 결합자(공백)는 중첩 단계와 관계없이 조상 요소 아래에 있는 모든 후손 요소를 선택하므로, 예제의 바깥 li와 안쪽 ul 안의 li가 모두 대상이 된다. 자식 결합자(부등호)는 바로 한 단계 아래에 있는 요소만 선택하므로, class 값이 list인 ul의 직계 자식인 바깥쪽 li만 대상이 되고 그 안의 li는 대상에서 제외된다."}
-/>
 
-<Quiz
-  questionNumber={7}
-  question={"CSS 속성 상속에 대한 설명으로 옳은 것은?"}
-  options={["color, font-family처럼 글자와 관련된 속성은 기본적으로 자식 요소에 상속되는 경우가 많다","border, padding, margin 같은 박스 모델 관련 속성은 기본적으로 자식 요소에 상속된다","모든 CSS 속성은 예외 없이 하위 요소에 상속된다","상속은 자바스크립트로만 제어할 수 있고 CSS 자체에는 상속 개념이 없다"]}
-  correctAnswer={1}
-  explanation={"color, font-family, font-size, line-height처럼 텍스트와 직접 관련된 속성은 기본적으로 상속되도록 설계되어 있어 부모에만 지정해도 자식 요소 글자에 그대로 반영된다. 반면 border, padding, margin, background 같은 박스 모델·배경 관련 속성은 요소마다 다르게 적용되어야 하는 경우가 많아 기본적으로 상속되지 않는다. CSS는 언어 자체에 상속 개념이 내장되어 있다."}
-/>
 
-<Quiz
-  questionNumber={8}
-  question={"일반적인 상황에서 CSS 우선순위가 높은 것부터 순서대로 옳게 나열한 것은?"}
-  options={["important가 붙은 선언, 인라인 style 속성, 아이디 선택자, 클래스 선택자","클래스 선택자, 아이디 선택자, 인라인 style 속성, important가 붙은 선언","아이디 선택자, important가 붙은 선언, 인라인 style 속성, 클래스 선택자","인라인 style 속성, important가 붙은 선언, 아이디 선택자, 클래스 선택자"]}
-  correctAnswer={1}
-  explanation={"important가 붙은 선언은 일반적인 우선순위 계산을 무시하고 가장 먼저 적용되도록 설계된 예외적인 지정 방식이다. 그다음은 요소에 직접 지정한 인라인 style 속성이 우선하고, 그 아래로 명시도가 높은 아이디 선택자, 클래스 선택자 순으로 이어진다."}
-/>
 
-<Quiz
-  questionNumber={9}
-  question={"버튼(inner)을 클릭했을 때 콘솔에 출력되는 순서로 옳은 것은?"}
-  options={["inner 처리, 그다음 outer 처리","outer 처리, 그다음 inner 처리","inner 처리만 출력되고 outer 처리는 출력되지 않는다","outer 처리만 출력되고 inner 처리는 출력되지 않는다"]}
-  correctAnswer={1}
-  explanation={"클릭 이벤트는 실제로 클릭된 대상인 inner 버튼에서 가장 먼저 발생해 그 리스너를 실행하고, 이벤트 버블링에 의해 위쪽 조상인 outer div로 전파되어 그곳의 리스너도 실행된다. 따라서 inner 처리가 먼저, outer 처리가 나중에 출력된다."}
-/>
 
-<Quiz
-  questionNumber={10}
-  question={"위 코드를 실행했을 때 두 메서드 호출 결과로 옳은 것은?"}
-  options={["지민, 그다음 undefined","지민, 그다음 지민","undefined, 그다음 지민","undefined, 그다음 undefined"]}
-  correctAnswer={1}
-  explanation={"sayName은 일반 함수이므로 person.sayName() 형태로 호출할 때 this가 person 객체로 결정되어 this.name은 지민이 된다. sayNameArrow는 화살표 함수이므로 객체 리터럴이 정의된 바깥 스코프의 this를 그대로 물려받는데, 이 예제에서 바깥 스코프의 this는 person을 가리키지 않으므로 this.name은 지민이 아니라 undefined가 된다."}
-/>
 
-<Quiz
-  questionNumber={11}
-  question={"위 코드 실행 후 passed의 값으로 옳은 것은?"}
-  options={["[82, 90, 68]","[55, 82, 90, 47, 68]","[55, 47]","[]"]}
-  correctAnswer={1}
-  explanation={"filter는 콜백이 참을 반환하는 요소만 골라 담는다. 55는 60 미만이라 제외, 82와 90은 60 이상이라 포함, 47은 60 미만이라 제외, 68은 60 이상이라 포함된다. 따라서 결과는 82, 90, 68이 순서대로 담긴 배열이다."}
-/>
 
-<Quiz
-  questionNumber={12}
-  question={"위 코드 실행 후 message의 값으로 옳은 것은?"}
-  options={["성인","미성년자","undefined","true"]}
-  correctAnswer={2}
-  explanation={"age는 17이고 조건은 19 이상인지를 검사하므로 age가 19 이상인지 비교하는 조건식은 거짓이 된다. 삼항 연산자는 조건이 거짓이면 콜론 뒤의 값을 결과로 만들므로 message에는 미성년자가 대입된다."}
-/>
 
-<Quiz
-  questionNumber={13}
-  question={"이벤트 객체의 preventDefault 메서드와 stopPropagation 메서드에 대한 설명으로 옳은 것은?"}
-  options={["preventDefault는 이벤트에 연결된 브라우저의 기본 동작(링크 이동, 폼 제출 등)을 막고, stopPropagation은 이벤트가 상위 요소로 전파되는 것을 막는다","preventDefault와 stopPropagation은 완전히 같은 동작을 하는 메서드로 이름만 다르다","stopPropagation을 호출하면 브라우저의 기본 동작(폼 제출 등)까지 함께 막힌다","preventDefault는 이벤트 리스너 자체를 영구히 제거하는 메서드다"]}
-  correctAnswer={1}
-  explanation={"preventDefault는 폼 제출이나 링크 이동처럼 브라우저가 원래 그 이벤트에 대해 수행하려는 기본 동작을 막는 역할을 하고, stopPropagation은 이벤트가 버블링(또는 캡처링)을 통해 다른 요소로 전파되는 것을 막는 역할을 한다. 두 메서드는 서로 다른 대상을 제어하는 별개의 기능이며, stopPropagation을 호출해도 preventDefault를 별도로 호출하지 않으면 기본 동작은 그대로 일어난다."}
-/>
 
-<Quiz
-  questionNumber={14}
-  question={"위 코드를 실행한 결과로 옳은 것은?"}
-  options={["id 값이 list인 ul 요소 안에 텍스트가 새 항목인 li 요소가 자식으로 추가된다","createElement만으로 이미 화면에 새 항목이 표시되며 appendChild는 불필요하다","appendChild를 호출하면 기존에 있던 자식 요소가 모두 삭제된 뒤 새 요소만 남는다","textContent에 값을 대입하면 그 값 안의 HTML 태그까지 해석되어 렌더링된다"]}
-  correctAnswer={1}
-  explanation={"createElement로 만든 li 요소는 문서에 아직 연결되지 않은 상태이므로, appendChild를 호출해야 비로소 ul의 자식으로 붙어 화면에 나타난다. appendChild는 기존 자식들을 지우지 않고 맨 뒤에 새 자식을 추가하며, textContent는 HTML 태그를 해석하지 않고 순수한 문자 그대로 표시한다."}
-/>
 
-<Quiz
-  questionNumber={15}
-  question={"위 코드에서 로그인 버튼을 클릭했을 때 일어나는 일로 옳은 것은?"}
-  options={["e.preventDefault 호출로 폼의 기본 제출 동작(페이지 이동)이 취소되고, 콘솔에는 정해진 문구만 출력된다","e.preventDefault를 호출해도 폼은 원래대로 서버에 제출되고 페이지가 새로 고쳐진다","submit 이벤트는 버튼을 클릭했을 때가 아니라 페이지를 처음 열었을 때만 발생한다","addEventListener로 등록한 함수는 폼 제출과 무관하게 절대 실행되지 않는다"]}
-  correctAnswer={1}
-  explanation={"submit 타입의 버튼을 클릭하면 폼에서 submit 이벤트가 발생하고, 등록된 리스너 함수가 실행되어 콘솔에 문구를 출력한 뒤 e.preventDefault가 호출되어 원래 일어났을 서버 제출·페이지 이동이 취소된다. 즉 화면은 그대로 남고 콘솔 로그만 남는다."}
-/>
 
-<Quiz
-  questionNumber={16}
-  question={"위 XML 문서 구조에 대한 설명으로 옳은 것은?"}
-  options={["메뉴 요소가 루트 요소이고, 음식 요소 2개가 그 자식 요소이며, 종류는 음식 요소의 속성이다","종류는 별도의 자식 요소이고 음식은 메뉴 요소의 속성이다","이 문서는 루트 요소가 두 개이므로 잘 정형화되지 않은 문서다","XML에서는 속성을 사용할 수 없으므로 종류=커피 표기는 오류다"]}
-  correctAnswer={1}
-  explanation={"이 문서에서 가장 바깥의 메뉴 요소가 루트 요소이고, 그 안에 자식 요소로 음식 요소 2개가 들어 있다. 각 음식 요소의 여는 태그 안에 적힌 종류는 별도의 자식 요소가 아니라 그 요소에 딸린 속성이며, 값으로 커피나 음료 같은 문자열을 가진다."}
-/>
 
-<Quiz
-  questionNumber={17}
-  question={"위 코드를 실행했을 때 콘솔 출력 순서로 옳은 것은?"}
-  options={["요청을 보냈습니다, 그다음 서버 응답이 도착한 뒤 사용자 이름","사용자 이름, 그다음 요청을 보냈습니다","두 로그가 항상 동시에 한 줄로 합쳐져 출력된다","fetch 호출 자체가 즉시 완료되므로 사용자 이름이 먼저 출력된다"]}
-  correctAnswer={1}
-  explanation={"fetch는 네트워크 요청이 끝날 때까지 코드 실행을 멈추지 않는 비동기 함수다. fetch를 호출한 직후 곧바로 다음 줄인 console.log(요청을 보냈습니다)가 먼저 실행되고, 서버 응답이 도착해 then에 연결된 콜백들이 차례로 실행된 뒤에야 사용자 이름이 출력된다."}
-/>
 
-<Quiz
-  questionNumber={18}
-  question={"JSON과 XML을 비교한 설명으로 옳지 않은 것은?"}
-  options={["JSON은 중괄호와 대괄호를 사용해 객체와 배열을 표현하고, XML은 태그로 데이터를 감싼다","일반적으로 같은 데이터를 표현할 때 XML은 태그를 여닫는 구조 때문에 JSON보다 표기가 더 길어지는 경우가 많다","JSON은 자바스크립트의 객체 리터럴과 문법이 비슷해 자바스크립트에서 다루기 편리하다","XML은 데이터 교환 형식으로 쓰인 적이 없으며 오직 문서 마크업에만 쓰인다"]}
-  correctAnswer={4}
-  explanation={"XML은 원래 문서 마크업뿐 아니라 서로 다른 시스템 사이의 데이터 교환 형식으로도 널리 쓰여 왔다(설정 파일, 웹 서비스 응답 등). 따라서 데이터 교환 형식으로 쓰인 적이 없다는 설명은 사실과 다르다. 나머지 세 설명은 JSON과 XML의 실제 문법적·실용적 차이를 옳게 설명하고 있다."}
-/>
 
-<Quiz
-  questionNumber={19}
-  question={"위 코드에서 마지막 줄의 콘솔 출력이 대부분 undefined가 되는 이유로 옳은 것은?"}
-  options={["fetch로 시작한 통신은 비동기로 처리되어, 응답이 도착해 userName에 값이 대입되기 전에 마지막 줄이 먼저 실행되기 때문이다","fetch 함수 자체가 존재하지 않는 함수라서 실행 시 오류가 발생하기 때문이다","userName 변수를 const로 선언하지 않아서 값이 아예 저장되지 않기 때문이다","then 메서드에 전달한 콜백 함수는 어떤 상황에서도 절대 실행되지 않기 때문이다"]}
-  correctAnswer={1}
-  explanation={"fetch 요청과 그 뒤에 연결된 then 콜백들은 서버 응답이 도착한 뒤에야 실행되는 비동기 작업이다. 마지막 줄의 console.log(userName)은 그 응답을 기다리지 않고 곧바로 실행되기 때문에, 이 시점에는 아직 userName에 값이 대입되지 않아 초기값인 undefined가 출력된다."}
-/>
 
-<Quiz
-  questionNumber={20}
-  question={"위 코드에서 tabindex 속성 값 0에 대한 설명으로 옳은 것은?"}
-  options={["원래 키보드로 포커스를 받을 수 없는 div 요소를 문서의 자연스러운 탭 순서에 포함시켜 키보드로 포커스할 수 있게 만든다","tabindex 값 0은 그 요소를 문서에서 가장 먼저 포커스되도록 순서를 강제로 앞당긴다","tabindex 속성은 마우스 클릭 동작에만 영향을 주고 키보드 동작과는 무관하다","div 요소는 tabindex를 지정해도 절대 키보드 포커스를 받을 수 없다"]}
-  correctAnswer={1}
-  explanation={"div는 button이나 input과 달리 원래 키보드 포커스를 받지 못하는 요소다. tabindex 속성 값을 0으로 지정하면 문서의 자연스러운 탭 이동 순서 안에 그 요소를 포함시켜, 다른 포커스 가능한 요소와 마찬가지로 탭 키로 이동해 포커스를 받을 수 있게 만든다. 순서를 강제로 맨 앞으로 당기는 것은 tabindex에 양수 값을 줄 때의 동작이며, 0은 문서 순서를 그대로 따른다."}
-/>
 
-<Quiz
-  questionNumber={21}
-  question={"role 속성과 ARIA에 대한 설명으로 옳은 것은?"}
-  options={["div나 span처럼 의미가 없는 요소에 role 속성을 지정하면 스크린 리더 같은 보조 기술에 그 요소의 역할을 알려줄 수 있다","ARIA 속성을 사용하면 시맨틱 태그를 전혀 쓰지 않아도 접근성 문제가 완전히 사라진다","role 속성은 시각적인 스타일을 변경하는 CSS 전용 속성이다","ARIA는 이벤트 처리 속도를 높이기 위한 성능 최적화 기술이다"]}
-  correctAnswer={1}
-  explanation={"role 속성은 button, dialog, alert처럼 요소가 실제로 어떤 역할을 하는지 스크린 리더 등 보조 기술에 전달하는 데 쓰인다. 다만 ARIA는 시맨틱 태그를 대체하는 만능 해결책이 아니라 보완 수단이며, 가능하면 원래 의미를 가진 시맨틱 태그를 먼저 쓰는 것이 권장된다. role은 스타일과 무관한 접근성용 속성이고, ARIA는 성능 최적화가 아니라 보조 기술과의 정보 전달을 위한 명세다."}
-/>
 
-<Quiz
-  questionNumber={22}
-  question={"table 요소를 데이터 표가 아니라 페이지 레이아웃 용도로 사용하는 것의 문제점으로 옳은 것은?"}
-  options={["스크린 리더가 표의 행과 열 관계를 안내하려 하면서 실제로는 의미 없는 레이아웃 정보를 읽어 주어 접근성을 해친다","table로 레이아웃을 잡아도 웹 표준 위반으로 간주되지 않으므로 아무 문제가 없다","table 요소는 최신 브라우저에서 아예 렌더링되지 않는다","table로 만든 레이아웃은 자동으로 반응형이 되어 오히려 접근성이 향상된다"]}
-  correctAnswer={1}
-  explanation={"스크린 리더는 table을 만나면 행과 열 관계, 헤더 셀 정보를 사용자에게 안내하려고 시도한다. 그런데 그 table이 실제로는 데이터가 아니라 레이아웃을 짜기 위한 것이라면, 사용자는 의미 없는 행·열 안내를 들으며 오히려 혼란을 겪게 되어 접근성이 나빠진다. 이는 웹 표준이 지향하는 의미와 표현의 분리 원칙에도 어긋나며, table 레이아웃이 자동으로 반응형이 되지도 않는다."}
-/>
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 ## 참고 자료
 

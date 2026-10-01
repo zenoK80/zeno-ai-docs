@@ -33,173 +33,47 @@ description: 'TCP와 UDP의 구조, 흐름·혼잡 제어 계산, 라우팅 알�
   explanation={"포트 번호는 같은 IP 주소를 가진 한 호스트 안에서 여러 응용 프로세스(예: 웹 브라우저, 메일 클라이언트)를 구분해 세그먼트를 올바른 프로세스로 전달하는 다중화·역다중화 기준이 된다."}
 />
 
-<Quiz
-  questionNumber={4}
-  question={"TCP 연결을 설정하는 3-way handshake의 순서로 옳은 것은?"}
-  options={["SYN → SYN+ACK → ACK","SYN → ACK → SYN+ACK","ACK → SYN → SYN+ACK","SYN+ACK → SYN → ACK"]}
-  correctAnswer={1}
-  explanation={"클라이언트가 SYN을 보내 연결을 요청하면, 서버는 SYN+ACK로 요청을 수락하며 자신도 연결을 요청하고, 클라이언트가 마지막으로 ACK를 보내 연결이 확립된다."}
-/>
 
-<Quiz
-  questionNumber={5}
-  question={"TCP 연결을 종료하는 4-way handshake의 순서로 옳은 것은?"}
-  options={["FIN → ACK → FIN → ACK","ACK → FIN → ACK → FIN","FIN → FIN → ACK → ACK","SYN → FIN → ACK → ACK"]}
-  correctAnswer={1}
-  explanation={"연결 종료를 원하는 쪽이 FIN을 보내면 상대는 ACK로 확인하고, 상대도 자신의 전송이 끝나면 FIN을 보내며, 처음 종료를 요청한 쪽이 마지막 ACK를 보내 연결이 완전히 끊어진다."}
-/>
 
-<Quiz
-  questionNumber={6}
-  question={"TCP 세그먼트의 순서 번호(sequence number)가 1000이고 페이로드 데이터가 500바이트일 때, 수신측이 다음 세그먼트에 대해 기대하는 확인 응답 번호(ACK number)는?"}
-  options={["1500","1000","1501","2000"]}
-  correctAnswer={1}
-  explanation={"TCP의 ACK 번호는 수신측이 다음에 받기를 기대하는 바이트의 순서 번호다. 이번 세그먼트가 1000번부터 500바이트를 실었으므로 마지막 바이트는 1499번이고, 다음에 받을 바이트는 1500번이다. 따라서 ACK 번호는 1500이다."}
-/>
 
-<Quiz
-  questionNumber={7}
-  question={"TCP의 흐름 제어(flow control)와 혼잡 제어(congestion control)에 대한 설명 중 옳지 않은 것은?"}
-  options={["흐름 제어는 수신측 버퍼의 여유에 맞춰 송신측의 전송량을 조절한다","혼잡 제어는 네트워크 경로상의 혼잡 상태에 맞춰 송신측의 전송량을 조절한다","흐름 제어와 혼잡 제어는 동일한 개념으로 항상 같은 윈도우 값을 사용한다","실제로 송신 가능한 데이터 양은 수신 윈도우와 혼잡 윈도우 중 더 작은 값으로 제한된다"]}
-  correctAnswer={3}
-  explanation={"흐름 제어는 수신 윈도우(rwnd)로 수신측의 버퍼 여유를, 혼잡 제어는 혼잡 윈도우(cwnd)로 네트워크 경로의 혼잡 상태를 반영한다. 두 값은 서로 다른 요인에서 계산되는 별개의 값이며, 실제 송신 가능량은 이 둘 중 더 작은 값으로 제한된다. 따라서 두 개념이 동일하다는 설명은 옳지 않다."}
-/>
 
-<Quiz
-  questionNumber={8}
-  question={"TCP 슬로우 스타트(slow start)에서 초기 혼잡 윈도우(cwnd)가 1 MSS이고 손실 없이 매 왕복 시간(RTT)마다 혼잡 윈도우가 두 배로 늘어난다고 할 때, 3번째 왕복 시간이 끝난 뒤의 혼잡 윈도우 크기는?"}
-  options={["8 MSS","6 MSS","4 MSS","3 MSS"]}
-  correctAnswer={1}
-  explanation={"슬로우 스타트에서는 확인 응답을 받을 때마다 혼잡 윈도우가 지수적으로 늘어난다. 시작값 1 MSS에서 첫 번째 RTT 후 2 MSS, 두 번째 RTT 후 4 MSS, 세 번째 RTT 후 8 MSS가 된다."}
-/>
 
-<Quiz
-  questionNumber={9}
-  question={"혼잡 윈도우(cwnd)가 16 MSS인 상태에서 재전송 타이머 만료(timeout)로 세그먼트 손실이 감지되었다. 전통적인 TCP Reno 방식에서 새로 설정되는 ssthresh와 cwnd 값으로 옳은 것은?"}
-  options={["ssthresh=8 MSS, cwnd=1 MSS","ssthresh=16 MSS, cwnd=8 MSS","ssthresh=8 MSS, cwnd=8 MSS","ssthresh=16 MSS, cwnd=1 MSS"]}
-  correctAnswer={1}
-  explanation={"타임아웃으로 손실이 감지되면 손실 시점의 cwnd 절반을 새로운 ssthresh로 설정하고(16÷2=8), 혼잡 윈도우는 슬로우 스타트를 처음부터 다시 시작하도록 1 MSS로 초기화한다."}
-/>
 
-<Quiz
-  questionNumber={10}
-  question={"TCP의 빠른 재전송(fast retransmit)이 일어나는 조건으로 옳은 것은?"}
-  options={["같은 순서 번호를 요구하는 중복 ACK를 3개 수신했을 때","수신 윈도우 크기가 0이 되었을 때","재전송 타이머가 만료되었을 때","혼잡 윈도우가 최댓값에 도달했을 때"]}
-  correctAnswer={1}
-  explanation={"송신측이 동일한 ACK 번호를 요구하는 중복 ACK를 3개(총 4번째 동일 ACK) 수신하면, 타이머 만료를 기다리지 않고 즉시 해당 세그먼트를 재전송하는 빠른 재전송을 수행한다."}
-/>
 
-<Quiz
-  questionNumber={11}
-  question={"AIMD(Additive Increase Multiplicative Decrease)에 대한 설명으로 옳은 것은?"}
-  options={["혼잡을 감지하지 못하면 매 왕복 시간마다 혼잡 윈도우를 조금씩 더하고, 혼잡을 감지하면 혼잡 윈도우를 절반으로 줄인다","혼잡을 감지하지 못하면 혼잡 윈도우를 두 배로 늘리고, 감지하면 1씩 줄인다","혼잡 윈도우는 항상 일정하게 유지되며 손실이 발생해도 변하지 않는다","혼잡을 감지하면 혼잡 윈도우를 두 배로 늘려 빠르게 회복한다"]}
-  correctAnswer={1}
-  explanation={"AIMD는 혼잡 회피 국면에서 손실이 없으면 매 RTT마다 혼잡 윈도우를 1 MSS씩 더하는 가산 증가(additive increase)를 하고, 혼잡이 감지되면 혼잡 윈도우를 절반으로 줄이는 승법 감소(multiplicative decrease)를 적용하는 원리다."}
-/>
 
-<Quiz
-  questionNumber={12}
-  question={"대역폭 10Mbps인 회선으로 크기 5MB인 파일을 전송할 때 걸리는 전송 시간(transmission time)은? (1MB=8Mb로 환산)"}
-  options={["4초","0.5초","40초","400초"]}
-  correctAnswer={1}
-  explanation={"5MB를 비트로 환산하면 5×8=40Mb다. 전송 시간은 데이터 크기를 대역폭으로 나눈 값이므로 40Mb÷10Mbps=4초가 된다."}
-/>
 
-<Quiz
-  questionNumber={13}
-  question={"대역폭 1Mbps인 링크로 크기 1,000,000비트(1Mb)인 패킷을 전송한다. 전파 지연(propagation delay)이 20ms일 때, 전송이 시작되어 수신측에 마지막 비트가 도착하기까지 걸리는 총 지연 시간은?"}
-  options={["1.02초","1초","0.02초","1.2초"]}
-  correctAnswer={1}
-  explanation={"전송 시간은 1Mb÷1Mbps=1초이고, 여기에 전파 지연 20ms(0.02초)를 더해야 한다. 총 지연 시간은 1초+0.02초=1.02초다."}
-/>
 
-<Quiz
-  questionNumber={14}
-  question={"정적 라우팅(static routing)과 동적 라우팅(dynamic routing)에 대한 설명 중 옳지 않은 것은?"}
-  options={["정적 라우팅은 관리자가 직접 경로를 설정하며 네트워크 변화에 자동으로 대응하지 못한다","동적 라우팅은 라우팅 프로토콜로 경로 정보를 주고받으며 네트워크 변화에 스스로 대응한다","정적 라우팅은 대규모이고 자주 변하는 네트워크에서 동적 라우팅보다 관리 부담이 적다","동적 라우팅은 라우팅 프로토콜 연산 때문에 정적 라우팅보다 라우터의 자원을 더 사용한다"]}
-  correctAnswer={3}
-  explanation={"정적 라우팅은 경로마다 관리자가 직접 설정하고 갱신해야 하므로, 네트워크가 크고 변화가 잦을수록 오히려 관리 부담이 커진다. 이런 환경에서는 동적 라우팅이 관리 부담을 줄여주므로, 정적 라우팅이 관리 부담이 적다는 설명은 옳지 않다."}
-/>
 
-<Quiz
-  questionNumber={15}
-  question={"거리 벡터(distance vector) 방식과 링크 상태(link state) 방식을 비교한 설명 중 옳지 않은 것은?"}
-  options={["거리 벡터 방식은 이웃 라우터에게만 자신의 라우팅 테이블 전체를 주기적으로 전달한다","링크 상태 방식은 각 라우터가 네트워크 전체의 링크 정보를 수집해 최단 경로를 스스로 계산한다","거리 벡터 방식은 링크 상태 방식보다 수렴 속도가 빠르고 라우팅 루프가 발생하지 않는다","링크 상태 방식의 대표 예로 OSPF가 있고, 거리 벡터 방식의 대표 예로 RIP가 있다"]}
-  correctAnswer={3}
-  explanation={"거리 벡터 방식(RIP 등)은 이웃하고만 정보를 교환하기 때문에 네트워크 전체 상태를 반영하는 데 시간이 걸려 수렴이 느리고, 카운트-투-인피니티 같은 라우팅 루프 문제가 발생할 수 있다. 반면 링크 상태 방식(OSPF 등)은 전체 위상을 파악해 계산하므로 수렴이 더 빠르다. 따라서 거리 벡터가 더 빠르고 루프가 없다는 설명은 옳지 않다."}
-/>
 
-<Quiz
-  questionNumber={16}
-  question={"라우터 A, B, C, D로 이루어진 네트워크에서 링크 비용이 A-B=2, A-C=5, B-C=1, B-D=7, C-D=3일 때, 다익스트라(Dijkstra) 알고리즘으로 구한 A에서 D까지의 최단 경로 비용은?"}
-  options={["6 (A-B-C-D 경로)","9 (A-B-D 경로)","8 (A-C-D 경로)","10 (A-B-C 경로 이후 C-D 대신 B-D 값을 더한 값)"]}
-  correctAnswer={1}
-  explanation={"가능한 경로를 모두 비교하면 A-B-D는 2+7=9, A-C-D는 5+3=8, A-B-C-D는 2+1+3=6이다. 세 값 중 가장 작은 6이 A에서 D까지의 최단 경로 비용이며, 경로는 A-B-C-D다."}
-/>
 
-<Quiz
-  questionNumber={17}
-  question={"RIP(Routing Information Protocol)에서 목적지에 도달할 수 없음(infinite)을 나타내는 홉(hop) 수는?"}
-  options={["16","15","24","32"]}
-  correctAnswer={1}
-  explanation={"RIP은 최대 유효 홉 수를 15로 제한하며, 홉 수가 16이 되면 도달 불가능한 목적지로 간주해 무한대로 처리한다."}
-/>
 
-<Quiz
-  questionNumber={18}
-  question={"DNS(Domain Name System)의 일반적인 이름 질의(query)에 기본적으로 사용하는 전송 계층 프로토콜과 포트 번호로 옳은 것은?"}
-  options={["UDP 53번","TCP 80번","UDP 67번","TCP 53번"]}
-  correctAnswer={1}
-  explanation={"DNS는 일반적인 질의·응답에 UDP 53번 포트를 사용해 빠르게 응답을 주고받는다. 응답 크기가 커서 잘림(truncation)이 발생하거나 영역 전송(zone transfer)이 필요할 때만 TCP 53번을 사용한다."}
-/>
 
-<Quiz
-  questionNumber={19}
-  question={"HTTP와 HTTPS의 기본 포트 번호를 바르게 짝지은 것은?"}
-  options={["HTTP-80, HTTPS-443","HTTP-8080, HTTPS-8443","HTTP-443, HTTPS-80","HTTP-21, HTTPS-22"]}
-  correctAnswer={1}
-  explanation={"HTTP는 기본적으로 80번 포트를, TLS로 암호화된 HTTPS는 기본적으로 443번 포트를 사용한다."}
-/>
 
-<Quiz
-  questionNumber={20}
-  question={"SMTP, POP3, IMAP의 기본 포트 번호를 바르게 짝지은 것은?"}
-  options={["SMTP-25, POP3-110, IMAP-143","SMTP-110, POP3-25, IMAP-143","SMTP-25, POP3-143, IMAP-110","SMTP-53, POP3-110, IMAP-143"]}
-  correctAnswer={1}
-  explanation={"메일 발송을 담당하는 SMTP는 25번, 메일을 내려받는 POP3는 110번, 서버에 메일을 유지하며 열람하는 IMAP은 143번 포트를 기본으로 사용한다."}
-/>
 
-<Quiz
-  questionNumber={21}
-  question={"FTP(File Transfer Protocol)가 사용하는 제어 연결과 데이터 연결의 기본 포트 번호로 옳은 것은?"}
-  options={["제어-21, 데이터-20","제어-20, 데이터-21","제어-21, 데이터-80","제어-23, 데이터-21"]}
-  correctAnswer={1}
-  explanation={"FTP는 명령을 주고받는 제어 연결에 21번 포트를, 실제 파일 데이터를 전송하는 데이터 연결에 20번 포트를 기본으로 사용하는 이중 연결 구조를 가진다."}
-/>
 
-<Quiz
-  questionNumber={22}
-  question={"DHCP를 통해 클라이언트가 IP 주소를 할당받는 과정(DORA)의 올바른 순서는?"}
-  options={["DISCOVER → OFFER → REQUEST → ACK","OFFER → DISCOVER → ACK → REQUEST","DISCOVER → REQUEST → OFFER → ACK","REQUEST → DISCOVER → OFFER → ACK"]}
-  correctAnswer={1}
-  explanation={"클라이언트가 DHCP 서버를 찾는 DISCOVER를 브로드캐스트하면 서버가 사용 가능한 주소를 제안하는 OFFER로 응답하고, 클라이언트가 그 주소를 쓰겠다는 REQUEST를 보내면 서버가 최종 확인인 ACK를 보내 할당이 완료된다."}
-/>
 
-<Quiz
-  questionNumber={23}
-  question={"POP3와 IMAP의 차이에 대한 설명 중 옳지 않은 것은?"}
-  options={["POP3는 기본적으로 메일을 클라이언트로 내려받은 뒤 서버에서 삭제하는 방식으로 동작한다","IMAP은 메일을 서버에 유지한 채 여러 기기에서 동기화하여 열람할 수 있다","POP3는 여러 기기에서 메일함 상태를 실시간으로 동기화하는 데 IMAP보다 유리하다","IMAP은 서버에 메일을 보관하므로 여러 클라이언트 간 읽음 상태 등을 공유하기에 적합하다"]}
-  correctAnswer={3}
-  explanation={"POP3는 메일을 로컬로 내려받고 서버에서는 삭제하는 방식이 기본이라 여러 기기 간 동기화에 취약하다. 반대로 IMAP은 서버에 메일 상태를 유지하며 여러 기기가 같은 상태를 공유하므로 동기화에는 IMAP이 더 유리하다. 이를 반대로 서술했으므로 옳지 않다."}
-/>
 
-<Quiz
-  questionNumber={24}
-  question={"TCP 혼잡 제어의 국면을 순서대로 옳게 나열한 것은? (손실 발생 후 회복까지 포함)"}
-  options={["느린 시작(slow start) → 혼잡 회피(congestion avoidance) → 빠른 회복(fast recovery)","혼잡 회피 → 느린 시작 → 빠른 회복","빠른 회복 → 느린 시작 → 혼잡 회피","느린 시작 → 빠른 회복 → 혼잡 회피"]}
-  correctAnswer={1}
-  explanation={"연결 초기에는 느린 시작으로 혼잡 윈도우를 지수적으로 늘리다가 ssthresh에 도달하면 혼잡 회피 국면으로 전환해 선형적으로 늘린다. 이후 중복 ACK로 손실이 감지되면 빠른 회복 국면으로 들어가 완전히 처음부터 다시 시작하지 않고 회복한다."}
-/>
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 ## 참고 자료
 

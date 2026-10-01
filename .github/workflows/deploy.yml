@@ -28,10 +28,10 @@ jobs:
 
       - name: Add swap space for the MDX build
         run: |
-          sudo fallocate -l 8G /swapfile
-          sudo chmod 600 /swapfile
-          sudo mkswap /swapfile
-          sudo swapon /swapfile
+          sudo fallocate -l 8G /swapfile-zeno
+          sudo chmod 600 /swapfile-zeno
+          sudo mkswap /swapfile-zeno
+          sudo swapon /swapfile-zeno
           free -h
 
       - run: npm ci

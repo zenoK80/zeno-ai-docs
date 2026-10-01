@@ -1,7 +1,7 @@
 {
-  "generatedAt": "2026-10-01T13:13:00.061Z",
+  "generatedAt": "2026-10-01T15:11:31.957Z",
   "groupCount": 12,
-  "seriesCount": 54,
+  "seriesCount": 53,
   "groups": [
     {
       "title": "Web · HTML",
@@ -388,7 +388,7 @@
     },
     {
       "title": "자격증",
-      "description": "10개 시리즈 · 문서 271편",
+      "description": "9개 시리즈 · 문서 243편",
       "order": "10",
       "series": [
         {
@@ -448,20 +448,12 @@
           "accent": "amber"
         },
         {
-          "title": "적성검사 공통 (NCS·인적성)",
-          "description": "명제를 ∧·∨·¬·→ 기호로 바꿔 읽고, 집합과 벤다이어그램을 손으로 직접 그리며, 모든·어떤·어떤 ~도 아닌 표현을 집합 관계로 정확히 해석하는 법을 익힌다",
-          "href": "/자격증/적성검사_공통/01_logic-symbols-and-venn-basics",
-          "documentCount": 28,
-          "preview": "code",
-          "accent": "red"
-        },
-        {
           "title": "정보보안기사 필기",
           "description": "자산·위협·취약점·위험 관계와 CIA 목표를 CVE·CVSS·실제 침해사고 로그로 재확인하고, 필기 5과목이 이 지도의 어디를 맡는지 정리한다",
           "href": "/자격증/정보보안기사_필기/01_infosec-domain-map",
           "documentCount": 35,
           "preview": "code",
-          "accent": "blue"
+          "accent": "red"
         },
         {
           "title": "정보통신기사 필기",
@@ -469,7 +461,7 @@
           "href": "/자격증/정보통신기사_필기/01_transmission-math-basics",
           "documentCount": 32,
           "preview": "code",
-          "accent": "green"
+          "accent": "blue"
         }
       ]
     },
@@ -484,7 +476,7 @@
           "href": "/기타/피아노/재즈피아노_기초/01_keyboard-map-and-fingering",
           "documentCount": 21,
           "preview": "code",
-          "accent": "amber"
+          "accent": "green"
         },
         {
           "title": "재즈피아노 중급",
@@ -492,7 +484,7 @@
           "href": "/기타/피아노/재즈피아노_중급/01_reading-tension-and-extended-chord-symbols",
           "documentCount": 23,
           "preview": "code",
-          "accent": "red"
+          "accent": "amber"
         },
         {
           "title": "재즈피아노 고급",
@@ -500,7 +492,7 @@
           "href": "/기타/피아노/재즈피아노_고급/01_reading-chord-scale-notation",
           "documentCount": 26,
           "preview": "code",
-          "accent": "blue"
+          "accent": "red"
         }
       ]
     },
@@ -515,7 +507,7 @@
           "href": "/기타/aws/amplify_caching/01_amplify-hosting-architecture-and-caching-map",
           "documentCount": 16,
           "preview": "code",
-          "accent": "green"
+          "accent": "blue"
         }
       ]
     }

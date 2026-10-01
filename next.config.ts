@@ -11,6 +11,8 @@ const nextConfig: NextConfig = {
     cpus: 1,
     parallelServerBuildTraces: false,
     parallelServerCompiles: false,
+    turbopackPersistentCaching: false,
+    turbopackSourceMaps: false,
     webpackBuildWorker: true,
     webpackMemoryOptimizations: true,
   },

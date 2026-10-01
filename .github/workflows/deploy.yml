@@ -26,13 +26,17 @@ jobs:
           node-version: 22
           cache: npm
 
+      - name: Configure GitHub Pages
+        uses: actions/configure-pages@v5
+
       - name: Add swap space for the MDX build
         run: |
-          sudo fallocate -l 8G /swapfile-zeno
+          sudo fallocate -l 2G /swapfile-zeno
           sudo chmod 600 /swapfile-zeno
           sudo mkswap /swapfile-zeno
           sudo swapon /swapfile-zeno
           free -h
+          df -h /
 
       - run: npm ci
 
@@ -41,6 +45,14 @@ jobs:
       - run: npm run build
         env:
           NODE_OPTIONS: --max-old-space-size=6144
+
+      # Pages에는 out만 필요하다. 빌드 중간물과 스왑을 먼저 치워 아티팩트 압축 공간을 확보한다.
+      - name: Reclaim build space
+        run: |
+          rm -rf .next
+          sudo swapoff /swapfile-zeno
+          sudo rm -f /swapfile-zeno
+          df -h /
 
       - uses: actions/upload-pages-artifact@v3
         with:
